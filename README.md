@@ -134,11 +134,11 @@ Add to package.json:
 {
   "scripts": {
     "start": "ts-node src/index.ts",
-+   "cli":   "ts-node src/cli.ts"
+    "cli":   "ts-node src/cli.ts"
   },
   "devDependencies": {
     "ts-node": "^10.x",
-+   "commander": "^9.x"
+    "commander": "^9.x"
   }
 }
 ```
