@@ -88,65 +88,47 @@ You should see:
 
 ---
 
-## 🚀 Phase 2: Off-Chain Mock Inference → On-Chain Commit
+## 🚀 Phase 2: Developer UX & Ecosystem Enhancements
 
-### 1. Install Dependencies
+### 2a. Developer-UX Layer
+
+Turn your manual `curl` + `anchor` commands into a one-step, end-to-end workflow:
+
+**Express Service (POST /run)**
+- Mocks AI inference (SHA-256 → 32-byte root)
+- Derives PDA, injects a `ComputeBudgetProgram.requestUnits({ units: 400_000 })` instruction
+- Calls Anchor `commit_epoch`
+- Updates `memory-wallet.json`
+
+**Internal CLI (lucid-cli)**
+
+```bash
+# Run inference → commit → wallet update
+npm run cli run "Hello, Lucid!"
+
+# Show local memory wallet
+npm run cli wallet
+```
+
+**Setup**
+
+Install dependencies & start server:
 
 ```bash
 cd offchain
-npm install
-# or yarn install
+npm install    # or yarn install
+npm start      # or yarn start
 ```
 
-### 2. Start the Off-Chain Service
+Install CLI dev‐deps:
 
 ```bash
-npm start
-# or yarn start
-```
-
-Listens on `http://localhost:3000`.
-
-### 3. Test the Loop
-
-```bash
-curl -X POST http://localhost:3000/run \
-  -H "Content-Type: application/json" \
-  -d '{"text":"Hi Lucid!"}'
-```
-
-**Sample Response:**
-
-```json
-{
-  "success": true,
-  "txSignature": "5G…TxSig",
-  "root": "a3f1…9b7c",
-  "store": {
-    "YourPubkey": "a3f1…9b7c"
-  }
-}
-```
-
-- `root` = SHA-256(text)
-- `txSignature` = on-chain commit
-- `store` = contents of memory-wallet.json
-
----
-
-## ⚡ Internal CLI
-
-We provide a small CLI to streamline development.
-
-### Install CLI deps
-
-```bash
-cd offchain
 npm install commander ts-node --save-dev
-# or yarn add commander ts-node --dev
+# or
+yarn add commander ts-node --dev
 ```
 
-### Hook CLI in package.json
+Add to package.json:
 
 ```diff
 {
@@ -161,32 +143,32 @@ npm install commander ts-node --save-dev
 }
 ```
 
-### Usage
+### 2b. Ecosystem & Testing Enhancements
 
-```bash
-# Run inference → commit → wallet update
-npm run cli run "Hello, Lucid!"
+**Helius / Shyft Webhooks**
+- Push‐notifications for your `thought_epoch` program logs or PDA updates
+- Power off-chain Memory Map indexing or analytics dashboards
+- Script: `npm run indexer` (see `offchain/src/indexer.ts`)
 
-# Show local memory wallet
-npm run cli wallet
-```
+**Rich Local Testing**
+- Solana-Program-Test in Rust for fast, in-process validator tests
+- Triton (JS) for multi-validator, fork-mainnet CI scenarios
+- Add `solana-program-test = "1.17"` and `solana-sdk = "1.17"` under `[dev-dependencies]` in `programs/thought-epoch/Cargo.toml`
 
 ---
 
 ## ⚡ Compute-Budget Injection
 
-Solana's default compute limit is 200k units. We bump this to 400k in both server & CLI:
+Solana's default compute limit is 200k units. We bump it to 400k:
 
 ```ts
 import { ComputeBudgetProgram } from '@solana/web3.js'
 
-// before commitEpoch():
 const computeIx = ComputeBudgetProgram.requestUnits({
   units:         400_000,
   additionalFee: 0
 });
 
-// then:
 program.methods
   .commitEpoch([...root])
   .accounts({...})
@@ -219,6 +201,9 @@ program.methods
 - **`offchain/src/memoryWallet.ts`**  
   JSON store for latest root per user
 
+- **`offchain/src/indexer.ts`**  
+  Helius/Shyft webhook indexer (Phase 2b)
+
 - **`offchain/memory-wallet.json`**  
   Initially:
   
@@ -230,22 +215,22 @@ program.methods
 
 ## 💡 Next Steps
 
-**Phase 3 (UI):** Next.js + Tailwind page calling `/run` or `lucid-cli run`.
+**Phase 3 (UI):** Next.js + Tailwind dashboard calling `/run` or `lucid-cli run`
 
-**Real AI:** Swap `runMockInference` for real model inference.
+**Real AI:** Swap `runMockInference` for real model inference
 
-**Memory Map & Gas:** Implement dual-gas accounting & Thought Epoch batching.
+**Memory Map & Gas:** Implement dual-gas (iGas/mGas) & Thought Epoch batching
 
-**Virtual Humans:** Add sub-100 ms RCS streams & avatar sync.
+**Virtual Humans & RCS:** Add sub-100 ms real-time streams & avatar sync
 
 ---
 
 ## 🤝 Contributing
 
-- Branch from `main`.
-- One feature per PR.
-- Tag `@lead-dev` for review.
-- Keep CI green & tests passing.
+- Branch from `main`
+- One feature per PR
+- Tag `@lead-dev` for review
+- Keep CI green & tests passing
 
 ---
 

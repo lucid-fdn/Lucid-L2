@@ -3,7 +3,8 @@
     "version": "0.1.0",
     "scripts": {
       "start": "ts-node src/index.ts",
-      "cli":   "ts-node src/cli.ts"
+      "cli":   "ts-node src/cli.ts",
+      "indexer": "ts-node src/indexer.ts"
     },
     "dependencies": {
       "@project-serum/anchor": "^0.27.0",
@@ -11,7 +12,8 @@
     },
     "devDependencies": {
       "ts-node": "^10.9.1",
-      "commander": "^9.x"
+      "commander": "^9.x",
+      "typescript": "^4.x"
     }
   }
   
