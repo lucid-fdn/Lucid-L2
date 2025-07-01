@@ -1,0 +1,6 @@
+[provider]
+cluster = "localnet"
+wallet  = "~/.config/solana/id.json"
+
+[programs.localnet]
+thought_epoch = "REPLACE_WITH_YOUR_PROGRAM_ID"
