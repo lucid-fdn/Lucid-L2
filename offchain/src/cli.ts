@@ -8,12 +8,12 @@ import { SystemProgram, ComputeBudgetProgram } from '@solana/web3.js';
 
 const program = new Command()
   .name('lucid-cli')
-  .description('Internal CLI for Lucid L2 Phase 1/2 dev')
+  .description('Internal CLI for Lucid L2 Phase 1/2')
   .version('0.1.0');
 
 program
   .command('run <text>')
-  .description('→ mock-infer, commit Thought Epoch, update wallet')
+  .description('Mock-infer, commit Thought Epoch, update wallet')
   .action(async (text: string) => {
     try {
       console.log(`🔍 Running inference on: "${text}"`);
@@ -25,10 +25,10 @@ program
       const authority  = anchorProg.provider.wallet.publicKey;
       const [pda]      = await deriveEpochPDA(authority, anchorProg.programId);
 
-      // ← request extra compute units
+      // Phase 2a: bump compute budget
       const computeIx = ComputeBudgetProgram.requestUnits({
         units:         400_000,
-        additionalFee: 0
+        additionalFee: 0,
       });
 
       console.log(`⛓ Committing to chain…`);
@@ -39,7 +39,7 @@ program
           authority,
           systemProgram: SystemProgram.programId,
         })
-        .preInstructions([computeIx])    // ← inject here too
+        .preInstructions([computeIx])
         .rpc();
 
       console.log(`✅ Transaction signature: ${sig}`);
@@ -48,7 +48,6 @@ program
       store[authority.toBase58()] = hexRoot;
       await saveStore(store);
       console.log('📦 memory-wallet.json updated.');
-
     } catch (err: any) {
       console.error('❌ Error:', err);
       process.exit(1);
@@ -57,7 +56,7 @@ program
 
 program
   .command('wallet')
-  .description('→ show current memory-wallet.json')
+  .description('Show current memory-wallet.json')
   .action(() => {
     const store = require('../memory-wallet.json');
     console.log('🗄 memory-wallet.json contents:\n', JSON.stringify(store, null, 2));

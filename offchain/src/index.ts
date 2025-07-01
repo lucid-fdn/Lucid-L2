@@ -6,41 +6,43 @@ import { SystemProgram, ComputeBudgetProgram } from '@solana/web3.js';
 
 const app = express();
 app.use(express.json());
+
 const program = initSolana();
 
 app.post('/run', async (req, res) => {
   try {
-    const text    = (req.body.text as string) || 'Hello, Lucid!';
-    const root    = runMockInference(text);
+    const text      = (req.body.text as string) || 'Hello, Lucid!';
+    const rootBytes = runMockInference(text);
     const authority = program.provider.wallet.publicKey;
     const [pda]     = await deriveEpochPDA(authority, program.programId);
 
-    // ← Add this block to request more compute units:
+    // ← Phase 2a: bump compute budget to 400k CU
     const computeIx = ComputeBudgetProgram.requestUnits({
-      units:         400_000, // bump up from default 200k
-      additionalFee: 0
+      units:         400_000,
+      additionalFee: 0,
     });
 
-    // commitEpoch with compute budget pre-instruction
-    const tx = await program.methods
-      .commitEpoch([...root])
+    // commit to chain in one shot
+    const txSignature = await program.methods
+      .commitEpoch([...rootBytes])
       .accounts({
         epochRecord:   pda,
         authority,
         systemProgram: SystemProgram.programId,
       })
-      .preInstructions([computeIx])      // ← inject it here
+      .preInstructions([computeIx]) // ← compute-budget here
       .rpc();
 
+    // update local memory wallet
     const store: MemoryStore = await loadStore();
-    store[authority.toBase58()] = Buffer.from(root).toString('hex');
+    store[authority.toBase58()] = Buffer.from(rootBytes).toString('hex');
     await saveStore(store);
 
     res.json({
       success:     true,
-      txSignature: tx,
-      root:        Buffer.from(root).toString('hex'),
-      store
+      txSignature,
+      root:        Buffer.from(rootBytes).toString('hex'),
+      store,
     });
   } catch (err: any) {
     console.error(err);

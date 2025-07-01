@@ -11,7 +11,7 @@
     },
     "devDependencies": {
       "ts-node": "^10.9.1",
-      "commander": "^9.5.0"
+      "commander": "^9.x"
     }
   }
   
