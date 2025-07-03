@@ -1,0 +1,9 @@
+[toolchain]
+anchor_version = "0.31.0"
+
+[provider]
+cluster = "localnet"
+wallet  = "~/.config/solana/id.json"
+
+[programs.localnet]
+thought_epoch = "4CVczFquS7AVw2X8cnJ84DGR3chMp3CgHZv5EqhgZqfP"
