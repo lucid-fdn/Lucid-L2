@@ -1,0 +1,32 @@
+{
+  "agentId": "perf-test-agent",
+  "mmrState": {
+    "size": 3,
+    "peaks": [
+      "pRjRP3H6omlf1OTisCbIoTA6jFRsdkEBolHrkgq8bBU="
+    ],
+    "nodes": [
+      [
+        0,
+        "YWcXZdT6gw8q30b/ZkwLIFzx4NBsFShQ7h2fuPK9Dpo="
+      ],
+      [
+        1,
+        "9ijMVZKzv1XiF1rqALk0Pa2MuTqSakJ2v7yYTA3S4jw="
+      ],
+      [
+        2,
+        "pRjRP3H6omlf1OTisCbIoTA6jFRsdkEBolHrkgq8bBU="
+      ]
+    ]
+  },
+  "rootHistory": [
+    {
+      "epoch": 3,
+      "root": "pRjRP3H6omlf1OTisCbIoTA6jFRsdkEBolHrkgq8bBU=",
+      "timestamp": 1751923340761
+    }
+  ],
+  "lastUpdated": 1751923340761,
+  "version": "1.0"
+}

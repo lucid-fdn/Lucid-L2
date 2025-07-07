@@ -1,0 +1,70 @@
+{
+  "agentId": "test-ai-agent",
+  "mmrState": {
+    "size": 6,
+    "peaks": [
+      "uV8GHBs6KiEhC2R6Cnm2kjOu5B3uO5KseuB25IEc/TM=",
+      "d5q8Dsi+scmfd8XJKp1IbKiGc/aRxia55WOL0GZn0ZA="
+    ],
+    "nodes": [
+      [
+        0,
+        "Eq6AgBseVZ53VMwteViRTPl5VrULacjY9TWz7KqVYRk="
+      ],
+      [
+        1,
+        "d5q8Dsi+scmfd8XJKp1IbKiGc/aRxia55WOL0GZn0ZA="
+      ],
+      [
+        2,
+        "uV8GHBs6KiEhC2R6Cnm2kjOu5B3uO5KseuB25IEc/TM="
+      ],
+      [
+        3,
+        "Y1/z0IJhqmrl0YSu4syLASdcv/FO0DKdYANAnghDcUk="
+      ],
+      [
+        4,
+        "Eq6AgBseVZ53VMwteViRTPl5VrULacjY9TWz7KqVYRk="
+      ],
+      [
+        5,
+        "d5q8Dsi+scmfd8XJKp1IbKiGc/aRxia55WOL0GZn0ZA="
+      ]
+    ]
+  },
+  "rootHistory": [
+    {
+      "epoch": 1,
+      "root": "Eq6AgBseVZ53VMwteViRTPl5VrULacjY9TWz7KqVYRk=",
+      "timestamp": 1751912356419
+    },
+    {
+      "epoch": 2,
+      "root": "Vof91TEVxnMpk5wnWVUkdE0ndfZmPFDqdTQRtjFxkOQ=",
+      "timestamp": 1751912357397
+    },
+    {
+      "epoch": 3,
+      "root": "uV8GHBs6KiEhC2R6Cnm2kjOu5B3uO5KseuB25IEc/TM=",
+      "timestamp": 1751912357707
+    },
+    {
+      "epoch": 1,
+      "root": "DRYl3JuS2goiwmJA273xEJ9xTk42yBBx56WmVAxS0pY=",
+      "timestamp": 1751912361644
+    },
+    {
+      "epoch": 1,
+      "root": "6W/6laF8Vu7d3raW/oCRHUcMfYIiBMNSuq8c1HhJl7M=",
+      "timestamp": 1751912432937
+    },
+    {
+      "epoch": 2,
+      "root": "xGyhPU4j7+GgGJznM+yzRR0qbaIWhBoLyWGD88+vCYg=",
+      "timestamp": 1751912433790
+    }
+  ],
+  "lastUpdated": 1751912433790,
+  "version": "1.0"
+}

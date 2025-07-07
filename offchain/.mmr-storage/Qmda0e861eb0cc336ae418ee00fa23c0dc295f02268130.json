@@ -1,0 +1,24 @@
+{
+  "agentId": "perf-test-agent",
+  "mmrState": {
+    "size": 1,
+    "peaks": [
+      "dr77Sm7cmQqZwBlu+89HEqy739K9DpmaRrYEDK8bdZE="
+    ],
+    "nodes": [
+      [
+        0,
+        "dr77Sm7cmQqZwBlu+89HEqy739K9DpmaRrYEDK8bdZE="
+      ]
+    ]
+  },
+  "rootHistory": [
+    {
+      "epoch": 3,
+      "root": "dr77Sm7cmQqZwBlu+89HEqy739K9DpmaRrYEDK8bdZE=",
+      "timestamp": 1751912363219
+    }
+  ],
+  "lastUpdated": 1751912363219,
+  "version": "1.0"
+}

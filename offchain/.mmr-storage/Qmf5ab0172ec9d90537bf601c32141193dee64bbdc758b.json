@@ -1,0 +1,24 @@
+{
+  "agentId": "proof-test-1751913492862",
+  "mmrState": {
+    "size": 1,
+    "peaks": [
+      "ylY4MnJ2MLJwxlA5dzxs/XLb90Ytw5pG/XipxzY2s+Y="
+    ],
+    "nodes": [
+      [
+        0,
+        "ylY4MnJ2MLJwxlA5dzxs/XLb90Ytw5pG/XipxzY2s+Y="
+      ]
+    ]
+  },
+  "rootHistory": [
+    {
+      "epoch": 1,
+      "root": "ylY4MnJ2MLJwxlA5dzxs/XLb90Ytw5pG/XipxzY2s+Y=",
+      "timestamp": 1751913492966
+    }
+  ],
+  "lastUpdated": 1751913492966,
+  "version": "1.0"
+}

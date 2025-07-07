@@ -1,0 +1,32 @@
+{
+  "agentId": "test-ai-agent",
+  "mmrState": {
+    "size": 3,
+    "peaks": [
+      "EIj4r4GK0pmQTZhcKiXUjXYyb39KoNW9gg4ljzJHCeU="
+    ],
+    "nodes": [
+      [
+        0,
+        "R6wIgxq8tXKTxcdVcY9SG+ppWta95lHJeGqXvIFsWlA="
+      ],
+      [
+        1,
+        "WFO8JXZ38wG7mcwAxvCXScDJE0hTHo0J3VcVuiPWmOk="
+      ],
+      [
+        2,
+        "EIj4r4GK0pmQTZhcKiXUjXYyb39KoNW9gg4ljzJHCeU="
+      ]
+    ]
+  },
+  "rootHistory": [
+    {
+      "epoch": 1,
+      "root": "EIj4r4GK0pmQTZhcKiXUjXYyb39KoNW9gg4ljzJHCeU=",
+      "timestamp": 1751923334133
+    }
+  ],
+  "lastUpdated": 1751923334134,
+  "version": "1.0"
+}

@@ -1,0 +1,32 @@
+{
+  "agentId": "proof-test-1751923308008",
+  "mmrState": {
+    "size": 3,
+    "peaks": [
+      "4sp275pWBL7h/DHXTVGC7+JgiclbPfvvmOByV5TGCAU="
+    ],
+    "nodes": [
+      [
+        0,
+        "jbz+qkNhIeIaTRfUpsnssqzIP3ycTWjv9RlUTql92sY="
+      ],
+      [
+        1,
+        "Kn49IGdcKdLizvSIet0UyI0BI5a+DA5qmLuo/1QNlkk="
+      ],
+      [
+        2,
+        "4sp275pWBL7h/DHXTVGC7+JgiclbPfvvmOByV5TGCAU="
+      ]
+    ]
+  },
+  "rootHistory": [
+    {
+      "epoch": 1,
+      "root": "4sp275pWBL7h/DHXTVGC7+JgiclbPfvvmOByV5TGCAU=",
+      "timestamp": 1751923308139
+    }
+  ],
+  "lastUpdated": 1751923308141,
+  "version": "1.0"
+}

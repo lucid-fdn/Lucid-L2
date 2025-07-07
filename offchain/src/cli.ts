@@ -5,6 +5,7 @@ import { batchCommit } from './commands/batch';
 import { runSingle } from './commands/run';
 import { loadStore } from './utils/memoryStore';
 import { MEMORY_WALLET_PATH } from './utils/config';
+import * as mmrCommands from './commands/mmr';
 
 const program = new Command()
   .name('lucid-cli')
@@ -50,5 +51,56 @@ program
       process.exit(1);
     }
   });
+
+// MMR Commands
+program
+  .command('mmr:init <agentId> [ipfsCid]')
+  .description('Initialize MMR for an agent')
+  .action(mmrCommands.initAgent);
+
+program
+  .command('mmr:epoch <agentId> <vectors...>')
+  .description('Process epoch for an agent with vectors')
+  .option('-e, --epoch <number>', 'Epoch number', parseInt)
+  .action(async (agentId: string, vectors: string[], options: any) => {
+    await mmrCommands.processEpoch(agentId, vectors, options.epoch);
+  });
+
+program
+  .command('mmr:proof <agentId> <vectorText> <epochNumber>')
+  .description('Generate contribution proof for a vector')
+  .action(async (agentId: string, vectorText: string, epochNumber: string) => {
+    await mmrCommands.generateProof(agentId, vectorText, parseInt(epochNumber));
+  });
+
+program
+  .command('mmr:stats <agentId>')
+  .description('Get MMR statistics for an agent')
+  .action(mmrCommands.getAgentStats);
+
+program
+  .command('mmr:history <agentId>')
+  .description('Get MMR root history for an agent')
+  .action(mmrCommands.getAgentHistory);
+
+program
+  .command('mmr:list')
+  .description('List all registered agents')
+  .action(mmrCommands.listAgents);
+
+program
+  .command('mmr:verify <agentId>')
+  .description('Verify MMR integrity for an agent')
+  .action(mmrCommands.verifyAgent);
+
+program
+  .command('mmr:ipfs')
+  .description('Check IPFS connectivity')
+  .action(mmrCommands.checkIPFS);
+
+program
+  .command('mmr:demo')
+  .description('Run MMR demonstration')
+  .action(mmrCommands.runDemo);
 
 program.parse(process.argv);

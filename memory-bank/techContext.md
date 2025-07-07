@@ -15,6 +15,9 @@
 - **Express.js**: Web framework for REST API with dual-gas integration
 - **ts-node**: TypeScript execution environment for development
 - **SPL Token Integration**: Native $LUCID token burning for gas metering
+- **MMR Implementation**: Merkle Mountain Range for cryptographic proof-of-contribution
+- **IPFS Storage**: Content-addressed storage for off-chain MMR state
+- **Crypto Libraries**: SHA-256 hashing for vector commitment and MMR operations
 
 ### Development Tools
 - **Solana CLI**: Command-line tools for Solana development
@@ -65,17 +68,21 @@ Lucid-L2-main/
     └── src/                   # Clean modular architecture
         ├── commands/          # CLI sub-commands
         │   ├── batch.ts       # Batch commit operations
-        │   └── run.ts         # Single commit operations
+        │   ├── run.ts         # Single commit operations
+        │   └── mmr.ts         # MMR operations (init, epoch, proof, stats)
         ├── services/          # HTTP handlers, webhooks
         │   ├── api.ts         # Express router and HTTP handlers
-        │   └── indexer.ts     # Future Helius/Shyft webhook listener
+        │   ├── indexer.ts     # Future Helius/Shyft webhook listener
+        │   └── mmrService.ts  # MMR service layer integration
         ├── solana/            # All Solana/Anchor client logic
         │   ├── client.ts      # initSolana(), derivePDAs, connection mgmt
         │   └── gas.ts         # makeComputeIx(), makeBurnIx(), calculations
         ├── utils/             # Utilities, config, and helpers
         │   ├── config.ts      # Centralized configuration (Version 1.0)
         │   ├── inference.ts   # Mock inference logic
-        │   └── memoryStore.ts # Local JSON storage utilities
+        │   ├── memoryStore.ts # Local JSON storage utilities
+        │   ├── mmr.ts         # Merkle Mountain Range implementation
+        │   └── ipfsStorage.ts # IPFS storage simulation
         ├── index.ts           # Thin HTTP server bootstrap (12 lines)
         └── cli.ts             # Thin commander bootstrap
 ```

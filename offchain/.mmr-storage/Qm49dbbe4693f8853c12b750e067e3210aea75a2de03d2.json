@@ -1,0 +1,98 @@
+{
+  "agentId": "perf-test-agent",
+  "mmrState": {
+    "size": 9,
+    "peaks": [
+      "R3A/f7GB+mGiBmo3XUR3ThqBgW4X3qUs3/BDUZXW0WY=",
+      "2DsHdW0C5kJdqc8GTbebLqJ0A3uFUx7WWmddKXqCv0s=",
+      "4mmoTb2TfxjbBXsC1XjmWBaaY1ga/YkCy0e5xWq11LQ="
+    ],
+    "nodes": [
+      [
+        0,
+        "dr77Sm7cmQqZwBlu+89HEqy739K9DpmaRrYEDK8bdZE="
+      ],
+      [
+        1,
+        "R3A/f7GB+mGiBmo3XUR3ThqBgW4X3qUs3/BDUZXW0WY="
+      ],
+      [
+        2,
+        "2DsHdW0C5kJdqc8GTbebLqJ0A3uFUx7WWmddKXqCv0s="
+      ],
+      [
+        3,
+        "4mmoTb2TfxjbBXsC1XjmWBaaY1ga/YkCy0e5xWq11LQ="
+      ],
+      [
+        4,
+        "U8KcwpTKsYfSoGPmZFYoFcQgKhczC1Xi7JoAhRvnZyI="
+      ],
+      [
+        5,
+        "dr77Sm7cmQqZwBlu+89HEqy739K9DpmaRrYEDK8bdZE="
+      ],
+      [
+        6,
+        "R3A/f7GB+mGiBmo3XUR3ThqBgW4X3qUs3/BDUZXW0WY="
+      ],
+      [
+        7,
+        "2DsHdW0C5kJdqc8GTbebLqJ0A3uFUx7WWmddKXqCv0s="
+      ],
+      [
+        8,
+        "4mmoTb2TfxjbBXsC1XjmWBaaY1ga/YkCy0e5xWq11LQ="
+      ]
+    ]
+  },
+  "rootHistory": [
+    {
+      "epoch": 3,
+      "root": "dr77Sm7cmQqZwBlu+89HEqy739K9DpmaRrYEDK8bdZE=",
+      "timestamp": 1751912363219
+    },
+    {
+      "epoch": 4,
+      "root": "jb13Xkf61Sl2WiEmfASJRgsDU+KIHp84O2WqRyyCN40=",
+      "timestamp": 1751912363426
+    },
+    {
+      "epoch": 5,
+      "root": "2DsHdW0C5kJdqc8GTbebLqJ0A3uFUx7WWmddKXqCv0s=",
+      "timestamp": 1751912363837
+    },
+    {
+      "epoch": 6,
+      "root": "rDdG6wLj9BUKWVlScWgMjzgeJnFdkCn3k+TQvasN2mk=",
+      "timestamp": 1751912364244
+    },
+    {
+      "epoch": 7,
+      "root": "ffr8qVqisTHmPxi22DiJTt23pvYLsrWwWoNVQmUwZPo=",
+      "timestamp": 1751912364653
+    },
+    {
+      "epoch": 10,
+      "root": "nSqxga7gz3u3q/C8fVhskxzphxXINycByxQXlPL9ihs=",
+      "timestamp": 1751912439616
+    },
+    {
+      "epoch": 11,
+      "root": "R3A/f7GB+mGiBmo3XUR3ThqBgW4X3qUs3/BDUZXW0WY=",
+      "timestamp": 1751912439825
+    },
+    {
+      "epoch": 12,
+      "root": "og3SwvbjdjKvQjbWvtyiI/R1Ufk66j+giG0rEPxJL88=",
+      "timestamp": 1751912440234
+    },
+    {
+      "epoch": 13,
+      "root": "rIjPFcAeKTJQI/2tA1FqdpImhCWlKDQmPWJoGzZpRXU=",
+      "timestamp": 1751912440643
+    }
+  ],
+  "lastUpdated": 1751912440643,
+  "version": "1.0"
+}
