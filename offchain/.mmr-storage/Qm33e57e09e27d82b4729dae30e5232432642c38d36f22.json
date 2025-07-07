@@ -1,0 +1,42 @@
+{
+  "agentId": "test-agent-2",
+  "mmrState": {
+    "size": 3,
+    "peaks": [
+      "hDoVEY6g7zfKtwCdiIcdVndVmGSos5DXNW26/fGLsjg="
+    ],
+    "nodes": [
+      [
+        0,
+        "hDoVEY6g7zfKtwCdiIcdVndVmGSos5DXNW26/fGLsjg="
+      ],
+      [
+        1,
+        "hDoVEY6g7zfKtwCdiIcdVndVmGSos5DXNW26/fGLsjg="
+      ],
+      [
+        2,
+        "hDoVEY6g7zfKtwCdiIcdVndVmGSos5DXNW26/fGLsjg="
+      ]
+    ]
+  },
+  "rootHistory": [
+    {
+      "epoch": 2,
+      "root": "hDoVEY6g7zfKtwCdiIcdVndVmGSos5DXNW26/fGLsjg=",
+      "timestamp": 1751912361797
+    },
+    {
+      "epoch": 9,
+      "root": "CqZE3hKCmPLs91P7pflH9CZqVZzGvrfPG67FQyUm/zA=",
+      "timestamp": 1751912438190
+    },
+    {
+      "epoch": 16,
+      "root": "hDoVEY6g7zfKtwCdiIcdVndVmGSos5DXNW26/fGLsjg=",
+      "timestamp": 1751913422682
+    }
+  ],
+  "lastUpdated": 1751913422682,
+  "version": "1.0"
+}

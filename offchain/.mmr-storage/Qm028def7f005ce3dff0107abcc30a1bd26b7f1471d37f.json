@@ -1,0 +1,52 @@
+{
+  "agentId": "test-ai-agent",
+  "mmrState": {
+    "size": 4,
+    "peaks": [
+      "uV8GHBs6KiEhC2R6Cnm2kjOu5B3uO5KseuB25IEc/TM=",
+      "Y1/z0IJhqmrl0YSu4syLASdcv/FO0DKdYANAnghDcUk="
+    ],
+    "nodes": [
+      [
+        0,
+        "Eq6AgBseVZ53VMwteViRTPl5VrULacjY9TWz7KqVYRk="
+      ],
+      [
+        1,
+        "d5q8Dsi+scmfd8XJKp1IbKiGc/aRxia55WOL0GZn0ZA="
+      ],
+      [
+        2,
+        "uV8GHBs6KiEhC2R6Cnm2kjOu5B3uO5KseuB25IEc/TM="
+      ],
+      [
+        3,
+        "Y1/z0IJhqmrl0YSu4syLASdcv/FO0DKdYANAnghDcUk="
+      ]
+    ]
+  },
+  "rootHistory": [
+    {
+      "epoch": 1,
+      "root": "Eq6AgBseVZ53VMwteViRTPl5VrULacjY9TWz7KqVYRk=",
+      "timestamp": 1751912356419
+    },
+    {
+      "epoch": 2,
+      "root": "Vof91TEVxnMpk5wnWVUkdE0ndfZmPFDqdTQRtjFxkOQ=",
+      "timestamp": 1751912357397
+    },
+    {
+      "epoch": 3,
+      "root": "uV8GHBs6KiEhC2R6Cnm2kjOu5B3uO5KseuB25IEc/TM=",
+      "timestamp": 1751912357707
+    },
+    {
+      "epoch": 1,
+      "root": "DRYl3JuS2goiwmJA273xEJ9xTk42yBBx56WmVAxS0pY=",
+      "timestamp": 1751912361644
+    }
+  ],
+  "lastUpdated": 1751912361644,
+  "version": "1.0"
+}

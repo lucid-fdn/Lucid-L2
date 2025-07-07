@@ -1,24 +1,35 @@
 # System Patterns: Lucid L2™ Architecture
 
-## System Architecture (Phase 4 - Clean Architecture Evolution)
+## System Architecture (Phase 5 - MMR Integration)
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Text Input    │───▶│  Mock Inference  │───▶│   SHA-256 Hash  │
-│ (API/CLI)       │    │   (inference.ts) │    │  (32 bytes)     │
+│   Agent Vectors │    │   MMR Service    │    │  Solana Program │
+│                 │    │                  │    │                 │
+│ • Text inputs   │───▶│ • Hash vectors   │───▶│ • Store 32-byte │
+│ • Per epoch     │    │ • Build MMR      │    │   MMR roots     │
+│ • Batch process │    │ • Generate root  │    │ • Immutable log │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
-                                                         │
-                                                         ▼
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│ Dual-Gas System │───▶│  Transaction     │───▶│ Anchor Program  │
-│ iGas + mGas     │    │  Pre-Instructions│    │ commit_epoch()  │
-│ $LUCID Burns    │    │  [Compute+Burns] │    │ commit_epochs() │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                                         │
-                                                         ▼
+                              │                          │
+                              ▼                          ▼
+                       ┌─────────────────┐    ┌─────────────────┐
+                       │   IPFS Storage  │    │ Dual-Gas System │
+                       │                 │    │ iGas + mGas     │
+                       │ • MMR state     │    │ $LUCID Burns    │
+                       │ • Root history  │    │ [Compute+Burns] │
+                       │ • Content addr. │    └─────────────────┘
+                       └─────────────────┘
+                              │
+                              ▼
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │ Memory Wallet   │◀───│  State Update    │◀───│ On-Chain PDA    │
 │ (JSON File)     │    │  Local + Chain   │    │ Epoch Records   │
 │ CDUauc4hYqP...  │    │                  │    │ Batch Records   │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+
+Traditional Flow (Phase 1-4):
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Text Input    │───▶│  Mock Inference  │───▶│   SHA-256 Hash  │
+│ (API/CLI)       │    │   (inference.ts) │    │  (32 bytes)     │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
@@ -242,3 +253,104 @@ app.listen(API_PORT, () => {
 - **Type Safety**: Enhanced with proper TypeScript interfaces
 - **Clean Imports**: Clear dependency relationships
 - **Future-Proof**: Ready for UI integration, real AI, production deployment
+
+## MMR Integration Patterns (Phase 5 - Completed)
+
+### Per-Agent MMR Management Pattern
+```typescript
+// Each agent maintains isolated MMR state
+export class AgentMMR {
+  private agentId: string;
+  private mmr: MerkleTree;
+  private rootHistory: { epoch: number; root: Buffer; timestamp: number }[];
+  
+  processEpoch(vectors: Buffer[], epochNumber: number): Buffer {
+    // 1. Hash vectors with SHA-256
+    // 2. Append to MMR structure
+    // 3. Generate new root
+    // 4. Store in history
+    // 5. Return root for on-chain commitment
+  }
+}
+```
+
+### IPFS Storage Pattern (File-Based Simulation)
+```typescript
+// Content-addressed storage with deterministic CIDs
+export class IPFSStorageManager {
+  async storeAgentMMR(agentMMR: AgentMMR): Promise<string> {
+    // 1. Serialize MMR data with Buffer handling
+    // 2. Generate content-addressed ID (CID simulation)
+    // 3. Store to file system
+    // 4. Return CID for reference
+  }
+  
+  private generateCID(data: Buffer): string {
+    const hash = createHash('sha256').update(data).digest('hex');
+    return `Qm${hash.substring(0, 44)}`; // Simulate IPFS CID format
+  }
+}
+```
+
+### MMR Service Integration Pattern
+```typescript
+// High-level service integrating MMR with existing Lucid L2
+export class MMRService {
+  async processAgentEpoch(epochData: AgentEpochData): Promise<MMRCommitResult> {
+    // 1. Process vectors through MMR
+    // 2. Store updated MMR on IPFS
+    // 3. Calculate gas costs
+    // 4. Commit root to Solana using existing program
+    // 5. Return comprehensive result
+  }
+}
+```
+
+### CLI Command Pattern for MMR
+```typescript
+// Modular CLI commands following existing patterns
+export async function processEpoch(agentId: string, vectors: string[], epochNumber?: number): Promise<void> {
+  // 1. Validate inputs
+  // 2. Process through MMR service
+  // 3. Display results with gas breakdown
+  // 4. Handle errors gracefully
+}
+```
+
+### MMR Data Structures
+```typescript
+interface MMRState {
+  size: number;                    // Number of leaves in MMR
+  peaks: Buffer[];                 // Current peak hashes
+  nodes: Map<number, Buffer>;      // All MMR nodes
+}
+
+interface MMRProof {
+  leafIndex: number;               // Position of leaf in MMR
+  leafHash: Buffer;                // Hash of the leaf
+  siblings: Buffer[];              // Sibling hashes for path
+  peaks: Buffer[];                 // Peak hashes for bagging
+  mmrSize: number;                 // MMR size at proof time
+}
+
+interface StoredMMRData {
+  agentId: string;                 // Agent identifier
+  mmrState: MMRState;              // Complete MMR state
+  rootHistory: {                   // Historic roots
+    epoch: number;
+    root: Buffer;
+    timestamp: number;
+  }[];
+  lastUpdated: number;             // Last modification time
+  version: string;                 // Data format version
+}
+```
+
+### MMR Integration Benefits
+- **Per-Agent Isolation**: Each agent has independent MMR state
+- **Cryptographic Proofs**: Mathematical verification of contributions
+- **Immutable Timeline**: Historic roots preserved for proof-of-contribution
+- **Off-Chain Efficiency**: Complete MMR state stored off-chain
+- **On-Chain Verification**: Only 32-byte roots committed on-chain
+- **Existing Integration**: Uses current dual-gas system and Solana program
+- **Scalable Architecture**: Supports unlimited agents and vectors

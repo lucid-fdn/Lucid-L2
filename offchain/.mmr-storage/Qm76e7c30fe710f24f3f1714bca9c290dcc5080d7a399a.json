@@ -1,0 +1,47 @@
+{
+  "agentId": "test-ai-agent",
+  "mmrState": {
+    "size": 5,
+    "peaks": [
+      "EIj4r4GK0pmQTZhcKiXUjXYyb39KoNW9gg4ljzJHCeU=",
+      "S1BPaWIp/AlM9EZ8qS0saEHhGqXsRCExnh6YMwjHXcQ=",
+      "qgxfUpkN+7rCgymMrTwkHhXylud/eEuCHjrlP3JpgFk="
+    ],
+    "nodes": [
+      [
+        0,
+        "R6wIgxq8tXKTxcdVcY9SG+ppWta95lHJeGqXvIFsWlA="
+      ],
+      [
+        1,
+        "WFO8JXZ38wG7mcwAxvCXScDJE0hTHo0J3VcVuiPWmOk="
+      ],
+      [
+        2,
+        "EIj4r4GK0pmQTZhcKiXUjXYyb39KoNW9gg4ljzJHCeU="
+      ],
+      [
+        3,
+        "S1BPaWIp/AlM9EZ8qS0saEHhGqXsRCExnh6YMwjHXcQ="
+      ],
+      [
+        4,
+        "qgxfUpkN+7rCgymMrTwkHhXylud/eEuCHjrlP3JpgFk="
+      ]
+    ]
+  },
+  "rootHistory": [
+    {
+      "epoch": 1,
+      "root": "EIj4r4GK0pmQTZhcKiXUjXYyb39KoNW9gg4ljzJHCeU=",
+      "timestamp": 1751923334133
+    },
+    {
+      "epoch": 2,
+      "root": "uCoXrG7yY/YbbYMFtKCzvMdK3AHdIpCGUcFoA37jVUI=",
+      "timestamp": 1751923334946
+    }
+  ],
+  "lastUpdated": 1751923334947,
+  "version": "1.0"
+}

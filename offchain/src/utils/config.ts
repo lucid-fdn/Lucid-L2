@@ -22,7 +22,7 @@ export const COMMITMENT = 'confirmed';
 export const PROGRAM_ID = new PublicKey('GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo');
 
 // API configuration
-export const API_PORT = 3000;
+export const API_PORT = 3001;
 export const MAX_BATCH_SIZE = 10;
 
 // Development configuration

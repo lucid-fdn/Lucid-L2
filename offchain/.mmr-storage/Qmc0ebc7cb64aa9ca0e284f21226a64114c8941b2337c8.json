@@ -1,0 +1,24 @@
+{
+  "agentId": "demo-agent",
+  "mmrState": {
+    "size": 1,
+    "peaks": [
+      "QBQeJyIzjtnimWvqM2nmqgLgYhSYeNiaKjJ40c388pU="
+    ],
+    "nodes": [
+      [
+        0,
+        "QBQeJyIzjtnimWvqM2nmqgLgYhSYeNiaKjJ40c388pU="
+      ]
+    ]
+  },
+  "rootHistory": [
+    {
+      "epoch": 1,
+      "root": "QBQeJyIzjtnimWvqM2nmqgLgYhSYeNiaKjJ40c388pU=",
+      "timestamp": 1751892606198
+    }
+  ],
+  "lastUpdated": 1751892606199,
+  "version": "1.0"
+}

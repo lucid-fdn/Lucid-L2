@@ -1,0 +1,42 @@
+{
+  "agentId": "test-ai-agent",
+  "mmrState": {
+    "size": 3,
+    "peaks": [
+      "uV8GHBs6KiEhC2R6Cnm2kjOu5B3uO5KseuB25IEc/TM="
+    ],
+    "nodes": [
+      [
+        0,
+        "Eq6AgBseVZ53VMwteViRTPl5VrULacjY9TWz7KqVYRk="
+      ],
+      [
+        1,
+        "d5q8Dsi+scmfd8XJKp1IbKiGc/aRxia55WOL0GZn0ZA="
+      ],
+      [
+        2,
+        "uV8GHBs6KiEhC2R6Cnm2kjOu5B3uO5KseuB25IEc/TM="
+      ]
+    ]
+  },
+  "rootHistory": [
+    {
+      "epoch": 1,
+      "root": "Eq6AgBseVZ53VMwteViRTPl5VrULacjY9TWz7KqVYRk=",
+      "timestamp": 1751912356419
+    },
+    {
+      "epoch": 2,
+      "root": "Vof91TEVxnMpk5wnWVUkdE0ndfZmPFDqdTQRtjFxkOQ=",
+      "timestamp": 1751912357397
+    },
+    {
+      "epoch": 3,
+      "root": "uV8GHBs6KiEhC2R6Cnm2kjOu5B3uO5KseuB25IEc/TM=",
+      "timestamp": 1751912357707
+    }
+  ],
+  "lastUpdated": 1751912357707,
+  "version": "1.0"
+}

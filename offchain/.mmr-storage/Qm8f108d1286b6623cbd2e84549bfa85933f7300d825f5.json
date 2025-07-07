@@ -1,0 +1,34 @@
+{
+  "agentId": "perf-test-agent",
+  "mmrState": {
+    "size": 2,
+    "peaks": [
+      "dr77Sm7cmQqZwBlu+89HEqy739K9DpmaRrYEDK8bdZE=",
+      "R3A/f7GB+mGiBmo3XUR3ThqBgW4X3qUs3/BDUZXW0WY="
+    ],
+    "nodes": [
+      [
+        0,
+        "dr77Sm7cmQqZwBlu+89HEqy739K9DpmaRrYEDK8bdZE="
+      ],
+      [
+        1,
+        "R3A/f7GB+mGiBmo3XUR3ThqBgW4X3qUs3/BDUZXW0WY="
+      ]
+    ]
+  },
+  "rootHistory": [
+    {
+      "epoch": 3,
+      "root": "dr77Sm7cmQqZwBlu+89HEqy739K9DpmaRrYEDK8bdZE=",
+      "timestamp": 1751912363219
+    },
+    {
+      "epoch": 4,
+      "root": "jb13Xkf61Sl2WiEmfASJRgsDU+KIHp84O2WqRyyCN40=",
+      "timestamp": 1751912363426
+    }
+  ],
+  "lastUpdated": 1751912363426,
+  "version": "1.0"
+}

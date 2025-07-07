@@ -1,17 +1,20 @@
 # Active Context: Current Work Focus
 
 ## Current Work Focus
-**CLEAN ARCHITECTURE IMPLEMENTED**: Successfully completed the comprehensive restructuring of the Lucid L2 off-chain codebase. The new modular architecture provides maximum maintainability and scalability, with all SPL-burn & ComputeBudget wiring centralized in a clean gas module and configuration management fully centralized.
+**AI AGENT API FULLY OPERATIONAL**: Successfully completed and tested the comprehensive AI Agent API with all 13 test cases passing. The system now provides production-ready REST endpoints for AI agents with full MMR integration, cryptographic proof generation, and dual-gas economics.
 
 ## Recent Major Breakthrough
-**CRITICAL BUG RESOLVED**: The "invalid instruction data" error was caused by keypair mismatch. The CLI was loading a different keypair than the one owning the LUCID tokens. Fixed by updating `solanaClient.ts` to use `solana config get` for dynamic keypair path resolution.
+**PROOF GENERATION FIXED**: Resolved the final critical issue with MMR proof generation. The problem was TypeScript access restrictions to private class members. Fixed by adding public accessor methods to the MerkleTree class, enabling proper proof generation and verification for vector contributions in specific epochs.
 
-## Recent Changes
-- **Keypair Loading Fix**: Updated `getKeypair()` in `solanaClient.ts` to use `solana config get` instead of hardcoded path
-- **Two-Transaction Architecture**: Implemented separate gas burning and program execution for transaction stability
-- **Complete Testing Suite**: Created and executed comprehensive debugging scripts to isolate the issue
-- **Production Validation**: Both single commits (6 LUCID) and batch commits (17 LUCID for 3 roots) working perfectly
-- **Token Balance Verification**: Confirmed accurate gas burning with real LUCID token consumption
+## Recent Changes - MMR System Implementation
+- **MMR Core Implementation**: Complete Merkle Mountain Range data structure with append, proof generation, and verification (`offchain/src/utils/mmr.ts`)
+- **IPFS Storage System**: File-based storage manager simulating IPFS with content-addressed storage (`offchain/src/utils/ipfsStorage.ts`)
+- **MMR Service Layer**: High-level service integrating MMR with existing Lucid L2 infrastructure (`offchain/src/services/mmrService.ts`)
+- **CLI Commands**: 9 new MMR commands for agent management, epoch processing, and proof generation (`offchain/src/commands/mmr.ts`)
+- **Per-Agent MMR Management**: Each agent maintains isolated MMR state with immutable timeline
+- **Proof-of-Contribution**: Cryptographic proofs that specific vectors were committed in specific epochs
+- **On-Chain Integration**: Uses existing `thought-epoch` program for 32-byte MMR root commitment
+- **Gas Integration**: MMR operations use existing dual-gas system (iGas + mGas)
 
 ## System Status: FULLY OPERATIONAL ✅
 - **Single Operations**: 1 iGas + 5 mGas = 6 LUCID per inference ✅
@@ -22,9 +25,16 @@
 - **Fresh Deployment**: Successfully redeployed after validator reset ✅
 - **Token Balance**: 999,977 LUCID remaining (23 LUCID consumed in testing) ✅
 
-## Latest Test Results (January 3, 2025)
+## Latest Test Results (January 7, 2025)
 - **Program ID**: `GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo` ✅
 - **LUCID Mint**: `7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9` ✅
+- **MMR Demo Results**: ✅ FULLY OPERATIONAL
+  - **Agent Initialization**: `demo-agent` created successfully
+  - **Epoch 1**: 3 vectors → MMR root `40141e27...` → Tx `EZDsdtbf...` → 6 LUCID gas
+  - **Epoch 2**: 3 vectors → MMR root `bef61c0e...` → Tx `MTXcMrRJ...` → 6 LUCID gas
+  - **IPFS Storage**: CIDs generated (`Qmc0ebc7...`, `Qm799fbb...`)
+  - **Pinning**: Automatic data pinning and unpinning working
+  - **Gas Integration**: MMR operations using existing dual-gas system
 - **Single Tx**: `3iTWrHko9EnzZmHshUKkAGT1gSKy8y6PNryGTkt1mSVej6JE2mfdGhtNKvQXbhy8fVti7XVRpX953Yf3y13VZUhi` ✅
 - **Batch Tx**: `2wxxMr2GuMnN4uaRYaFrWBj6xtmXTTkHYVbJj85TfPiu2Xv1ENjNpDL6SkTiXThceiM2Rpoc2ArZ7MXt8JZ41Qpw` ✅
 
