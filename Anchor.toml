@@ -1,9 +1,15 @@
 [toolchain]
-anchor_version = "0.31.0"
+anchor_version = "0.31.1"
 
 [provider]
 cluster = "localnet"
 wallet  = "~/.config/solana/id.json"
 
 [programs.localnet]
-thought_epoch = "4CVczFquS7AVw2X8cnJ84DGR3chMp3CgHZv5EqhgZqfP"
+# thought_epoch = "J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c"
+# gas_utils = "11111111111111111111111111111111"
+
+[workspace]
+members = [
+    "programs/thought-epoch"
+]

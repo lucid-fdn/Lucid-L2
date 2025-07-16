@@ -254,6 +254,207 @@ app.listen(API_PORT, () => {
 - **Clean Imports**: Clear dependency relationships
 - **Future-Proof**: Ready for UI integration, real AI, production deployment
 
+## GasUtils + CPI Pattern (Phase 7 - In Progress)
+
+### Utility Library + Cross-Program Invocation Architecture
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   User Request  │───▶│  Core Programs   │───▶│   GasUtils CPI  │
+│ (commit_epoch)  │    │ (thought-epoch)  │    │ collect_and_split│
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                              │                          │
+                              ▼                          ▼
+                       ┌─────────────────┐    ┌─────────────────┐
+                       │ Business Logic  │    │ Gas Distribution│
+                       │ • Store roots   │    │ • Model: 50%    │
+                       │ • Update state  │    │ • Memory: 20%   │
+                       │ • Emit events   │    │ • Validator: 30%│
+                       └─────────────────┘    └─────────────────┘
+
+Evolution from Client-Side to On-Chain Gas Management:
+
+BEFORE (Phase 6):                    AFTER (Phase 7):
+┌─────────────────┐                 ┌─────────────────┐
+│   Client Code   │                 │   Client Code   │
+│ • makeBurnIx()  │                 │ • Simple call   │
+│ • Pre-instruct. │────────────────▶│ • No gas logic  │
+│ • Gas calc.     │                 │ • Clean & simple│
+└─────────────────┘                 └─────────────────┘
+         │                                   │
+         ▼                                   ▼
+┌─────────────────┐                 ┌─────────────────┐
+│ Solana Program  │                 │ Core Program    │
+│ • commit_epoch  │                 │ • CPI to GasUtils│
+│ • No gas logic  │                 │ • commit_epoch  │
+└─────────────────┘                 │ • Cleaner logic │
+                                    └─────────────────┘
+                                             │
+                                             ▼
+                                    ┌─────────────────┐
+                                    │   GasUtils      │
+                                    │ • collect_split │
+                                    │ • Recipient mgmt│
+                                    │ • Upgradeable   │
+                                    └─────────────────┘
+```
+
+### GasUtils Program Structure
+```rust
+#[program]
+pub mod gas_utils {
+    use super::*;
+    
+    pub fn collect_and_split(
+        ctx: Context<CollectAndSplit>,
+        m_gas_amount: u64,
+        i_gas_amount: u64,
+        recipients: Vec<(Pubkey, u8)>, // (recipient, percentage)
+    ) -> Result<()> {
+        // 1. Validate percentages sum to 100
+        // 2. Collect total gas from user
+        // 3. Distribute to recipients based on percentages
+        // 4. Handle any remainder
+    }
+}
+
+#[derive(Accounts)]
+pub struct CollectAndSplit<'info> {
+    #[account(mut)]
+    pub user_ata: Account<'info, TokenAccount>,
+    
+    pub lucid_mint: Account<'info, Mint>,
+    
+    #[account(mut)]
+    pub user: Signer<'info>,
+    
+    // Dynamic recipient accounts
+    // ... (recipient ATAs based on instruction data)
+    
+    pub token_program: Program<'info, Token>,
+}
+```
+
+### CPI Integration in Core Programs
+```rust
+// In thought-epoch program
+use gas_utils;
+
+pub fn commit_epoch(ctx: Context<CommitEpoch>, root: [u8; 32]) -> Result<()> {
+    // 1. Calculate gas costs and recipients
+    let recipients = vec![
+        (ctx.accounts.model_publisher_ata.key(), 50),  // 50%
+        (ctx.accounts.memory_provider_ata.key(), 20),  // 20%
+        (ctx.accounts.validator_ata.key(), 30),        // 30%
+    ];
+    
+    // 2. CPI call to GasUtils
+    let cpi_accounts = gas_utils::cpi::accounts::CollectAndSplit {
+        user_ata: ctx.accounts.user_ata.to_account_info(),
+        lucid_mint: ctx.accounts.lucid_mint.to_account_info(),
+        user: ctx.accounts.authority.to_account_info(),
+        token_program: ctx.accounts.token_program.to_account_info(),
+    };
+    
+    let cpi_ctx = CpiContext::new(
+        ctx.accounts.gas_utils_program.to_account_info(),
+        cpi_accounts
+    );
+    
+    gas_utils::cpi::collect_and_split(
+        cpi_ctx,
+        5, // mGas amount
+        1, // iGas amount  
+        recipients
+    )?;
+    
+    // 3. Execute core business logic
+    let rec = &mut ctx.accounts.epoch_record;
+    rec.merkle_root = root;
+    rec.authority = *ctx.accounts.authority.key;
+    
+    Ok(())
+}
+```
+
+### Enhanced Account Context Pattern
+```rust
+#[derive(Accounts)]
+pub struct CommitEpoch<'info> {
+    // Existing accounts
+    #[account(
+        init_if_needed,
+        payer = authority,
+        space = 8 + 32 + 32,
+        seeds = [b"epoch", authority.key().as_ref()],
+        bump
+    )]
+    pub epoch_record: Account<'info, EpochRecord>,
+    
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    
+    pub system_program: Program<'info, System>,
+    
+    // New GasUtils integration accounts
+    pub gas_utils_program: Program<'info, GasUtils>,
+    
+    #[account(mut)]
+    pub user_ata: Account<'info, TokenAccount>,
+    
+    pub lucid_mint: Account<'info, Mint>,
+    
+    // Recipient accounts (dynamic based on operation)
+    #[account(mut)]
+    pub model_publisher_ata: Account<'info, TokenAccount>,
+    
+    #[account(mut)]
+    pub memory_provider_ata: Account<'info, TokenAccount>,
+    
+    #[account(mut)]
+    pub validator_ata: Account<'info, TokenAccount>,
+    
+    pub token_program: Program<'info, Token>,
+}
+```
+
+### Client Integration Simplification
+```typescript
+// BEFORE: Complex client-side gas management
+const computeIx = makeComputeIx();
+const igasIx = makeBurnIx('iGas', userAta, LUCID_MINT, authority, 1);
+const mgasIx = makeBurnIx('mGas', userAta, LUCID_MINT, authority, 5);
+
+await program.methods
+  .commitEpoch([...rootBytes])
+  .accounts({...})
+  .preInstructions([computeIx, igasIx, mgasIx])
+  .rpc();
+
+// AFTER: Simple CPI-based approach
+await program.methods
+  .commitEpoch([...rootBytes])
+  .accounts({
+    // ... existing accounts
+    gasUtilsProgram: GAS_UTILS_PROGRAM_ID,
+    userAta,
+    lucidMint: LUCID_MINT,
+    modelPublisherAta,
+    memoryProviderAta,
+    validatorAta,
+    tokenProgram: TOKEN_PROGRAM_ID,
+  })
+  .rpc();
+```
+
+### Benefits of GasUtils + CPI Pattern
+- **Maintainability**: Single program for all gas logic updates
+- **Flexibility**: Easy recipient configuration changes
+- **Modularity**: Clean separation of gas handling from business logic
+- **Upgradability**: Independent gas program updates
+- **Efficiency**: CPI overhead ~50-100μs (negligible vs sub-100ms goal)
+- **Scalability**: Supports complex recipient configurations
+- **Security**: Centralized validation of gas distribution logic
+
 ## MMR Integration Patterns (Phase 5 - Completed)
 
 ### Per-Agent MMR Management Pattern

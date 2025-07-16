@@ -1,0 +1,27 @@
+[package]
+name = "gas-utils"
+version = "0.1.0"
+description = "Lucid L2™ Gas Utility Library for Cross-Program Invocation"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "gas_utils"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+default = []
+custom-heap = []
+custom-panic = []
+anchor-debug = []
+
+[dependencies]
+anchor-lang = "0.31.1"
+anchor-spl = "0.31.1"
+
+[dev-dependencies]
+solana-program-test = "1.18.26"

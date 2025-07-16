@@ -10,7 +10,7 @@ export const MGAS_PER_ROOT = 5;      // 5 LUCID per memory write
 export const IGAS_PER_BATCH = 2;     // 2 LUCID per batch operation
 
 // Token configuration
-export const LUCID_MINT = new PublicKey('7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9');
+export const LUCID_MINT = new PublicKey('896Ep1k112jJ7Lzry6morQaVJgi9pkq1NWeU9TzjbJqT');
 export const LUCID_DECIMALS = 9;
 
 // Solana configuration
@@ -19,7 +19,7 @@ export const RPC_URL = 'http://localhost:8899'; // localnet
 export const COMMITMENT = 'confirmed';
 
 // Program configuration
-export const PROGRAM_ID = new PublicKey('GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo');
+export const PROGRAM_ID = new PublicKey('J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c');
 
 // API configuration
 export const API_PORT = 3001;

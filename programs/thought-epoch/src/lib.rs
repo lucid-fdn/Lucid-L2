@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 // ← replace this with the ID printed by `anchor deploy`
-declare_id!("GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo");
+declare_id!("J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c");
 
 const MAX_BATCH: usize = 16; // adjust as you like
 
