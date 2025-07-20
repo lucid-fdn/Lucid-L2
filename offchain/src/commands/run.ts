@@ -1,14 +1,14 @@
 // offchain/src/commands/run.ts
 import { SystemProgram } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
-import { runMockInference } from '../utils/inference';
+import { runInference } from '../utils/inference';
 import { initSolana, deriveEpochPDA } from '../solana/client';
 import { loadStore, saveStore, MemoryStore } from '../utils/memoryStore';
 import { makeComputeIx, makeBurnIx, calculateGasCost } from '../solana/gas';
 import { LUCID_MINT, IGAS_PER_CALL, MGAS_PER_ROOT } from '../utils/config';
 
 export async function runSingle(text: string) {
-  const rootBytes = runMockInference(text);
+  const rootBytes = await runInference(text);
   const hexRoot = Buffer.from(rootBytes).toString('hex');
 
   const program = initSolana();

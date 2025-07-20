@@ -254,304 +254,795 @@ app.listen(API_PORT, () => {
 - **Clean Imports**: Clear dependency relationships
 - **Future-Proof**: Ready for UI integration, real AI, production deployment
 
-## GasUtils + CPI Pattern (Phase 7 - In Progress)
+## Browser Extension Architecture Patterns (Phase 8.2 - Complete)
 
-### Utility Library + Cross-Program Invocation Architecture
+### Phase 8.2: Browser Extension mGas Earning System ✅ COMPLETE
+**Pattern**: Client-side mGas earning through browser extension
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   User Request  │───▶│  Core Programs   │───▶│   GasUtils CPI  │
-│ (commit_epoch)  │    │ (thought-epoch)  │    │ collect_and_split│
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                              │                          │
-                              ▼                          ▼
-                       ┌─────────────────┐    ┌─────────────────┐
-                       │ Business Logic  │    │ Gas Distribution│
-                       │ • Store roots   │    │ • Model: 50%    │
-                       │ • Update state  │    │ • Memory: 20%   │
-                       │ • Emit events   │    │ • Validator: 30%│
-                       └─────────────────┘    └─────────────────┘
-
-Evolution from Client-Side to On-Chain Gas Management:
-
-BEFORE (Phase 6):                    AFTER (Phase 7):
-┌─────────────────┐                 ┌─────────────────┐
-│   Client Code   │                 │   Client Code   │
-│ • makeBurnIx()  │                 │ • Simple call   │
-│ • Pre-instruct. │────────────────▶│ • No gas logic  │
-│ • Gas calc.     │                 │ • Clean & simple│
-└─────────────────┘                 └─────────────────┘
-         │                                   │
-         ▼                                   ▼
-┌─────────────────┐                 ┌─────────────────┐
-│ Solana Program  │                 │ Core Program    │
-│ • commit_epoch  │                 │ • CPI to GasUtils│
-│ • No gas logic  │                 │ • commit_epoch  │
-└─────────────────┘                 │ • Cleaner logic │
-                                    └─────────────────┘
-                                             │
-                                             ▼
-                                    ┌─────────────────┐
-                                    │   GasUtils      │
-                                    │ • collect_split │
-                                    │ • Recipient mgmt│
-                                    │ • Upgradeable   │
-                                    └─────────────────┘
+User Input → Extension Processing → Quality Assessment → mGas Earning → Balance Update
 ```
 
-### GasUtils Program Structure
-```rust
-#[program]
-pub mod gas_utils {
-    use super::*;
-    
-    pub fn collect_and_split(
-        ctx: Context<CollectAndSplit>,
-        m_gas_amount: u64,
-        i_gas_amount: u64,
-        recipients: Vec<(Pubkey, u8)>, // (recipient, percentage)
-    ) -> Result<()> {
-        // 1. Validate percentages sum to 100
-        // 2. Collect total gas from user
-        // 3. Distribute to recipients based on percentages
-        // 4. Handle any remainder
-    }
-}
+**Key Components**:
+- **Extension Popup**: User interface for text processing and wallet connection
+- **Background Service**: Persistent processing and notifications
+- **Content Scripts**: Webpage interaction and floating buttons
+- **Storage System**: Chrome storage API for user data persistence
+- **Wallet Integration**: Solana wallet connection for transaction signing
+- **Task System**: Daily tasks and progress tracking for mGas earning
+- **Quality Scoring**: Basic assessment of user input quality
+- **Notification System**: User feedback and achievement notifications
 
-#[derive(Accounts)]
-pub struct CollectAndSplit<'info> {
-    #[account(mut)]
-    pub user_ata: Account<'info, TokenAccount>,
-    
-    pub lucid_mint: Account<'info, Mint>,
-    
-    #[account(mut)]
-    pub user: Signer<'info>,
-    
-    // Dynamic recipient accounts
-    // ... (recipient ATAs based on instruction data)
-    
-    pub token_program: Program<'info, Token>,
-}
+**Architecture Benefits**:
+- **Accessibility**: Available on any webpage through browser extension
+- **Persistence**: Background processing maintains state between sessions
+- **User Experience**: Seamless integration with existing web browsing
+- **Monetization**: Direct mGas earning through AI usage
+- **Flexibility**: Multiple interaction methods (popup, context menu, shortcuts)
+
+### Phase 8.3: Advanced mGas Rewards & Gamification ✅ COMPLETE
+**Pattern**: Comprehensive reward system with quality assessment and achievements
+```
+User Input → Quality Assessment → Reward Calculation → Achievement Progress → Social Features
 ```
 
-### CPI Integration in Core Programs
-```rust
-// In thought-epoch program
-use gas_utils;
+**Key Components Implemented**:
+- **Advanced Quality Scoring**: 5-dimension assessment (creativity, complexity, coherence, uniqueness, AI engagement)
+- **Achievement System**: 8 progressive achievements with mGas rewards and unlocking criteria
+- **Streak Bonuses**: Daily usage incentives with increasing multipliers
+- **mGas Conversion**: Direct conversion to $LUCID tokens (100 mGas = 1 LUCID)
+- **Social Features**: Sharing, referrals, and community engagement
+- **Leaderboards**: Competition and social comparison with rankings
+- **Seasonal Events**: Weekend bonuses, monthly challenges, and special events
+- **Advanced UI**: Modal overlays, quality tier indicators, and professional animations
 
-pub fn commit_epoch(ctx: Context<CommitEpoch>, root: [u8; 32]) -> Result<()> {
-    // 1. Calculate gas costs and recipients
-    let recipients = vec![
-        (ctx.accounts.model_publisher_ata.key(), 50),  // 50%
-        (ctx.accounts.memory_provider_ata.key(), 20),  // 20%
-        (ctx.accounts.validator_ata.key(), 30),        // 30%
-    ];
-    
-    // 2. CPI call to GasUtils
-    let cpi_accounts = gas_utils::cpi::accounts::CollectAndSplit {
-        user_ata: ctx.accounts.user_ata.to_account_info(),
-        lucid_mint: ctx.accounts.lucid_mint.to_account_info(),
-        user: ctx.accounts.authority.to_account_info(),
-        token_program: ctx.accounts.token_program.to_account_info(),
+**Implementation Files**:
+- **browser-extension/reward-system.js**: Complete RewardSystem class with all features
+- **PHASE-8.3-MGAS-REWARDS-GUIDE.md**: Comprehensive implementation guide (200+ lines)
+- **test-phase8-3.js**: Complete testing suite for all reward system features
+- Enhanced popup.js, styles.css, and popup.html for advanced features
+
+**Architecture Benefits**:
+- **Gamification**: Achievement system encourages continued engagement
+- **Quality Incentives**: Rewards for high-quality AI interactions
+- **Social Integration**: Community building through sharing and referrals
+- **Economic Model**: Sustainable mGas earning and conversion system
+- **Event System**: Dynamic events maintain user interest and engagement
+
+## Advanced mGas Rewards System Pattern (Phase 8.3 - Complete)
+
+### Quality Assessment Algorithm
+```javascript
+// 5-dimension quality evaluation system
+class QualityAssessment {
+  assessQuality(text, response) {
+    const dimensions = {
+      creativity: this.assessCreativity(text, response),
+      complexity: this.assessComplexity(text, response),
+      coherence: this.assessCoherence(text, response),
+      uniqueness: this.assessUniqueness(text, response),
+      aiEngagement: this.assessAIEngagement(text, response)
     };
     
-    let cpi_ctx = CpiContext::new(
-        ctx.accounts.gas_utils_program.to_account_info(),
-        cpi_accounts
+    return this.calculateOverallScore(dimensions);
+  }
+  
+  assessCreativity(text, response) {
+    // Creative writing indicators
+    const creativeKeywords = ['imagine', 'create', 'design', 'innovate', 'story'];
+    const keywordMatches = creativeKeywords.filter(kw => 
+      text.toLowerCase().includes(kw) || response.toLowerCase().includes(kw)
+    ).length;
+    
+    return Math.min(keywordMatches * 0.2, 1.0);
+  }
+  
+  assessComplexity(text, response) {
+    // Technical complexity indicators
+    const complexityFactors = [
+      text.split(' ').length > 20,
+      response.split(' ').length > 50,
+      /[{}()\[\]]/.test(text),
+      response.includes('Therefore') || response.includes('However')
+    ];
+    
+    return complexityFactors.filter(Boolean).length / complexityFactors.length;
+  }
+}
+```
+
+### Achievement System Pattern
+```javascript
+// 8 progressive achievements with mGas rewards
+class AchievementSystem {
+  constructor() {
+    this.achievements = [
+      {
+        id: 'first-thought',
+        title: 'First Thought',
+        description: 'Process your first AI interaction',
+        reward: 10,
+        condition: (stats) => stats.totalInteractions >= 1
+      },
+      {
+        id: 'quality-master',
+        title: 'Quality Master',
+        description: 'Achieve 5 high-quality interactions',
+        reward: 25,
+        condition: (stats) => stats.highQualityCount >= 5
+      },
+      {
+        id: 'streak-keeper',
+        title: 'Streak Keeper',
+        description: 'Maintain a 7-day streak',
+        reward: 50,
+        condition: (stats) => stats.longestStreak >= 7
+      },
+      {
+        id: 'social-butterfly',
+        title: 'Social Butterfly',
+        description: 'Share 3 AI interactions',
+        reward: 30,
+        condition: (stats) => stats.sharedCount >= 3
+      },
+      {
+        id: 'converter',
+        title: 'Converter',
+        description: 'Convert mGas to LUCID for the first time',
+        reward: 20,
+        condition: (stats) => stats.conversions >= 1
+      },
+      {
+        id: 'power-user',
+        title: 'Power User',
+        description: 'Complete 100 AI interactions',
+        reward: 100,
+        condition: (stats) => stats.totalInteractions >= 100
+      },
+      {
+        id: 'quality-expert',
+        title: 'Quality Expert',
+        description: 'Achieve 25 high-quality interactions',
+        reward: 150,
+        condition: (stats) => stats.highQualityCount >= 25
+      },
+      {
+        id: 'legend',
+        title: 'Lucid Legend',
+        description: 'Earn 1000 mGas total',
+        reward: 200,
+        condition: (stats) => stats.totalEarned >= 1000
+      }
+    ];
+  }
+  
+  checkAchievements(userStats) {
+    const newAchievements = [];
+    
+    for (const achievement of this.achievements) {
+      if (!userStats.unlockedAchievements.includes(achievement.id)) {
+        if (achievement.condition(userStats)) {
+          newAchievements.push(achievement);
+          userStats.unlockedAchievements.push(achievement.id);
+        }
+      }
+    }
+    
+    return newAchievements;
+  }
+}
+```
+
+### Reward Calculation System
+```javascript
+// Multi-layered reward calculation
+class RewardCalculation {
+  calculateReward(interaction, userStats) {
+    const baseReward = 10; // Base mGas reward
+    
+    // Quality multiplier (1.0 to 2.0)
+    const qualityMultiplier = 1.0 + (interaction.qualityScore * 1.0);
+    
+    // Streak multiplier (1.0 to 3.0)
+    const streakMultiplier = Math.min(1.0 + (userStats.currentStreak * 0.1), 3.0);
+    
+    // Event multiplier (weekend bonus, special events)
+    const eventMultiplier = this.getEventMultiplier();
+    
+    // First daily bonus (extra 50% for first interaction of day)
+    const firstDailyBonus = this.isFirstDailyInteraction(userStats) ? 1.5 : 1.0;
+    
+    const totalReward = Math.floor(
+      baseReward * qualityMultiplier * streakMultiplier * eventMultiplier * firstDailyBonus
     );
     
-    gas_utils::cpi::collect_and_split(
-        cpi_ctx,
-        5, // mGas amount
-        1, // iGas amount  
-        recipients
-    )?;
-    
-    // 3. Execute core business logic
-    let rec = &mut ctx.accounts.epoch_record;
-    rec.merkle_root = root;
-    rec.authority = *ctx.accounts.authority.key;
-    
-    Ok(())
-}
-```
-
-### Enhanced Account Context Pattern
-```rust
-#[derive(Accounts)]
-pub struct CommitEpoch<'info> {
-    // Existing accounts
-    #[account(
-        init_if_needed,
-        payer = authority,
-        space = 8 + 32 + 32,
-        seeds = [b"epoch", authority.key().as_ref()],
-        bump
-    )]
-    pub epoch_record: Account<'info, EpochRecord>,
-    
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    
-    pub system_program: Program<'info, System>,
-    
-    // New GasUtils integration accounts
-    pub gas_utils_program: Program<'info, GasUtils>,
-    
-    #[account(mut)]
-    pub user_ata: Account<'info, TokenAccount>,
-    
-    pub lucid_mint: Account<'info, Mint>,
-    
-    // Recipient accounts (dynamic based on operation)
-    #[account(mut)]
-    pub model_publisher_ata: Account<'info, TokenAccount>,
-    
-    #[account(mut)]
-    pub memory_provider_ata: Account<'info, TokenAccount>,
-    
-    #[account(mut)]
-    pub validator_ata: Account<'info, TokenAccount>,
-    
-    pub token_program: Program<'info, Token>,
-}
-```
-
-### Client Integration Simplification
-```typescript
-// BEFORE: Complex client-side gas management
-const computeIx = makeComputeIx();
-const igasIx = makeBurnIx('iGas', userAta, LUCID_MINT, authority, 1);
-const mgasIx = makeBurnIx('mGas', userAta, LUCID_MINT, authority, 5);
-
-await program.methods
-  .commitEpoch([...rootBytes])
-  .accounts({...})
-  .preInstructions([computeIx, igasIx, mgasIx])
-  .rpc();
-
-// AFTER: Simple CPI-based approach
-await program.methods
-  .commitEpoch([...rootBytes])
-  .accounts({
-    // ... existing accounts
-    gasUtilsProgram: GAS_UTILS_PROGRAM_ID,
-    userAta,
-    lucidMint: LUCID_MINT,
-    modelPublisherAta,
-    memoryProviderAta,
-    validatorAta,
-    tokenProgram: TOKEN_PROGRAM_ID,
-  })
-  .rpc();
-```
-
-### Benefits of GasUtils + CPI Pattern
-- **Maintainability**: Single program for all gas logic updates
-- **Flexibility**: Easy recipient configuration changes
-- **Modularity**: Clean separation of gas handling from business logic
-- **Upgradability**: Independent gas program updates
-- **Efficiency**: CPI overhead ~50-100μs (negligible vs sub-100ms goal)
-- **Scalability**: Supports complex recipient configurations
-- **Security**: Centralized validation of gas distribution logic
-
-## MMR Integration Patterns (Phase 5 - Completed)
-
-### Per-Agent MMR Management Pattern
-```typescript
-// Each agent maintains isolated MMR state
-export class AgentMMR {
-  private agentId: string;
-  private mmr: MerkleTree;
-  private rootHistory: { epoch: number; root: Buffer; timestamp: number }[];
-  
-  processEpoch(vectors: Buffer[], epochNumber: number): Buffer {
-    // 1. Hash vectors with SHA-256
-    // 2. Append to MMR structure
-    // 3. Generate new root
-    // 4. Store in history
-    // 5. Return root for on-chain commitment
-  }
-}
-```
-
-### IPFS Storage Pattern (File-Based Simulation)
-```typescript
-// Content-addressed storage with deterministic CIDs
-export class IPFSStorageManager {
-  async storeAgentMMR(agentMMR: AgentMMR): Promise<string> {
-    // 1. Serialize MMR data with Buffer handling
-    // 2. Generate content-addressed ID (CID simulation)
-    // 3. Store to file system
-    // 4. Return CID for reference
+    return {
+      baseReward,
+      qualityMultiplier,
+      streakMultiplier,
+      eventMultiplier,
+      firstDailyBonus,
+      totalReward,
+      breakdown: this.generateBreakdown(interaction, userStats)
+    };
   }
   
-  private generateCID(data: Buffer): string {
-    const hash = createHash('sha256').update(data).digest('hex');
-    return `Qm${hash.substring(0, 44)}`; // Simulate IPFS CID format
+  getEventMultiplier() {
+    const now = new Date();
+    const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+    
+    // Weekend bonus
+    if (isWeekend) return 1.5;
+    
+    // Check for special events
+    const currentEvent = this.getCurrentEvent();
+    if (currentEvent) return currentEvent.multiplier;
+    
+    return 1.0;
   }
 }
 ```
 
-### MMR Service Integration Pattern
-```typescript
-// High-level service integrating MMR with existing Lucid L2
-export class MMRService {
-  async processAgentEpoch(epochData: AgentEpochData): Promise<MMRCommitResult> {
-    // 1. Process vectors through MMR
-    // 2. Store updated MMR on IPFS
-    // 3. Calculate gas costs
-    // 4. Commit root to Solana using existing program
-    // 5. Return comprehensive result
+### mGas to LUCID Conversion Pattern
+```javascript
+// Token conversion system
+class ConversionSystem {
+  constructor() {
+    this.conversionRate = 100; // 100 mGas = 1 LUCID
+    this.minimumConversion = 100; // Minimum 100 mGas to convert
+  }
+  
+  async convertMGasToLucid(mGasAmount, userWallet) {
+    // Validation
+    if (mGasAmount < this.minimumConversion) {
+      throw new Error(`Minimum conversion is ${this.minimumConversion} mGas`);
+    }
+    
+    const lucidAmount = Math.floor(mGasAmount / this.conversionRate);
+    
+    try {
+      // Create transaction to mint LUCID tokens
+      const transaction = await this.createMintTransaction(
+        userWallet,
+        lucidAmount
+      );
+      
+      // Execute transaction
+      const signature = await window.solana.signAndSendTransaction(transaction);
+      
+      // Update user balance
+      await this.updateUserBalance(userWallet, -mGasAmount, lucidAmount);
+      
+      return {
+        success: true,
+        signature,
+        mGasConverted: mGasAmount,
+        lucidReceived: lucidAmount,
+        newBalance: await this.getUserBalance(userWallet)
+      };
+    } catch (error) {
+      throw new Error(`Conversion failed: ${error.message}`);
+    }
+  }
+  
+  async createMintTransaction(userWallet, amount) {
+    // Implementation would create actual Solana transaction
+    // to mint LUCID tokens to user's wallet
+    return mockTransaction;
   }
 }
 ```
 
-### CLI Command Pattern for MMR
-```typescript
-// Modular CLI commands following existing patterns
-export async function processEpoch(agentId: string, vectors: string[], epochNumber?: number): Promise<void> {
-  // 1. Validate inputs
-  // 2. Process through MMR service
-  // 3. Display results with gas breakdown
-  // 4. Handle errors gracefully
+### Social Features Pattern
+```javascript
+// Social sharing and referral system
+class SocialFeatures {
+  generateShareableContent(interaction, qualityScore) {
+    const content = {
+      text: `Just earned ${interaction.reward} mGas with a quality score of ${qualityScore.toFixed(2)} on Lucid L2™!`,
+      url: 'https://lucid-l2.com',
+      hashtags: ['LucidL2', 'AI', 'mGas', 'Solana'],
+      image: this.generateShareImage(interaction, qualityScore)
+    };
+    
+    return content;
+  }
+  
+  processReferral(referralCode, newUser) {
+    // Validate referral code
+    const referrer = this.validateReferralCode(referralCode);
+    if (!referrer) return null;
+    
+    // Reward both referrer and new user
+    const referralReward = {
+      referrer: { mGas: 50, bonus: 'referral_bonus' },
+      newUser: { mGas: 25, bonus: 'welcome_bonus' }
+    };
+    
+    // Track referral in system
+    this.trackReferral(referrer, newUser, referralReward);
+    
+    return referralReward;
+  }
+  
+  generateReferralCode(userWallet) {
+    // Generate unique referral code based on wallet
+    const hash = this.createHash(userWallet + Date.now());
+    return `LUCID-${hash.substring(0, 8).toUpperCase()}`;
+  }
 }
 ```
 
-### MMR Data Structures
-```typescript
-interface MMRState {
-  size: number;                    // Number of leaves in MMR
-  peaks: Buffer[];                 // Current peak hashes
-  nodes: Map<number, Buffer>;      // All MMR nodes
-}
-
-interface MMRProof {
-  leafIndex: number;               // Position of leaf in MMR
-  leafHash: Buffer;                // Hash of the leaf
-  siblings: Buffer[];              // Sibling hashes for path
-  peaks: Buffer[];                 // Peak hashes for bagging
-  mmrSize: number;                 // MMR size at proof time
-}
-
-interface StoredMMRData {
-  agentId: string;                 // Agent identifier
-  mmrState: MMRState;              // Complete MMR state
-  rootHistory: {                   // Historic roots
-    epoch: number;
-    root: Buffer;
-    timestamp: number;
-  }[];
-  lastUpdated: number;             // Last modification time
-  version: string;                 // Data format version
+### Leaderboard System Pattern
+```javascript
+// Community rankings and competition
+class LeaderboardSystem {
+  async getLeaderboards() {
+    return {
+      earnings: await this.getTopEarners(),
+      quality: await this.getTopQuality(),
+      streaks: await this.getTopStreaks(),
+      achievements: await this.getTopAchievements()
+    };
+  }
+  
+  async getTopEarners() {
+    // Mock implementation - would fetch from API
+    return [
+      { rank: 1, wallet: 'ABC...123', earnings: 2500, change: '+5' },
+      { rank: 2, wallet: 'DEF...456', earnings: 2200, change: '-1' },
+      { rank: 3, wallet: 'GHI...789', earnings: 1800, change: '+2' }
+    ];
+  }
+  
+  async getUserRank(userWallet) {
+    // Get user's current ranking across all leaderboards
+    const rankings = await this.fetchUserRankings(userWallet);
+    
+    return {
+      earnings: rankings.earnings || 'Not ranked',
+      quality: rankings.quality || 'Not ranked',
+      streaks: rankings.streaks || 'Not ranked',
+      achievements: rankings.achievements || 'Not ranked'
+    };
+  }
 }
 ```
 
-### MMR Integration Benefits
-- **Per-Agent Isolation**: Each agent has independent MMR state
-- **Cryptographic Proofs**: Mathematical verification of contributions
-- **Immutable Timeline**: Historic roots preserved for proof-of-contribution
-- **Off-Chain Efficiency**: Complete MMR state stored off-chain
-- **On-Chain Verification**: Only 32-byte roots committed on-chain
-- **Existing Integration**: Uses current dual-gas system and Solana program
-- **Scalable Architecture**: Supports unlimited agents and vectors
+### Event System Pattern
+```javascript
+// Seasonal events and challenges
+class EventSystem {
+  getCurrentEvent() {
+    const now = new Date();
+    
+    // Weekend bonus event
+    if (now.getDay() === 0 || now.getDay() === 6) {
+      return {
+        id: 'weekend-bonus',
+        title: 'Weekend Warrior',
+        description: 'Earn 50% more mGas on weekends!',
+        multiplier: 1.5,
+        endTime: this.getNextWeekdayStart()
+      };
+    }
+    
+    // Monthly challenge
+    const monthlyChallenge = this.getMonthlyChallenge();
+    if (monthlyChallenge && this.isEventActive(monthlyChallenge)) {
+      return monthlyChallenge;
+    }
+    
+    return null;
+  }
+  
+  getMonthlyChallenge() {
+    const now = new Date();
+    const month = now.getMonth();
+    
+    const challenges = [
+      { month: 0, title: 'New Year New AI', goal: 'Complete 50 interactions', reward: 500 },
+      { month: 1, title: 'Love Your AI', goal: 'Achieve 20 high-quality interactions', reward: 400 },
+      { month: 2, title: 'Spring Awakening', goal: 'Maintain 15-day streak', reward: 600 }
+    ];
+    
+    return challenges.find(c => c.month === month);
+  }
+}
+```
+
+## Phase 8.3 Architecture Benefits
+
+### Economic Model
+- **Sustainable Rewards**: Balanced mGas earning and conversion rates
+- **Quality Incentives**: Higher rewards for better AI interactions
+- **Engagement Mechanisms**: Streaks, achievements, and social features
+- **Anti-Inflation**: Minimum conversion thresholds and rate limiting
+
+### Technical Implementation
+- **Modular Design**: Clean separation of concerns across components
+- **Extensible Architecture**: Easy addition of new achievements and events
+- **Performance Optimized**: Efficient quality assessment algorithms
+- **User Experience**: Responsive UI with professional animations
+
+### Future Scalability
+- **Real-time Events**: Foundation for live events and competitions
+- **Advanced Analytics**: User behavior tracking and optimization
+- **Community Features**: Enhanced social interactions and competitions
+- **Integration Ready**: Prepared for Phase 8.4 anti-cheat systems
+
+## Phase 8.4: Devnet Migration & Real Wallet Integration Patterns
+
+### Current Challenge: Mock to Real Wallet Transition
+**Pattern**: Transition from mock wallet simulation to actual Solana wallet integration
+```
+Mock Wallet (Current) → Real Wallet Connection → Devnet Integration → Production-Ready Testing
+```
+
+### Network Migration Pattern
+```javascript
+// Configuration migration pattern
+// FROM: Localnet development
+const LOCAL_CONFIG = {
+  rpcUrl: 'http://localhost:8899',
+  commitment: 'processed',
+  programId: '8QRA7K4UHaFhsyRqrUAU7onsJhVHiP7FvwSHouD1dM29', // localnet
+  lucidMint: 'G2bVsRy2xBiAAMeZDoFbH3526AKNPKa5SuCC9PCe2hTE'  // localnet
+};
+
+// TO: Devnet testing
+const DEVNET_CONFIG = {
+  rpcUrl: 'https://api.devnet.solana.com',
+  commitment: 'confirmed',
+  programId: 'NEW_DEVNET_PROGRAM_ID',  // Need to deploy
+  lucidMint: 'NEW_DEVNET_MINT_ADDRESS' // Need to create
+};
+```
+
+### Real Wallet Integration Pattern
+```javascript
+// Browser Extension Wallet Connection
+// FROM: Mock wallet simulation
+class MockWalletConnection {
+  async connectWallet() {
+    // Simulate wallet connection with hardcoded address
+    this.wallet = {
+      address: 'CDUauc4hYqPjBqZzhytmXd8DG4pjiwNjPn3cpCWNpToa',
+      publicKey: 'CDUauc4hYqPjBqZzhytmXd8DG4pjiwNjPn3cpCWNpToa'
+    };
+    
+    // Simulate random balances
+    this.balance.mGas = Math.floor(Math.random() * 1000) + 500;
+    this.balance.lucid = Math.floor(Math.random() * 100) + 50;
+  }
+}
+
+// TO: Real Phantom wallet integration
+class RealWalletConnection {
+  async connectWallet() {
+    if (!window.solana || !window.solana.isPhantom) {
+      throw new Error('Phantom wallet not found');
+    }
+    
+    try {
+      // Request wallet connection
+      const response = await window.solana.connect();
+      this.wallet = {
+        address: response.publicKey.toString(),
+        publicKey: response.publicKey
+      };
+      
+      // Query actual blockchain balances
+      await this.updateRealBalances();
+      
+      // Set up wallet event listeners
+      this.setupWalletListeners();
+      
+    } catch (error) {
+      throw new Error(`Wallet connection failed: ${error.message}`);
+    }
+  }
+  
+  async updateRealBalances() {
+    try {
+      const connection = new Connection(this.rpcUrl);
+      
+      // Get LUCID token balance
+      const lucidBalance = await connection.getTokenAccountBalance(
+        this.getUserLucidATA()
+      );
+      
+      // Get mGas balance from extension storage
+      const mGasBalance = await this.getMGasBalance();
+      
+      this.balance = {
+        lucid: lucidBalance.value.uiAmount || 0,
+        mGas: mGasBalance || 0
+      };
+    } catch (error) {
+      console.error('Balance update failed:', error);
+    }
+  }
+  
+  setupWalletListeners() {
+    window.solana.on('connect', () => {
+      this.onWalletConnect();
+    });
+    
+    window.solana.on('disconnect', () => {
+      this.onWalletDisconnect();
+    });
+    
+    window.solana.on('accountChanged', (publicKey) => {
+      this.onAccountChanged(publicKey);
+    });
+  }
+}
+```
+
+### Devnet Deployment Pattern
+```bash
+# Phase 8.4 Deployment Sequence
+# 1. Configure Solana CLI for devnet
+solana config set --url devnet
+
+# 2. Create and fund devnet wallet
+solana-keygen new --outfile ~/.config/solana/devnet-keypair.json
+solana airdrop 5 --keypair ~/.config/solana/devnet-keypair.json
+
+# 3. Build and deploy programs to devnet
+cd programs/thought-epoch
+anchor build
+anchor deploy --provider.cluster devnet
+
+cd ../gas-utils
+anchor build
+anchor deploy --provider.cluster devnet
+
+# 4. Create LUCID token on devnet
+spl-token create-token --decimals 9
+spl-token create-account <MINT_ADDRESS>
+spl-token mint <MINT_ADDRESS> 1000000 <TOKEN_ACCOUNT>
+
+# 5. Update configuration with new addresses
+# Update offchain/src/utils/config.ts with devnet addresses
+```
+
+### Transaction Signing Pattern
+```javascript
+// Real transaction signing with Phantom
+class DevnetTransactionHandler {
+  async signAndSendTransaction(transaction) {
+    try {
+      // Add recent blockhash and fee payer
+      const connection = new Connection(this.rpcUrl);
+      const { blockhash } = await connection.getRecentBlockhash();
+      
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = this.wallet.publicKey;
+      
+      // Sign transaction with Phantom
+      const signedTransaction = await window.solana.signTransaction(transaction);
+      
+      // Send to devnet
+      const signature = await connection.sendRawTransaction(
+        signedTransaction.serialize()
+      );
+      
+      // Wait for confirmation
+      await connection.confirmTransaction(signature, 'confirmed');
+      
+      return signature;
+    } catch (error) {
+      throw new Error(`Transaction failed: ${error.message}`);
+    }
+  }
+  
+  async processThoughtWithRealTransaction(text) {
+    try {
+      // Create transaction for thought processing
+      const transaction = await this.createThoughtTransaction(text);
+      
+      // Sign and send with real wallet
+      const signature = await this.signAndSendTransaction(transaction);
+      
+      // Update local state after confirmation
+      await this.updateLocalState(signature);
+      
+      return {
+        success: true,
+        signature,
+        explorerUrl: `https://explorer.solana.com/tx/${signature}?cluster=devnet`
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+}
+```
+
+### Error Handling Pattern for Real Wallet
+```javascript
+// Comprehensive error handling for real wallet integration
+class WalletErrorHandler {
+  constructor() {
+    this.errorTypes = {
+      WALLET_NOT_FOUND: 'wallet_not_found',
+      CONNECTION_REJECTED: 'connection_rejected',
+      TRANSACTION_FAILED: 'transaction_failed',
+      INSUFFICIENT_FUNDS: 'insufficient_funds',
+      NETWORK_ERROR: 'network_error',
+      TIMEOUT: 'timeout'
+    };
+  }
+  
+  async handleWalletError(error, operation) {
+    console.error(`Wallet error during ${operation}:`, error);
+    
+    // Determine error type
+    const errorType = this.categorizeError(error);
+    
+    switch (errorType) {
+      case this.errorTypes.WALLET_NOT_FOUND:
+        return {
+          success: false,
+          error: 'Phantom wallet not found. Please install Phantom wallet.',
+          action: 'install_phantom',
+          recoverable: true
+        };
+        
+      case this.errorTypes.CONNECTION_REJECTED:
+        return {
+          success: false,
+          error: 'Wallet connection rejected. Please approve the connection.',
+          action: 'retry_connection',
+          recoverable: true
+        };
+        
+      case this.errorTypes.TRANSACTION_FAILED:
+        return {
+          success: false,
+          error: 'Transaction failed. Please check your balance and try again.',
+          action: 'check_balance',
+          recoverable: true
+        };
+        
+      case this.errorTypes.INSUFFICIENT_FUNDS:
+        return {
+          success: false,
+          error: 'Insufficient SOL for transaction fees. Please fund your wallet.',
+          action: 'fund_wallet',
+          recoverable: true
+        };
+        
+      case this.errorTypes.NETWORK_ERROR:
+        return {
+          success: false,
+          error: 'Network error. Please check your connection and try again.',
+          action: 'retry',
+          recoverable: true
+        };
+        
+      case this.errorTypes.TIMEOUT:
+        return {
+          success: false,
+          error: 'Transaction timed out. Please try again.',
+          action: 'retry',
+          recoverable: true
+        };
+        
+      default:
+        return {
+          success: false,
+          error: 'Unknown error occurred. Please try again.',
+          action: 'retry',
+          recoverable: false
+        };
+    }
+  }
+  
+  categorizeError(error) {
+    const message = error.message.toLowerCase();
+    
+    if (message.includes('phantom') || message.includes('wallet not found')) {
+      return this.errorTypes.WALLET_NOT_FOUND;
+    }
+    
+    if (message.includes('rejected') || message.includes('cancelled')) {
+      return this.errorTypes.CONNECTION_REJECTED;
+    }
+    
+    if (message.includes('insufficient funds') || message.includes('balance')) {
+      return this.errorTypes.INSUFFICIENT_FUNDS;
+    }
+    
+    if (message.includes('network') || message.includes('connection')) {
+      return this.errorTypes.NETWORK_ERROR;
+    }
+    
+    if (message.includes('timeout') || message.includes('timed out')) {
+      return this.errorTypes.TIMEOUT;
+    }
+    
+    return this.errorTypes.TRANSACTION_FAILED;
+  }
+}
+```
+
+### Configuration Management Pattern
+```javascript
+// Environment-aware configuration for devnet migration
+class ConfigurationManager {
+  constructor() {
+    this.environments = {
+      localnet: {
+        rpcUrl: 'http://localhost:8899',
+        commitment: 'processed',
+        programId: '8QRA7K4UHaFhsyRqrUAU7onsJhVHiP7FvwSHouD1dM29',
+        lucidMint: 'G2bVsRy2xBiAAMeZDoFbH3526AKNPKa5SuCC9PCe2hTE'
+      },
+      devnet: {
+        rpcUrl: 'https://api.devnet.solana.com',
+        commitment: 'confirmed',
+        programId: 'DEVNET_PROGRAM_ID_PLACEHOLDER',
+        lucidMint: 'DEVNET_MINT_ADDRESS_PLACEHOLDER'
+      },
+      mainnet: {
+        rpcUrl: 'https://api.mainnet-beta.solana.com',
+        commitment: 'confirmed',
+        programId: 'MAINNET_PROGRAM_ID_PLACEHOLDER',
+        lucidMint: 'MAINNET_MINT_ADDRESS_PLACEHOLDER'
+      }
+    };
+    
+    this.currentEnvironment = 'localnet'; // Default to localnet
+  }
+  
+  setEnvironment(env) {
+    if (!this.environments[env]) {
+      throw new Error(`Invalid environment: ${env}`);
+    }
+    
+    this.currentEnvironment = env;
+    this.notifyEnvironmentChange(env);
+  }
+  
+  getConfig() {
+    return {
+      ...this.environments[this.currentEnvironment],
+      environment: this.currentEnvironment
+    };
+  }
+  
+  isDevnet() {
+    return this.currentEnvironment === 'devnet';
+  }
+  
+  isMainnet() {
+    return this.currentEnvironment === 'mainnet';
+  }
+  
+  notifyEnvironmentChange(env) {
+    console.log(`🌐 Environment switched to: ${env}`);
+    
+    // Update browser extension with new config
+    chrome.storage.local.set({
+      'lucid_environment': env,
+      'lucid_config': this.getConfig()
+    });
+  }
+}
+```
+
+### Phase 8.4 Implementation Benefits
+- **Real Wallet Testing**: Actual Phantom integration on devnet
+- **Production-Ready**: Environment preparation for mainnet deployment
+- **Error Handling**: Comprehensive error management for real-world scenarios
+- **User Experience**: Seamless wallet connection with native devnet support
+- **Configuration Management**: Environment-aware configuration switching
+- **Transaction Verification**: Real blockchain transaction confirmation
+- **Network Resilience**: Proper handling of network issues and failures
+
+The Phase 8.4 implementation provides the foundation for real-world wallet testing and prepares the system for production deployment on mainnet.

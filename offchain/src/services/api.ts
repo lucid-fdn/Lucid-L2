@@ -2,7 +2,7 @@
 import express from 'express';
 import { SystemProgram } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
-import { runMockInference } from '../utils/inference';
+import { runInference, runBatchInference } from '../utils/inference';
 import { initSolana, deriveEpochPDA } from '../solana/client';
 import { loadStore, saveStore, MemoryStore } from '../utils/memoryStore';
 import { makeComputeIx, makeBurnIx, calculateGasCost } from '../solana/gas';
@@ -13,7 +13,7 @@ import { getMMRService, AgentEpochData } from './mmrService';
 export async function handleRun(req: express.Request, res: express.Response) {
   try {
     const { text } = req.body as { text: string };
-    const rootBytes = runMockInference(text);
+    const rootBytes = await runInference(text);
     const hexRoot = Buffer.from(rootBytes).toString('hex');
 
     const program = initSolana();
@@ -86,10 +86,8 @@ export async function handleBatch(req: express.Request, res: express.Response) {
     const gasCost = calculateGasCost('batch', validTexts.length);
     
     // Generate roots for response (same logic as batchCommit)
-    const roots = validTexts.map(t => {
-      const rootBytes = runMockInference(t);
-      return Buffer.from(rootBytes).toString('hex');
-    });
+    const rootsBytes = await runBatchInference(validTexts);
+    const roots = rootsBytes.map(rootBytes => Buffer.from(rootBytes).toString('hex'));
 
     res.json({ 
       success: true, 

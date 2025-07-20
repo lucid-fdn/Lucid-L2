@@ -1,13 +1,13 @@
 // offchain/src/commands/batch.ts
 import { SystemProgram } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
-import { runMockInference } from '../utils/inference';
+import { runBatchInference } from '../utils/inference';
 import { initSolana, deriveEpochBatchPDA } from '../solana/client';
 import { makeComputeIx, makeBurnIx, calculateGasCost } from '../solana/gas';
 import { LUCID_MINT, MGAS_PER_ROOT, IGAS_PER_BATCH } from '../utils/config';
 
 export async function batchCommit(texts: string[]) {
-  const roots = texts.map(t => runMockInference(t));
+  const roots = await runBatchInference(texts);
   const program = initSolana();
   const authority = (program.provider as any).wallet.publicKey;
   const [pda] = await deriveEpochBatchPDA(authority, program.programId);
