@@ -236,60 +236,47 @@ class ExtensionState {
         try {
             this.showLoading();
             
-            // Try direct wallet connection first (fallback method)
-            if (typeof window !== 'undefined' && window.solana && window.solana.isPhantom) {
-                const result = await this.connectWalletDirect();
-                if (result.success) {
-                    this.wallet = result.wallet;
-                    this.balance = { sol: 0, lucid: 0, mGas: this.balance.mGas }; // Keep existing mGas
-                    this.isConnected = true;
-                    
-                    this.showToast('Wallet connected successfully!');
-                    await this.updateUI();
-                    await this.saveToStorage();
-                    this.hideLoading();
-                    return;
-                }
-            }
-            
-            // Get active tab and try content script method
+            // Validate current tab
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
             if (tabs.length === 0) {
                 throw new Error('No active tab found. Please open a web page and try again.');
             }
             
-            // First check if content script is available
-            const isContentScriptAvailable = await this.checkContentScriptAvailable(tabs[0].id);
-            if (!isContentScriptAvailable) {
-                // Try to inject content script
-                try {
-                    await chrome.scripting.executeScript({
-                        target: { tabId: tabs[0].id },
-                        files: ['content.js']
-                    });
-                    // Wait a bit for content script to initialize
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                } catch (error) {
-                    console.log('Failed to inject content script:', error);
-                    throw new Error('Unable to connect wallet. Please refresh the page and try again.');
-                }
+            const activeTab = tabs[0];
+            
+            // Check if tab URL is valid for wallet connection
+            if (this.isInvalidTabForWallet(activeTab.url)) {
+                throw new Error(this.getInvalidUrlMessage(activeTab.url));
             }
             
-            // Send message to content script with retry logic
-            const result = await this.sendMessageWithRetry(tabs[0].id, {
+            // Ensure content script is available
+            await this.ensureContentScriptAvailable(activeTab.id);
+            
+            // Send wallet connection request to content script
+            const result = await this.sendMessageWithRetry(activeTab.id, {
                 action: 'connectWallet'
             });
             
             if (result && result.success) {
                 this.wallet = result.wallet;
-                this.balance = { sol: 0, lucid: 0, mGas: this.balance.mGas }; // Keep existing mGas
+                this.balance = {
+                    sol: result.balance?.sol || 0,
+                    lucid: result.balance?.lucid || 0,
+                    mGas: this.balance.mGas // Keep existing mGas
+                };
                 this.isConnected = true;
                 
                 this.showToast('Wallet connected successfully!');
                 await this.updateUI();
                 await this.saveToStorage();
             } else {
-                this.showToast(result ? result.error : 'Failed to connect wallet');
+                const errorMessage = result?.error || 'Failed to connect wallet';
+                this.showToast(errorMessage);
+                
+                // Show additional help for specific errors
+                if (result?.code === 'WALLET_NOT_FOUND') {
+                    this.showWalletNotFoundHelp();
+                }
             }
             
             this.hideLoading();
@@ -758,15 +745,29 @@ class ExtensionState {
         try {
             // Check if wallet was previously connected
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tabs.length > 0) {
+            if (tabs.length > 0 && !this.isInvalidTabForWallet(tabs[0].url)) {
                 try {
                     const result = await chrome.tabs.sendMessage(tabs[0].id, {
                         action: 'checkWallet'
                     });
                     
-                    if (result.success && result.connected && result.publicKey) {
+                    if (result?.success && result.connected && result.publicKey) {
                         this.wallet = { address: result.publicKey };
                         this.isConnected = true;
+                        
+                        // Try to get updated balance
+                        const balanceResult = await chrome.tabs.sendMessage(tabs[0].id, {
+                            action: 'getWalletBalance'
+                        });
+                        
+                        if (balanceResult?.success) {
+                            this.balance = {
+                                sol: balanceResult.balance.sol || 0,
+                                lucid: balanceResult.balance.lucid || 0,
+                                mGas: this.balance.mGas // Keep existing mGas
+                            };
+                        }
+                        
                         await this.updateUI();
                         await this.saveToStorage();
                     }
@@ -785,13 +786,17 @@ class ExtensionState {
             
             // Get active tab and send message to content script
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tabs.length > 0) {
+            if (tabs.length > 0 && !this.isInvalidTabForWallet(tabs[0].url)) {
                 try {
-                    await chrome.tabs.sendMessage(tabs[0].id, {
+                    const result = await chrome.tabs.sendMessage(tabs[0].id, {
                         action: 'disconnectWallet'
                     });
+                    
+                    if (result && !result.success) {
+                        console.warn('Content script disconnect failed:', result.error);
+                    }
                 } catch (error) {
-                    console.log('Content script not available:', error);
+                    console.log('Content script not available for disconnect:', error);
                 }
             }
             
@@ -822,30 +827,64 @@ class ExtensionState {
         }
     }
 
-    // Direct wallet connection method (fallback)
-    async connectWalletDirect() {
-        try {
-            if (!window.solana || !window.solana.isPhantom) {
-                throw new Error('Phantom wallet not found. Please install Phantom wallet.');
-            }
+    // Helper method to check if tab URL is valid for wallet operations
+    isInvalidTabForWallet(url) {
+        if (!url) return true;
+        
+        const invalidPrefixes = [
+            'chrome://',
+            'chrome-extension://',
+            'moz-extension://',
+            'edge://',
+            'about:',
+            'file://'
+        ];
+        
+        return invalidPrefixes.some(prefix => url.startsWith(prefix));
+    }
 
-            console.log('📱 Phantom wallet found, requesting connection...');
-            const response = await window.solana.connect();
-            console.log('✅ Wallet connected:', response.publicKey.toString());
+    // Get user-friendly error message for invalid URLs
+    getInvalidUrlMessage(url) {
+        if (!url) return 'Please navigate to a website first.';
+        
+        if (url.startsWith('file://')) {
+            return 'Phantom wallet does not work on local files. Please navigate to https://google.com or any website and try again.';
+        }
+        
+        if (url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
+            return 'Phantom wallet does not work on Chrome internal pages. Please navigate to https://google.com or any website and try again.';
+        }
+        
+        return 'Phantom wallet does not work on this type of page. Please navigate to https://google.com or any regular website and try again.';
+    }
+
+    // Helper method to ensure content script is available
+    async ensureContentScriptAvailable(tabId) {
+        try {
+            console.log('📦 Injecting content script...');
             
-            return {
-                success: true,
-                wallet: {
-                    address: response.publicKey.toString(),
-                    publicKey: response.publicKey
-                }
-            };
+            // Always inject simple content script (no conflict since we removed auto-injection from manifest)
+            await chrome.scripting.executeScript({
+                target: { tabId },
+                files: ['content-simple.js']
+            });
+            
+            console.log('✅ Content script injected successfully');
+            
+            // Wait for content script to initialize and Phantom to be ready
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            
+            // Verify content script is working
+            const isAvailable = await this.checkContentScriptAvailable(tabId);
+            if (!isAvailable) {
+                throw new Error('Content script failed to initialize');
+            }
+            
+            return true;
+            
         } catch (error) {
-            console.error('❌ Direct wallet connection failed:', error);
-            return {
-                success: false,
-                error: error.message
-            };
+            console.error('❌ Content script injection failed:', error);
+            throw new Error('Unable to initialize wallet connection. Please refresh the page and try again.');
         }
     }
 
@@ -857,13 +896,12 @@ class ExtensionState {
             });
             return result && result.title;
         } catch (error) {
-            console.log('Content script not available:', error);
             return false;
         }
     }
 
     // Helper method to send message with retry logic
-    async sendMessageWithRetry(tabId, message, maxRetries = 3) {
+    async sendMessageWithRetry(tabId, message, maxRetries = 3, retryDelay = 500) {
         for (let i = 0; i < maxRetries; i++) {
             try {
                 const result = await chrome.tabs.sendMessage(tabId, message);
@@ -871,12 +909,31 @@ class ExtensionState {
             } catch (error) {
                 console.log(`Message attempt ${i + 1} failed:`, error);
                 if (i === maxRetries - 1) {
-                    throw new Error('Content script not available. Please refresh the page and try again.');
+                    throw new Error('Unable to communicate with the page. Please refresh and try again.');
                 }
                 // Wait before retry
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
             }
         }
+    }
+
+    // Show help modal for wallet not found error
+    showWalletNotFoundHelp() {
+        const helpHTML = `
+            <div class="wallet-help-modal">
+                <h3>Phantom Wallet Required</h3>
+                <p>To use Lucid L2™, you need to install the Phantom wallet extension:</p>
+                <ol>
+                    <li>Visit <a href="https://phantom.app/" target="_blank">phantom.app</a></li>
+                    <li>Download the browser extension</li>
+                    <li>Create or import a wallet</li>
+                    <li>Refresh this page and try again</li>
+                </ol>
+                <button class="help-close-btn">Close</button>
+            </div>
+        `;
+        
+        this.showModal(helpHTML);
     }
 }
 

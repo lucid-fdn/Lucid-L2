@@ -24,13 +24,6 @@
     "default_popup": "popup.html",
     "default_title": "Lucid L2™ AI Thought Miner"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "run_at": "document_end"
-    }
-  ],
   "web_accessible_resources": [
     {
       "resources": ["injected.js", "wallet-connection.js", "devnet-transaction-handler.js", "solana-web3.js"],

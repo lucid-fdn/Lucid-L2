@@ -1,4 +1,4 @@
-// Content Script for Lucid L2™ Extension
+// Content Script for Lucid L2™ Extension - Wallet Bridge Implementation
 class ContentScript {
     constructor() {
         this.isEnabled = false;
@@ -7,15 +7,32 @@ class ContentScript {
             notifications: true
         };
         this.selectedText = '';
+        
+        // Wallet bridge state
+        this.walletBridge = new WalletBridge();
+        this.isWalletReady = false;
+        
         this.init();
     }
 
     async init() {
         await this.loadSettings();
+        await this.initializeWalletBridge();
         this.setupEventListeners();
         this.injectScript();
         this.createFloatingButton();
         this.observeTextSelection();
+    }
+
+    async initializeWalletBridge() {
+        try {
+            await this.walletBridge.initialize();
+            this.isWalletReady = true;
+            console.log('🎯 Wallet bridge initialized successfully');
+        } catch (error) {
+            console.warn('⚠️ Wallet bridge initialization failed:', error);
+            this.isWalletReady = false;
+        }
     }
 
     async loadSettings() {
@@ -31,30 +48,9 @@ class ContentScript {
     setupEventListeners() {
         // Listen for messages from background script and popup
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-            // Handle wallet-related messages from popup
-            if (request.action === 'checkWallet') {
-                this.checkWalletAvailability(sendResponse);
-                return true;
-            }
-            
-            if (request.action === 'connectWallet') {
-                this.connectWallet(sendResponse);
-                return true;
-            }
-            
-            if (request.action === 'disconnectWallet') {
-                this.disconnectWallet(sendResponse);
-                return true;
-            }
-            
-            if (request.action === 'getWalletBalance') {
-                this.getWalletBalance(sendResponse);
-                return true;
-            }
-            
-            // Handle other messages
-            this.handleMessage(request, sender, sendResponse);
-            return true;
+            // All wallet operations are handled by the wallet bridge
+            this.handleWalletMessage(request, sendResponse);
+            return true; // Keep the message channel open for async responses
         });
 
         // Listen for text selection
@@ -512,140 +508,492 @@ class ContentScript {
         }, 3000);
     }
 
-    // Wallet methods that can access window.solana
-    async checkWalletAvailability(sendResponse) {
-        console.log('🔍 Checking wallet availability...');
-        try {
-            const isAvailable = !!(window.solana && window.solana.isPhantom);
-            const isConnected = window.solana ? window.solana.isConnected : false;
-            
-            console.log('📋 Wallet status:', { isAvailable, isConnected });
-            
-            sendResponse({
-                success: true,
-                available: isAvailable,
-                connected: isConnected,
-                publicKey: isConnected ? window.solana.publicKey?.toString() : null
-            });
-        } catch (error) {
-            console.error('❌ Error checking wallet availability:', error);
+    // Central wallet message handler
+    async handleWalletMessage(request, sendResponse) {
+        if (!this.isWalletReady && request.action !== 'checkWallet') {
             sendResponse({
                 success: false,
-                error: error.message
+                error: 'Wallet bridge not ready',
+                code: 'BRIDGE_NOT_READY'
             });
+            return;
         }
-    }
 
-    async connectWallet(sendResponse) {
-        console.log('🔗 Attempting to connect wallet...');
         try {
-            // Wait for solana object to be available
-            await this.waitForSolana();
+            let result;
             
-            if (!window.solana || !window.solana.isPhantom) {
-                throw new Error('Phantom wallet not found. Please install Phantom wallet.');
+            switch (request.action) {
+                case 'checkWallet':
+                    result = await this.walletBridge.checkWalletAvailability();
+                    break;
+                    
+                case 'connectWallet':
+                    result = await this.walletBridge.connectWallet();
+                    break;
+                    
+                case 'disconnectWallet':
+                    result = await this.walletBridge.disconnectWallet();
+                    break;
+                    
+                case 'getWalletBalance':
+                    result = await this.walletBridge.getWalletBalance();
+                    break;
+                    
+                case 'signTransaction':
+                    result = await this.walletBridge.signTransaction(request.transaction);
+                    break;
+                    
+                case 'signMessage':
+                    result = await this.walletBridge.signMessage(request.message);
+                    break;
+                    
+                default:
+                    // Handle non-wallet messages
+                    this.handleMessage(request, null, sendResponse);
+                    return;
             }
-
-            console.log('📱 Phantom wallet found, requesting connection...');
-            const response = await window.solana.connect();
-            console.log('✅ Wallet connected:', response.publicKey.toString());
             
-            sendResponse({
-                success: true,
-                wallet: {
-                    address: response.publicKey.toString(),
-                    publicKey: response.publicKey
-                }
-            });
+            sendResponse(result);
+            
         } catch (error) {
-            console.error('❌ Wallet connection failed:', error);
+            console.error('❌ Wallet operation failed:', error);
             sendResponse({
                 success: false,
                 error: error.message,
-                title: 'Connection Failed'
+                code: 'WALLET_OPERATION_FAILED'
             });
         }
     }
+}
 
-    async disconnectWallet(sendResponse) {
-        console.log('🔌 Disconnecting wallet...');
-        try {
-            if (window.solana && window.solana.isConnected) {
-                await window.solana.disconnect();
-                console.log('✅ Wallet disconnected');
-            }
-            
-            sendResponse({
-                success: true
-            });
-        } catch (error) {
-            console.error('❌ Wallet disconnection failed:', error);
-            sendResponse({
-                success: false,
-                error: error.message
-            });
-        }
+// Wallet Bridge Class - Handles all wallet operations in web page context
+class WalletBridge {
+    constructor() {
+        this.wallet = null;
+        this.connection = null;
+        this.isConnected = false;
+        this.config = {
+            rpcUrl: 'https://api.devnet.solana.com',
+            commitment: 'confirmed',
+            lucidMint: 'Au343oxp5p17kLHAKUvf4HEqzDtTeFRdmetfzby7wJJM'
+        };
+        this.balance = { sol: 0, lucid: 0, mGas: 0 };
+        this.isPhantomAvailable = false;
     }
 
-    async getWalletBalance(sendResponse) {
-        console.log('💰 Getting wallet balance...');
-        try {
-            if (!window.solana || !window.solana.isConnected) {
-                throw new Error('Wallet not connected');
-            }
-
-            // For now, just return connected state
-            // Real balance queries would need to be implemented with proper RPC calls
-            sendResponse({
-                success: true,
-                balance: {
-                    sol: 0,
-                    lucid: 0,
-                    mGas: 0
-                },
-                connected: true
-            });
-        } catch (error) {
-            console.error('❌ Error getting wallet balance:', error);
-            sendResponse({
-                success: false,
-                error: error.message
-            });
-        }
+    async initialize() {
+        console.log('🔧 Initializing wallet bridge...');
+        
+        // Wait for page to load and Phantom to be available
+        await this.waitForPhantom();
+        
+        // Check if already connected
+        await this.checkExistingConnection();
+        
+        // Set up wallet event listeners
+        this.setupWalletEventListeners();
+        
+        console.log('✅ Wallet bridge initialized');
     }
 
-    // Helper method to wait for Solana wallet to be available
-    async waitForSolana(timeout = 3000) {
+    async waitForPhantom(timeout = 5000) {
         return new Promise((resolve, reject) => {
             const start = Date.now();
             
-            const checkSolana = () => {
+            const checkPhantom = () => {
                 if (window.solana && window.solana.isPhantom) {
-                    console.log('🎯 Solana wallet detected');
+                    console.log('👻 Phantom wallet detected');
+                    this.isPhantomAvailable = true;
                     resolve();
                     return;
                 }
                 
                 if (Date.now() - start > timeout) {
-                    reject(new Error('Timeout waiting for Solana wallet'));
+                    console.warn('⏰ Timeout waiting for Phantom wallet');
+                    this.isPhantomAvailable = false;
+                    resolve(); // Don't reject, just continue without Phantom
                     return;
                 }
                 
-                setTimeout(checkSolana, 100);
+                setTimeout(checkPhantom, 100);
             };
             
-            checkSolana();
+            checkPhantom();
         });
+    }
+
+    async checkExistingConnection() {
+        if (!this.isPhantomAvailable) return;
+        
+        try {
+            if (window.solana.isConnected) {
+                this.wallet = {
+                    address: window.solana.publicKey.toString(),
+                    publicKey: window.solana.publicKey
+                };
+                this.isConnected = true;
+                console.log('🔗 Found existing wallet connection:', this.wallet.address);
+                
+                // Update balances
+                await this.updateBalances();
+            }
+        } catch (error) {
+            console.warn('⚠️ Error checking existing connection:', error);
+        }
+    }
+
+    setupWalletEventListeners() {
+        if (!this.isPhantomAvailable) return;
+        
+        window.solana.on('connect', (publicKey) => {
+            console.log('🔗 Wallet connected:', publicKey.toString());
+            this.wallet = {
+                address: publicKey.toString(),
+                publicKey: publicKey
+            };
+            this.isConnected = true;
+            this.updateBalances();
+        });
+
+        window.solana.on('disconnect', () => {
+            console.log('🔌 Wallet disconnected');
+            this.wallet = null;
+            this.isConnected = false;
+            this.balance = { sol: 0, lucid: 0, mGas: 0 };
+        });
+
+        window.solana.on('accountChanged', (publicKey) => {
+            if (publicKey) {
+                console.log('👤 Account changed:', publicKey.toString());
+                this.wallet = {
+                    address: publicKey.toString(),
+                    publicKey: publicKey
+                };
+                this.updateBalances();
+            } else {
+                this.wallet = null;
+                this.isConnected = false;
+                this.balance = { sol: 0, lucid: 0, mGas: 0 };
+            }
+        });
+    }
+
+    async checkWalletAvailability() {
+        console.log('🔍 Checking wallet availability...');
+        
+        return {
+            success: true,
+            available: this.isPhantomAvailable,
+            connected: this.isConnected,
+            publicKey: this.wallet?.address || null,
+            network: 'devnet'
+        };
+    }
+
+    async connectWallet() {
+        console.log('🔗 Attempting to connect wallet...');
+        
+        try {
+            if (!this.isPhantomAvailable) {
+                throw new Error('Phantom wallet not found. Please install Phantom wallet extension.');
+            }
+
+            console.log('📱 Requesting wallet connection...');
+            const response = await window.solana.connect();
+            
+            this.wallet = {
+                address: response.publicKey.toString(),
+                publicKey: response.publicKey
+            };
+            this.isConnected = true;
+            
+            console.log('✅ Wallet connected successfully:', this.wallet.address);
+            
+            // Initialize connection to devnet
+            await this.initializeConnection();
+            
+            // Update balances
+            await this.updateBalances();
+            
+            return {
+                success: true,
+                wallet: this.wallet,
+                balance: this.balance,
+                network: 'devnet'
+            };
+            
+        } catch (error) {
+            console.error('❌ Wallet connection failed:', error);
+            
+            // Categorize error for better user experience
+            let errorMessage = error.message;
+            let errorCode = 'CONNECTION_FAILED';
+            
+            if (error.message.includes('User rejected')) {
+                errorMessage = 'Connection cancelled by user';
+                errorCode = 'USER_REJECTED';
+            } else if (error.message.includes('wallet not found')) {
+                errorMessage = 'Phantom wallet not found. Please install Phantom wallet.';
+                errorCode = 'WALLET_NOT_FOUND';
+            }
+            
+            return {
+                success: false,
+                error: errorMessage,
+                code: errorCode,
+                recoverable: true
+            };
+        }
+    }
+
+    async disconnectWallet() {
+        console.log('🔌 Disconnecting wallet...');
+        
+        try {
+            if (this.isPhantomAvailable && window.solana.isConnected) {
+                await window.solana.disconnect();
+            }
+            
+            this.wallet = null;
+            this.isConnected = false;
+            this.balance = { sol: 0, lucid: 0, mGas: 0 };
+            this.connection = null;
+            
+            console.log('✅ Wallet disconnected successfully');
+            
+            return {
+                success: true
+            };
+            
+        } catch (error) {
+            console.error('❌ Wallet disconnection failed:', error);
+            return {
+                success: false,
+                error: error.message,
+                code: 'DISCONNECTION_FAILED'
+            };
+        }
+    }
+
+    async getWalletBalance() {
+        console.log('💰 Getting wallet balance...');
+        
+        try {
+            if (!this.isConnected || !this.wallet) {
+                throw new Error('Wallet not connected');
+            }
+            
+            await this.updateBalances();
+            
+            return {
+                success: true,
+                balance: this.balance,
+                wallet: this.wallet,
+                connected: true
+            };
+            
+        } catch (error) {
+            console.error('❌ Error getting wallet balance:', error);
+            return {
+                success: false,
+                error: error.message,
+                code: 'BALANCE_QUERY_FAILED'
+            };
+        }
+    }
+
+    async initializeConnection() {
+        try {
+            // Load Solana web3.js if not already loaded
+            if (typeof window.solanaWeb3 === 'undefined') {
+                console.log('📦 Loading Solana web3.js...');
+                await this.loadSolanaWeb3();
+            }
+            
+            this.connection = new window.solanaWeb3.Connection(
+                this.config.rpcUrl,
+                this.config.commitment
+            );
+            
+            console.log('🌐 Connected to Solana devnet');
+            
+        } catch (error) {
+            console.error('❌ Failed to initialize connection:', error);
+            throw error;
+        }
+    }
+
+    async loadSolanaWeb3() {
+        return new Promise((resolve, reject) => {
+            if (typeof window.solanaWeb3 !== 'undefined') {
+                resolve();
+                return;
+            }
+            
+            const script = document.createElement('script');
+            script.src = chrome.runtime.getURL('solana-web3.js');
+            script.onload = () => {
+                console.log('✅ Solana web3.js loaded');
+                resolve();
+            };
+            script.onerror = () => {
+                console.error('❌ Failed to load Solana web3.js');
+                reject(new Error('Failed to load Solana web3.js'));
+            };
+            
+            document.head.appendChild(script);
+        });
+    }
+
+    async updateBalances() {
+        if (!this.connection || !this.wallet) return;
+        
+        try {
+            console.log('🔄 Updating wallet balances...');
+            
+            // Get SOL balance
+            const solBalance = await this.connection.getBalance(this.wallet.publicKey);
+            this.balance.sol = solBalance / 1e9; // Convert lamports to SOL
+            
+            // Get LUCID token balance
+            try {
+                const lucidBalance = await this.getLucidTokenBalance();
+                this.balance.lucid = lucidBalance;
+            } catch (error) {
+                console.log('📝 LUCID token account not found (this is normal for new wallets)');
+                this.balance.lucid = 0;
+            }
+            
+            // Get mGas balance from extension storage
+            const mGasBalance = await this.getMGasBalance();
+            this.balance.mGas = mGasBalance;
+            
+            console.log('💰 Balances updated:', this.balance);
+            
+        } catch (error) {
+            console.error('❌ Failed to update balances:', error);
+        }
+    }
+
+    async getLucidTokenBalance() {
+        if (!this.connection || !this.wallet) return 0;
+        
+        try {
+            // For now, just return 0 - real token balance requires SPL token utilities
+            // This can be enhanced later with proper token account queries
+            console.log('📝 LUCID token balance query skipped (requires SPL token utilities)');
+            return 0;
+            
+        } catch (error) {
+            console.log('📝 LUCID token account not found or balance is 0');
+            return 0;
+        }
+    }
+
+    async getMGasBalance() {
+        return new Promise((resolve) => {
+            if (typeof chrome !== 'undefined' && chrome.storage) {
+                chrome.storage.local.get(['mGasBalance'], (result) => {
+                    resolve(result.mGasBalance || 0);
+                });
+            } else {
+                resolve(0);
+            }
+        });
+    }
+
+    async signTransaction(transaction) {
+        console.log('✍️ Signing transaction...');
+        
+        try {
+            if (!this.isConnected || !this.wallet) {
+                throw new Error('Wallet not connected');
+            }
+            
+            if (!this.isPhantomAvailable) {
+                throw new Error('Phantom wallet not available');
+            }
+            
+            const signedTransaction = await window.solana.signTransaction(transaction);
+            
+            return {
+                success: true,
+                signedTransaction: signedTransaction
+            };
+            
+        } catch (error) {
+            console.error('❌ Transaction signing failed:', error);
+            return {
+                success: false,
+                error: error.message,
+                code: 'SIGNING_FAILED'
+            };
+        }
+    }
+
+    async signMessage(message) {
+        console.log('✍️ Signing message...');
+        
+        try {
+            if (!this.isConnected || !this.wallet) {
+                throw new Error('Wallet not connected');
+            }
+            
+            if (!this.isPhantomAvailable) {
+                throw new Error('Phantom wallet not available');
+            }
+            
+            const signedMessage = await window.solana.signMessage(message);
+            
+            return {
+                success: true,
+                signedMessage: signedMessage
+            };
+            
+        } catch (error) {
+            console.error('❌ Message signing failed:', error);
+            return {
+                success: false,
+                error: error.message,
+                code: 'SIGNING_FAILED'
+            };
+        }
     }
 }
 
-// Initialize content script
-const contentScript = new ContentScript();
-
-// Clean up on page unload
-window.addEventListener('beforeunload', () => {
-    // Clean up any resources
-    if (contentScript.floatingButton) {
-        contentScript.floatingButton.remove();
+// Ensure DOM is ready before initializing
+function initializeWhenReady() {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeContentScript);
+    } else {
+        initializeContentScript();
     }
-});
+}
+
+async function initializeContentScript() {
+    try {
+        console.log('🚀 Lucid L2™ Content Script initializing...');
+        
+        // Initialize content script
+        const contentScript = new ContentScript();
+        
+        // Make contentScript globally accessible for debugging
+        window.lucidContentScript = contentScript;
+        
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            // Clean up any resources
+            if (contentScript.floatingButton) {
+                contentScript.floatingButton.remove();
+            }
+        });
+        
+        console.log('✅ Lucid L2™ Content Script initialized successfully');
+        
+    } catch (error) {
+        console.error('❌ Failed to initialize Lucid L2™ Content Script:', error);
+    }
+}
+
+// Start initialization
+initializeWhenReady();
