@@ -12,6 +12,10 @@ import { getMMRService, AgentEpochData } from './mmrService';
 
 export async function handleRun(req: express.Request, res: express.Response) {
   try {
+    // Debug: log incoming requests to verify connectivity from the extension
+    const body: any = req.body || {};
+    const preview = typeof body.text === 'string' ? body.text.slice(0, 80) : body;
+    console.log(`➡️  API POST /run | textPreview="${preview}" wallet="${body.wallet || ''}"`);
     const { text } = req.body as { text: string };
     const rootBytes = await runInference(text);
     const hexRoot = Buffer.from(rootBytes).toString('hex');

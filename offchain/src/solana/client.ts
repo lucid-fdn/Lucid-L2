@@ -1,15 +1,19 @@
 // offchain/src/solana/client.ts
-import { Connection, PublicKey, SystemProgram, Keypair, TransactionInstruction } from '@solana/web3.js';
+import { Connection, PublicKey, SystemProgram, Keypair, TransactionInstruction, Commitment } from '@solana/web3.js';
 import { AnchorProvider, Program, Wallet, setProvider } from '@coral-xyz/anchor';
 import * as fs from 'fs';
 import path from 'path';
-import { RPC_URL, COMMITMENT, PROGRAM_ID } from '../utils/config';
+import { getRPC_URL, getCOMMITMENT, getPROGRAM_ID } from '../utils/config';
 
 export function initSolana(): Program {
-  const connection = new Connection(RPC_URL, COMMITMENT);
+  const rpcUrl = getRPC_URL();
+  const commitment = getCOMMITMENT() as Commitment;
+  const programId = getPROGRAM_ID();
+  
+  const connection = new Connection(rpcUrl, commitment);
   const keypair = getKeypair();
   const wallet = new Wallet(keypair);
-  const provider = new AnchorProvider(connection, wallet, { commitment: COMMITMENT });
+  const provider = new AnchorProvider(connection, wallet, { commitment });
   
   // Set the provider globally
   setProvider(provider);
@@ -19,7 +23,7 @@ export function initSolana(): Program {
   const idl = JSON.parse(fs.readFileSync(idlPath, 'utf8'));
   
   // Log for debugging
-  console.log('Program ID:', PROGRAM_ID.toString());
+  console.log('Program ID:', programId.toString());
   console.log('IDL Metadata:', idl.metadata);
   console.log('IDL Path:', idlPath);
   console.log('IDL Instructions:', JSON.stringify(idl.instructions, null, 2));
@@ -31,7 +35,7 @@ export function initSolana(): Program {
   if (!idl.metadata) {
     idl.metadata = {};
   }
-  idl.metadata.address = PROGRAM_ID.toString();
+  idl.metadata.address = programId.toString();
 
   // Add system program address to prevent undefined address issues
   if (!idl.constants) {
@@ -59,7 +63,9 @@ export function initSolana(): Program {
 }
 
 export function getConnection(): Connection {
-  return new Connection(RPC_URL, COMMITMENT);
+  const rpcUrl = getRPC_URL();
+  const commitment = getCOMMITMENT() as Commitment;
+  return new Connection(rpcUrl, commitment);
 }
 
 export function getKeypair(): Keypair {
@@ -91,13 +97,14 @@ export function createCommitInstruction(
   authority: PublicKey,
   merkleRoot: Buffer
 ): TransactionInstruction {
+  const programId = getPROGRAM_ID();
   return new TransactionInstruction({
     keys: [
       { pubkey: epochAccount, isSigner: false, isWritable: true },
       { pubkey: authority, isSigner: true, isWritable: true },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
-    programId: PROGRAM_ID,
+    programId,
     data: merkleRoot,
   });
 }

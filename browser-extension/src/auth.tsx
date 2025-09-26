@@ -1,0 +1,232 @@
+import React, { useEffect } from 'react';
+import { createRoot } from 'react-dom/client';
+import { PrivyProvider, useLogin, usePrivy, useWallets } from '@privy-io/react-auth';
+import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
+import { mainnet, sepolia, arbitrum, optimism, polygon, base } from 'viem/chains';
+
+// Chrome extension API types
+declare const chrome: any;
+
+const PRIVY_APP_ID = 'cm7kvvobw020cisjqrkr9hr2m';
+
+function notifyPrivyAuthenticated(payload: any) {
+  try {
+    if (typeof chrome !== 'undefined' && chrome?.runtime?.sendMessage) {
+      try {
+        chrome.storage?.local?.set?.({ privy_session: payload }, () => {
+          try {
+            chrome.runtime.sendMessage({ type: 'privy_authenticated', payload });
+          } catch {}
+        });
+      } catch {}
+    } else {
+      window.postMessage({ type: 'PRIVY_CONNECTED', payload }, '*');
+    }
+  } catch {
+    try {
+      window.postMessage({ type: 'PRIVY_CONNECTED', payload }, '*');
+    } catch {}
+  }
+}
+
+function notifyPrivyLoggedOut() {
+  try {
+    if (typeof chrome !== 'undefined' && chrome?.runtime?.sendMessage) {
+      chrome.runtime.sendMessage({ type: 'privy_logged_out' }, () => {});
+    } else {
+      window.postMessage({ type: 'PRIVY_LOGGED_OUT' }, '*');
+    }
+  } catch {}
+}
+
+function AuthContent() {
+  const { ready, authenticated, user, logout } = usePrivy();
+  const { login } = useLogin();
+  const { wallets } = useWallets();
+
+  const params = new URLSearchParams(window.location.search);
+  const doLogout = params.get('logout');
+  const metamaskData = params.get('metamask');
+  const forceLogout = params.get('forceLogout');
+  
+  // Prevent multiple login calls
+  const [loginStarted, setLoginStarted] = React.useState(false);
+  const [loggingOut, setLoggingOut] = React.useState(false);
+
+  useEffect(() => {
+    if (!ready) return;
+    
+    if (doLogout || forceLogout) {
+      if (loggingOut) return; // Prevent multiple logout calls
+      setLoggingOut(true);
+      
+      // Force logout and clear everything
+      (async () => {
+        try { 
+          if (authenticated) {
+            console.log('🔓 Logging out from Privy...');
+            await logout(); 
+          } else {
+            console.log('🔓 Force clearing session data...');
+          }
+        } catch (err) {
+          console.log('Logout error (ignored):', err);
+        }
+        
+        // Clear all stored data
+        chrome.storage.local.clear(() => {
+          console.log('✅ All storage cleared');
+          chrome.runtime.sendMessage({ type: 'privy_logged_out' }, () => {
+            console.log('✅ Logout notification sent');
+            setTimeout(() => {
+              window.close();
+            }, 500);
+          });
+        });
+      })();
+      return;
+    }
+
+    if (metamaskData) {
+      // MetaMask already connected, create session with provided data
+      try {
+        const metamaskInfo = JSON.parse(decodeURIComponent(metamaskData));
+        console.log('Using pre-connected MetaMask data:', metamaskInfo);
+
+        const payload = {
+          userId: null, // No Privy user in this flow
+          address: metamaskInfo.address,
+          chainId: metamaskInfo.chainId,
+          walletType: metamaskInfo.walletType,
+          solanaAddress: null,
+          solanaWalletType: null,
+          walletCount: 1,
+          directConnect: true
+        };
+
+        // Notify extension/page listeners in either context
+        notifyPrivyAuthenticated(payload);
+
+        // Close the popup if we're in the extension window
+        try {
+          window.close();
+        } catch {}
+
+      } catch (err) {
+        console.error('Error processing MetaMask data:', err);
+        // Fall back to normal login
+        if (!authenticated && !loginStarted) {
+          setLoginStarted(true);
+          login();
+        }
+      }
+      return;
+    }
+    
+    if (!authenticated && !loginStarted) {
+      console.log('🔗 Starting Privy login with Solana priority...');
+      setLoginStarted(true);
+      login();
+    }
+  }, [ready, authenticated, login, logout, doLogout, forceLogout, loginStarted, metamaskData, loggingOut]);
+
+  useEffect(() => {
+    if (!authenticated) return;
+    
+    // Get both EVM and Solana wallets
+    const evmWallet = wallets?.find((w: any) => w.walletClientType !== 'solana');
+    const solanaWallet = wallets?.find((w: any) => w.walletClientType === 'solana');
+    
+    console.log('🔍 Wallet analysis:', {
+      totalWallets: wallets?.length || 0,
+      evmWallet: evmWallet ? { 
+        type: evmWallet.walletClientType, 
+        address: evmWallet.address?.substring(0, 10) + '...' 
+      } : null,
+      solanaWallet: solanaWallet ? { 
+        type: solanaWallet.walletClientType, 
+        address: solanaWallet.address?.substring(0, 10) + '...' 
+      } : null
+    });
+
+    // Check if we need a Solana wallet specifically
+    if (!solanaWallet && evmWallet) {
+      console.log('⚠️ Only EVM wallet detected, user needs Solana wallet for devnet');
+    }
+    
+    const payload = {
+      userId: user?.id || null,
+      // EVM wallet info (fallback)
+      address: evmWallet?.address || null,
+      chainId: evmWallet?.chainId || null,
+      walletType: evmWallet?.walletClientType || null,
+      // Solana wallet info (prioritized)
+      solanaAddress: solanaWallet?.address || null,
+      solanaWalletType: solanaWallet?.walletClientType || 'solana',
+      // Additional info
+      walletCount: wallets?.length || 0,
+      hasSolanaWallet: !!solanaWallet,
+      hasEvmWallet: !!evmWallet,
+      preferredWallet: solanaWallet ? 'solana' : 'evm'
+    };
+    
+    // Store session and notify (works in both extension and in-page contexts)
+    notifyPrivyAuthenticated(payload);
+    console.log('✅ Authentication complete');
+    try {
+      setTimeout(() => {
+        try { window.close(); } catch {}
+      }, 1000);
+    } catch {}
+  }, [authenticated, user, wallets]);
+
+  return (
+    <div style={{ 
+      padding: 20, 
+      fontFamily: 'system-ui', 
+      textAlign: 'center',
+      background: '#0b1020',
+      color: '#e5e7eb',
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}>
+      <div>
+        {!ready && <div>🔄 Loading Privy...</div>}
+        {ready && !authenticated && (doLogout || forceLogout) && <div>🔓 Logging out...</div>}
+        {ready && !authenticated && !doLogout && !forceLogout && <div>🔗 Opening Solana wallet login...</div>}
+        {ready && authenticated && <div>✅ Connected! Setting up devnet...</div>}
+        {loggingOut && <div>🧹 Clearing session data...</div>}
+      </div>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <PrivyProvider 
+      appId={PRIVY_APP_ID}
+      config={{
+        appearance: {
+          theme: 'dark',
+          accentColor: '#676FFF',
+          walletChainType: 'solana-only',
+        },
+        embeddedWallets: {
+          createOnLogin: 'off', // Disable embedded wallets for cleaner experience
+        },
+        externalWallets: {
+          solana: {
+            connectors: toSolanaWalletConnectors()
+          },
+        },
+        loginMethods: ['wallet'],
+      }}
+    >
+      <AuthContent />
+    </PrivyProvider>
+  );
+}
+
+createRoot(document.getElementById('lucid-privy-root')!).render(<App />);

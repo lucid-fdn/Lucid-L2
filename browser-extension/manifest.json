@@ -1,33 +1,51 @@
 {
   "manifest_version": 3,
-  "name": "Lucid L2™ - AI Thought Miner",
+  "name": "Lucid-Extension",
   "version": "1.0.0",
-  "description": "Earn mGas by interacting with AI models in the Lucid L2™ ecosystem",
-  "permissions": [
-    "activeTab",
-    "storage",
-    "alarms",
-    "notifications",
-    "contextMenus",
-    "scripting"
-  ],
+  "description": "AI Thought Mining extension for Lucid L2™ - Earn mGas by interacting with AI models.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": ["storage", "identity", "activeTab", "alarms", "notifications", "contextMenus", "scripting"],
   "host_permissions": [
+    "https://*.privy.io/*",
+    "https://auth.privy.io/*", 
+    "https://api.privy.io/*",
+    "https://auth-api.privy.io/*",
+    "https://chatgpt.com/*", 
+    "https://chat.openai.com/*",
     "http://localhost:3001/*",
+    "http://172.28.35.139:3001/*",
     "https://api.lucid-l2.com/*",
     "https://api.devnet.solana.com/*",
-    "https://cdn.jsdelivr.net/*"
+    "https://api.testnet.solana.com/*",
+    "https://cdn.jsdelivr.net/*",
+    "https://*.walletconnect.org/*",
+    "https://*.walletconnect.com/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
-  "action": {
-    "default_popup": "popup.html",
-    "default_title": "Lucid L2™ AI Thought Miner"
-  },
+  "content_scripts": [
+    {
+      "matches": ["https://*/*", "http://*/*"],
+      "js": ["content.js"]
+    }
+  ],
   "web_accessible_resources": [
     {
-      "resources": ["injected.js", "wallet-connection.js", "devnet-transaction-handler.js", "solana-web3.js"],
-      "matches": ["<all_urls>"]
+      "resources": ["styles.css", "icons/*", "dist/*", "auth.html", "privy-api-bridge.js", "injected.js"],
+      "matches": ["https://*/*", "http://*/*"]
     }
-  ]
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Lucid-Extension - AI Thought Mining"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'self'; connect-src 'self' http: https: ws: wss: data:; frame-ancestors 'none';"
+  }
 }

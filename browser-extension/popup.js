@@ -18,7 +18,7 @@ class ExtensionState {
             notifications: true,
             autoProcess: false
         };
-        this.apiUrl = 'http://localhost:3001';
+        this.apiUrl = 'http://172.28.35.139:3001';
         this.conversionHistory = [];
         this.unlockedAchievements = [];
         this.totalShares = 0;
@@ -35,6 +35,16 @@ class ExtensionState {
         this.rewardSystem = new RewardSystem(this);
         this.setupEventListeners();
         this.setupWalletListeners();
+
+        // Sync environment to storage so content script can display correct network
+        try {
+            const envCfg = this.configManager.getConfig();
+            chrome.storage.local.set({
+                lucid_env: this.configManager.currentEnvironment || envCfg.environment,
+                lucid_network: envCfg.environment
+            });
+        } catch (e) {}
+
         await this.updateUI();
         this.checkDailyReset();
         
@@ -236,53 +246,38 @@ class ExtensionState {
         try {
             this.showLoading();
             
-            // Validate current tab
-            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tabs.length === 0) {
-                throw new Error('No active tab found. Please open a web page and try again.');
-            }
-            
-            const activeTab = tabs[0];
-            
-            // Check if tab URL is valid for wallet connection
-            if (this.isInvalidTabForWallet(activeTab.url)) {
-                throw new Error(this.getInvalidUrlMessage(activeTab.url));
-            }
-            
-            // Ensure content script is available
-            await this.ensureContentScriptAvailable(activeTab.id);
-            
-            // Send wallet connection request to content script
-            const result = await this.sendMessageWithRetry(activeTab.id, {
-                action: 'connectWallet'
-            });
+            // Use Privy bridge for wallet connection
+            const result = await window.privyAPIBridge.connectWallet();
             
             if (result && result.success) {
-                this.wallet = result.wallet;
-                this.balance = {
-                    sol: result.balance?.sol || 0,
-                    lucid: result.balance?.lucid || 0,
-                    mGas: this.balance.mGas // Keep existing mGas
+                const walletInfo = window.privyAPIBridge.getWalletInfo();
+                this.wallet = {
+                    address: walletInfo.address
                 };
                 this.isConnected = true;
                 
-                this.showToast('Wallet connected successfully!');
+                // Get real blockchain balances
+                const balances = await window.privyAPIBridge.updateBlockchainBalances();
+                if (balances) {
+                    this.balance = {
+                        sol: balances.sol,
+                        lucid: balances.lucid,
+                        mGas: this.balance.mGas // Keep existing mGas from extension storage
+                    };
+                }
+                
+                this.showToast('Wallet connected successfully via Privy!');
                 await this.updateUI();
                 await this.saveToStorage();
             } else {
                 const errorMessage = result?.error || 'Failed to connect wallet';
                 this.showToast(errorMessage);
-                
-                // Show additional help for specific errors
-                if (result?.code === 'WALLET_NOT_FOUND') {
-                    this.showWalletNotFoundHelp();
-                }
             }
             
             this.hideLoading();
         } catch (error) {
             this.hideLoading();
-            this.showToast(error.message);
+            this.showToast('Wallet connection failed: ' + error.message);
         }
     }
 
@@ -310,79 +305,75 @@ class ExtensionState {
         try {
             this.showLoading();
             
-            // Call the Lucid L2 API
-            const response = await fetch(`${this.apiUrl}/run`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
+            // Use Privy bridge to process thought via Lucid L2 API
+            const result = await window.privyAPIBridge.processThought(input);
+            
+            if (result && result.success) {
+                // Advanced quality assessment using Phase 8.3 system
+                const qualityAssessment = await this.rewardSystem.assessQuality(input, result.response);
+                
+                // Check if this is first daily interaction
+                const isFirstDaily = this.dailyProgress.completed === 0;
+                
+                // Calculate advanced earnings
+                const earningsResult = this.rewardSystem.calculateEarnings(
+                    5, // base reward
+                    qualityAssessment,
+                    this.streak,
+                    isFirstDaily
+                );
+                
+                // Apply event multipliers
+                const finalEarnings = this.rewardSystem.applyEventMultipliers(earningsResult.total);
+                
+                // Update balance
+                this.balance.mGas += finalEarnings;
+                
+                // Update daily progress
+                this.dailyProgress.completed = Math.min(this.dailyProgress.completed + 1, this.dailyProgress.total);
+                
+                // Add to history with quality data
+                this.history.push({
                     text: input,
-                    wallet: this.wallet.address
-                })
-            });
+                    response: result.response,
+                    earned: finalEarnings,
+                    timestamp: Date.now(),
+                    hash: result.root,
+                    signature: result.signature,
+                    explorerUrl: result.explorerUrl,
+                    gasUsed: result.gasUsed,
+                    qualityScore: qualityAssessment.score,
+                    qualityTier: qualityAssessment.tier,
+                    qualityBreakdown: qualityAssessment.breakdown,
+                    earningsBreakdown: earningsResult.breakdown
+                });
 
-            if (!response.ok) {
-                throw new Error('API request failed');
+                // Check achievements
+                const newAchievements = this.rewardSystem.checkAchievements();
+                if (newAchievements.length > 0) {
+                    this.showAchievementUnlocked(newAchievements);
+                }
+                
+                // Check for task completion
+                this.checkTaskCompletion();
+                
+                // Show AI response with quality info and blockchain data
+                this.showAIResponse(
+                    result.response, 
+                    finalEarnings,
+                    qualityAssessment,
+                    result
+                );
+                
+                // Clear input
+                document.getElementById('aiInput').value = '';
+                this.handleInputChange({ target: { value: '' } });
+                
+                this.showToast(`✅ Thought committed to devnet! Gas: ${result.gasUsed.total} LUCID`);
+                
+            } else {
+                throw new Error('Failed to process thought via API');
             }
-
-            const result = await response.json();
-            
-            // Advanced quality assessment using Phase 8.3 system
-            const qualityAssessment = await this.rewardSystem.assessQuality(input, result.response);
-            
-            // Check if this is first daily interaction
-            const isFirstDaily = this.dailyProgress.completed === 0;
-            
-            // Calculate advanced earnings
-            const earningsResult = this.rewardSystem.calculateEarnings(
-                5, // base reward
-                qualityAssessment,
-                this.streak,
-                isFirstDaily
-            );
-            
-            // Apply event multipliers
-            const finalEarnings = this.rewardSystem.applyEventMultipliers(earningsResult.total);
-            
-            // Update balance
-            this.balance.mGas += finalEarnings;
-            
-            // Update daily progress
-            this.dailyProgress.completed = Math.min(this.dailyProgress.completed + 1, this.dailyProgress.total);
-            
-            // Add to history with quality data
-            this.history.push({
-                text: input,
-                response: result.response || 'AI response processed',
-                earned: finalEarnings,
-                timestamp: Date.now(),
-                hash: result.hash,
-                qualityScore: qualityAssessment.score,
-                qualityTier: qualityAssessment.tier,
-                qualityBreakdown: qualityAssessment.breakdown,
-                earningsBreakdown: earningsResult.breakdown
-            });
-
-            // Check achievements
-            const newAchievements = this.rewardSystem.checkAchievements();
-            if (newAchievements.length > 0) {
-                this.showAchievementUnlocked(newAchievements);
-            }
-            
-            // Check for task completion
-            this.checkTaskCompletion();
-            
-            // Show AI response with quality info
-            this.showAIResponse(
-                result.response || 'Your thought has been processed and committed to the blockchain!', 
-                finalEarnings,
-                qualityAssessment
-            );
-            
-            // Clear input
-            document.getElementById('aiInput').value = '';
-            this.handleInputChange({ target: { value: '' } });
             
             this.hideLoading();
             await this.updateUI();
@@ -784,28 +775,15 @@ class ExtensionState {
         try {
             this.showLoading();
             
-            // Get active tab and send message to content script
-            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            if (tabs.length > 0 && !this.isInvalidTabForWallet(tabs[0].url)) {
-                try {
-                    const result = await chrome.tabs.sendMessage(tabs[0].id, {
-                        action: 'disconnectWallet'
-                    });
-                    
-                    if (result && !result.success) {
-                        console.warn('Content script disconnect failed:', result.error);
-                    }
-                } catch (error) {
-                    console.log('Content script not available for disconnect:', error);
-                }
-            }
+            // Use Privy bridge for wallet disconnection
+            const result = await window.privyAPIBridge.disconnectWallet();
             
-            // Clear local state regardless
+            // Clear local state regardless of result
             this.wallet = null;
             this.balance = { mGas: this.balance.mGas, lucid: 0, sol: 0 }; // Keep mGas
             this.isConnected = false;
             
-            this.showToast('Wallet disconnected');
+            this.showToast('Wallet disconnected via Privy!');
             await this.updateUI();
             await this.saveToStorage();
             
@@ -951,11 +929,18 @@ class ConfigurationManager {
                 rpcUrl: 'https://api.devnet.solana.com',
                 commitment: 'confirmed',
                 environment: 'devnet',
-                lucidMint: 'Au343oxp5p17kLHAKUvf4HEqzDtTeFRdmetfzby7wJJM'
+                lucidMint: 'FevHSnbJ3567nxaJoCBZMmdR6SKwB9xsTZgdFGJ9WoHQ'
+            },
+            testnet: {
+                rpcUrl: 'https://api.testnet.solana.com',
+                commitment: 'confirmed',
+                environment: 'testnet',
+                // Note: replace with real testnet mint if different
+                lucidMint: '8FJLRcc681GxefHgsPg32ZdGAveQNTFLVy5GgmotiimG'
             }
         };
         
-        this.currentEnvironment = 'devnet'; // Default to devnet for Phase 8.4
+        this.currentEnvironment = 'devnet'; // Default to devnet for Phase 8.4/Devnet testing
     }
 
     getConfig() {
@@ -965,6 +950,14 @@ class ConfigurationManager {
     setEnvironment(env) {
         if (this.environments[env]) {
             this.currentEnvironment = env;
+            // Persist environment so other parts (content script) can reflect correct network
+            try {
+                const cfg = this.getConfig();
+                chrome.storage.local.set({
+                    lucid_env: env,
+                    lucid_network: cfg.environment
+                });
+            } catch (e) {}
         }
     }
 }

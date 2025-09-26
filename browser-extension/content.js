@@ -1,999 +1,694 @@
-// Content Script for Lucid L2™ Extension - Wallet Bridge Implementation
-class ContentScript {
-    constructor() {
-        this.isEnabled = false;
-        this.settings = {
-            autoProcess: false,
-            notifications: true
-        };
-        this.selectedText = '';
-        
-        // Wallet bridge state
-        this.walletBridge = new WalletBridge();
-        this.isWalletReady = false;
-        
-        this.init();
-    }
+(() => {
+  const SHADOW_HOST_ID = 'cwm-shadow-host';
+  if (document.getElementById(SHADOW_HOST_ID)) return;
 
-    async init() {
-        await this.loadSettings();
-        await this.initializeWalletBridge();
-        this.setupEventListeners();
-        this.injectScript();
-        this.createFloatingButton();
-        this.observeTextSelection();
-    }
+  // Inject bridge script for in-page Privy integration
+  function injectBridge() {
+    const script = document.createElement('script');
+    script.src = chrome.runtime.getURL('dist/bridge.js');
+    (document.head || document.documentElement).appendChild(script);
+    script.onload = () => script.remove();
+  }
+  injectBridge();
 
-    async initializeWalletBridge() {
-        try {
-            await this.walletBridge.initialize();
-            this.isWalletReady = true;
-            console.log('🎯 Wallet bridge initialized successfully');
-        } catch (error) {
-            console.warn('⚠️ Wallet bridge initialization failed:', error);
-            this.isWalletReady = false;
-        }
-    }
+  const host = document.createElement('div');
+  host.id = SHADOW_HOST_ID; 
+  host.style.all='initial'; 
+  host.style.position='fixed'; 
+  host.style.pointerEvents='none';
+  host.style.inset='0'; 
+  host.style.zIndex=2147483647;
+  document.documentElement.appendChild(host);
+  const root = host.attachShadow({ mode: 'open' });
 
-    async loadSettings() {
-        return new Promise((resolve) => {
-            chrome.storage.local.get(['settings'], (result) => {
-                this.settings = result.settings || { autoProcess: false, notifications: true };
-                this.isEnabled = this.settings.autoProcess;
-                resolve();
-            });
-        });
-    }
+  const link = document.createElement('link'); 
+  link.rel='stylesheet'; 
+  link.href=chrome.runtime.getURL('styles.css'); 
+  root.appendChild(link);
 
-    setupEventListeners() {
-        // Listen for messages from background script and popup
-        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-            // All wallet operations are handled by the wallet bridge
-            this.handleWalletMessage(request, sendResponse);
-            return true; // Keep the message channel open for async responses
-        });
+  // Create integrated sidebar instead of modal
+  const sidebar = el('div','cwm-sidebar');
+  const header = el('div','cwm-header');
+  const logoImg = document.createElement('img');
+  logoImg.src = chrome.runtime.getURL('icons/lucid-logo.png');
+  logoImg.className = 'cwm-logo';
+  logoImg.alt = 'LUCID';
+  
+  // Remove black background dynamically
+  logoImg.onload = function() {
+    removeBlackBackground(logoImg);
+  };
+  
+  const titleDiv = el('div','cwm-title');
+  titleDiv.appendChild(logoImg);
+  header.append(titleDiv, el('div','cwm-close','✕'));
+  const body = el('div','cwm-body');
+  const hintDiv = el('div','cwm-hint','Connect your wallet to get started');
+  body.append(hintDiv);
 
-        // Listen for text selection
-        document.addEventListener('mouseup', () => {
-            this.handleTextSelection();
-        });
+  const statusBox = el('div','cwm-status'); 
+  statusBox.style.display='none';
+  const errorBox = el('div','cwm-error'); 
+  errorBox.style.display='none';
 
-        // Listen for keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            this.handleKeyboardShortcut(e);
-        });
+  const actions = el('div','cwm-actions');
+  const connectBtn = el('button','cwm-btn','🔗 Connect Wallet');
+  const logoutBtn = el('button','cwm-btn','Disconnect'); 
+  logoutBtn.style.display='none';
+  actions.append(connectBtn, logoutBtn);
 
-        // Listen for storage changes
-        chrome.storage.onChanged.addListener((changes, area) => {
-            if (area === 'local' && changes.settings) {
-                this.settings = changes.settings.newValue;
-                this.isEnabled = this.settings.autoProcess;
-                this.updateFloatingButton();
-            }
-        });
-    }
+  sidebar.append(header, body, statusBox, errorBox, actions);
+  root.append(sidebar);
+  
+  const launcher = el('button','cwm-launcher','💼'); 
+  root.append(launcher);
 
-    handleMessage(request, sender, sendResponse) {
-        switch (request.action) {
-            case 'processSelectedText':
-                this.processSelectedText();
-                sendResponse({ success: true });
-                break;
-            
-            case 'getPageInfo':
-                sendResponse({
-                    title: document.title,
-                    url: window.location.href,
-                    selectedText: this.getSelectedText()
-                });
-                break;
-            
-            case 'highlightText':
-                this.highlightText(request.text);
-                sendResponse({ success: true });
-                break;
-            
-            case 'toggleAutoProcess':
-                this.toggleAutoProcess();
-                sendResponse({ success: true });
-                break;
-                
-            default:
-                sendResponse({ success: false, error: 'Unknown action' });
-        }
-    }
+  function open(){ sidebar.classList.add('open'); }
+  function close(){ sidebar.classList.remove('open'); }
+  launcher.addEventListener('click', open);
+  header.querySelector('.cwm-close').addEventListener('click', close);
 
-    injectScript() {
-        const script = document.createElement('script');
-        script.src = chrome.runtime.getURL('injected.js');
-        script.onload = function() {
-            this.remove();
-        };
-        (document.head || document.documentElement).appendChild(script);
-    }
+  // Load session on start
+  chrome.storage.local.get(['privy_session'], ({ privy_session }) => {
+    if (privy_session) paintStatus(privy_session);
+  });
 
-    createFloatingButton() {
-        // Create floating button container
-        this.floatingButton = document.createElement('div');
-        this.floatingButton.id = 'lucid-l2-floating-button';
-        this.floatingButton.innerHTML = `
-            <div class="lucid-button-container">
-                <div class="lucid-button" id="lucid-process-btn">
-                    <img src="${chrome.runtime.getURL('icons/icon16.png')}" alt="Lucid L2™">
-                    <span>Process</span>
-                </div>
-                <div class="lucid-tooltip">Process selected text with Lucid L2™</div>
-            </div>
-        `;
+  // ChatGPT conversation capture - Simple and reliable approach
+  let conversationHistory = [];
+  let messageObserver = null;
+  let totalPoints = 0;
+  let sessionStats = {
+    inputTokens: 0,
+    outputTokens: 0,
+    totalMessages: 0,
+    pointsEarned: 0,
+    mGasEarned: 0,
+    lucidTokensEarned: 0
+  };
 
-        // Add styles
-        const styles = `
-            #lucid-l2-floating-button {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 10000;
-                display: none;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            }
-            
-            .lucid-button-container {
-                position: relative;
-            }
-            
-            .lucid-button {
-                display: flex;
-                align-items: center;
-                gap: 6px;
-                padding: 8px 12px;
-                background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-                color: white;
-                border-radius: 6px;
-                cursor: pointer;
-                font-size: 14px;
-                font-weight: 500;
-                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-                transition: all 0.2s ease;
-            }
-            
-            .lucid-button:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
-            }
-            
-            .lucid-button img {
-                width: 16px;
-                height: 16px;
-            }
-            
-            .lucid-tooltip {
-                position: absolute;
-                top: 100%;
-                left: 50%;
-                transform: translateX(-50%);
-                margin-top: 8px;
-                padding: 6px 8px;
-                background: rgba(0, 0, 0, 0.8);
-                color: white;
-                font-size: 12px;
-                border-radius: 4px;
-                white-space: nowrap;
-                opacity: 0;
-                pointer-events: none;
-                transition: opacity 0.2s ease;
-            }
-            
-            .lucid-button:hover + .lucid-tooltip {
-                opacity: 1;
-            }
-        `;
+  // Lucid L2 API Configuration
+  const LUCID_API_BASE = 'http://172.28.35.139:3001';
+  // Network environment used for display and routing hints in the sidebar UI.
+  // Defaults to devnet but can be overridden by the popup's ConfigurationManager.
+  let LUCID_ENV = 'devnet';
+  try {
+    chrome.storage.local.get(['lucid_env', 'lucid_network'], (res) => {
+      LUCID_ENV = res.lucid_env || res.lucid_network || 'devnet';
+    });
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && (changes.lucid_env || changes.lucid_network)) {
+        LUCID_ENV = (changes.lucid_env?.newValue) || (changes.lucid_network?.newValue) || LUCID_ENV;
+      }
+    });
+  } catch (e) {}
+let userAgent = null;
+let lastProcessedMessageKey = null;
 
-        // Inject styles
-        const styleSheet = document.createElement('style');
-        styleSheet.textContent = styles;
-        document.head.appendChild(styleSheet);
+  // Initialize user agent for Lucid L2 system
+  async function initializeUserAgent(walletAddress) {
+    if (!walletAddress) return;
+    
+    // Simple initialization without complex agent system
+    userAgent = {
+      agentId: `chatgpt-user-${walletAddress.slice(-8)}`,
+      name: `ChatGPT User ${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`,
+      walletAddress: walletAddress
+    };
+    
+    console.log('✅ Lucid L2 user agent initialized (simple mode):', userAgent);
+  }
 
-        // Add event listener
-        this.floatingButton.querySelector('#lucid-process-btn').addEventListener('click', () => {
-            this.processSelectedText();
-        });
+  // Process new messages through Lucid L2 inference
+  async function processMessageThroughLucid(message) {
+    if (!userAgent || !message.content) return;
 
-        // Append to body
-        document.body.appendChild(this.floatingButton);
-    }
-
-    observeTextSelection() {
-        let selectionTimeout;
-        
-        document.addEventListener('mouseup', () => {
-            clearTimeout(selectionTimeout);
-            selectionTimeout = setTimeout(() => {
-                this.handleTextSelection();
-            }, 100);
-        });
-
-        document.addEventListener('keyup', (e) => {
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || 
-                e.key === 'ArrowUp' || e.key === 'ArrowDown' ||
-                e.shiftKey) {
-                clearTimeout(selectionTimeout);
-                selectionTimeout = setTimeout(() => {
-                    this.handleTextSelection();
-                }, 100);
-            }
-        });
-    }
-
-    handleTextSelection() {
-        const selectedText = this.getSelectedText();
-        
-        if (selectedText && selectedText.length > 10) {
-            this.selectedText = selectedText;
-            this.showFloatingButton();
-            
-            // Auto-process if enabled
-            if (this.isEnabled) {
-                this.processSelectedText();
-            }
-        } else {
-            this.hideFloatingButton();
-        }
-    }
-
-    getSelectedText() {
-        const selection = window.getSelection();
-        return selection.toString().trim();
-    }
-
-    showFloatingButton() {
-        if (this.floatingButton) {
-            this.floatingButton.style.display = 'block';
-        }
-    }
-
-    hideFloatingButton() {
-        if (this.floatingButton) {
-            this.floatingButton.style.display = 'none';
-        }
-    }
-
-    updateFloatingButton() {
-        if (this.floatingButton) {
-            const button = this.floatingButton.querySelector('.lucid-button');
-            if (this.isEnabled) {
-                button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-                button.querySelector('span').textContent = 'Auto';
-            } else {
-                button.style.background = 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
-                button.querySelector('span').textContent = 'Process';
-            }
-        }
-    }
-
-    async processSelectedText() {
-        const text = this.selectedText || this.getSelectedText();
-        if (!text) return;
-
-        try {
-            this.showProcessingIndicator();
-            
-            // Send to background script for processing
-            const response = await chrome.runtime.sendMessage({
-                action: 'processText',
-                text: text
-            });
-
-            if (response.success) {
-                this.showSuccessIndicator(response.result.earned);
-                this.highlightProcessedText(text);
-            } else {
-                this.showErrorIndicator(response.error);
-            }
-        } catch (error) {
-            this.showErrorIndicator(error.message);
-        } finally {
-            this.hideFloatingButton();
-        }
-    }
-
-    showProcessingIndicator() {
-        if (this.floatingButton) {
-            const button = this.floatingButton.querySelector('.lucid-button');
-            button.innerHTML = `
-                <div class="lucid-spinner"></div>
-                <span>Processing...</span>
-            `;
-            
-            // Add spinner styles
-            const spinnerStyles = `
-                .lucid-spinner {
-                    width: 16px;
-                    height: 16px;
-                    border: 2px solid rgba(255, 255, 255, 0.3);
-                    border-top: 2px solid white;
-                    border-radius: 50%;
-                    animation: lucid-spin 1s linear infinite;
-                }
-                
-                @keyframes lucid-spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            `;
-            
-            if (!document.querySelector('#lucid-spinner-styles')) {
-                const styleSheet = document.createElement('style');
-                styleSheet.id = 'lucid-spinner-styles';
-                styleSheet.textContent = spinnerStyles;
-                document.head.appendChild(styleSheet);
-            }
-        }
-    }
-
-    showSuccessIndicator(earned) {
-        if (this.floatingButton) {
-            const button = this.floatingButton.querySelector('.lucid-button');
-            button.innerHTML = `
-                <span>✓</span>
-                <span>+${earned} mGas</span>
-            `;
-            button.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-            
-            setTimeout(() => {
-                this.hideFloatingButton();
-            }, 2000);
-        }
-    }
-
-    showErrorIndicator(error) {
-        if (this.floatingButton) {
-            const button = this.floatingButton.querySelector('.lucid-button');
-            button.innerHTML = `
-                <span>✗</span>
-                <span>Error</span>
-            `;
-            button.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
-            
-            setTimeout(() => {
-                this.hideFloatingButton();
-            }, 2000);
-        }
-    }
-
-    highlightProcessedText(text) {
-        // Find and highlight the processed text
-        const walker = document.createTreeWalker(
-            document.body,
-            NodeFilter.SHOW_TEXT,
-            null,
-            false
-        );
-
-        let node;
-        while (node = walker.nextNode()) {
-            if (node.textContent.includes(text)) {
-                const parent = node.parentNode;
-                const highlightedHTML = node.textContent.replace(
-                    text,
-                    `<span class="lucid-highlighted-text">${text}</span>`
-                );
-                parent.innerHTML = parent.innerHTML.replace(
-                    node.textContent,
-                    highlightedHTML
-                );
-                break;
-            }
-        }
-
-        // Add highlight styles
-        if (!document.querySelector('#lucid-highlight-styles')) {
-            const styles = `
-                .lucid-highlighted-text {
-                    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-                    color: white;
-                    padding: 2px 4px;
-                    border-radius: 3px;
-                    font-weight: 500;
-                    animation: lucid-highlight-fade 3s ease-out;
-                }
-                
-                @keyframes lucid-highlight-fade {
-                    0% { background: #10b981; }
-                    100% { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
-                }
-            `;
-            
-            const styleSheet = document.createElement('style');
-            styleSheet.id = 'lucid-highlight-styles';
-            styleSheet.textContent = styles;
-            document.head.appendChild(styleSheet);
-        }
-    }
-
-    highlightText(text) {
-        this.highlightProcessedText(text);
-    }
-
-    handleKeyboardShortcut(e) {
-        // Ctrl+Shift+L or Cmd+Shift+L
-        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'L') {
-            e.preventDefault();
-            this.processSelectedText();
-        }
-        
-        // Ctrl+Shift+T or Cmd+Shift+T (toggle auto-process)
-        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'T') {
-            e.preventDefault();
-            this.toggleAutoProcess();
-        }
-    }
-
-    toggleAutoProcess() {
-        this.isEnabled = !this.isEnabled;
-        this.settings.autoProcess = this.isEnabled;
-        
-        chrome.storage.local.set({ settings: this.settings });
-        this.updateFloatingButton();
-        
-        // Show notification
-        this.showNotification(
-            this.isEnabled ? 'Auto-process enabled' : 'Auto-process disabled',
-            this.isEnabled ? 'Selected text will be processed automatically' : 'Manual processing only'
-        );
-    }
-
-    showNotification(title, message) {
-        const notification = document.createElement('div');
-        notification.className = 'lucid-notification';
-        notification.innerHTML = `
-            <div class="lucid-notification-content">
-                <div class="lucid-notification-title">${title}</div>
-                <div class="lucid-notification-message">${message}</div>
-            </div>
-        `;
-
-        // Add notification styles
-        const styles = `
-            .lucid-notification {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 10001;
-                background: white;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-                padding: 16px;
-                max-width: 300px;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                animation: lucid-notification-slide 0.3s ease-out;
-            }
-            
-            .lucid-notification-title {
-                font-size: 14px;
-                font-weight: 600;
-                color: #1e293b;
-                margin-bottom: 4px;
-            }
-            
-            .lucid-notification-message {
-                font-size: 12px;
-                color: #64748b;
-            }
-            
-            @keyframes lucid-notification-slide {
-                from {
-                    transform: translateX(100%);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
-            }
-        `;
-
-        if (!document.querySelector('#lucid-notification-styles')) {
-            const styleSheet = document.createElement('style');
-            styleSheet.id = 'lucid-notification-styles';
-            styleSheet.textContent = styles;
-            document.head.appendChild(styleSheet);
-        }
-
-        document.body.appendChild(notification);
-
-        // Remove after 3 seconds
-        setTimeout(() => {
-            notification.remove();
-        }, 3000);
-    }
-
-    // Central wallet message handler
-    async handleWalletMessage(request, sendResponse) {
-        if (!this.isWalletReady && request.action !== 'checkWallet') {
-            sendResponse({
-                success: false,
-                error: 'Wallet bridge not ready',
-                code: 'BRIDGE_NOT_READY'
-            });
+    // Route the network call through the background service worker to avoid
+    // mixed-content and page CSP restrictions on https pages (e.g. chat.openai.com)
+    return new Promise((resolve) => {
+      // Debug log to verify we attempt to call the backend from the content script
+      try {
+        console.log('➡️ Sending message to Lucid backend via background', { len: (message.content || '').length, wallet: userAgent.walletAddress });
+      } catch (_) {}
+      chrome.runtime.sendMessage(
+        {
+          type: 'lucid_run',
+          payload: {
+            text: message.content,
+            wallet: userAgent.walletAddress || 'test-wallet'
+          }
+        },
+        (resp) => {
+          if (chrome.runtime.lastError) {
+            console.warn('❌ Failed to process through Lucid L2 (messaging error):', chrome.runtime.lastError.message);
+            resolve(null);
             return;
+          }
+          console.log('⬅️ Background response:', resp);
+          if (resp?.ok) {
+            const result = resp.data;
+            console.log('✅ Processed through Lucid L2 (via background):', result);
+            // Update session stats with Lucid data
+            if (result?.gasUsed) {
+              sessionStats.mGasEarned += result.gasUsed.mGas || 0;
+              sessionStats.lucidTokensEarned = Math.floor(sessionStats.mGasEarned / 100); // 100 mGas = 1 LUCID
+            }
+            resolve(result);
+          } else {
+            console.warn('❌ Lucid L2 backend error:', resp?.status, resp?.error || resp?.data);
+            resolve(null);
+          }
         }
+      );
+    });
+  }
 
-        try {
-            let result;
-            
-            switch (request.action) {
-                case 'checkWallet':
-                    result = await this.walletBridge.checkWalletAvailability();
-                    break;
-                    
-                case 'connectWallet':
-                    result = await this.walletBridge.connectWallet();
-                    break;
-                    
-                case 'disconnectWallet':
-                    result = await this.walletBridge.disconnectWallet();
-                    break;
-                    
-                case 'getWalletBalance':
-                    result = await this.walletBridge.getWalletBalance();
-                    break;
-                    
-                case 'signTransaction':
-                    result = await this.walletBridge.signTransaction(request.transaction);
-                    break;
-                    
-                case 'signMessage':
-                    result = await this.walletBridge.signMessage(request.message);
-                    break;
-                    
-                default:
-                    // Handle non-wallet messages
-                    this.handleMessage(request, null, sendResponse);
-                    return;
-            }
-            
-            sendResponse(result);
-            
-        } catch (error) {
-            console.error('❌ Wallet operation failed:', error);
-            sendResponse({
-                success: false,
-                error: error.message,
-                code: 'WALLET_OPERATION_FAILED'
-            });
-        }
+  // Convert conversation data to Lucid format
+  function convertToLucidFormat(messages) {
+    return messages.map(msg => ({
+      role: msg.type,
+      content: msg.content,
+      timestamp: msg.timestamp,
+      id: msg.id,
+      tokens: estimateTokens(msg.content)
+    }));
+  }
+
+  // Token counting and point conversion
+  function estimateTokens(text) {
+    // Rough estimation: ~4 characters per token for English text
+    // More accurate for ChatGPT context
+    const chars = text.length;
+    return Math.ceil(chars / 4);
+  }
+
+  function convertTokensToPoints(inputTokens, outputTokens) {
+    // Point conversion rates (you can adjust these)
+    const INPUT_TOKEN_RATE = 0.1;  // 0.1 points per input token
+    const OUTPUT_TOKEN_RATE = 0.2; // 0.2 points per output token (higher value for responses)
+    
+    return {
+      inputPoints: Math.round(inputTokens * INPUT_TOKEN_RATE * 10) / 10,
+      outputPoints: Math.round(outputTokens * OUTPUT_TOKEN_RATE * 10) / 10,
+      totalPoints: Math.round((inputTokens * INPUT_TOKEN_RATE + outputTokens * OUTPUT_TOKEN_RATE) * 10) / 10
+    };
+  }
+
+  function updateTokenStats() {
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let messageCount = 0;
+
+    conversationHistory.forEach(msg => {
+      const tokens = estimateTokens(msg.content);
+      if (msg.type === 'user') {
+        inputTokens += tokens;
+      } else if (msg.type === 'assistant') {
+        outputTokens += tokens;
+      }
+      messageCount++;
+    });
+
+    const points = convertTokensToPoints(inputTokens, outputTokens);
+    
+    sessionStats = {
+      inputTokens,
+      outputTokens,
+      totalMessages: messageCount,
+      pointsEarned: points.totalPoints
+    };
+
+    // Save to storage and check for achievements
+    chrome.storage.local.get(['totalLifetimePoints', 'lastAchievement'], (result) => {
+      const previousLifetime = result.totalLifetimePoints || 0;
+      const newLifetimePoints = previousLifetime + points.totalPoints;
+      
+      chrome.storage.local.set({ 
+        sessionStats, 
+        totalLifetimePoints: newLifetimePoints 
+      });
+
+      // Check for new achievements
+      checkAchievements(previousLifetime, newLifetimePoints, messageCount);
+    });
+  }
+
+  function checkAchievements(oldPoints, newPoints, messageCount) {
+    const achievements = [
+      { threshold: 10, message: "🌟 First Steps! You've earned 10 points!", emoji: "🌟" },
+      { threshold: 50, message: "🔥 Getting Warmed Up! 50 points earned!", emoji: "🔥" },
+      { threshold: 100, message: "💎 Century Club! 100 points milestone!", emoji: "💎" },
+      { threshold: 250, message: "🚀 Rising Star! 250 points achieved!", emoji: "🚀" },
+      { threshold: 500, message: "⚡ Power User! 500 points unlocked!", emoji: "⚡" },
+      { threshold: 1000, message: "👑 Elite Status! 1000+ points!", emoji: "👑" }
+    ];
+
+    achievements.forEach(achievement => {
+      if (oldPoints < achievement.threshold && newPoints >= achievement.threshold) {
+        showAchievementNotification(achievement);
+      }
+    });
+
+    // Message milestones
+    if (messageCount === 10) {
+      showAchievementNotification({
+        message: "💬 Chatty! 10 messages in this session!",
+        emoji: "💬"
+      });
+    } else if (messageCount === 25) {
+      showAchievementNotification({
+        message: "🗣️ Conversationalist! 25 messages!",
+        emoji: "🗣️"
+      });
     }
-}
+  }
 
-// Wallet Bridge Class - Handles all wallet operations in web page context
-class WalletBridge {
-    constructor() {
-        this.wallet = null;
-        this.connection = null;
-        this.isConnected = false;
-        this.config = {
-            rpcUrl: 'https://api.devnet.solana.com',
-            commitment: 'confirmed',
-            lucidMint: 'Au343oxp5p17kLHAKUvf4HEqzDtTeFRdmetfzby7wJJM'
-        };
-        this.balance = { sol: 0, lucid: 0, mGas: 0 };
-        this.isPhantomAvailable = false;
-    }
+  function showAchievementNotification(achievement) {
+    // Create floating notification
+    const notification = el('div', 'cwm-achievement-notification');
+    notification.innerHTML = `
+      <div class="cwm-achievement-icon">${achievement.emoji}</div>
+      <div class="cwm-achievement-text">${achievement.message}</div>
+    `;
+    
+    root.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => notification.classList.add('show'), 100);
+    
+    // Remove after 4 seconds
+    setTimeout(() => {
+      notification.classList.remove('show');
+      setTimeout(() => notification.remove(), 500);
+    }, 4000);
 
-    async initialize() {
-        console.log('🔧 Initializing wallet bridge...');
-        
-        // Wait for page to load and Phantom to be available
-        await this.waitForPhantom();
-        
-        // Check if already connected
-        await this.checkExistingConnection();
-        
-        // Set up wallet event listeners
-        this.setupWalletEventListeners();
-        
-        console.log('✅ Wallet bridge initialized');
-    }
-
-    async waitForPhantom(timeout = 5000) {
-        return new Promise((resolve, reject) => {
-            const start = Date.now();
-            
-            const checkPhantom = () => {
-                if (window.solana && window.solana.isPhantom) {
-                    console.log('👻 Phantom wallet detected');
-                    this.isPhantomAvailable = true;
-                    resolve();
-                    return;
-                }
-                
-                if (Date.now() - start > timeout) {
-                    console.warn('⏰ Timeout waiting for Phantom wallet');
-                    this.isPhantomAvailable = false;
-                    resolve(); // Don't reject, just continue without Phantom
-                    return;
-                }
-                
-                setTimeout(checkPhantom, 100);
-            };
-            
-            checkPhantom();
-        });
-    }
-
-    async checkExistingConnection() {
-        if (!this.isPhantomAvailable) return;
-        
-        try {
-            if (window.solana.isConnected) {
-                this.wallet = {
-                    address: window.solana.publicKey.toString(),
-                    publicKey: window.solana.publicKey
-                };
-                this.isConnected = true;
-                console.log('🔗 Found existing wallet connection:', this.wallet.address);
-                
-                // Update balances
-                await this.updateBalances();
-            }
-        } catch (error) {
-            console.warn('⚠️ Error checking existing connection:', error);
-        }
-    }
-
-    setupWalletEventListeners() {
-        if (!this.isPhantomAvailable) return;
-        
-        window.solana.on('connect', (publicKey) => {
-            console.log('🔗 Wallet connected:', publicKey.toString());
-            this.wallet = {
-                address: publicKey.toString(),
-                publicKey: publicKey
-            };
-            this.isConnected = true;
-            this.updateBalances();
-        });
-
-        window.solana.on('disconnect', () => {
-            console.log('🔌 Wallet disconnected');
-            this.wallet = null;
-            this.isConnected = false;
-            this.balance = { sol: 0, lucid: 0, mGas: 0 };
-        });
-
-        window.solana.on('accountChanged', (publicKey) => {
-            if (publicKey) {
-                console.log('👤 Account changed:', publicKey.toString());
-                this.wallet = {
-                    address: publicKey.toString(),
-                    publicKey: publicKey
-                };
-                this.updateBalances();
-            } else {
-                this.wallet = null;
-                this.isConnected = false;
-                this.balance = { sol: 0, lucid: 0, mGas: 0 };
-            }
-        });
-    }
-
-    async checkWalletAvailability() {
-        console.log('🔍 Checking wallet availability...');
-        
-        return {
-            success: true,
-            available: this.isPhantomAvailable,
-            connected: this.isConnected,
-            publicKey: this.wallet?.address || null,
-            network: 'devnet'
-        };
-    }
-
-    async connectWallet() {
-        console.log('🔗 Attempting to connect wallet...');
-        
-        try {
-            if (!this.isPhantomAvailable) {
-                throw new Error('Phantom wallet not found. Please install Phantom wallet extension.');
-            }
-
-            console.log('📱 Requesting wallet connection...');
-            const response = await window.solana.connect();
-            
-            this.wallet = {
-                address: response.publicKey.toString(),
-                publicKey: response.publicKey
-            };
-            this.isConnected = true;
-            
-            console.log('✅ Wallet connected successfully:', this.wallet.address);
-            
-            // Initialize connection to devnet
-            await this.initializeConnection();
-            
-            // Update balances
-            await this.updateBalances();
-            
-            return {
-                success: true,
-                wallet: this.wallet,
-                balance: this.balance,
-                network: 'devnet'
-            };
-            
-        } catch (error) {
-            console.error('❌ Wallet connection failed:', error);
-            
-            // Categorize error for better user experience
-            let errorMessage = error.message;
-            let errorCode = 'CONNECTION_FAILED';
-            
-            if (error.message.includes('User rejected')) {
-                errorMessage = 'Connection cancelled by user';
-                errorCode = 'USER_REJECTED';
-            } else if (error.message.includes('wallet not found')) {
-                errorMessage = 'Phantom wallet not found. Please install Phantom wallet.';
-                errorCode = 'WALLET_NOT_FOUND';
-            }
-            
-            return {
-                success: false,
-                error: errorMessage,
-                code: errorCode,
-                recoverable: true
-            };
-        }
-    }
-
-    async disconnectWallet() {
-        console.log('🔌 Disconnecting wallet...');
-        
-        try {
-            if (this.isPhantomAvailable && window.solana.isConnected) {
-                await window.solana.disconnect();
-            }
-            
-            this.wallet = null;
-            this.isConnected = false;
-            this.balance = { sol: 0, lucid: 0, mGas: 0 };
-            this.connection = null;
-            
-            console.log('✅ Wallet disconnected successfully');
-            
-            return {
-                success: true
-            };
-            
-        } catch (error) {
-            console.error('❌ Wallet disconnection failed:', error);
-            return {
-                success: false,
-                error: error.message,
-                code: 'DISCONNECTION_FAILED'
-            };
-        }
-    }
-
-    async getWalletBalance() {
-        console.log('💰 Getting wallet balance...');
-        
-        try {
-            if (!this.isConnected || !this.wallet) {
-                throw new Error('Wallet not connected');
-            }
-            
-            await this.updateBalances();
-            
-            return {
-                success: true,
-                balance: this.balance,
-                wallet: this.wallet,
-                connected: true
-            };
-            
-        } catch (error) {
-            console.error('❌ Error getting wallet balance:', error);
-            return {
-                success: false,
-                error: error.message,
-                code: 'BALANCE_QUERY_FAILED'
-            };
-        }
-    }
-
-    async initializeConnection() {
-        try {
-            // Load Solana web3.js if not already loaded
-            if (typeof window.solanaWeb3 === 'undefined') {
-                console.log('📦 Loading Solana web3.js...');
-                await this.loadSolanaWeb3();
-            }
-            
-            this.connection = new window.solanaWeb3.Connection(
-                this.config.rpcUrl,
-                this.config.commitment
-            );
-            
-            console.log('🌐 Connected to Solana devnet');
-            
-        } catch (error) {
-            console.error('❌ Failed to initialize connection:', error);
-            throw error;
-        }
-    }
-
-    async loadSolanaWeb3() {
-        return new Promise((resolve, reject) => {
-            if (typeof window.solanaWeb3 !== 'undefined') {
-                resolve();
-                return;
-            }
-            
-            const script = document.createElement('script');
-            script.src = chrome.runtime.getURL('solana-web3.js');
-            script.onload = () => {
-                console.log('✅ Solana web3.js loaded');
-                resolve();
-            };
-            script.onerror = () => {
-                console.error('❌ Failed to load Solana web3.js');
-                reject(new Error('Failed to load Solana web3.js'));
-            };
-            
-            document.head.appendChild(script);
-        });
-    }
-
-    async updateBalances() {
-        if (!this.connection || !this.wallet) return;
-        
-        try {
-            console.log('🔄 Updating wallet balances...');
-            
-            // Get SOL balance
-            const solBalance = await this.connection.getBalance(this.wallet.publicKey);
-            this.balance.sol = solBalance / 1e9; // Convert lamports to SOL
-            
-            // Get LUCID token balance
-            try {
-                const lucidBalance = await this.getLucidTokenBalance();
-                this.balance.lucid = lucidBalance;
-            } catch (error) {
-                console.log('📝 LUCID token account not found (this is normal for new wallets)');
-                this.balance.lucid = 0;
-            }
-            
-            // Get mGas balance from extension storage
-            const mGasBalance = await this.getMGasBalance();
-            this.balance.mGas = mGasBalance;
-            
-            console.log('💰 Balances updated:', this.balance);
-            
-        } catch (error) {
-            console.error('❌ Failed to update balances:', error);
-        }
-    }
-
-    async getLucidTokenBalance() {
-        if (!this.connection || !this.wallet) return 0;
-        
-        try {
-            // For now, just return 0 - real token balance requires SPL token utilities
-            // This can be enhanced later with proper token account queries
-            console.log('📝 LUCID token balance query skipped (requires SPL token utilities)');
-            return 0;
-            
-        } catch (error) {
-            console.log('📝 LUCID token account not found or balance is 0');
-            return 0;
-        }
-    }
-
-    async getMGasBalance() {
-        return new Promise((resolve) => {
-            if (typeof chrome !== 'undefined' && chrome.storage) {
-                chrome.storage.local.get(['mGasBalance'], (result) => {
-                    resolve(result.mGasBalance || 0);
-                });
-            } else {
-                resolve(0);
-            }
-        });
-    }
-
-    async signTransaction(transaction) {
-        console.log('✍️ Signing transaction...');
-        
-        try {
-            if (!this.isConnected || !this.wallet) {
-                throw new Error('Wallet not connected');
-            }
-            
-            if (!this.isPhantomAvailable) {
-                throw new Error('Phantom wallet not available');
-            }
-            
-            const signedTransaction = await window.solana.signTransaction(transaction);
-            
-            return {
-                success: true,
-                signedTransaction: signedTransaction
-            };
-            
-        } catch (error) {
-            console.error('❌ Transaction signing failed:', error);
-            return {
-                success: false,
-                error: error.message,
-                code: 'SIGNING_FAILED'
-            };
-        }
-    }
-
-    async signMessage(message) {
-        console.log('✍️ Signing message...');
-        
-        try {
-            if (!this.isConnected || !this.wallet) {
-                throw new Error('Wallet not connected');
-            }
-            
-            if (!this.isPhantomAvailable) {
-                throw new Error('Phantom wallet not available');
-            }
-            
-            const signedMessage = await window.solana.signMessage(message);
-            
-            return {
-                success: true,
-                signedMessage: signedMessage
-            };
-            
-        } catch (error) {
-            console.error('❌ Message signing failed:', error);
-            return {
-                success: false,
-                error: error.message,
-                code: 'SIGNING_FAILED'
-            };
-        }
-    }
-}
-
-// Ensure DOM is ready before initializing
-function initializeWhenReady() {
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeContentScript);
-    } else {
-        initializeContentScript();
-    }
-}
-
-async function initializeContentScript() {
+    // Play a subtle sound effect (if supported)
     try {
-        console.log('🚀 Lucid L2™ Content Script initializing...');
-        
-        // Initialize content script
-        const contentScript = new ContentScript();
-        
-        // Make contentScript globally accessible for debugging
-        window.lucidContentScript = contentScript;
-        
-        // Clean up on page unload
-        window.addEventListener('beforeunload', () => {
-            // Clean up any resources
-            if (contentScript.floatingButton) {
-                contentScript.floatingButton.remove();
-            }
-        });
-        
-        console.log('✅ Lucid L2™ Content Script initialized successfully');
-        
-    } catch (error) {
-        console.error('❌ Failed to initialize Lucid L2™ Content Script:', error);
-    }
-}
+      const audio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IAAAAABAAAgAIgAkAgEAEAAAAABkYXRhAAAAAA==');
+      audio.play().catch(() => {}); // Ignore if audio fails
+    } catch (e) {}
+  }
 
-// Start initialization
-initializeWhenReady();
+  function getMotivationalMessage(points, messages) {
+    const messages_motivational = [
+      "Keep the conversation flowing! 💬",
+      "You're earning points with every message! 🎯",
+      "The more you chat, the more you earn! 💰",
+      "Your AI companion is ready for more! 🤖",
+      "Every question makes you stronger! 💪",
+      "Unlock new achievements by chatting! 🏆",
+      "Your curiosity is your superpower! ✨",
+      "Ask me anything - points await! 🌟"
+    ];
+
+    if (points === 0) {
+      return "Start chatting to earn your first points! 🚀";
+    } else if (points < 10) {
+      return "Great start! Keep asking questions! 🌱";
+    } else if (points < 50) {
+      return messages_motivational[Math.floor(Math.random() * messages_motivational.length)];
+    } else {
+      return "You're on fire! 🔥 Keep up the amazing conversation!";
+    }
+  }
+
+  function getAllMessages() {
+    const messages = [];
+    document.querySelectorAll("div[data-message-author-role]").forEach(el => {
+      const role = el.getAttribute("data-message-author-role"); // "user" or "assistant"  
+      const text = el.innerText.trim();
+      if (text) {
+        messages.push({ 
+          type: role, 
+          content: text, 
+          timestamp: new Date().toISOString(),
+          id: `${role}-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+        });
+      }
+    });
+    return messages;
+  }
+
+  function startConversationCapture() {
+    console.log('✅ Starting ChatGPT conversation capture...');
+    
+    // Throttle the observer to prevent excessive updates
+    let updateTimeout;
+    messageObserver = new MutationObserver(() => {
+      clearTimeout(updateTimeout);
+      updateTimeout = setTimeout(() => {
+        const messages = getAllMessages();
+        if (messages.length > 0) {
+          conversationHistory = messages;
+          updateConversationDisplay();
+
+          // Send the latest message to the offchain backend once per unique content
+          const latest = messages[messages.length - 1];
+          const key = latest ? `${latest.type}:${latest.content}` : null;
+          if (latest && key !== lastProcessedMessageKey) {
+            lastProcessedMessageKey = key;
+            processMessageThroughLucid(latest);
+          }
+
+          console.log(`✅ Captured ${messages.length} messages`);
+        }
+      }, 500); // Wait 500ms before updating
+    });
+
+    function startObserving() {
+      const chatContainer = document.querySelector("main");
+      if (chatContainer) {
+        messageObserver.observe(chatContainer, { 
+          childList: true, 
+          subtree: true,
+          // Reduce the scope of observation
+          attributes: false,
+          characterData: false
+        });
+        console.log("✅ ChatGPT conversation capture is observing...");
+        
+        // Initial capture with delay
+        setTimeout(() => {
+          const initialMessages = getAllMessages();
+          if (initialMessages.length > 0) {
+            conversationHistory = initialMessages;
+            updateConversationDisplay();
+
+            // Process latest message on initial capture
+            const latest = initialMessages[initialMessages.length - 1];
+            const key = latest ? `${latest.type}:${latest.content}` : null;
+            if (latest && key !== lastProcessedMessageKey) {
+              lastProcessedMessageKey = key;
+              processMessageThroughLucid(latest);
+            }
+
+            console.log(`✅ Initial capture: ${initialMessages.length} messages`);
+          }
+        }, 100);
+      } else {
+        console.warn("⏳ Waiting for chat container...");
+        setTimeout(startObserving, 2000);
+      }
+    }
+
+    startObserving();
+  }
+
+
+  function updateConversationDisplay() {
+    // Remove existing sections
+    const existingConversation = sidebar.querySelector('.cwm-conversation');
+    if (existingConversation) {
+      existingConversation.remove();
+    }
+    const existingPoints = sidebar.querySelector('.cwm-points');
+    if (existingPoints) {
+      existingPoints.remove();
+    }
+
+    if (conversationHistory.length === 0) return;
+
+    // Update token statistics
+    updateTokenStats();
+
+    // Create points section
+    const pointsSection = el('div', 'cwm-points');
+    const pointsTitle = el('div', 'cwm-section-title', '🎯 Earned Points');
+    pointsSection.appendChild(pointsTitle);
+
+    const pointsGrid = el('div', 'cwm-points-grid');
+    
+    // Session stats
+    pointsGrid.appendChild(row([badge('Session Points'), el('span', 'cwm-points-value', sessionStats.pointsEarned.toString())]));
+    pointsGrid.appendChild(row([badge('Input Tokens'), mono(sessionStats.inputTokens.toString())]));
+    pointsGrid.appendChild(row([badge('Output Tokens'), mono(sessionStats.outputTokens.toString())]));
+    pointsGrid.appendChild(row([badge('Messages'), mono(sessionStats.totalMessages.toString())]));
+
+    // Load and display lifetime points
+    chrome.storage.local.get(['totalLifetimePoints'], (result) => {
+      const lifetimePoints = result.totalLifetimePoints || 0;
+      const lifetimeRow = row([badge('Lifetime Points'), el('span', 'cwm-lifetime-points', lifetimePoints.toFixed(1))]);
+      pointsGrid.appendChild(lifetimeRow);
+    });
+
+    pointsSection.appendChild(pointsGrid);
+
+    // Add motivational message
+    const motivationalMsg = el('div', 'cwm-motivational-message', getMotivationalMessage(sessionStats.pointsEarned, sessionStats.totalMessages));
+    pointsSection.appendChild(motivationalMsg);
+
+    // Create conversation section
+    const conversationSection = el('div', 'cwm-conversation');
+    const conversationTitle = el('div', 'cwm-section-title', '💬 Conversation');
+    conversationSection.appendChild(conversationTitle);
+
+    const messagesList = el('div', 'cwm-messages');
+    
+    // Show last 8 messages (or all if less than 8)
+    const recentMessages = conversationHistory.slice(-8);
+    recentMessages.forEach(msg => {
+      const messageEl = el('div', `cwm-message cwm-message-${msg.type}`);
+      const avatar = el('span', 'cwm-message-avatar', msg.type === 'user' ? '👤' : '🤖');
+      const content = el('div', 'cwm-message-content', msg.content.slice(0, 100) + (msg.content.length > 100 ? '...' : ''));
+      
+      messageEl.appendChild(avatar);
+      messageEl.appendChild(content);
+      messagesList.appendChild(messageEl);
+    });
+
+    conversationSection.appendChild(messagesList);
+    
+    // Add count badge
+    const countBadge = el('div', 'cwm-count-badge', `${conversationHistory.length} messages`);
+    conversationSection.appendChild(countBadge);
+
+    // Insert sections after status box or at the end of body
+    const insertAfter = statusBox.parentElement === body ? statusBox : body.lastChild;
+    insertAfter.after(pointsSection);
+    pointsSection.after(conversationSection);
+  }
+
+  // Privy in-page injection helpers (Phantom only injects into http/https pages, not chrome-extension://)
+  function injectPrivyRootIfMissing() {
+    if (!document.getElementById('lucid-privy-root')) {
+      const div = document.createElement('div');
+      div.id = 'lucid-privy-root';
+      div.style.position = 'fixed';
+      div.style.top = '0';
+      div.style.left = '0';
+      div.style.width = '100%';
+      div.style.height = '100%';
+      div.style.zIndex = '2147483647';
+      document.body.appendChild(div);
+    }
+  }
+
+  function injectPrivyBundleInPage() {
+    return new Promise((resolve, reject) => {
+      try {
+        injectPrivyRootIfMissing();
+        if (document.querySelector('script[data-lucid-privy="1"]')) {
+          resolve(true);
+          return;
+        }
+        const s = document.createElement('script');
+        s.src = chrome.runtime.getURL('dist/auth.js');
+        s.dataset.lucidPrivy = '1';
+        s.onload = () => resolve(true);
+        s.onerror = () => reject(new Error('Failed to load Privy bundle in page'));
+        (document.head || document.documentElement).appendChild(s);
+      } catch (e) {
+        reject(e);
+      }
+    });
+  }
+
+  // Cleanup any previously injected in-page Privy UI/scripts
+  function cleanupInPagePrivy() {
+    try {
+      const root = document.getElementById('lucid-privy-root');
+      if (root) root.remove();
+      document.querySelectorAll('script[data-lucid-privy="1"]').forEach((s) => s.remove());
+    } catch {}
+  }
+
+  // Start capturing when page is fully loaded
+  if (document.readyState === 'complete') {
+    setTimeout(startConversationCapture, 1000);
+  } else {
+    window.addEventListener('load', () => {
+      setTimeout(startConversationCapture, 1000);
+    });
+  }
+
+  connectBtn.addEventListener('click', () => {
+    // Ensure any old in-page Privy overlay is removed
+    cleanupInPagePrivy();
+
+    // Open the extension popup only (no in-page Privy injection)
+    chrome.runtime.sendMessage({ type: 'open_privy_auth' }, (res) => {
+      if (chrome.runtime.lastError) showErr(chrome.runtime.lastError.message);
+    });
+  });
+
+  logoutBtn.addEventListener('click', () => {
+    chrome.runtime.sendMessage({ type: 'open_privy_logout' }, (res) => {
+      if (chrome.runtime.lastError) showErr(chrome.runtime.lastError.message);
+    });
+  });
+
+  // Listen for messages from bridge
+  window.addEventListener('message', (e) => {
+    if (e.source !== window) return;
+    if (e.data?.type === 'METAMASK_CONNECTED') {
+      const payload = e.data.payload;
+      // MetaMask connected directly, now authenticate with Privy
+      chrome.runtime.sendMessage({ type: 'authenticate_with_metamask', payload }, (res) => {
+        if (chrome.runtime.lastError) {
+          showErr(chrome.runtime.lastError.message);
+        }
+      });
+    }
+    if (e.data?.type === 'PRIVY_CONNECTED') {
+      const payload = e.data.payload;
+      chrome.storage.local.set({ privy_session: payload });
+      paintStatus(payload);
+      errorBox.style.display = 'none';
+    }
+    if (e.data?.type === 'PRIVY_ERROR') {
+      showErr(e.data.error || 'Connection failed');
+    }
+  });
+
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg?.type === 'privy_authenticated') {
+      chrome.storage.local.set({ privy_session: msg.payload });
+      paintStatus(msg.payload);
+      errorBox.style.display = 'none';
+    }
+    if (msg?.type === 'privy_logged_out') {
+      chrome.storage.local.remove('privy_session');
+      statusBox.style.display = 'none';
+      logoutBtn.style.display = 'none';
+      connectBtn.style.display = 'inline-flex';
+      errorBox.style.display = 'none';
+      // Reset hint message when disconnected
+      hintDiv.textContent = 'Connect your wallet to get started';
+    }
+  });
+
+  function paintStatus(p){
+    statusBox.innerHTML='';
+    
+    // Update hint message to show "Connected" when wallet is connected
+    hintDiv.textContent = 'Connected';
+    
+    // Initialize Lucid L2 user agent with connected wallet
+    const walletAddress = p.solanaAddress || p.address;
+    if (walletAddress && !userAgent) {
+      initializeUserAgent(walletAddress);
+    }
+    
+    // Always show user info
+    statusBox.append(row([badge('Privy User'), txt(p.userId || '—')]));
+    
+    // Show EVM wallet if available
+    if (p.address) {
+      statusBox.append(
+        row([badge('EVM Address'), mono(short(p.address))]),
+        row([badge('Chain ID'), mono(String(p.chainId || 'Unknown'))])
+      );
+    }
+    
+    // Show Solana wallet if available
+    if (p.solanaAddress) {
+      statusBox.append(
+        row([badge('Solana Address'), mono(short(p.solanaAddress))]),
+        row([badge('Network'), txt(LUCID_ENV === 'testnet' ? 'Solana Testnet' : (LUCID_ENV === 'devnet' ? 'Solana Devnet' : 'Solana Mainnet'))])
+      );
+    }
+    
+    // Show wallet count if multiple wallets
+    if (p.walletCount > 1) {
+      statusBox.append(row([badge('Wallets'), txt(String(p.walletCount))]));
+    }
+    
+    statusBox.style.display='block';
+    logoutBtn.style.display='inline-flex';
+    connectBtn.style.display='none';
+  }
+
+  function showErr(m){ 
+    errorBox.textContent=m; 
+    errorBox.style.display='block'; 
+  }
+
+  // utils
+  function el(t,c,tx){ 
+    const n=document.createElement(t); 
+    if(c) n.className=c; 
+    if(tx!=null) n.textContent=String(tx); 
+    return n; 
+  }
+  function row(cs){ 
+    const r=el('div','cwm-row'); 
+    cs.forEach(c=>r.append(c)); 
+    return r; 
+  }
+  function badge(t){ 
+    return el('span','cwm-badge',t); 
+  }
+  function txt(t){ 
+    return document.createTextNode(String(t)); 
+  }
+  function mono(t){ 
+    return el('span','cwm-mono',t); 
+  }
+  function short(a){ 
+    return a? a.slice(0,6)+'…'+a.slice(-4):''; 
+  }
+
+  // Function to remove black background from logo
+  function removeBlackBackground(img) {
+    // Use requestAnimationFrame to avoid blocking the main thread
+    requestAnimationFrame(() => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        
+        // Draw the original image
+        ctx.drawImage(img, 0, 0);
+        
+        // Get image data
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // Process pixels to make black/dark pixels transparent
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1]; 
+          const b = data[i + 2];
+          
+          // If pixel is very dark (close to black), make it transparent
+          if (r < 50 && g < 50 && b < 50) {
+            data[i + 3] = 0; // Set alpha to 0 (transparent)
+          }
+          // If pixel is dark but not completely black, reduce its opacity
+          else if (r < 100 && g < 100 && b < 100) {
+            data[i + 3] = data[i + 3] * 0.3; // Reduce opacity
+          }
+        }
+        
+        // Put the modified image data back
+        ctx.putImageData(imageData, 0, 0);
+        
+        // Replace the original image with the processed one
+        img.src = canvas.toDataURL('image/png');
+      } catch (error) {
+        console.log('Could not process logo background:', error);
+      }
+    });
+  }
+})();

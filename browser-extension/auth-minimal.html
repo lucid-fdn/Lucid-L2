@@ -1,0 +1,270 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Connect Solana Wallet</title>
+    <style>
+      body { 
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
+        padding: 30px 20px; 
+        margin: 0; 
+        background: #0b1020; 
+        color: #e5e7eb; 
+        min-height: 90vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      .container { 
+        text-align: center; 
+        max-width: 400px; 
+        width: 100%;
+      }
+      h2 { 
+        margin: 0 0 30px 0; 
+        color: #676FFF; 
+        font-size: 24px;
+        font-weight: 600;
+      }
+      .wallet-option { 
+        padding: 15px 20px; 
+        margin: 10px 0;
+        font-size: 16px; 
+        background: rgba(103, 111, 255, 0.1); 
+        color: #e5e7eb; 
+        border: 2px solid #676FFF; 
+        border-radius: 12px; 
+        cursor: pointer;
+        font-weight: 500;
+        width: 100%;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+      .wallet-option:hover { 
+        background: rgba(103, 111, 255, 0.2); 
+        transform: translateY(-1px);
+      }
+      .wallet-option:disabled { 
+        background: #374151; 
+        border-color: #6b7280;
+        cursor: not-allowed; 
+        opacity: 0.5;
+      }
+      .status { 
+        margin: 20px 0; 
+        padding: 15px; 
+        border-radius: 8px; 
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .success { 
+        background: rgba(16, 185, 129, 0.1); 
+        color: #10b981; 
+        border: 1px solid #10b981; 
+      }
+      .error { 
+        background: rgba(239, 68, 68, 0.1); 
+        color: #ef4444; 
+        border: 1px solid #ef4444; 
+      }
+      .loading { 
+        background: rgba(103, 111, 255, 0.1); 
+        color: #676FFF; 
+        border: 1px solid #676FFF; 
+      }
+      .network-info {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+        padding: 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>🚀 Connect to Solana Devnet</h2>
+      <div id="status"></div>
+      
+      <button class="wallet-option" id="phantomBtn">
+        👻 Connect Phantom Wallet
+      </button>
+      
+      <button class="wallet-option" id="solflareBtn">
+        ☀️ Connect Solflare Wallet  
+      </button>
+      
+      <button class="wallet-option" id="backpackBtn">
+        🎒 Connect Backpack Wallet
+      </button>
+      
+      <div class="network-info">
+        🌐 Network: Solana Devnet<br>
+        💰 Ready for LUCID token transactions
+      </div>
+    </div>
+
+    <script>
+      let connecting = false;
+
+      function setStatus(message, type = 'loading') {
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+      }
+
+      function setButtonsDisabled(disabled) {
+        document.querySelectorAll('.wallet-option').forEach(btn => {
+          btn.disabled = disabled;
+        });
+      }
+
+      async function connectPhantom() {
+        if (connecting) return;
+        connecting = true;
+        setButtonsDisabled(true);
+        setStatus('🔍 Looking for Phantom wallet...', 'loading');
+
+        try {
+          if (!window.solana || !window.solana.isPhantom) {
+            throw new Error('Phantom wallet not found. Please install Phantom wallet extension.');
+          }
+
+          setStatus('🔗 Connecting to Phantom...', 'loading');
+          
+          const response = await window.solana.connect();
+          const publicKey = response.publicKey.toString();
+          
+          setStatus('✅ Connected to Phantom!', 'success');
+
+          const payload = {
+            userId: 'phantom_' + Date.now(),
+            solanaAddress: publicKey,
+            address: null, // No EVM address
+            walletType: 'phantom',
+            solanaWalletType: 'phantom',
+            preferredWallet: 'solana',
+            hasSolanaWallet: true,
+            hasEvmWallet: false,
+            walletCount: 1
+          };
+
+          // Save session and notify extension
+          chrome.storage.local.set({ privy_session: payload }, () => {
+            chrome.runtime.sendMessage({ type: 'privy_authenticated', payload }, () => {
+              setStatus('🎉 Wallet connected! Closing...', 'success');
+              setTimeout(() => window.close(), 2000);
+            });
+          });
+
+        } catch (error) {
+          setStatus('❌ Failed to connect: ' + error.message, 'error');
+          setButtonsDisabled(false);
+          connecting = false;
+        }
+      }
+
+      async function connectSolflare() {
+        if (connecting) return;
+        connecting = true;
+        setButtonsDisabled(true);
+        setStatus('🔍 Looking for Solflare wallet...', 'loading');
+
+        try {
+          if (!window.solflare) {
+            throw new Error('Solflare wallet not found. Please install Solflare wallet extension.');
+          }
+
+          setStatus('🔗 Connecting to Solflare...', 'loading');
+          
+          const response = await window.solflare.connect();
+          const publicKey = response.publicKey.toString();
+          
+          setStatus('✅ Connected to Solflare!', 'success');
+
+          const payload = {
+            userId: 'solflare_' + Date.now(),
+            solanaAddress: publicKey,
+            address: null,
+            walletType: 'solflare',
+            solanaWalletType: 'solflare',
+            preferredWallet: 'solana',
+            hasSolanaWallet: true,
+            hasEvmWallet: false,
+            walletCount: 1
+          };
+
+          chrome.storage.local.set({ privy_session: payload }, () => {
+            chrome.runtime.sendMessage({ type: 'privy_authenticated', payload }, () => {
+              setStatus('🎉 Wallet connected! Closing...', 'success');
+              setTimeout(() => window.close(), 2000);
+            });
+          });
+
+        } catch (error) {
+          setStatus('❌ Failed to connect: ' + error.message, 'error');
+          setButtonsDisabled(false);
+          connecting = false;
+        }
+      }
+
+      async function connectBackpack() {
+        if (connecting) return;
+        connecting = true;
+        setButtonsDisabled(true);
+        setStatus('🔍 Looking for Backpack wallet...', 'loading');
+
+        try {
+          if (!window.backpack) {
+            throw new Error('Backpack wallet not found. Please install Backpack wallet extension.');
+          }
+
+          setStatus('🔗 Connecting to Backpack...', 'loading');
+          
+          const response = await window.backpack.connect();
+          const publicKey = response.publicKey.toString();
+          
+          setStatus('✅ Connected to Backpack!', 'success');
+
+          const payload = {
+            userId: 'backpack_' + Date.now(),
+            solanaAddress: publicKey,
+            address: null,
+            walletType: 'backpack',
+            solanaWalletType: 'backpack',
+            preferredWallet: 'solana',
+            hasSolanaWallet: true,
+            hasEvmWallet: false,
+            walletCount: 1
+          };
+
+          chrome.storage.local.set({ privy_session: payload }, () => {
+            chrome.runtime.sendMessage({ type: 'privy_authenticated', payload }, () => {
+              setStatus('🎉 Wallet connected! Closing...', 'success');
+              setTimeout(() => window.close(), 2000);
+            });
+          });
+
+        } catch (error) {
+          setStatus('❌ Failed to connect: ' + error.message, 'error');
+          setButtonsDisabled(false);
+          connecting = false;
+        }
+      }
+
+      // Set up event listeners after DOM loads
+      document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('phantomBtn').addEventListener('click', connectPhantom);
+        document.getElementById('solflareBtn').addEventListener('click', connectSolflare);
+        document.getElementById('backpackBtn').addEventListener('click', connectBackpack);
+        
+        setStatus('🔍 Click a wallet to connect to Solana devnet', 'loading');
+      });
+    </script>
+  </body>
+</html>

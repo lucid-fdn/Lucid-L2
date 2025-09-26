@@ -2,14 +2,19 @@
 anchor_version = "0.31.1"
 
 [provider]
-cluster = "localnet"
-wallet  = "~/.config/solana/id.json"
+cluster = "devnet"
+wallet  = "/home/orkblutt/testnet-keypair.json"
 
 [programs.localnet]
-# thought_epoch = "J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c"
-# gas_utils = "11111111111111111111111111111111"
+thought_epoch = "J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c"
+gas_utils = "11111111111111111111111111111111"
+
+[programs.devnet]
+thought_epoch = "GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo"
+gas_utils = "11111111111111111111111111111111"
 
 [workspace]
 members = [
-    "programs/thought-epoch"
+    "programs/thought-epoch",
+    "programs/gas-utils"
 ]

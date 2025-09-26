@@ -5,7 +5,7 @@ import { PublicKey } from '@solana/web3.js';
 export const CONFIG_VERSION = '1.1';
 
 // Environment types
-export type Environment = 'localnet' | 'devnet' | 'mainnet';
+export type Environment = 'localnet' | 'devnet' | 'testnet' | 'mainnet';
 
 // Environment configuration
 export interface EnvironmentConfig {
@@ -28,7 +28,13 @@ export class ConfigurationManager {
       rpcUrl: 'https://api.devnet.solana.com',
       commitment: 'confirmed',
       programId: new PublicKey('GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo'),
-      lucidMint: new PublicKey('7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9')
+      lucidMint: new PublicKey('FevHSnbJ3567nxaJoCBZMmdR6SKwB9xsTZgdFGJ9WoHQ')
+    },
+    testnet: {
+      rpcUrl: 'https://api.testnet.solana.com',
+      commitment: 'confirmed',
+      programId: new PublicKey('11111111111111111111111111111111'),
+      lucidMint: new PublicKey('11111111111111111111111111111111')
     },
     mainnet: {
       rpcUrl: 'https://api.mainnet-beta.solana.com',
@@ -88,31 +94,61 @@ export const IGAS_PER_CALL = 1;      // 1 LUCID per inference call
 export const MGAS_PER_ROOT = 5;      // 5 LUCID per memory write
 export const IGAS_PER_BATCH = 2;     // 2 LUCID per batch operation
 
-// Token configuration
-export const LUCID_MINT = new PublicKey('4sWEwy73f7ViLeuSYgBGRt9zZxH3VJ7SsBRitpBFCQSh');
+// Token configuration - now uses configManager for environment-aware settings
 export const LUCID_DECIMALS = 9;
 
-// Solana configuration
+// Solana configuration - now uses configManager for environment-aware settings  
 export const COMPUTE_UNITS = 400_000;
-export const RPC_URL = 'http://localhost:8899'; // localnet
-export const COMMITMENT = 'confirmed';
-
-// Program configuration
-export const PROGRAM_ID = new PublicKey('J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c');
 
 // API configuration
 export const API_PORT = 3001;
 export const MAX_BATCH_SIZE = 10;
 
+// Environment-aware getters (replace static exports)
+export function getCurrentConfig() {
+  return configManager.getConfig();
+}
+
+export function getLUCID_MINT() {
+  return getCurrentConfig().lucidMint;
+}
+
+export function getRPC_URL() {
+  return getCurrentConfig().rpcUrl;
+}
+
+export function getPROGRAM_ID() {
+  return getCurrentConfig().programId;
+}
+
+export function getCOMMITMENT() {
+  return getCurrentConfig().commitment;
+}
+
+// Legacy exports for backward compatibility
+export const LUCID_MINT = configManager.getConfig().lucidMint;
+export const RPC_URL = configManager.getConfig().rpcUrl;
+export const PROGRAM_ID = configManager.getConfig().programId; 
+export const COMMITMENT = configManager.getConfig().commitment;
+
+/**
+ * Internal LLM is NOT required for Lucid’s core goal (capture external LLM messages and commit their hash).
+ * Keep it configurable:
+ *  - USE_INTERNAL_LLM = false → strictly hash text provided by the extension (no OpenAI/mock calls)
+ *  - USE_INTERNAL_LLM = true  → route text through internal LLM provider and then hash the AI response
+ */
 // LLM configuration
 export const LLM_CONFIG = {
-  provider: 'mock', // Default to mock provider
+  provider: 'openai', // Can be ignored when USE_INTERNAL_LLM=false
   model: 'gpt-3.5-turbo',
   apiKey: process.env.OPENAI_API_KEY || '',
   maxTokens: 150,
   temperature: 0.7,
-  fallbackProviders: ['mock'] // Always fall back to mock
+  fallbackProviders: [] // Keep empty to avoid mock fallback
 };
+
+// Toggle internal LLM usage (false = pure external-capture hashing only)
+export const USE_INTERNAL_LLM = false;
 
 // Development configuration
 export const MEMORY_WALLET_PATH = './memory-wallet.json';

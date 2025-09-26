@@ -14,8 +14,8 @@ class Phase84ConfigManager {
             devnet: {
                 rpcUrl: 'https://api.devnet.solana.com',
                 commitment: 'confirmed',
-                programId: 'DEVNET_PROGRAM_ID_PLACEHOLDER',
-                lucidMint: 'DEVNET_MINT_ADDRESS_PLACEHOLDER'
+                programId: 'GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo',
+                lucidMint: 'FevHSnbJ3567nxaJoCBZMmdR6SKwB9xsTZgdFGJ9WoHQ'
             }
         };
         
@@ -69,7 +69,7 @@ class ExtensionState {
             notifications: true,
             autoProcess: false
         };
-        this.apiUrl = 'http://localhost:3001';
+        this.apiUrl = 'http://172.28.35.139:3001';
         this.conversionHistory = [];
         this.unlockedAchievements = [];
         this.totalShares = 0;
