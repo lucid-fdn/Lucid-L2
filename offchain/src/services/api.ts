@@ -623,5 +623,265 @@ export function createApiRouter(): express.Router {
   // System endpoints
   router.get('/system/status', handleSystemStatus);
   
+  // Passport endpoints
+  router.post('/passports/register', handlePassportRegister);
+  router.get('/passports/:passportId', handlePassportGet);
+  router.get('/passports/owner/:owner', handlePassportsByOwner);
+  router.post('/passports/sync-hf-models', handleSyncHFModels);
+  router.post('/passports/sync-hf-datasets', handleSyncHFDatasets);
+  router.get('/passports/search', handlePassportSearch);
+  
   return router;
+}
+
+// ============================================================================
+// PASSPORT API ENDPOINTS
+// ============================================================================
+
+/**
+ * Register a new passport manually
+ * POST /passports/register
+ */
+export async function handlePassportRegister(req: express.Request, res: express.Response) {
+  try {
+    const { getPassportService } = await import('./passportService');
+    const { getContentService } = await import('./contentService');
+    
+    const passportService = getPassportService();
+    const contentService = getContentService();
+    
+    const {
+      assetType,
+      slug,
+      version,
+      contentCid,
+      metadataCid,
+      licenseCode,
+      policyFlags
+    } = req.body;
+
+    // Validate required fields
+    if (!assetType || !slug || !version) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: assetType, slug, version'
+      });
+    }
+
+    // Compute content hash if not provided
+    const contentHash = contentCid 
+      ? contentService.computeContentHash(contentCid)
+      : Buffer.alloc(32);
+
+    const result = await passportService.registerPassport({
+      assetType,
+      slug,
+      version,
+      contentCid: contentCid || 'QmPending',
+      contentHash,
+      metadataCid: metadataCid || 'QmPending',
+      licenseCode: licenseCode || 'Unknown',
+      policyFlags: policyFlags || 0,
+    });
+
+    res.json({
+      success: true,
+      passport: result.passportPDA.toBase58(),
+      signature: result.signature,
+      message: `Passport registered for ${slug} v${version.major}.${version.minor}.${version.patch}`
+    });
+  } catch (error) {
+    console.error('Error in handlePassportRegister:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Get passport details
+ * GET /passports/:passportId
+ */
+export async function handlePassportGet(req: express.Request, res: express.Response) {
+  try {
+    const { getPassportService } = await import('./passportService');
+    const { PublicKey } = await import('@solana/web3.js');
+    
+    const passportService = getPassportService();
+    const { passportId } = req.params;
+
+    const passportPDA = new PublicKey(passportId);
+    const passport = await passportService.fetchPassport(passportPDA);
+
+    if (!passport) {
+      return res.status(404).json({
+        success: false,
+        error: 'Passport not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      passport: {
+        address: passportId,
+        owner: passport.owner.toBase58(),
+        assetType: passport.assetType,
+        slug: passport.slug,
+        version: passport.version,
+        contentCid: passport.contentCid,
+        metadataCid: passport.metadataCid,
+        licenseCode: passport.licenseCode,
+        status: passport.status,
+        createdAt: passport.createdAt.toString(),
+        updatedAt: passport.updatedAt.toString(),
+      }
+    });
+  } catch (error) {
+    console.error('Error in handlePassportGet:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Get all passports for an owner
+ * GET /passports/owner/:owner
+ */
+export async function handlePassportsByOwner(req: express.Request, res: express.Response) {
+  try {
+    const { getPassportService } = await import('./passportService');
+    const { PublicKey } = await import('@solana/web3.js');
+    
+    const passportService = getPassportService();
+    const { owner } = req.params;
+
+    const ownerPubkey = new PublicKey(owner);
+    const passports = await passportService.fetchPassportsByOwner(ownerPubkey);
+
+    res.json({
+      success: true,
+      owner,
+      count: passports.length,
+      passports: passports.map(p => ({
+        address: p.pubkey.toBase58(),
+        slug: p.data.slug,
+        assetType: p.data.assetType,
+        version: p.data.version,
+        status: p.data.status,
+      }))
+    });
+  } catch (error) {
+    console.error('Error in handlePassportsByOwner:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Sync HuggingFace models to blockchain
+ * POST /passports/sync-hf-models
+ */
+export async function handleSyncHFModels(req: express.Request, res: express.Response) {
+  try {
+    const { getHFBridgeService } = await import('./hfBridgeService');
+    
+    const { limit = 5, llmProxyUrl } = req.body;
+
+    console.log(`🔄 Starting HF model sync, limit: ${limit}`);
+
+    const hfBridge = getHFBridgeService(llmProxyUrl);
+    const results = await hfBridge.syncModels(limit);
+
+    res.json({
+      success: true,
+      synced: results.length,
+      total: limit,
+      models: results,
+      message: `Successfully synced ${results.length} models to blockchain`
+    });
+  } catch (error) {
+    console.error('Error in handleSyncHFModels:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Sync HuggingFace datasets to blockchain
+ * POST /passports/sync-hf-datasets
+ */
+export async function handleSyncHFDatasets(req: express.Request, res: express.Response) {
+  try {
+    const { getHFBridgeService } = await import('./hfBridgeService');
+    
+    const { limit = 5, llmProxyUrl } = req.body;
+
+    console.log(`🔄 Starting HF dataset sync, limit: ${limit}`);
+
+    const hfBridge = getHFBridgeService(llmProxyUrl);
+    const results = await hfBridge.syncDatasets(limit);
+
+    res.json({
+      success: true,
+      synced: results.length,
+      total: limit,
+      datasets: results,
+      message: `Successfully synced ${results.length} datasets to blockchain`
+    });
+  } catch (error) {
+    console.error('Error in handleSyncHFDatasets:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Search passports by type or other criteria
+ * GET /passports/search
+ */
+export async function handlePassportSearch(req: express.Request, res: express.Response) {
+  try {
+    const { getPassportService } = await import('./passportService');
+    
+    const passportService = getPassportService();
+    const { type } = req.query;
+
+    if (!type) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required parameter: type (0=Model, 1=Dataset, etc.)'
+      });
+    }
+
+    const assetType = parseInt(type as string, 10);
+    const passports = await passportService.searchPassportsByType(assetType);
+
+    res.json({
+      success: true,
+      type: assetType,
+      count: passports.length,
+      passports: passports.map(p => ({
+        address: p.pubkey.toBase58(),
+        slug: p.data.slug,
+        version: p.data.version,
+        owner: p.data.owner.toBase58(),
+        status: p.data.status,
+      }))
+    });
+  } catch (error) {
+    console.error('Error in handlePassportSearch:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 }
