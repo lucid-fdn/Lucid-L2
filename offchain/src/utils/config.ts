@@ -28,7 +28,7 @@ export class ConfigurationManager {
       rpcUrl: 'https://api.devnet.solana.com',
       commitment: 'confirmed',
       programId: new PublicKey('GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo'),
-      lucidMint: new PublicKey('FevHSnbJ3567nxaJoCBZMmdR6SKwB9xsTZgdFGJ9WoHQ')
+      lucidMint: new PublicKey('79rh6D6ejAWKo1zRbBocpfnLiP5wu5HaJPkazDWsFuQm') // LUCID token created on devnet
     },
     testnet: {
       rpcUrl: 'https://api.testnet.solana.com',
@@ -139,16 +139,25 @@ export const COMMITMENT = configManager.getConfig().commitment;
  */
 // LLM configuration
 export const LLM_CONFIG = {
-  provider: 'openai', // Can be ignored when USE_INTERNAL_LLM=false
-  model: 'gpt-3.5-turbo',
-  apiKey: process.env.OPENAI_API_KEY || '',
+  provider: 'llmproxy', // Using llm-proxy for multi-model support
+  model: 'openai-gpt35-turbo', // Default model via Eden AI
+  apiKey: process.env.OPENAI_API_KEY || '', // Not needed for llm-proxy, but kept for compatibility
+  baseUrl: 'http://localhost:8001', // llm-proxy URL
   maxTokens: 150,
   temperature: 0.7,
-  fallbackProviders: [] // Keep empty to avoid mock fallback
+  fallbackProviders: ['mock'] // Fallback to mock if llm-proxy is unavailable
 };
 
-// Toggle internal LLM usage (false = pure external-capture hashing only)
-export const USE_INTERNAL_LLM = false;
+// Toggle internal LLM usage (true = use llm-proxy for AI responses)
+export const USE_INTERNAL_LLM = true;
+
+// n8n Orchestrator Configuration
+export const N8N_CONFIG = {
+  enabled: process.env.N8N_ENABLED === 'true' || false, // Set to true to use n8n
+  url: process.env.N8N_URL || 'http://localhost:5678',
+  hmacSecret: process.env.N8N_HMAC_SECRET || '', // Must match n8n/.env
+  timeout: 30000 // 30 seconds
+};
 
 // Development configuration
 export const MEMORY_WALLET_PATH = './memory-wallet.json';

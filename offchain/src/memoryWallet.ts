@@ -12,3 +12,9 @@ export async function loadStore(): Promise<MemoryStore> {
 export async function saveStore(store: MemoryStore): Promise<void> {
   await fs.writeFile(FILE, JSON.stringify(store, null, 2));
 }
+
+export async function upsertMemoryMap(data: { authority: string; rootHex: string }): Promise<void> {
+  const store = await loadStore();
+  store[data.authority] = data.rootHex;
+  await saveStore(store);
+}

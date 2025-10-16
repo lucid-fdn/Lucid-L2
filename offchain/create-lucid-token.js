@@ -26,8 +26,9 @@ async function createLucidToken() {
   try {
     console.log('🚀 Creating LUCID SPL Token...');
     
-    // Connect to local test validator
-    const connection = new Connection('http://localhost:8899', 'confirmed');
+    // Connect to Solana devnet
+    const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
+    console.log('🔗 Connected to Solana devnet');
     
     // Load the authority keypair (same as used in CLI)
     const authorityKeypairPath = path.join(__dirname, 'memory-wallet.json');
@@ -92,7 +93,7 @@ async function createLucidToken() {
 
     // Update gas.ts with the new mint address
     console.log('⚙️  Updating gas.ts configuration...');
-    const gasFilePath = path.join(__dirname, 'src', 'gas.ts');
+    const gasFilePath = path.join(__dirname, 'src', 'solana', 'gas.ts');
     let gasContent = fs.readFileSync(gasFilePath, 'utf8');
     
     // Replace the LUCID_MINT address

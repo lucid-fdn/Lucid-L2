@@ -14,8 +14,10 @@
         "@helia/unixfs": "^5.0.3",
         "@solana/spl-token": "^0.4.13",
         "@solana/web3.js": "^1.95.0",
+        "axios": "^1.12.2",
         "express": "^4.18.2",
         "helia": "^5.4.2",
+        "ipfs-http-client": "^60.0.1",
         "openai": "^5.10.1"
     },
     "devDependencies": {
