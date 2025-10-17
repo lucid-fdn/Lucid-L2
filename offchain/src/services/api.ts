@@ -848,6 +848,103 @@ export async function handleAgentPlannerInfo(req: express.Request, res: express.
 }
 
 // ============================================================================
+// EXECUTOR ROUTER API ENDPOINTS (Phase 3.2 Day 5)
+// ============================================================================
+
+/**
+ * Execute a FlowSpec with automatic executor selection
+ * POST /agents/execute
+ * Body: { flowspec: FlowSpec, context: FlowExecutionContext, executor?: 'n8n' | 'langgraph' }
+ */
+export async function handleAgentExecute(req: express.Request, res: express.Response) {
+  try {
+    const { getExecutorRouter } = await import('./executorRouter');
+    const { flowspec, context, executor } = req.body as {
+      flowspec: FlowSpec;
+      context: FlowExecutionContext;
+      executor?: 'n8n' | 'langgraph';
+    };
+
+    if (!flowspec || !context) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid input: flowspec and context are required'
+      });
+    }
+
+    const router = getExecutorRouter();
+    const result = await router.execute(flowspec, context, executor);
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error in handleAgentExecute:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Check executor health
+ * GET /agents/executor/health
+ */
+export async function handleExecutorHealth(req: express.Request, res: express.Response) {
+  try {
+    const { getExecutorRouter } = await import('./executorRouter');
+    const router = getExecutorRouter();
+    
+    const health = await router.checkExecutorHealth();
+
+    res.json({
+      success: true,
+      executors: health,
+      message: `n8n: ${health.n8n ? 'healthy' : 'unavailable'}, LangGraph: ${health.langgraph ? 'healthy' : 'unavailable'}`
+    });
+  } catch (error) {
+    console.error('Error in handleExecutorHealth:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Get executor decision for a FlowSpec without executing
+ * POST /agents/executor/decision
+ * Body: { flowspec: FlowSpec }
+ */
+export async function handleExecutorDecision(req: express.Request, res: express.Response) {
+  try {
+    const { getExecutorRouter } = await import('./executorRouter');
+    const { flowspec } = req.body as { flowspec: FlowSpec };
+
+    if (!flowspec) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid input: flowspec is required'
+      });
+    }
+
+    const router = getExecutorRouter();
+    const decision = router.getExecutorDecision(flowspec);
+
+    res.json({
+      success: true,
+      decision,
+      message: `Recommended executor: ${decision.executor} (${decision.reason})`
+    });
+  } catch (error) {
+    console.error('Error in handleExecutorDecision:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+// ============================================================================
 // FLOWSPEC API ENDPOINTS (Phase 2 - n8n DSL Integration)
 // ============================================================================
 
@@ -1057,8 +1154,11 @@ export function createApiRouter(): express.Router {
   // Agent Planner endpoints (Phase 3)
   router.post('/agents/plan', handleAgentPlan);
   router.post('/agents/accomplish', handleAgentAccomplish);
+  router.post('/agents/execute', handleAgentExecute);
   router.post('/agents/validate', handleAgentValidate);
   router.get('/agents/planner/info', handleAgentPlannerInfo);
+  router.get('/agents/executor/health', handleExecutorHealth);
+  router.post('/agents/executor/decision', handleExecutorDecision);
   
   // FlowSpec endpoints (Phase 2 - n8n DSL)
   router.post('/flowspec/create', handleFlowSpecCreate);
