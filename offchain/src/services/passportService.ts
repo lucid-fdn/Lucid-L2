@@ -2,7 +2,7 @@
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
 import { PublicKey, SystemProgram, Keypair } from '@solana/web3.js';
 import { LucidPassports } from '../types/lucid_passports';
-import { initSolana } from '../solana/client';
+import { initSolana } from '../solanaClient';
 
 // Asset type enum matching the Solana program
 export enum AssetType {
@@ -77,11 +77,11 @@ export interface PassportData {
 }
 
 export class PassportService {
-    private program: Program<LucidPassports>;
+    private program: any; // Program<LucidPassports> - will be properly typed after program deployment
     private provider: AnchorProvider;
 
     constructor() {
-        this.program = initSolana() as any; // Will be properly typed after program deployment
+        this.program = initSolana() as any;
         this.provider = this.program.provider as AnchorProvider;
     }
 
@@ -291,7 +291,7 @@ export class PassportService {
                 },
             ]);
 
-            return passports.map(p => ({
+            return passports.map((p: any) => ({
                 pubkey: p.publicKey,
                 data: p.account as any,
             }));
@@ -315,7 +315,7 @@ export class PassportService {
                 },
             ]);
 
-            return passports.map(p => ({
+            return passports.map((p: any) => ({
                 pubkey: p.publicKey,
                 data: p.account as any,
             }));

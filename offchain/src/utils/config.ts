@@ -159,5 +159,10 @@ export const N8N_CONFIG = {
   timeout: 30000 // 30 seconds
 };
 
+// Direct exports for easier access
+export const N8N_ENABLED = N8N_CONFIG.enabled;
+export const N8N_URL = N8N_CONFIG.url;
+export const N8N_HMAC_SECRET = N8N_CONFIG.hmacSecret;
+
 // Development configuration
 export const MEMORY_WALLET_PATH = './memory-wallet.json';

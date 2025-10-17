@@ -6,9 +6,11 @@ import { runInference, runBatchInference } from '../utils/inference';
 import { initSolana, deriveEpochPDA } from '../solana/client';
 import { loadStore, saveStore, MemoryStore } from '../utils/memoryStore';
 import { makeComputeIx, makeBurnIx, calculateGasCost } from '../solana/gas';
-import { LUCID_MINT, MGAS_PER_ROOT, IGAS_PER_BATCH } from '../utils/config';
+import { LUCID_MINT, MGAS_PER_ROOT, IGAS_PER_BATCH, N8N_URL, N8N_HMAC_SECRET } from '../utils/config';
 import { batchCommit } from '../commands/batch';
 import { getMMRService, AgentEpochData } from './mmrService';
+import { FlowSpecService } from '../flowspec/flowspecService';
+import { FlowSpec, FlowExecutionContext } from '../flowspec/types';
 
 export async function handleRun(req: express.Request, res: express.Response) {
   try {
@@ -602,6 +604,195 @@ export async function handleSystemStatus(req: express.Request, res: express.Resp
   }
 }
 
+// ============================================================================
+// FLOWSPEC API ENDPOINTS (Phase 2 - n8n DSL Integration)
+// ============================================================================
+
+let flowspecService: FlowSpecService | null = null;
+
+function getFlowSpecService(): FlowSpecService {
+  if (!flowspecService) {
+    flowspecService = new FlowSpecService(N8N_URL, N8N_HMAC_SECRET);
+  }
+  return flowspecService;
+}
+
+/**
+ * Create a new workflow from FlowSpec DSL
+ * POST /flowspec/create
+ * Body: FlowSpec
+ */
+export async function handleFlowSpecCreate(req: express.Request, res: express.Response) {
+  try {
+    const spec: FlowSpec = req.body;
+
+    if (!spec || !spec.name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid FlowSpec: name is required'
+      });
+    }
+
+    const service = getFlowSpecService();
+    const result = await service.createWorkflow(spec);
+
+    res.json({
+      success: true,
+      workflowId: result.id,
+      workflowUrl: result.url,
+      message: `Workflow '${spec.name}' created successfully`
+    });
+  } catch (error) {
+    console.error('Error in handleFlowSpecCreate:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Execute a workflow
+ * POST /flowspec/execute
+ * Body: { workflowId: string, context: FlowExecutionContext }
+ */
+export async function handleFlowSpecExecute(req: express.Request, res: express.Response) {
+  try {
+    const { workflowId, context } = req.body as {
+      workflowId: string;
+      context: FlowExecutionContext;
+    };
+
+    if (!workflowId || !context || !context.tenantId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid input: workflowId and context with tenantId are required'
+      });
+    }
+
+    const service = getFlowSpecService();
+    const result = await service.executeWorkflow(workflowId, context);
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error in handleFlowSpecExecute:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Get workflow execution history
+ * GET /flowspec/history/:workflowId
+ */
+export async function handleFlowSpecHistory(req: express.Request, res: express.Response) {
+  try {
+    const { workflowId } = req.params;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    const service = getFlowSpecService();
+    const history = await service.getExecutionHistory(workflowId, limit);
+
+    res.json({
+      success: true,
+      workflowId,
+      history,
+      message: `Retrieved ${history.length} execution records`
+    });
+  } catch (error) {
+    console.error('Error in handleFlowSpecHistory:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Update an existing workflow
+ * PUT /flowspec/update/:workflowId
+ * Body: FlowSpec
+ */
+export async function handleFlowSpecUpdate(req: express.Request, res: express.Response) {
+  try {
+    const { workflowId } = req.params;
+    const spec: FlowSpec = req.body;
+
+    if (!spec || !spec.name) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid FlowSpec: name is required'
+      });
+    }
+
+    const service = getFlowSpecService();
+    await service.updateWorkflow(workflowId, spec);
+
+    res.json({
+      success: true,
+      workflowId,
+      message: `Workflow '${spec.name}' updated successfully`
+    });
+  } catch (error) {
+    console.error('Error in handleFlowSpecUpdate:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Delete a workflow
+ * DELETE /flowspec/delete/:workflowId
+ */
+export async function handleFlowSpecDelete(req: express.Request, res: express.Response) {
+  try {
+    const { workflowId } = req.params;
+
+    const service = getFlowSpecService();
+    await service.deleteWorkflow(workflowId);
+
+    res.json({
+      success: true,
+      workflowId,
+      message: 'Workflow deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error in handleFlowSpecDelete:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * List all workflows
+ * GET /flowspec/list
+ */
+export async function handleFlowSpecList(req: express.Request, res: express.Response) {
+  try {
+    const service = getFlowSpecService();
+    const workflows = await service.listWorkflows();
+
+    res.json({
+      success: true,
+      count: workflows.length,
+      workflows,
+      message: `Retrieved ${workflows.length} workflows`
+    });
+  } catch (error) {
+    console.error('Error in handleFlowSpecList:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
 export function createApiRouter(): express.Router {
   const router = express.Router();
   
@@ -619,6 +810,14 @@ export function createApiRouter(): express.Router {
   router.get('/agents/:agentId/root', handleAgentCurrentRoot);
   router.get('/agents/:agentId/verify', handleAgentVerify);
   router.get('/agents', handleListAgents);
+  
+  // FlowSpec endpoints (Phase 2 - n8n DSL)
+  router.post('/flowspec/create', handleFlowSpecCreate);
+  router.post('/flowspec/execute', handleFlowSpecExecute);
+  router.get('/flowspec/history/:workflowId', handleFlowSpecHistory);
+  router.put('/flowspec/update/:workflowId', handleFlowSpecUpdate);
+  router.delete('/flowspec/delete/:workflowId', handleFlowSpecDelete);
+  router.get('/flowspec/list', handleFlowSpecList);
   
   // System endpoints
   router.get('/system/status', handleSystemStatus);
