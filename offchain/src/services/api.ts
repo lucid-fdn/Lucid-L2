@@ -6,7 +6,7 @@ import { runInference, runBatchInference } from '../utils/inference';
 import { initSolana, deriveEpochPDA } from '../solana/client';
 import { loadStore, saveStore, MemoryStore } from '../utils/memoryStore';
 import { makeComputeIx, makeBurnIx, calculateGasCost } from '../solana/gas';
-import { LUCID_MINT, MGAS_PER_ROOT, IGAS_PER_BATCH, N8N_URL, N8N_HMAC_SECRET } from '../utils/config';
+import { LUCID_MINT, MGAS_PER_ROOT, IGAS_PER_BATCH, N8N_URL, N8N_HMAC_SECRET, N8N_API_KEY } from '../utils/config';
 import { batchCommit } from '../commands/batch';
 import { getMMRService, AgentEpochData } from './mmrService';
 import { FlowSpecService } from '../flowspec/flowspecService';
@@ -605,6 +605,249 @@ export async function handleSystemStatus(req: express.Request, res: express.Resp
 }
 
 // ============================================================================
+// AGENT PLANNER API ENDPOINTS (Phase 3 - AI Agent Services)
+// ============================================================================
+
+/**
+ * Plan a workflow from a natural language goal
+ * POST /agents/plan
+ * Body: { goal: string, context?: object, constraints?: string[], autoExecute?: boolean }
+ */
+export async function handleAgentPlan(req: express.Request, res: express.Response) {
+  try {
+    const { getAgentPlanner } = await import('./agentPlanner');
+    const { goal, context, constraints, autoExecute } = req.body as {
+      goal: string;
+      context?: Record<string, any>;
+      constraints?: string[];
+      autoExecute?: boolean;
+    };
+
+    if (!goal || typeof goal !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid input: goal is required and must be a string'
+      });
+    }
+
+    const planner = getAgentPlanner();
+    
+    // Check if service is healthy
+    const isHealthy = await planner.health();
+    if (!isHealthy) {
+      return res.status(503).json({
+        success: false,
+        error: 'CrewAI planner service is not available. Please ensure it is running on port 8082.'
+      });
+    }
+
+    const planResponse = await planner.planWorkflow({
+      goal,
+      context,
+      constraints
+    });
+
+    // If autoExecute is true, also execute the workflow
+    if (autoExecute) {
+      const service = getFlowSpecService();
+      const executionContext: FlowExecutionContext = {
+        tenantId: context?.tenantId || 'default',
+        variables: context || {}
+      };
+
+      try {
+        const executionResult = await service.createWorkflow(planResponse.flowspec);
+        const execution = await service.executeWorkflow(executionResult.id, executionContext);
+
+        return res.json({
+          success: true,
+          goal,
+          flowspec: planResponse.flowspec,
+          reasoning: planResponse.reasoning,
+          complexity: planResponse.estimated_complexity,
+          workflowId: executionResult.id,
+          execution,
+          message: 'Workflow planned and executed successfully'
+        });
+      } catch (execError) {
+        return res.json({
+          success: true,
+          goal,
+          flowspec: planResponse.flowspec,
+          reasoning: planResponse.reasoning,
+          complexity: planResponse.estimated_complexity,
+          executionError: execError instanceof Error ? execError.message : 'Execution failed',
+          message: 'Workflow planned but execution failed'
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      goal,
+      flowspec: planResponse.flowspec,
+      reasoning: planResponse.reasoning,
+      complexity: planResponse.estimated_complexity,
+      message: 'Workflow planned successfully'
+    });
+  } catch (error) {
+    console.error('Error in handleAgentPlan:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Plan and execute a workflow in one call
+ * POST /agents/accomplish
+ * Body: { goal: string, context: object }
+ */
+export async function handleAgentAccomplish(req: express.Request, res: express.Response) {
+  try {
+    const { goal, context } = req.body as {
+      goal: string;
+      context: Record<string, any>;
+    };
+
+    if (!goal || typeof goal !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid input: goal is required and must be a string'
+      });
+    }
+
+    if (!context || !context.tenantId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid input: context with tenantId is required'
+      });
+    }
+
+    const { getAgentPlanner } = await import('./agentPlanner');
+    const planner = getAgentPlanner();
+    
+    // Check if service is healthy
+    const isHealthy = await planner.health();
+    if (!isHealthy) {
+      return res.status(503).json({
+        success: false,
+        error: 'CrewAI planner service is not available. Please ensure it is running on port 8082.'
+      });
+    }
+
+    console.log(`🎯 Agent: Accomplishing goal: ${goal}`);
+
+    // Step 1: Plan workflow
+    const planResponse = await planner.planWorkflow({ goal, context });
+    console.log(`📋 Generated FlowSpec with ${planResponse.flowspec.nodes.length} nodes`);
+
+    // Step 2: Create and execute workflow
+    const service = getFlowSpecService();
+    const workflowResult = await service.createWorkflow(planResponse.flowspec);
+    
+    const executionContext: FlowExecutionContext = {
+      tenantId: context.tenantId,
+      variables: context
+    };
+
+    const executionResult = await service.executeWorkflow(workflowResult.id, executionContext);
+    console.log(`✅ Execution complete: ${executionResult.success}`);
+
+    res.json({
+      success: true,
+      goal,
+      flowspec: planResponse.flowspec,
+      reasoning: planResponse.reasoning,
+      complexity: planResponse.estimated_complexity,
+      workflowId: workflowResult.id,
+      workflowUrl: workflowResult.url,
+      executionResult,
+      timestamp: Date.now(),
+      message: 'Goal accomplished successfully'
+    });
+  } catch (error) {
+    console.error('Error in handleAgentAccomplish:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Validate a FlowSpec structure
+ * POST /agents/validate
+ * Body: FlowSpec
+ */
+export async function handleAgentValidate(req: express.Request, res: express.Response) {
+  try {
+    const flowspec: FlowSpec = req.body;
+
+    if (!flowspec) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid input: FlowSpec is required'
+      });
+    }
+
+    const { getAgentPlanner } = await import('./agentPlanner');
+    const planner = getAgentPlanner();
+    
+    const validation = await planner.validateFlowSpec(flowspec);
+
+    res.json({
+      success: validation.valid,
+      validation,
+      message: validation.valid ? 'FlowSpec is valid' : 'FlowSpec validation failed'
+    });
+  } catch (error) {
+    console.error('Error in handleAgentValidate:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Get agent planner service info
+ * GET /agents/planner/info
+ */
+export async function handleAgentPlannerInfo(req: express.Request, res: express.Response) {
+  try {
+    const { getAgentPlanner } = await import('./agentPlanner');
+    const planner = getAgentPlanner();
+    
+    const isHealthy = await planner.health();
+    
+    if (!isHealthy) {
+      return res.json({
+        success: false,
+        status: 'unavailable',
+        message: 'CrewAI planner service is not available'
+      });
+    }
+
+    const info = await planner.info();
+
+    res.json({
+      success: true,
+      status: 'operational',
+      info,
+      message: 'Planner service is operational'
+    });
+  } catch (error) {
+    console.error('Error in handleAgentPlannerInfo:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+// ============================================================================
 // FLOWSPEC API ENDPOINTS (Phase 2 - n8n DSL Integration)
 // ============================================================================
 
@@ -612,7 +855,7 @@ let flowspecService: FlowSpecService | null = null;
 
 function getFlowSpecService(): FlowSpecService {
   if (!flowspecService) {
-    flowspecService = new FlowSpecService(N8N_URL, N8N_HMAC_SECRET);
+    flowspecService = new FlowSpecService(N8N_URL, N8N_HMAC_SECRET, N8N_API_KEY);
   }
   return flowspecService;
 }
@@ -811,6 +1054,12 @@ export function createApiRouter(): express.Router {
   router.get('/agents/:agentId/verify', handleAgentVerify);
   router.get('/agents', handleListAgents);
   
+  // Agent Planner endpoints (Phase 3)
+  router.post('/agents/plan', handleAgentPlan);
+  router.post('/agents/accomplish', handleAgentAccomplish);
+  router.post('/agents/validate', handleAgentValidate);
+  router.get('/agents/planner/info', handleAgentPlannerInfo);
+  
   // FlowSpec endpoints (Phase 2 - n8n DSL)
   router.post('/flowspec/create', handleFlowSpecCreate);
   router.post('/flowspec/execute', handleFlowSpecExecute);
@@ -822,6 +1071,13 @@ export function createApiRouter(): express.Router {
   // System endpoints
   router.get('/system/status', handleSystemStatus);
   
+  // MCP Tools endpoints (Phase 3.2 Day 4)
+  router.get('/tools/list', handleToolsList);
+  router.get('/tools/:name/info', handleToolInfo);
+  router.post('/tools/execute', handleToolExecute);
+  router.get('/tools/stats', handleToolsStats);
+  router.post('/tools/refresh', handleToolsRefresh);
+  
   // Passport endpoints
   router.post('/passports/register', handlePassportRegister);
   router.get('/passports/:passportId', handlePassportGet);
@@ -831,6 +1087,162 @@ export function createApiRouter(): express.Router {
   router.get('/passports/search', handlePassportSearch);
   
   return router;
+}
+
+// ============================================================================
+// MCP TOOLS API ENDPOINTS (Phase 3.2 Day 4)
+// ============================================================================
+
+/**
+ * List all available MCP tools
+ * GET /tools/list
+ */
+export async function handleToolsList(req: express.Request, res: express.Response) {
+  try {
+    const { getMCPRegistry } = await import('./mcpRegistry');
+    const registry = getMCPRegistry();
+    
+    const tools = await registry.listTools();
+    
+    res.json({
+      success: true,
+      count: tools.length,
+      tools: tools.map(t => ({
+        name: t.name,
+        type: t.type,
+        description: t.description,
+        status: t.status,
+        operations: t.operations.length,
+        port: t.port
+      })),
+      message: `Found ${tools.length} MCP tools`
+    });
+  } catch (error) {
+    console.error('Error in handleToolsList:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Get detailed info for a specific tool
+ * GET /tools/:name/info
+ */
+export async function handleToolInfo(req: express.Request, res: express.Response) {
+  try {
+    const { getMCPRegistry } = await import('./mcpRegistry');
+    const { name } = req.params;
+    
+    const registry = getMCPRegistry();
+    const tool = await registry.getTool(name);
+    
+    if (!tool) {
+      return res.status(404).json({
+        success: false,
+        error: `Tool '${name}' not found in registry`
+      });
+    }
+    
+    res.json({
+      success: true,
+      tool,
+      message: `Retrieved info for tool '${name}'`
+    });
+  } catch (error) {
+    console.error('Error in handleToolInfo:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Execute a tool operation
+ * POST /tools/execute
+ * Body: { tool: string, operation: string, params: object }
+ */
+export async function handleToolExecute(req: express.Request, res: express.Response) {
+  try {
+    const { getMCPRegistry } = await import('./mcpRegistry');
+    const { tool, operation, params } = req.body as {
+      tool: string;
+      operation: string;
+      params: Record<string, any>;
+    };
+    
+    if (!tool || !operation) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid input: tool and operation are required'
+      });
+    }
+    
+    const registry = getMCPRegistry();
+    const result = await registry.executeTool(tool, operation, params || {});
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Error in handleToolExecute:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Get MCP registry statistics
+ * GET /tools/stats
+ */
+export async function handleToolsStats(req: express.Request, res: express.Response) {
+  try {
+    const { getMCPRegistry } = await import('./mcpRegistry');
+    const registry = getMCPRegistry();
+    
+    const stats = registry.getStats();
+    
+    res.json({
+      success: true,
+      stats,
+      message: 'Registry statistics retrieved'
+    });
+  } catch (error) {
+    console.error('Error in handleToolsStats:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Refresh tool discovery
+ * POST /tools/refresh
+ */
+export async function handleToolsRefresh(req: express.Request, res: express.Response) {
+  try {
+    const { getMCPRegistry } = await import('./mcpRegistry');
+    const registry = getMCPRegistry();
+    
+    await registry.refresh();
+    const tools = await registry.listTools();
+    
+    res.json({
+      success: true,
+      count: tools.length,
+      tools: tools.map(t => ({ name: t.name, status: t.status })),
+      message: `Refreshed tool registry - found ${tools.length} tools`
+    });
+  } catch (error) {
+    console.error('Error in handleToolsRefresh:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 }
 
 // ============================================================================

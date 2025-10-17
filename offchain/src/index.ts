@@ -1,4 +1,5 @@
 // offchain/src/index.ts
+import 'dotenv/config';
 import express from 'express';
 import bodyParser from 'body-parser';
 import { createApiRouter } from './services/api';
@@ -26,7 +27,7 @@ app.use((req, res, next) => {
 app.use(bodyParser.json());
 
 // Mount API routes
-app.use('/', createApiRouter());
+app.use('/api', createApiRouter());
 
 app.listen(API_PORT, '0.0.0.0', () => {
   console.log(`▶️  Lucid L2 API listening on:`);

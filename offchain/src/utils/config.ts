@@ -156,13 +156,15 @@ export const N8N_CONFIG = {
   enabled: process.env.N8N_ENABLED === 'true' || false, // Set to true to use n8n
   url: process.env.N8N_URL || 'http://localhost:5678',
   hmacSecret: process.env.N8N_HMAC_SECRET || '', // Must match n8n/.env
+  apiKey: process.env.N8N_API_KEY || '', // n8n API key for FlowSpec
   timeout: 30000 // 30 seconds
 };
 
-// Direct exports for easier access
+// Convenience exports for n8n config (all in one place)
 export const N8N_ENABLED = N8N_CONFIG.enabled;
 export const N8N_URL = N8N_CONFIG.url;
 export const N8N_HMAC_SECRET = N8N_CONFIG.hmacSecret;
+export const N8N_API_KEY = N8N_CONFIG.apiKey;
 
 // Development configuration
 export const MEMORY_WALLET_PATH = './memory-wallet.json';

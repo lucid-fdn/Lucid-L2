@@ -1,0 +1,36 @@
+{
+  "name": "solana",
+  "type": "blockchain",
+  "description": "Solana blockchain operations via MCP protocol",
+  "version": "1.0.0",
+  "status": "available",
+  "operations": [
+    {
+      "name": "read",
+      "description": "Read account data",
+      "parameters": {
+        "address": "string"
+      }
+    },
+    {
+      "name": "write",
+      "description": "Write data to PDA",
+      "parameters": {
+        "data": "object",
+        "programId": "string (optional)"
+      }
+    },
+    {
+      "name": "transfer",
+      "description": "Transfer SOL tokens",
+      "parameters": {
+        "to": "string",
+        "amount": "number"
+      }
+    }
+  ],
+  "port": 9003,
+  "protocol": "mcp",
+  "network": "devnet",
+  "rpcUrl": "https://api.devnet.solana.com"
+}

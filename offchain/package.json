@@ -3,7 +3,7 @@
     "version": "0.1.0",
     "scripts": {
         "start": "ts-node src/index.ts",
-        "dev": "ts-node --watch src/index.ts",
+        "dev": "ts-node src/index.ts",
         "cli": "ts-node src/cli.ts",
         "build": "tsc",
         "type-check": "tsc --noEmit",
@@ -15,6 +15,7 @@
         "@solana/spl-token": "^0.4.13",
         "@solana/web3.js": "^1.95.0",
         "axios": "^1.12.2",
+        "dotenv": "^17.2.3",
         "express": "^4.18.2",
         "helia": "^5.4.2",
         "ipfs-http-client": "^60.0.1",
