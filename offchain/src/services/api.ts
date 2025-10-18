@@ -700,16 +700,14 @@ export async function handleAgentPlan(req: express.Request, res: express.Respons
 }
 
 /**
- * Plan and execute a workflow in one call
+ * Plan and execute a workflow in one call (PHASE 3.4 - Agent Orchestrator)
  * POST /agents/accomplish
- * Body: { goal: string, context: object }
+ * Body: { goal: string, context?: object, preferredExecutor?: 'n8n' | 'langgraph', dryRun?: boolean }
  */
 export async function handleAgentAccomplish(req: express.Request, res: express.Response) {
   try {
-    const { goal, context } = req.body as {
-      goal: string;
-      context: Record<string, any>;
-    };
+    const { getAgentOrchestrator } = await import('./agentOrchestrator');
+    const { goal, context, preferredExecutor, dryRun } = req.body;
 
     if (!goal || typeof goal !== 'string') {
       return res.status(400).json({
@@ -718,57 +716,109 @@ export async function handleAgentAccomplish(req: express.Request, res: express.R
       });
     }
 
-    if (!context || !context.tenantId) {
+    const orchestrator = getAgentOrchestrator();
+    const result = await orchestrator.accomplish({
+      goal,
+      context: context || {},
+      preferredExecutor,
+      dryRun: dryRun || false
+    });
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error in handleAgentAccomplish:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Preview a workflow without executing it (dry run)
+ * POST /agents/accomplish/preview
+ * Body: { goal: string, context?: object }
+ */
+export async function handleAgentAccomplishPreview(req: express.Request, res: express.Response) {
+  try {
+    const { getAgentOrchestrator } = await import('./agentOrchestrator');
+    const { goal, context } = req.body;
+
+    if (!goal || typeof goal !== 'string') {
       return res.status(400).json({
         success: false,
-        error: 'Invalid input: context with tenantId is required'
+        error: 'Invalid input: goal is required and must be a string'
       });
     }
 
-    const { getAgentPlanner } = await import('./agentPlanner');
-    const planner = getAgentPlanner();
-    
-    // Check if service is healthy
-    const isHealthy = await planner.health();
-    if (!isHealthy) {
-      return res.status(503).json({
+    const orchestrator = getAgentOrchestrator();
+    const result = await orchestrator.preview(goal, context || {});
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error in handleAgentAccomplishPreview:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Get agent execution history for a tenant
+ * GET /agents/history/:tenantId
+ */
+export async function handleAgentOrchestratorHistory(req: express.Request, res: express.Response) {
+  try {
+    const { getAgentOrchestrator } = await import('./agentOrchestrator');
+    const { tenantId } = req.params;
+    const limit = parseInt(req.query.limit as string) || 50;
+
+    if (!tenantId) {
+      return res.status(400).json({
         success: false,
-        error: 'CrewAI planner service is not available. Please ensure it is running on port 8082.'
+        error: 'Invalid input: tenantId is required'
       });
     }
 
-    console.log(`🎯 Agent: Accomplishing goal: ${goal}`);
-
-    // Step 1: Plan workflow
-    const planResponse = await planner.planWorkflow({ goal, context });
-    console.log(`📋 Generated FlowSpec with ${planResponse.flowspec.nodes.length} nodes`);
-
-    // Step 2: Create and execute workflow
-    const service = getFlowSpecService();
-    const workflowResult = await service.createWorkflow(planResponse.flowspec);
-    
-    const executionContext: FlowExecutionContext = {
-      tenantId: context.tenantId,
-      variables: context
-    };
-
-    const executionResult = await service.executeWorkflow(workflowResult.id, executionContext);
-    console.log(`✅ Execution complete: ${executionResult.success}`);
+    const orchestrator = getAgentOrchestrator();
+    const history = orchestrator.getHistory(tenantId, limit);
+    const stats = orchestrator.getHistoryStats(tenantId);
 
     res.json({
       success: true,
-      goal,
-      flowspec: planResponse.flowspec,
-      reasoning: planResponse.reasoning,
-      complexity: planResponse.estimated_complexity,
-      workflowId: workflowResult.id,
-      workflowUrl: workflowResult.url,
-      executionResult,
-      timestamp: Date.now(),
-      message: 'Goal accomplished successfully'
+      tenantId,
+      history,
+      stats,
+      message: `Retrieved ${history.length} execution records for tenant ${tenantId}`
     });
   } catch (error) {
-    console.error('Error in handleAgentAccomplish:', error);
+    console.error('Error in handleAgentOrchestratorHistory:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Health check for agent orchestrator
+ * GET /agents/orchestrator/health
+ */
+export async function handleAgentOrchestratorHealth(req: express.Request, res: express.Response) {
+  try {
+    const { getAgentOrchestrator } = await import('./agentOrchestrator');
+    const orchestrator = getAgentOrchestrator();
+    
+    const health = await orchestrator.healthCheck();
+
+    res.json({
+      success: health.healthy,
+      health,
+      message: health.healthy ? 'All agent services operational' : 'Some agent services unavailable'
+    });
+  } catch (error) {
+    console.error('Error in handleAgentOrchestratorHealth:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -1154,6 +1204,9 @@ export function createApiRouter(): express.Router {
   // Agent Planner endpoints (Phase 3)
   router.post('/agents/plan', handleAgentPlan);
   router.post('/agents/accomplish', handleAgentAccomplish);
+  router.post('/agents/accomplish/preview', handleAgentAccomplishPreview);
+  router.get('/agents/history/:tenantId', handleAgentOrchestratorHistory);
+  router.get('/agents/orchestrator/health', handleAgentOrchestratorHealth);
   router.post('/agents/execute', handleAgentExecute);
   router.post('/agents/validate', handleAgentValidate);
   router.get('/agents/planner/info', handleAgentPlannerInfo);

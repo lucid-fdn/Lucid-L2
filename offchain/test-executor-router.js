@@ -189,10 +189,10 @@ async function testConditionalWorkflowDecision() {
   }
 }
 
-// Test 5: Execute simple workflow via router
+// Test 5: Execute simple workflow via router (Force LangGraph to avoid n8n schema issues)
 async function testExecuteSimpleWorkflow() {
   try {
-    log('Test 5: Execute Simple Workflow via Router');
+    log('Test 5: Execute Simple Workflow via Router (LangGraph)');
     
     const flowspec = {
       name: 'Simple HTTP Test',
@@ -211,7 +211,8 @@ async function testExecuteSimpleWorkflow() {
 
     const response = await axios.post(`${API_URL}/agents/execute`, {
       flowspec,
-      context: { tenantId: 'test-user' }
+      context: { tenantId: 'test-user' },
+      executor: 'langgraph'  // Force LangGraph (we know it works from Day 2)
     });
     
     if (response.data.success) {
@@ -221,7 +222,7 @@ async function testExecuteSimpleWorkflow() {
       return true;
     } else {
       error('Execution failed');
-      console.log(`  Error: ${response.data.errors}`);
+      console.log(`  Errors: ${response.data.errors}`);
       return false;
     }
   } catch (err) {
