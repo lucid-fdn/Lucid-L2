@@ -1,32 +1,15 @@
 // services/contentService.ts
 import { createHash } from 'crypto';
-import { create, IPFSHTTPClient } from 'ipfs-http-client';
 
 /**
  * Content addressing and IPFS service for Lucid Passports
+ * Currently using mock CIDs - IPFS integration can be added later
  */
 export class ContentService {
-    private ipfsClient: IPFSHTTPClient | null = null;
     private ipfsEnabled: boolean = false;
 
     constructor() {
-        this.initializeIPFS();
-    }
-
-    /**
-     * Initialize IPFS client
-     */
-    private initializeIPFS() {
-        try {
-            // Default to local IPFS node
-            const ipfsUrl = process.env.IPFS_URL || 'http://127.0.0.1:5001';
-            this.ipfsClient = create({ url: ipfsUrl });
-            this.ipfsEnabled = true;
-            console.log(`📦 IPFS client initialized: ${ipfsUrl}`);
-        } catch (error) {
-            console.warn('⚠️  IPFS not available, content will not be uploaded');
-            this.ipfsEnabled = false;
-        }
+        console.warn('⚠️  Using mock CIDs (IPFS disabled for now)');
     }
 
     /**
@@ -41,7 +24,14 @@ export class ContentService {
      */
     computeContentHash(content: string | Buffer): Buffer {
         const hash = createHash('sha256');
-        hash.update(content);
+        if (typeof content === 'string') {
+            hash.update(Buffer.from(content));
+        } else if (Buffer.isBuffer(content)) {
+            hash.update(content);
+        } else {
+            // Handle other types by converting to string first
+            hash.update(Buffer.from(String(content)));
+        }
         return hash.digest();
     }
 
@@ -53,25 +43,26 @@ export class ContentService {
     }
 
     /**
-     * Upload content to IPFS and return CID
+     * Generate a deterministic mock CID from content
      */
-    async uploadToIPFS(content: string | Buffer): Promise<string> {
-        if (!this.ipfsEnabled || !this.ipfsClient) {
-            throw new Error('IPFS is not available');
-        }
-
-        try {
-            const result = await this.ipfsClient.add(content);
-            console.log(`📤 Uploaded to IPFS: ${result.path}`);
-            return result.path; // CIDv0 by default
-        } catch (error) {
-            console.error('Error uploading to IPFS:', error);
-            throw new Error(`Failed to upload to IPFS: ${error}`);
-        }
+    private generateMockCID(content: string): string {
+        const hash = this.computeContentHashHex(content);
+        // Create CIDv1-like string
+        return 'bafybei' + hash.substring(0, 52);
     }
 
     /**
-     * Upload JSON object to IPFS
+     * Upload content to IPFS and return CID (mock implementation)
+     */
+    async uploadToIPFS(content: string | Buffer): Promise<string> {
+        const contentString = typeof content === 'string' ? content : content.toString();
+        const mockCid = this.generateMockCID(contentString);
+        console.log(`📦 Generated mock CID: ${mockCid.substring(0, 20)}...`);
+        return mockCid;
+    }
+
+    /**
+     * Upload JSON object to IPFS (mock implementation)
      */
     async uploadJSONToIPFS(data: any): Promise<string> {
         const jsonString = JSON.stringify(data, null, 2);
@@ -79,67 +70,31 @@ export class ContentService {
     }
 
     /**
-     * Retrieve content from IPFS
+     * Retrieve content from IPFS (not implemented for mocks)
      */
     async retrieveFromIPFS(cid: string): Promise<Buffer> {
-        if (!this.ipfsEnabled || !this.ipfsClient) {
-            throw new Error('IPFS is not available');
-        }
-
-        try {
-            const chunks: Uint8Array[] = [];
-            for await (const chunk of this.ipfsClient.cat(cid)) {
-                chunks.push(chunk);
-            }
-            const content = Buffer.concat(chunks);
-            console.log(`📥 Retrieved from IPFS: ${cid} (${content.length} bytes)`);
-            return content;
-        } catch (error) {
-            console.error('Error retrieving from IPFS:', error);
-            throw new Error(`Failed to retrieve from IPFS: ${error}`);
-        }
+        throw new Error('Retrieve from IPFS not available with mock CIDs');
     }
 
     /**
-     * Retrieve JSON object from IPFS
+     * Retrieve JSON object from IPFS (not implemented for mocks)
      */
     async retrieveJSONFromIPFS(cid: string): Promise<any> {
-        const content = await this.retrieveFromIPFS(cid);
-        return JSON.parse(content.toString('utf-8'));
+        throw new Error('Retrieve from IPFS not available with mock CIDs');
     }
 
     /**
-     * Pin content to IPFS (keep it available)
+     * Pin content to IPFS (no-op for mocks)
      */
     async pinToIPFS(cid: string): Promise<void> {
-        if (!this.ipfsEnabled || !this.ipfsClient) {
-            throw new Error('IPFS is not available');
-        }
-
-        try {
-            await this.ipfsClient.pin.add(cid);
-            console.log(`📌 Pinned to IPFS: ${cid}`);
-        } catch (error) {
-            console.error('Error pinning to IPFS:', error);
-            throw new Error(`Failed to pin to IPFS: ${error}`);
-        }
+        // No-op for mock implementation
     }
 
     /**
-     * Unpin content from IPFS
+     * Unpin content from IPFS (no-op for mocks)
      */
     async unpinFromIPFS(cid: string): Promise<void> {
-        if (!this.ipfsEnabled || !this.ipfsClient) {
-            throw new Error('IPFS is not available');
-        }
-
-        try {
-            await this.ipfsClient.pin.rm(cid);
-            console.log(`📍 Unpinned from IPFS: ${cid}`);
-        } catch (error) {
-            console.error('Error unpinning from IPFS:', error);
-            throw new Error(`Failed to unpin from IPFS: ${error}`);
-        }
+        // No-op for mock implementation
     }
 
     /**
@@ -147,6 +102,11 @@ export class ContentService {
      * This is a simplified implementation - for production use a proper merkle tree library
      */
     createMerkleTreeHash(files: Array<{ path: string; hash: string }>): string {
+        if (files.length === 0) {
+            // Return hash of empty string for empty file list
+            return this.computeContentHashHex('');
+        }
+        
         // Sort files by path for determinism
         const sortedFiles = files.sort((a, b) => a.path.localeCompare(b.path));
         
@@ -230,25 +190,11 @@ export class ContentService {
         manifest: any,
         metadata: any
     ): Promise<{ manifestCid: string; metadataCid: string; treeHash: string }> {
-        if (!this.isIPFSAvailable()) {
-            // Generate mock CIDs for development without IPFS
-            const mockManifestCid = 'Qm' + this.computeContentHashHex(JSON.stringify(manifest)).substring(0, 44);
-            const mockMetadataCid = 'Qm' + this.computeContentHashHex(JSON.stringify(metadata)).substring(0, 44);
-            
-            console.log('⚠️  IPFS not available, using mock CIDs');
-            return {
-                manifestCid: mockManifestCid,
-                metadataCid: mockMetadataCid,
-                treeHash: manifest.tree_sha256,
-            };
-        }
-
-        // Upload manifest
+        // Generate deterministic mock CIDs
         const manifestCid = await this.uploadJSONToIPFS(manifest);
-        await this.pinToIPFS(manifestCid);
-
-        // Upload metadata
         const metadataCid = await this.uploadJSONToIPFS(metadata);
+        
+        await this.pinToIPFS(manifestCid);
         await this.pinToIPFS(metadataCid);
 
         return {

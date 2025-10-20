@@ -1239,6 +1239,15 @@ export function createApiRouter(): express.Router {
   router.post('/passports/sync-hf-datasets', handleSyncHFDatasets);
   router.get('/passports/search', handlePassportSearch);
   
+  // HF Sync Orchestrator endpoints (Comprehensive Sync)
+  router.post('/passports/sync-all-hf', handleSyncAllHF);
+  router.get('/passports/sync-progress', handleSyncProgress);
+  router.post('/passports/sync-resume', handleSyncResume);
+  router.post('/passports/sync-stop', handleSyncStop);
+  router.post('/passports/sync-retry-failed', handleSyncRetryFailed);
+  router.get('/passports/sync-report', handleSyncReport);
+  router.get('/passports/sync-status', handleSyncStatus);
+  
   return router;
 }
 
@@ -1272,6 +1281,227 @@ export async function handleToolsList(req: express.Request, res: express.Respons
     });
   } catch (error) {
     console.error('Error in handleToolsList:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+// ============================================================================
+// HF SYNC ORCHESTRATOR API ENDPOINTS (Comprehensive Sync)
+// ============================================================================
+
+/**
+ * Start comprehensive sync of all HuggingFace assets
+ * POST /passports/sync-all-hf
+ * Body: { types: ['models' | 'datasets' | 'all'], batchSize?: number, concurrency?: number, llmProxyUrl?: string }
+ */
+export async function handleSyncAllHF(req: express.Request, res: express.Response) {
+  try {
+    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+    
+    const {
+      types = ['all'],
+      batchSize = 100,
+      concurrency = 10,
+      llmProxyUrl,
+      checkpointInterval = 100,
+      maxRetries = 3
+    } = req.body;
+
+    console.log(`🚀 Starting comprehensive HF sync: ${types.join(', ')}`);
+
+    const orchestrator = getHFSyncOrchestrator(llmProxyUrl);
+
+    // Start sync in background
+    orchestrator.startFullSync({
+      types,
+      batchSize,
+      concurrency,
+      llmProxyUrl,
+      checkpointInterval,
+      maxRetries
+    }).catch((error) => {
+      console.error('Background sync failed:', error);
+    });
+
+    res.json({
+      success: true,
+      message: 'Comprehensive sync started in background',
+      config: {
+        types,
+        batchSize,
+        concurrency,
+        checkpointInterval
+      }
+    });
+  } catch (error) {
+    console.error('Error in handleSyncAllHF:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Get current sync progress
+ * GET /passports/sync-progress
+ */
+export async function handleSyncProgress(req: express.Request, res: express.Response) {
+  try {
+    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+    
+    const orchestrator = getHFSyncOrchestrator();
+    const progress = orchestrator.getProgress();
+
+    res.json({
+      success: true,
+      progress,
+      message: `Overall progress: ${progress.overall.progress}`
+    });
+  } catch (error) {
+    console.error('Error in handleSyncProgress:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Resume sync from last checkpoint
+ * POST /passports/sync-resume
+ * Body: { batchSize?: number, concurrency?: number }
+ */
+export async function handleSyncResume(req: express.Request, res: express.Response) {
+  try {
+    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+    
+    const { batchSize, concurrency, llmProxyUrl } = req.body;
+
+    console.log('🔄 Resuming sync from checkpoint...');
+
+    const orchestrator = getHFSyncOrchestrator(llmProxyUrl);
+
+    // Resume in background
+    orchestrator.resume({ batchSize, concurrency, llmProxyUrl }).catch((error) => {
+      console.error('Resume failed:', error);
+    });
+
+    res.json({
+      success: true,
+      message: 'Sync resumed from last checkpoint'
+    });
+  } catch (error) {
+    console.error('Error in handleSyncResume:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Stop sync gracefully
+ * POST /passports/sync-stop
+ */
+export async function handleSyncStop(req: express.Request, res: express.Response) {
+  try {
+    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+    
+    const orchestrator = getHFSyncOrchestrator();
+    orchestrator.stop();
+
+    res.json({
+      success: true,
+      message: 'Sync stop requested, will complete current batch'
+    });
+  } catch (error) {
+    console.error('Error in handleSyncStop:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Retry failed assets
+ * POST /passports/sync-retry-failed
+ * Body: { maxAttempts?: number, concurrency?: number }
+ */
+export async function handleSyncRetryFailed(req: express.Request, res: express.Response) {
+  try {
+    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+    
+    const { maxAttempts = 3, concurrency = 5 } = req.body;
+
+    const orchestrator = getHFSyncOrchestrator();
+
+    // Retry in background
+    orchestrator.retryFailed(maxAttempts, concurrency).catch((error) => {
+      console.error('Retry failed:', error);
+    });
+
+    res.json({
+      success: true,
+      message: 'Retrying failed assets in background',
+      config: { maxAttempts, concurrency }
+    });
+  } catch (error) {
+    console.error('Error in handleSyncRetryFailed:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Get detailed sync report
+ * GET /passports/sync-report
+ */
+export async function handleSyncReport(req: express.Request, res: express.Response) {
+  try {
+    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+    
+    const orchestrator = getHFSyncOrchestrator();
+    const report = orchestrator.generateReport();
+
+    res.json({
+      success: true,
+      report,
+      message: 'Sync report generated'
+    });
+  } catch (error) {
+    console.error('Error in handleSyncReport:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Get sync status
+ * GET /passports/sync-status
+ */
+export async function handleSyncStatus(req: express.Request, res: express.Response) {
+  try {
+    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+    
+    const orchestrator = getHFSyncOrchestrator();
+    const status = orchestrator.getStatus();
+
+    res.json({
+      success: true,
+      status,
+      message: status.isRunning ? 'Sync is running' : 'Sync is idle'
+    });
+  } catch (error) {
+    console.error('Error in handleSyncStatus:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

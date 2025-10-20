@@ -45,5 +45,9 @@ test-ledger/
 *-keypair.json
 memory-wallet.json
 
+# HF Sync state files
+sync-state.json
+sync-state-*.json
+
 # Rust
 Cargo.lock
