@@ -1,11 +1,19 @@
 // offchain/src/solana/client.ts
 import { Connection, PublicKey, SystemProgram, Keypair, TransactionInstruction, Commitment } from '@solana/web3.js';
-import { AnchorProvider, Program, Wallet, setProvider } from '@coral-xyz/anchor';
+import { AnchorProvider, Program, Wallet, setProvider, Idl } from '@coral-xyz/anchor';
 import * as fs from 'fs';
 import path from 'path';
 import { getRPC_URL, getCOMMITMENT, getPROGRAM_ID } from '../utils/config';
 
+// Cache the program instance to avoid re-initialization issues
+let cachedProgram: Program | null = null;
+
 export function initSolana(): Program {
+  // Return cached instance if available
+  if (cachedProgram) {
+    return cachedProgram;
+  }
+  
   const rpcUrl = getRPC_URL();
   const commitment = getCOMMITMENT() as Commitment;
   const programId = getPROGRAM_ID();
@@ -20,44 +28,38 @@ export function initSolana(): Program {
   
   // Load the IDL with absolute path
   const idlPath = path.resolve(__dirname, '../../../target/idl/thought_epoch.json');
-  const idl = JSON.parse(fs.readFileSync(idlPath, 'utf8'));
+  const idlJson = JSON.parse(fs.readFileSync(idlPath, 'utf8'));
   
-  // Log for debugging
   console.log('Program ID:', programId.toString());
-  console.log('IDL Metadata:', idl.metadata);
-  console.log('IDL Path:', idlPath);
-  console.log('IDL Instructions:', JSON.stringify(idl.instructions, null, 2));
+  console.log('IDL name:', idlJson.name);
+  console.log('IDL version:', idlJson.version);
 
-  // Check if there are any undefined addresses in the IDL
-  console.log('Checking IDL for undefined addresses...');
-  
-  // Only set the metadata address, don't modify the IDL structure
-  if (!idl.metadata) {
-    idl.metadata = {};
+  // Ensure metadata exists with program address
+  if (!idlJson.metadata) {
+    idlJson.metadata = {};
   }
-  idl.metadata.address = programId.toString();
+  idlJson.metadata.address = programId.toString();
 
-  // Add system program address to prevent undefined address issues
-  if (!idl.constants) {
-    idl.constants = [];
-  }
-  
-  // Ensure system program is properly defined
-  const systemProgramId = SystemProgram.programId.toString();
-  console.log('System Program ID:', systemProgramId);
-
-  // Try to identify what's causing the undefined address issue
-  console.log('Creating Program...');
+  // Create Program using the IDL with embedded address in metadata
+  console.log('Creating Anchor Program...');
   try {
-    // Use direct Program creation
-    console.log('Trying direct Program creation...');
-    const program = new Program(idl, provider);
-    console.log('Program created successfully');
+    // Use two-parameter constructor: Program(idl, provider)
+    // The programId is read from idl.metadata.address
+    const program = new Program(idlJson as Idl, provider);
+    console.log('✅ Program created successfully');
+    console.log('Program ID:', program.programId.toString());
     console.log('Available methods:', Object.keys(program.methods));
-    console.log('Program ID from program object:', program.programId.toString());
+    
+    // Cache the successfully created program
+    cachedProgram = program;
+    
     return program;
   } catch (error) {
-    console.log('Program creation failed:', error);
+    console.error('❌ Program creation failed:', error);
+    console.error('Error details:', {
+      programId: programId.toString(),
+      idlMetadata: idlJson.metadata
+    });
     throw error;
   }
 }

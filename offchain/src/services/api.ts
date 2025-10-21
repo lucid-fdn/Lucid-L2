@@ -1,5 +1,6 @@
 // offchain/src/services/api.ts
 import express from 'express';
+import axios from 'axios';
 import { SystemProgram } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { runInference, runBatchInference } from '../utils/inference';
@@ -562,16 +563,17 @@ export async function handleSystemStatus(req: express.Request, res: express.Resp
     const agents = mmrService.listAgents();
     const ipfsConnected = await mmrService.checkIPFSConnection();
 
-    // Get blockchain connection status
+    // Get blockchain connection status - test connection without initializing full program
     let blockchainConnected = false;
     let blockchainError = null;
     try {
-      const program = initSolana();
-      const connection = program.provider.connection;
+      const { getConnection } = await import('../solana/client');
+      const connection = getConnection();
       const slot = await connection.getSlot();
       blockchainConnected = slot > 0;
     } catch (error) {
       blockchainError = error instanceof Error ? error.message : 'Unknown blockchain error';
+      console.log('⚠️  Blockchain connection check failed:', blockchainError);
     }
 
     res.json({
@@ -593,7 +595,9 @@ export async function handleSystemStatus(req: express.Request, res: express.Resp
         total: agents.length,
         registered: agents
       },
-      message: 'System status retrieved successfully'
+      message: blockchainConnected 
+        ? 'System status retrieved successfully' 
+        : 'System operational (blockchain connection issue - see error details)'
     });
   } catch (error) {
     console.error('Error in handleSystemStatus:', error);
@@ -1248,6 +1252,18 @@ export function createApiRouter(): express.Router {
   router.get('/passports/sync-report', handleSyncReport);
   router.get('/passports/sync-status', handleSyncStatus);
   
+  // n8n Nodes endpoints
+  router.get('/flow/nodes', handleN8nNodesList);
+  router.get('/flow/nodes/:nodeName', handleN8nNodeDetails);
+  router.get('/flow/categories', handleN8nNodeCategories);
+  router.get('/flow/icon/*', handleN8nIcon);
+  
+  // n8n Elasticsearch admin endpoints
+  router.post('/flow/admin/reindex', handleN8nNodesReindex);
+  router.get('/flow/admin/stats', handleN8nNodesStats);
+  router.delete('/flow/admin/index', handleN8nNodesDeleteIndex);
+  router.get('/flow/admin/status', handleN8nNodesIndexStatus);
+  
   return router;
 }
 
@@ -1621,6 +1637,405 @@ export async function handleToolsRefresh(req: express.Request, res: express.Resp
     });
   } catch (error) {
     console.error('Error in handleToolsRefresh:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+// ============================================================================
+// N8N NODES API ENDPOINTS
+// ============================================================================
+
+/**
+ * Reindex all n8n nodes into Elasticsearch
+ * POST /flow/admin/reindex
+ */
+export async function handleN8nNodesReindex(req: express.Request, res: express.Response) {
+  try {
+    const { getN8nNodeIndexer } = await import('./n8nNodeIndexer');
+    const { forceRefresh = false } = req.body;
+    
+    const indexer = getN8nNodeIndexer();
+    const result = await indexer.indexNodes(forceRefresh);
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error in handleN8nNodesReindex:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Get Elasticsearch statistics for n8n nodes
+ * GET /flow/admin/stats
+ */
+export async function handleN8nNodesStats(req: express.Request, res: express.Response) {
+  try {
+    const { getElasticsearchService } = await import('./elasticsearchService');
+    
+    const esService = getElasticsearchService();
+    const stats = await esService.getStats();
+
+    res.json({
+      success: true,
+      stats,
+      message: 'Elasticsearch stats retrieved'
+    });
+  } catch (error) {
+    console.error('Error in handleN8nNodesStats:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Delete the n8n nodes Elasticsearch index
+ * DELETE /flow/admin/index
+ */
+export async function handleN8nNodesDeleteIndex(req: express.Request, res: express.Response) {
+  try {
+    const { getElasticsearchService } = await import('./elasticsearchService');
+    
+    const esService = getElasticsearchService();
+    await esService.deleteIndex();
+
+    res.json({
+      success: true,
+      message: 'Index deleted successfully. Run /flow/admin/reindex to rebuild.'
+    });
+  } catch (error) {
+    console.error('Error in handleN8nNodesDeleteIndex:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Get n8n node indexer status
+ * GET /flow/admin/status
+ */
+export async function handleN8nNodesIndexStatus(req: express.Request, res: express.Response) {
+  try {
+    const { getN8nNodeIndexer } = await import('./n8nNodeIndexer');
+    const { getElasticsearchService } = await import('./elasticsearchService');
+    
+    const indexer = getN8nNodeIndexer();
+    const esService = getElasticsearchService();
+    
+    const indexerStatus = indexer.getStatus();
+    const esStats = await esService.getStats();
+
+    res.json({
+      success: true,
+      indexer: indexerStatus,
+      elasticsearch: esStats,
+      message: 'Index status retrieved'
+    });
+  } catch (error) {
+    console.error('Error in handleN8nNodesIndexStatus:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * List all available n8n node types with Elasticsearch support
+ * GET /n8n/nodes
+ * Query params: category, search, limit, offset, usableAsTool
+ */
+export async function handleN8nNodesList(req: express.Request, res: express.Response) {
+  try {
+    const { getElasticsearchService } = await import('./elasticsearchService');
+    const { getN8nNodeIndexer } = await import('./n8nNodeIndexer');
+    
+    const { 
+      category, 
+      search, 
+      limit = '100', 
+      offset = '0', 
+      usableAsTool,
+      codexCategory,
+      credentialName 
+    } = req.query;
+    const esService = getElasticsearchService();
+    const indexer = getN8nNodeIndexer();
+
+    // Check if Elasticsearch is available and index exists
+    if (esService.isAvailable()) {
+      // Check if reindexing is needed (e.g., first time or stale cache)
+      if (indexer.needsReindex(60)) {
+        console.log('🔄 Index needs refresh, triggering background reindex...');
+        // Start reindexing in background (don't wait)
+        indexer.indexNodes(false).catch(err => {
+          console.error('Background reindex failed:', err);
+        });
+      }
+
+      // Try to search using Elasticsearch
+      try {
+        const searchResponse = await esService.searchNodes({
+          query: search as string,
+          category: category as string,
+          limit: parseInt(limit as string, 10),
+          offset: parseInt(offset as string, 10),
+          usableAsTool: usableAsTool === 'true' ? true : usableAsTool === 'false' ? false : undefined,
+          codexCategory: codexCategory as string,
+          credentialName: credentialName as string,
+        });
+
+        return res.json({
+          success: true,
+          count: searchResponse.results.length,
+          total: searchResponse.total,
+          nodes: searchResponse.results.map(result => ({
+            ...result.node,
+            _score: result.score,
+            _highlight: result.highlight,
+          })),
+          facets: searchResponse.facets,
+          executionTimeMs: searchResponse.executionTimeMs,
+          message: `Retrieved ${searchResponse.results.length} of ${searchResponse.total} n8n node types${category ? ` in category '${category}'` : ''}${search ? ` matching '${search}'` : ''}`,
+          source: 'elasticsearch',
+        });
+      } catch (esError) {
+        console.warn('Elasticsearch search failed, falling back to CLI:', esError);
+        // Fall through to CLI fallback
+      }
+    }
+
+    // Fallback: Use CLI approach (original implementation)
+    console.log('📋 Using CLI fallback for node listing...');
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
+    
+    const { stdout } = await execAsync(
+      'docker exec lucid-n8n n8n export:nodes --output=/tmp/nodes.json && docker exec lucid-n8n cat /tmp/nodes.json',
+      { maxBuffer: 50 * 1024 * 1024 }
+    );
+    
+    const jsonMatch = stdout.match(/(\[[\s\S]*\])/);
+    if (!jsonMatch) {
+      throw new Error('Failed to parse nodes JSON from CLI output');
+    }
+    
+    let allNodes = JSON.parse(jsonMatch[1]);
+    let nodes = allNodes;
+    
+    // Apply filters in-memory (fallback)
+    if (category && typeof category === 'string') {
+      nodes = nodes.filter((node: any) => 
+        node.group && node.group.some((g: string) => g.toLowerCase() === category.toLowerCase())
+      );
+    }
+    
+    if (search && typeof search === 'string') {
+      const searchLower = search.toLowerCase();
+      nodes = nodes.filter((node: any) => 
+        node.name?.toLowerCase().includes(searchLower) ||
+        node.displayName?.toLowerCase().includes(searchLower) ||
+        node.description?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Apply pagination
+    const limitNum = parseInt(limit as string, 10);
+    const offsetNum = parseInt(offset as string, 10);
+    const paginatedNodes = nodes.slice(offsetNum, offsetNum + limitNum);
+    
+    res.json({
+      success: true,
+      count: paginatedNodes.length,
+      total: nodes.length,
+      totalAvailable: allNodes.length,
+      nodes: paginatedNodes.map((node: any) => ({
+        name: node.name,
+        displayName: node.displayName,
+        description: node.description,
+        version: node.version,
+        group: node.group,
+        icon: node.icon,
+        iconUrl: node.iconUrl,
+        codex: node.codex,
+        usableAsTool: node.usableAsTool,
+        inputs: node.inputs,
+        outputs: node.outputs,
+        properties: node.properties,
+        credentials: node.credentials,
+        defaults: node.defaults
+      })),
+      message: `Retrieved ${paginatedNodes.length} of ${nodes.length} n8n node types${category ? ` in category '${category}'` : ''}${search ? ` matching '${search}'` : ''}`,
+      source: 'cli-fallback'
+    });
+  } catch (error) {
+    console.error('Error in handleN8nNodesList:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      help: 'Ensure n8n docker container "lucid-n8n" is running and accessible'
+    });
+  }
+}
+
+/**
+ * Get detailed information about a specific n8n node type
+ * GET /n8n/nodes/:nodeName
+ */
+export async function handleN8nNodeDetails(req: express.Request, res: express.Response) {
+  try {
+    const { nodeName } = req.params;
+    
+    if (!nodeName) {
+      return res.status(400).json({
+        success: false,
+        error: 'Node name is required'
+      });
+    }
+    
+    const response = await axios.get(
+      `${N8N_URL}/api/v1/node-types`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(N8N_API_KEY && { 'X-N8N-API-KEY': N8N_API_KEY })
+        }
+      }
+    );
+
+    const nodes = response.data || [];
+    const node = nodes.find((n: any) => n.name === nodeName);
+    
+    if (!node) {
+      return res.status(404).json({
+        success: false,
+        error: `Node type '${nodeName}' not found`
+      });
+    }
+    
+    res.json({
+      success: true,
+      node,
+      message: `Retrieved details for node '${nodeName}'`
+    });
+  } catch (error) {
+    console.error('Error in handleN8nNodeDetails:', error);
+    
+    if (axios.isAxiosError(error)) {
+      return res.status(error.response?.status || 500).json({
+        success: false,
+        error: `n8n API error: ${error.response?.data?.message || error.message}`
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+/**
+ * Proxy n8n node icons
+ * GET /n8n/icon/*
+ * Proxies icon requests to n8n server
+ */
+export async function handleN8nIcon(req: express.Request, res: express.Response) {
+  try {
+    // Get the icon path from the URL (everything after /n8n/icon/)
+    const iconPath = req.params[0];
+    
+    if (!iconPath) {
+      return res.status(400).json({
+        success: false,
+        error: 'Icon path is required'
+      });
+    }
+    
+    // Fetch icon from n8n server
+    const iconUrl = `${N8N_URL}/${iconPath}`;
+    const response = await axios.get(iconUrl, {
+      responseType: 'arraybuffer',
+      headers: {
+        ...(N8N_API_KEY && { 'X-N8N-API-KEY': N8N_API_KEY })
+      },
+      timeout: 5000
+    });
+    
+    // Set appropriate content type
+    const contentType = response.headers['content-type'] || 'image/svg+xml';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+    
+    res.send(response.data);
+  } catch (error) {
+    console.error('Error in handleN8nIcon:', error);
+    
+    if (axios.isAxiosError(error)) {
+      return res.status(error.response?.status || 500).send('Icon not found');
+    }
+    
+    res.status(500).send('Error fetching icon');
+  }
+}
+
+/**
+ * Get n8n node categories
+ * GET /n8n/categories
+ */
+export async function handleN8nNodeCategories(req: express.Request, res: express.Response) {
+  try {
+    const response = await axios.get(
+      `${N8N_URL}/api/v1/node-types`,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(N8N_API_KEY && { 'X-N8N-API-KEY': N8N_API_KEY })
+        }
+      }
+    );
+
+    const nodes = response.data || [];
+    
+    // Extract unique categories and count nodes in each
+    const categoryMap = new Map<string, number>();
+    nodes.forEach((node: any) => {
+      const category = node.group || 'Uncategorized';
+      categoryMap.set(category, (categoryMap.get(category) || 0) + 1);
+    });
+    
+    const categories = Array.from(categoryMap.entries()).map(([name, count]) => ({
+      name,
+      count
+    })).sort((a, b) => b.count - a.count);
+    
+    res.json({
+      success: true,
+      count: categories.length,
+      categories,
+      message: `Retrieved ${categories.length} node categories`
+    });
+  } catch (error) {
+    console.error('Error in handleN8nNodeCategories:', error);
+    
+    if (axios.isAxiosError(error)) {
+      return res.status(error.response?.status || 500).json({
+        success: false,
+        error: `n8n API error: ${error.response?.data?.message || error.message}`
+      });
+    }
+    
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

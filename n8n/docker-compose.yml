@@ -41,11 +41,17 @@ services:
       - LLM_PROXY_URL=http://host.docker.internal:8001
       - LUCID_API_URL=http://host.docker.internal:3001
       
+      # Elasticsearch Configuration
+      - ELASTICSEARCH_ENABLED=${ELASTICSEARCH_ENABLED:-true}
+      - ELASTICSEARCH_HOST=${ELASTICSEARCH_HOST:-elasticsearch}
+      - ELASTICSEARCH_PORT=${ELASTICSEARCH_PORT:-9200}
+      
     volumes:
       - n8n_data:/home/node/.n8n
       - ./workflows:/home/node/workflows:ro
     networks:
       - lucid-network
+      - llm-proxy_ai-network
     depends_on:
       - postgres
       - redis
@@ -97,3 +103,5 @@ volumes:
 networks:
   lucid-network:
     driver: bridge
+  llm-proxy_ai-network:
+    external: true
