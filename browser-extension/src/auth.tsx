@@ -181,10 +181,21 @@ function App() {
         },
         externalWallets: {
           solana: {
-            connectors: toSolanaWalletConnectors()
+            connectors: toSolanaWalletConnectors({
+              // Only show wallets that are actually installed
+              shouldAutoConnect: true,
+            })
           },
         },
         loginMethods: ['wallet'],
+        // Explicitly set Solana-only mode
+        supportedChains: [],
+        defaultChain: undefined,
+        // Only show login UI for wallet connection
+        legal: {
+          termsAndConditionsUrl: undefined,
+          privacyPolicyUrl: undefined,
+        },
       }}
     >
       <AuthContent />

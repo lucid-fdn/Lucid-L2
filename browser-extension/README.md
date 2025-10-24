@@ -290,12 +290,14 @@ Then reload extension in Chrome after changes.
 4. **Error Handling** - Standardized error categorization
 5. **Code Cleanup** - Removed anti-cheat and MetaMask code
 6. **Documentation** - Consolidated scattered docs
+7. **Privy Configuration** - Fixed to only show installed wallets
 
 **Benefits:**
 - Easier deployment to different environments
 - Better data persistence and migration
 - Improved user error messages
 - Cleaner, more maintainable codebase
+- Phantom extension detected automatically (no redirect to website)
 
 ## 🤝 Contributing
 
