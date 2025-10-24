@@ -1,0 +1,642 @@
+{
+  "success": true,
+  "totalNodes": 100,
+  "generatedAt": "2025-10-24T13:05:06.487Z",
+  "categories": {
+    "Core Nodes": [
+      {
+        "name": "MCP Server Trigger",
+        "description": "Expose tools as an MCP Server endpoint",
+        "usableAsTool": false,
+        "popularityScore": 192
+      },
+      {
+        "name": "Send Email",
+        "description": "Sends an email using SMTP protocol",
+        "usableAsTool": true,
+        "popularityScore": 180
+      },
+      {
+        "name": "HTTP Request",
+        "description": "Makes an HTTP request and returns the response data",
+        "usableAsTool": {
+          "replacements": {
+            "codex": {
+              "subcategories": {
+                "Tools": [
+                  "Recommended Tools"
+                ]
+              }
+            }
+          }
+        },
+        "popularityScore": 180
+      },
+      {
+        "name": "Email Trigger (IMAP)",
+        "description": "Triggers the workflow when a new email is received",
+        "usableAsTool": true,
+        "popularityScore": 177
+      },
+      {
+        "name": "Data table",
+        "description": "Permanently save data across workflow executions in a table",
+        "usableAsTool": true,
+        "popularityScore": 165
+      },
+      {
+        "name": "Git",
+        "description": "Control git.",
+        "usableAsTool": true,
+        "popularityScore": 163
+      }
+    ],
+    "AI": [
+      {
+        "name": "Anthropic",
+        "description": "Interact with Anthropic AI models",
+        "usableAsTool": true,
+        "popularityScore": 595
+      },
+      {
+        "name": "Google Gemini",
+        "description": "Interact with Google Gemini AI models",
+        "usableAsTool": true,
+        "popularityScore": 595
+      },
+      {
+        "name": "OpenAI",
+        "description": "Message an assistant or GPT, analyze images, generate audio, etc.",
+        "usableAsTool": false,
+        "popularityScore": 545
+      },
+      {
+        "name": "Anthropic Tool",
+        "description": "Interact with Anthropic AI models",
+        "usableAsTool": false,
+        "popularityScore": 545
+      },
+      {
+        "name": "Google Gemini Tool",
+        "description": "Interact with Google Gemini AI models",
+        "usableAsTool": false,
+        "popularityScore": 545
+      },
+      {
+        "name": "OpenAI Assistant",
+        "description": "Utilizes Assistant API from Open AI.",
+        "usableAsTool": false,
+        "popularityScore": 536
+      },
+      {
+        "name": "Mistral AI Tool",
+        "description": "Consume Mistral AI API",
+        "usableAsTool": false,
+        "popularityScore": 535
+      },
+      {
+        "name": "Anthropic Chat Model",
+        "description": "Language Model Anthropic",
+        "usableAsTool": false,
+        "popularityScore": 531
+      },
+      {
+        "name": "OpenAI Chat Model",
+        "description": "For advanced usage with an AI chain",
+        "usableAsTool": false,
+        "popularityScore": 531
+      },
+      {
+        "name": "Azure OpenAI Chat Model",
+        "description": "For advanced usage with an AI chain",
+        "usableAsTool": false,
+        "popularityScore": 530
+      },
+      {
+        "name": "AWS Bedrock Chat Model",
+        "description": "Language Model AWS Bedrock",
+        "usableAsTool": false,
+        "popularityScore": 530
+      },
+      {
+        "name": "Embeddings Google Vertex",
+        "description": "Use Google Vertex Embeddings",
+        "usableAsTool": false,
+        "popularityScore": 529
+      },
+      {
+        "name": "Embeddings Hugging Face Inference",
+        "description": "Use HuggingFace Inference Embeddings",
+        "usableAsTool": false,
+        "popularityScore": 529
+      },
+      {
+        "name": "Embeddings OpenAI",
+        "description": "Use Embeddings OpenAI",
+        "usableAsTool": false,
+        "popularityScore": 529
+      },
+      {
+        "name": "Google Vertex Chat Model",
+        "description": "Chat Model Google Vertex",
+        "usableAsTool": false,
+        "popularityScore": 529
+      },
+      {
+        "name": "OpenAI Model",
+        "description": "For advanced usage with an AI chain",
+        "usableAsTool": false,
+        "popularityScore": 529
+      },
+      {
+        "name": "Embeddings Cohere",
+        "description": "Use Cohere Embeddings",
+        "usableAsTool": false,
+        "popularityScore": 528
+      },
+      {
+        "name": "Embeddings Azure OpenAI",
+        "description": "Use Embeddings Azure OpenAI",
+        "usableAsTool": false,
+        "popularityScore": 528
+      },
+      {
+        "name": "Embeddings Google Gemini",
+        "description": "Use Google Gemini Embeddings",
+        "usableAsTool": false,
+        "popularityScore": 528
+      },
+      {
+        "name": "Embeddings Mistral Cloud",
+        "description": "Use Embeddings Mistral Cloud",
+        "usableAsTool": false,
+        "popularityScore": 528
+      },
+      {
+        "name": "Cohere Chat Model",
+        "description": "For advanced usage with an AI chain",
+        "usableAsTool": false,
+        "popularityScore": 528
+      },
+      {
+        "name": "Google Gemini Chat Model",
+        "description": "Chat Model Google Gemini",
+        "usableAsTool": false,
+        "popularityScore": 528
+      },
+      {
+        "name": "Mistral Cloud Chat Model",
+        "description": "For advanced usage with an AI chain",
+        "usableAsTool": false,
+        "popularityScore": 528
+      },
+      {
+        "name": "Ollama Chat Model",
+        "description": "Language Model Ollama",
+        "usableAsTool": false,
+        "popularityScore": 528
+      },
+      {
+        "name": "Ollama Model",
+        "description": "Language Model Ollama",
+        "usableAsTool": false,
+        "popularityScore": 528
+      },
+      {
+        "name": "Hugging Face Inference Model",
+        "description": "Language Model HuggingFaceInference",
+        "usableAsTool": false,
+        "popularityScore": 528
+      },
+      {
+        "name": "Embeddings AWS Bedrock",
+        "description": "Use Embeddings AWS Bedrock",
+        "usableAsTool": false,
+        "popularityScore": 527
+      },
+      {
+        "name": "Embeddings Ollama",
+        "description": "Use Ollama Embeddings",
+        "usableAsTool": false,
+        "popularityScore": 527
+      },
+      {
+        "name": "Cohere Model",
+        "description": "Language Model Cohere",
+        "usableAsTool": false,
+        "popularityScore": 527
+      },
+      {
+        "name": "Reranker Cohere",
+        "description": "Use Cohere Reranker to reorder documents after retrieval from a vector store by relevance to the given query.",
+        "usableAsTool": false,
+        "popularityScore": 527
+      },
+      {
+        "name": "Google Sheets Tool",
+        "description": "Read, update and write data to Google Sheets",
+        "usableAsTool": false,
+        "popularityScore": 175
+      },
+      {
+        "name": "Google Books Tool",
+        "description": "Read data from Google Books",
+        "usableAsTool": false,
+        "popularityScore": 172
+      },
+      {
+        "name": "Google Slides Tool",
+        "description": "Consume the Google Slides API",
+        "usableAsTool": false,
+        "popularityScore": 171
+      },
+      {
+        "name": "Google Cloud Natural Language Tool",
+        "description": "Consume Google Cloud Natural Language API",
+        "usableAsTool": false,
+        "popularityScore": 163
+      },
+      {
+        "name": "Google Translate Tool",
+        "description": "Translate data using Google Translate",
+        "usableAsTool": false,
+        "popularityScore": 163
+      },
+      {
+        "name": "DeepL Tool",
+        "description": "Translate data using DeepL",
+        "usableAsTool": false,
+        "popularityScore": 162
+      },
+      {
+        "name": "Affinity Tool",
+        "description": "Consume Affinity API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Airtable Tool",
+        "description": "Read, update, write and delete data from Airtable",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Asana Tool",
+        "description": "Consume Asana REST API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Autopilot Tool",
+        "description": "Consume Autopilot API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "AWS S3 Tool",
+        "description": "Sends data to AWS S3",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "AWS SES Tool",
+        "description": "Sends data to AWS SES",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Beeminder Tool",
+        "description": "Consume Beeminder API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "ClickUp Tool",
+        "description": "Consume ClickUp API (Beta)",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Coda Tool",
+        "description": "Consume Coda API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Contentful Tool",
+        "description": "Consume Contentful API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "ConvertKit Tool",
+        "description": "Consume ConvertKit API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Customer.io Tool",
+        "description": "Consume Customer.io API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Discord Tool",
+        "description": "Sends data to Discord",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Discourse Tool",
+        "description": "Consume Discourse API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Dropbox Tool",
+        "description": "Access data on Dropbox",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Send Email Tool",
+        "description": "Sends an email using SMTP protocol",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Emelia Tool",
+        "description": "Consume the Emelia API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "FileMaker Tool",
+        "description": "Retrieve data from the FileMaker data API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Freshdesk Tool",
+        "description": "Consume Freshdesk API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Ghost Tool",
+        "description": "Consume Ghost API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "GitHub Tool",
+        "description": "Consume GitHub API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "GitLab Tool",
+        "description": "Retrieve data from GitLab API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Google Calendar Tool",
+        "description": "Consume Google Calendar API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Google Chat Tool",
+        "description": "Consume Google Chat API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Google Contacts Tool",
+        "description": "Consume Google Contacts API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Google Drive Tool",
+        "description": "Access data on Google Drive",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Google Cloud Firestore Tool",
+        "description": "Interact with Google Firebase - Cloud Firestore API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Google Workspace Admin Tool",
+        "description": "Consume Google Workspace Admin API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Google Business Profile Tool",
+        "description": "Consume Google Business Profile API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "YouTube Tool",
+        "description": "Consume YouTube API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "HaloPSA Tool",
+        "description": "Consume HaloPSA API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Harvest Tool",
+        "description": "Access data on Harvest",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Help Scout Tool",
+        "description": "Consume Help Scout API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Home Assistant Tool",
+        "description": "Consume Home Assistant API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "HTTP Request Tool",
+        "description": "Makes an HTTP request and returns the response data",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "HubSpot Tool",
+        "description": "Consume HubSpot API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Intercom Tool",
+        "description": "Consume Intercom API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Invoice Ninja Tool",
+        "description": "Consume Invoice Ninja API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Iterable Tool",
+        "description": "Consume Iterable API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Jira Software Tool",
+        "description": "Consume Jira Software API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Keap Tool",
+        "description": "Consume Keap API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Kitemaker Tool",
+        "description": "Consume the Kitemaker GraphQL API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Magento 2 Tool",
+        "description": "Consume Magento API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Mailchimp Tool",
+        "description": "Consume Mailchimp API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Mailjet Tool",
+        "description": "Consume Mailjet API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Matrix Tool",
+        "description": "Consume Matrix API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Mattermost Tool",
+        "description": "Sends data to Mattermost",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Mautic Tool",
+        "description": "Consume Mautic API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Microsoft Excel 365 Tool",
+        "description": "Consume Microsoft Excel API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Microsoft OneDrive Tool",
+        "description": "Consume Microsoft OneDrive API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Microsoft Teams Tool",
+        "description": "Consume Microsoft Teams API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Microsoft To Do Tool",
+        "description": "Consume Microsoft To Do API.",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Monday.com Tool",
+        "description": "Consume Monday.com API",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "MySQL Tool",
+        "description": "Get, add and update data in MySQL",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "Nextcloud Tool",
+        "description": "Access data on Nextcloud",
+        "usableAsTool": false,
+        "popularityScore": 160
+      },
+      {
+        "name": "NocoDB Tool",
+        "description": "Read, update, write and delete data from NocoDB",
+        "usableAsTool": false,
+        "popularityScore": 160
+      }
+    ],
+    "Other": [
+      {
+        "name": "Mistral AI",
+        "description": "Consume Mistral AI API",
+        "usableAsTool": true,
+        "popularityScore": 583
+      },
+      {
+        "name": "OpenAI",
+        "description": "Consume Open AI",
+        "usableAsTool": false,
+        "popularityScore": 545
+      }
+    ]
+  },
+  "statistics": {
+    "byCategory": {
+      "Core Nodes": 6,
+      "AI": 92,
+      "Other": 2
+    },
+    "topCredentials": {
+      "googleApi": 9,
+      "openAiApi": 6,
+      "googlePalmApi": 4,
+      "mistralCloudApi": 4,
+      "aws": 4,
+      "cohereApi": 4,
+      "anthropicApi": 3,
+      "ollamaApi": 3,
+      "azureOpenAiApi": 2,
+      "huggingFaceApi": 2
+    }
+  }
+}

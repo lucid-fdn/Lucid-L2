@@ -539,15 +539,6 @@ let lastProcessedMessageKey = null;
   // Listen for messages from bridge
   window.addEventListener('message', (e) => {
     if (e.source !== window) return;
-    if (e.data?.type === 'METAMASK_CONNECTED') {
-      const payload = e.data.payload;
-      // MetaMask connected directly, now authenticate with Privy
-      chrome.runtime.sendMessage({ type: 'authenticate_with_metamask', payload }, (res) => {
-        if (chrome.runtime.lastError) {
-          showErr(chrome.runtime.lastError.message);
-        }
-      });
-    }
     if (e.data?.type === 'PRIVY_CONNECTED') {
       const payload = e.data.payload;
       chrome.storage.local.set({ privy_session: payload });

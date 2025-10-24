@@ -1,5 +1,5 @@
 [toolchain]
-anchor_version = "0.31.1"
+anchor_version = "0.29.0"
 
 [provider]
 cluster = "devnet"
@@ -15,6 +15,5 @@ gas_utils = "11111111111111111111111111111111"
 
 [workspace]
 members = [
-    "programs/thought-epoch",
-    "programs/gas-utils"
+    "programs/thought-epoch"
 ]

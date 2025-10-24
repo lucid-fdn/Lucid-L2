@@ -46,7 +46,6 @@ function AuthContent() {
 
   const params = new URLSearchParams(window.location.search);
   const doLogout = params.get('logout');
-  const metamaskData = params.get('metamask');
   const forceLogout = params.get('forceLogout');
   
   // Prevent multiple login calls
@@ -87,48 +86,12 @@ function AuthContent() {
       return;
     }
 
-    if (metamaskData) {
-      // MetaMask already connected, create session with provided data
-      try {
-        const metamaskInfo = JSON.parse(decodeURIComponent(metamaskData));
-        console.log('Using pre-connected MetaMask data:', metamaskInfo);
-
-        const payload = {
-          userId: null, // No Privy user in this flow
-          address: metamaskInfo.address,
-          chainId: metamaskInfo.chainId,
-          walletType: metamaskInfo.walletType,
-          solanaAddress: null,
-          solanaWalletType: null,
-          walletCount: 1,
-          directConnect: true
-        };
-
-        // Notify extension/page listeners in either context
-        notifyPrivyAuthenticated(payload);
-
-        // Close the popup if we're in the extension window
-        try {
-          window.close();
-        } catch {}
-
-      } catch (err) {
-        console.error('Error processing MetaMask data:', err);
-        // Fall back to normal login
-        if (!authenticated && !loginStarted) {
-          setLoginStarted(true);
-          login();
-        }
-      }
-      return;
-    }
-    
     if (!authenticated && !loginStarted) {
       console.log('🔗 Starting Privy login with Solana priority...');
       setLoginStarted(true);
       login();
     }
-  }, [ready, authenticated, login, logout, doLogout, forceLogout, loginStarted, metamaskData, loggingOut]);
+  }, [ready, authenticated, login, logout, doLogout, forceLogout, loginStarted, loggingOut]);
 
   useEffect(() => {
     if (!authenticated) return;

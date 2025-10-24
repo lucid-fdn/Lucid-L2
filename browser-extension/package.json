@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:auth && npm run build:bridge",
+    "build": "npm run build:clean && npm run build:auth && npm run build:bridge",
+    "build:clean": "rm -rf dist && mkdir -p dist",
     "build:auth": "BUILD_TARGET=auth vite build",
-    "build:bridge": "BUILD_TARGET=bridge vite build"
+    "build:bridge": "BUILD_TARGET=bridge vite build --emptyOutDir=false",
+    "watch": "BUILD_TARGET=auth vite build --watch",
+    "watch:bridge": "BUILD_TARGET=bridge vite build --watch --emptyOutDir=false"
   },
   "dependencies": {
     "@privy-io/react-auth": "^2.25.0",

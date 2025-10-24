@@ -35,27 +35,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     });
     return true;
   }
-  if (msg?.type === 'authenticate_with_metamask') {
-    // MetaMask connected in page, directly use the wallet info for sidebar
-    const payload = {
-      userId: null, // No Privy user in direct MetaMask flow
-      address: msg.payload.address,
-      chainId: msg.payload.chainId,
-      walletType: msg.payload.walletType,
-      solanaAddress: null,
-      solanaWalletType: null,
-      walletCount: 1,
-      directConnect: true
-    };
-    
-    // Send directly to content script
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]?.id) {
-        chrome.tabs.sendMessage(tabs[0].id, { type: 'privy_authenticated', payload });
-      }
-    });
-    sendResponse?.({ ok: true });
-  }
   if (msg?.type === 'lucid_run') {
     // Perform backend fetch from the service worker to avoid mixed-content/CORS issues
     const LUCID_API_BASE = 'http://172.28.35.139:3001';
