@@ -18,7 +18,6 @@ class ExtensionState {
             notifications: true,
             autoProcess: false
         };
-        this.apiUrl = 'http://172.28.35.139:3001';
         this.conversionHistory = [];
         this.unlockedAchievements = [];
         this.totalShares = 0;
@@ -244,39 +243,15 @@ class ExtensionState {
 
     async connectWallet() {
         try {
-            this.showLoading();
-            
-            // Use Privy bridge for wallet connection
-            const result = await window.privyAPIBridge.connectWallet();
-            
-            if (result && result.success) {
-                const walletInfo = window.privyAPIBridge.getWalletInfo();
-                this.wallet = {
-                    address: walletInfo.address
-                };
-                this.isConnected = true;
-                
-                // Get real blockchain balances
-                const balances = await window.privyAPIBridge.updateBlockchainBalances();
-                if (balances) {
-                    this.balance = {
-                        sol: balances.sol,
-                        lucid: balances.lucid,
-                        mGas: this.balance.mGas // Keep existing mGas from extension storage
-                    };
+            // Open Privy auth popup directly via background script
+            chrome.runtime.sendMessage({ type: 'open_privy_auth' }, (response) => {
+                if (chrome.runtime.lastError) {
+                    this.showToast('Failed to open wallet connection: ' + chrome.runtime.lastError.message);
                 }
-                
-                this.showToast('Wallet connected successfully via Privy!');
-                await this.updateUI();
-                await this.saveToStorage();
-            } else {
-                const errorMessage = result?.error || 'Failed to connect wallet';
-                this.showToast(errorMessage);
-            }
-            
-            this.hideLoading();
+                // The auth popup will handle the connection
+                // Results will come back via privy_authenticated message
+            });
         } catch (error) {
-            this.hideLoading();
             this.showToast('Wallet connection failed: ' + error.message);
         }
     }
@@ -305,10 +280,24 @@ class ExtensionState {
         try {
             this.showLoading();
             
-            // Use Privy bridge to process thought via Lucid L2 API
-            const result = await window.privyAPIBridge.processThought(input);
+            // Send request through background script to avoid CORS issues
+            const result = await new Promise((resolve) => {
+                chrome.runtime.sendMessage({
+                    type: 'lucid_run',
+                    payload: {
+                        text: input,
+                        wallet: this.wallet.address
+                    }
+                }, (response) => {
+                    if (chrome.runtime.lastError) {
+                        resolve({ ok: false, error: chrome.runtime.lastError.message });
+                    } else {
+                        resolve(response);
+                    }
+                });
+            });
             
-            if (result && result.success) {
+            if (result && result.ok && result.data) {
                 // Advanced quality assessment using Phase 8.3 system
                 const qualityAssessment = await this.rewardSystem.assessQuality(input, result.response);
                 
@@ -730,6 +719,38 @@ class ExtensionState {
             this.updateUI();
             this.saveToStorage();
         });
+        
+        // Listen for Privy authentication results
+        chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+            if (msg?.type === 'privy_authenticated') {
+                console.log('Privy authenticated:', msg.payload);
+                
+                // Extract wallet info from Privy payload
+                const payload = msg.payload;
+                this.wallet = {
+                    address: payload.solanaAddress || payload.address
+                };
+                this.isConnected = true;
+                
+                // Update UI
+                this.updateUI();
+                this.saveToStorage();
+                
+                this.showToast('Wallet connected successfully via Privy!');
+            }
+            
+            if (msg?.type === 'privy_logged_out') {
+                console.log('Privy logged out');
+                this.wallet = null;
+                this.isConnected = false;
+                this.balance = { mGas: this.balance.mGas, lucid: 0, sol: 0 };
+                
+                this.updateUI();
+                this.saveToStorage();
+                
+                this.showToast('Wallet disconnected');
+            }
+        });
     }
 
     async checkExistingConnection() {
@@ -773,23 +794,15 @@ class ExtensionState {
 
     async disconnectWallet() {
         try {
-            this.showLoading();
-            
-            // Use Privy bridge for wallet disconnection
-            const result = await window.privyAPIBridge.disconnectWallet();
-            
-            // Clear local state regardless of result
-            this.wallet = null;
-            this.balance = { mGas: this.balance.mGas, lucid: 0, sol: 0 }; // Keep mGas
-            this.isConnected = false;
-            
-            this.showToast('Wallet disconnected via Privy!');
-            await this.updateUI();
-            await this.saveToStorage();
-            
-            this.hideLoading();
+            // Open Privy logout popup via background script
+            chrome.runtime.sendMessage({ type: 'open_privy_logout' }, (response) => {
+                if (chrome.runtime.lastError) {
+                    this.showToast('Failed to disconnect: ' + chrome.runtime.lastError.message);
+                }
+                // The logout will be handled by auth.html
+                // Results will come back via privy_logged_out message
+            });
         } catch (error) {
-            this.hideLoading();
             this.showToast('Failed to disconnect wallet: ' + error.message);
         }
     }
