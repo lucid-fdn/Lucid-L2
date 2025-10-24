@@ -19,7 +19,7 @@ export interface Config {
 const configs: Record<Environment, Config> = {
   development: {
     environment: 'development',
-    apiUrl: 'http://localhost:3001',
+    apiUrl: 'http://54.204.114.86:3001',
     privyAppId: 'cm7kvvobw020cisjqrkr9hr2m',
     solana: {
       network: 'devnet',
@@ -33,7 +33,7 @@ const configs: Record<Environment, Config> = {
   },
   staging: {
     environment: 'staging',
-    apiUrl: 'https://api.staging.lucid-l2.com',
+    apiUrl: 'http://54.204.114.86:3001',
     privyAppId: 'cm7kvvobw020cisjqrkr9hr2m',
     solana: {
       network: 'testnet',
