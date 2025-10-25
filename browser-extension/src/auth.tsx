@@ -2,7 +2,6 @@ import React, { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PrivyProvider, useLogin, usePrivy, useWallets } from '@privy-io/react-auth';
 import { toSolanaWalletConnectors } from '@privy-io/react-auth/solana';
-import { mainnet, sepolia, arbitrum, optimism, polygon, base } from 'viem/chains';
 
 // Chrome extension API types
 declare const chrome: any;
@@ -41,7 +40,12 @@ function notifyPrivyLoggedOut() {
 
 function AuthContent() {
   const { ready, authenticated, user, logout } = usePrivy();
-  const { login } = useLogin();
+  const { login } = useLogin({
+    onComplete: () => {
+      // Authentication complete - the window will close automatically
+      console.log('✅ Authentication complete, closing auth window...');
+    }
+  });
   const { wallets } = useWallets();
 
   const params = new URLSearchParams(window.location.search);
@@ -87,7 +91,7 @@ function AuthContent() {
     }
 
     if (!authenticated && !loginStarted) {
-      console.log('🔗 Starting Privy login with Solana priority...');
+      console.log('🔗 Starting Privy login...');
       setLoginStarted(true);
       login();
     }
@@ -135,7 +139,9 @@ function AuthContent() {
     
     // Store session and notify (works in both extension and in-page contexts)
     notifyPrivyAuthenticated(payload);
-    console.log('✅ Authentication complete');
+    console.log('✅ Authentication complete, wallet data stored');
+    
+    // Close the auth window after a short delay (per Privy docs recommendation)
     try {
       setTimeout(() => {
         try { window.close(); } catch {}
@@ -158,8 +164,8 @@ function AuthContent() {
       <div>
         {!ready && <div>🔄 Loading Privy...</div>}
         {ready && !authenticated && (doLogout || forceLogout) && <div>🔓 Logging out...</div>}
-        {ready && !authenticated && !doLogout && !forceLogout && <div>🔗 Opening Solana wallet login...</div>}
-        {ready && authenticated && <div>✅ Connected! Setting up devnet...</div>}
+        {ready && !authenticated && !doLogout && !forceLogout && <div>🔗 Opening wallet login...</div>}
+        {ready && authenticated && <div>✅ Connected! Closing window...</div>}
         {loggingOut && <div>🧹 Clearing session data...</div>}
       </div>
     </div>
@@ -172,53 +178,32 @@ function App() {
       appId={PRIVY_APP_ID}
       config={{
         loginMethods: ['email', 'wallet', 'google'],
-            appearance: {
-              theme: 'dark',
-              accentColor: '#2563eb',
-              logo: process.env.NEXT_PUBLIC_APP_LOGO || 'https://your-logo-url.com/logo.png',
-              showWalletLoginFirst: true,
-              walletChainType: 'ethereum-and-solana',
-              walletList: [
-                // Priority wallets (most popular first)
-                'phantom',           // #1 Solana wallet (most popular)
-                'backpack',          // #2 Solana wallet (xNFT platform)
-                'metamask',          // #3 Ethereum wallet (most popular)
-                
-                // Auto-detect installed wallets
-                'detected_solana_wallets',
-                'detected_ethereum_wallets',
-                
-                // Other popular wallets
-                'rainbow',           // Ethereum - great UX
-                'coinbase_wallet',   // Multi-chain - major exchange
-                'wallet_connect',    // Protocol - connects many wallets
-              ],
-            },
-            externalWallets: {
-              solana: {
-                connectors: toSolanaWalletConnectors()
-              }
-            },
-            embeddedWallets: {
-              createOnLogin: 'users-without-wallets',
-            },
-            supportedChains: [
-              // Ethereum mainnet
-              {
-                id: 1,
-                name: 'Ethereum',
-                network: 'mainnet',
-                nativeCurrency: {
-                  name: 'Ether',
-                  symbol: 'ETH',
-                  decimals: 18,
-                },
-                rpcUrls: {
-                  default: { http: ['https://eth.llamarpc.com'] },
-                  public: { http: ['https://eth.llamarpc.com'] },
-                },
-              },
-            ],
+        appearance: {
+          theme: 'dark',
+          accentColor: '#2563eb',
+          logo: 'https://your-logo-url.com/logo.png',
+          walletList: [
+            // Solana wallets (prioritized)
+            'phantom',
+            'backpack',
+            'detected_solana_wallets',
+            
+            // Ethereum wallets
+            'metamask',
+            'detected_ethereum_wallets',
+            'rainbow',
+            'coinbase_wallet',
+            'wallet_connect',
+          ],
+        },
+        externalWallets: {
+          solana: {
+            connectors: toSolanaWalletConnectors()
+          }
+        },
+        embeddedWallets: {
+          createOnLogin: 'users-without-wallets',
+        },
       }}
     >
       <AuthContent />

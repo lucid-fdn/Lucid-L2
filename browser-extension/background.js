@@ -66,16 +66,35 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
-// Relay messages from popup/auth to content script
+// Relay messages from popup/auth to the opener tab
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg?.type === 'privy_authenticated' || msg?.type === 'privy_logged_out') {
-    console.log('🔄 Relaying message to content script:', msg.type);
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]?.id) {
-        chrome.tabs.sendMessage(tabs[0].id, msg);
-        console.log('✅ Message sent to tab:', tabs[0].id);
+    console.log('🔄 Relaying message to opener tab:', msg.type);
+    
+    // Get the opener tab ID from storage (set when auth window was opened)
+    chrome.storage.local.get(['opener_tab_id'], (result) => {
+      const openerTabId = result.opener_tab_id;
+      
+      if (openerTabId) {
+        // Send to the specific tab that opened the auth window
+        chrome.tabs.sendMessage(openerTabId, msg, (response) => {
+          if (chrome.runtime.lastError) {
+            console.warn('⚠️ Could not send to opener tab:', chrome.runtime.lastError.message);
+          } else {
+            console.log('✅ Message sent to opener tab:', openerTabId);
+          }
+        });
       } else {
-        console.warn('⚠️ No active tab found to relay message');
+        // Fallback: try to send to active tab
+        console.log('⚠️ No opener tab ID found, trying active tab');
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]?.id) {
+            chrome.tabs.sendMessage(tabs[0].id, msg);
+            console.log('✅ Message sent to active tab:', tabs[0].id);
+          } else {
+            console.warn('⚠️ No active tab found to relay message');
+          }
+        });
       }
     });
   }
