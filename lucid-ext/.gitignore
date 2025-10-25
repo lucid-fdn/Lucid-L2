@@ -12,6 +12,11 @@ build/
 .env.local
 .env.production
 
+# Don't ignore root manifest and assets (needed for extension)
+!manifest.json
+!auth.html
+!icons/
+
 # IDE
 .vscode/
 .idea/
