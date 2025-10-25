@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucid L2™ AI Thought Miner</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Privy React App Root -->
+    <div id="privy-popup-root"></div>
+    
+    <!-- Fallback: Existing Popup UI (shown when Privy is authenticated) -->
+    <div id="existing-popup-root" style="display:none">
+        <!-- Your existing popup HTML content -->
+        <div class="container">
+            <!-- All the existing sections -->
+        </div>
+    </div>
+
+    <!-- Load React app first (includes Privy) -->
+    <script type="module" src="dist/popup.js"></script>
+    
+    <!-- Load existing popup functionality (will be used when authenticated) -->
+    <script src="reward-system.js"></script>
+    <script src="popup.js"></script>
+</body>
+</html>

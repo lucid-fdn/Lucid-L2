@@ -5,11 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:clean && npm run build:auth && npm run build:bridge",
+    "build": "npm run build:clean && npm run build:popup && npm run build:auth && npm run build:bridge",
     "build:clean": "rm -rf dist && mkdir -p dist",
-    "build:auth": "BUILD_TARGET=auth vite build",
+    "build:popup": "BUILD_TARGET=popup vite build",
+    "build:auth": "BUILD_TARGET=auth vite build --emptyOutDir=false",
     "build:bridge": "BUILD_TARGET=bridge vite build --emptyOutDir=false",
-    "watch": "BUILD_TARGET=auth vite build --watch",
+    "watch": "BUILD_TARGET=popup vite build --watch",
+    "watch:auth": "BUILD_TARGET=auth vite build --watch --emptyOutDir=false",
     "watch:bridge": "BUILD_TARGET=bridge vite build --watch --emptyOutDir=false"
   },
   "dependencies": {
