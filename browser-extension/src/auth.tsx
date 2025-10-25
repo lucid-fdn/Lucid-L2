@@ -90,11 +90,8 @@ function AuthContent() {
       return;
     }
 
-    if (!authenticated && !loginStarted) {
-      console.log('🔗 Starting Privy login...');
-      setLoginStarted(true);
-      login();
-    }
+    // DON'T auto-trigger login - wait for user to click
+    // This prevents recursive popup issues
   }, [ready, authenticated, login, logout, doLogout, forceLogout, loginStarted, loggingOut]);
 
   useEffect(() => {
@@ -158,16 +155,44 @@ function AuthContent() {
       color: '#e5e7eb',
       minHeight: '100vh',
       display: 'flex',
+      flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center'
     }}>
-      <div>
-        {!ready && <div>🔄 Loading Privy...</div>}
-        {ready && !authenticated && (doLogout || forceLogout) && <div>🔓 Logging out...</div>}
-        {ready && !authenticated && !doLogout && !forceLogout && <div>🔗 Opening wallet login...</div>}
-        {ready && authenticated && <div>✅ Connected! Closing window...</div>}
-        {loggingOut && <div>🧹 Clearing session data...</div>}
-      </div>
+      {!ready && <div>🔄 Loading Privy...</div>}
+      
+      {ready && !authenticated && (doLogout || forceLogout) && <div>🔓 Logging out...</div>}
+      
+      {ready && !authenticated && !doLogout && !forceLogout && (
+        <div style={{ maxWidth: 400 }}>
+          <h2 style={{ marginBottom: 20 }}>Connect Your Wallet</h2>
+          <p style={{ marginBottom: 30, opacity: 0.8 }}>
+            Connect your Solana wallet to start earning mGas
+          </p>
+          <button
+            onClick={() => {
+              setLoginStarted(true);
+              login();
+            }}
+            style={{
+              background: '#2563eb',
+              color: 'white',
+              border: 'none',
+              borderRadius: 8,
+              padding: '12px 24px',
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: 'pointer',
+              width: '100%'
+            }}
+          >
+            Connect Wallet
+          </button>
+        </div>
+      )}
+      
+      {ready && authenticated && <div>✅ Connected! Closing window...</div>}
+      {loggingOut && <div>🧹 Clearing session data...</div>}
     </div>
   );
 }
