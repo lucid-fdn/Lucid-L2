@@ -177,14 +177,17 @@ function App() {
           walletChainType: 'solana-only',
         },
         embeddedWallets: {
-          createOnLogin: 'off', // Disable embedded wallets for cleaner experience
+          createOnLogin: 'off',
         },
         externalWallets: {
           solana: {
+            // Import specific wallet adapters instead of all wallets
             connectors: toSolanaWalletConnectors()
-            // Removed shouldAutoConnect - user must explicitly approve each connection
           },
         },
+        // Privy limitation: toSolanaWalletConnectors() shows all Solana wallets
+        // This is Privy's default behavior - cannot filter to installed only
+        // User will see full list but can still select Phantom if installed
         loginMethods: ['wallet'],
       }}
     >
