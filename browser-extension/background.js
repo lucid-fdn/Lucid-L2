@@ -66,11 +66,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
-// Relay messages from popup to content script
+// Relay messages from popup/auth to content script
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg?.type === 'privy_authenticated' || msg?.type === 'privy_logged_out') {
+    console.log('🔄 Relaying message to content script:', msg.type);
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (tabs[0]?.id) chrome.tabs.sendMessage(tabs[0].id, msg);
+      if (tabs[0]?.id) {
+        chrome.tabs.sendMessage(tabs[0].id, msg);
+        console.log('✅ Message sent to tab:', tabs[0].id);
+      } else {
+        console.warn('⚠️ No active tab found to relay message');
+      }
     });
   }
 });

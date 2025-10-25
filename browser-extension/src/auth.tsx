@@ -181,10 +181,8 @@ function App() {
         },
         externalWallets: {
           solana: {
-            connectors: toSolanaWalletConnectors({
-              // Only show wallets that are actually installed
-              shouldAutoConnect: true,
-            })
+            connectors: toSolanaWalletConnectors()
+            // Removed shouldAutoConnect - user must explicitly approve each connection
           },
         },
         loginMethods: ['wallet'],

@@ -721,34 +721,47 @@ class ExtensionState {
         });
         
         // Listen for Privy authentication results
+        const self = this;
         chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             if (msg?.type === 'privy_authenticated') {
-                console.log('Privy authenticated:', msg.payload);
+                console.log('✅ Privy authenticated:', msg.payload);
                 
                 // Extract wallet info from Privy payload
                 const payload = msg.payload;
-                this.wallet = {
+                self.wallet = {
                     address: payload.solanaAddress || payload.address
                 };
-                this.isConnected = true;
+                self.isConnected = true;
                 
                 // Update UI
-                this.updateUI();
-                this.saveToStorage();
+                self.updateUI();
+                self.saveToStorage();
                 
-                this.showToast('Wallet connected successfully via Privy!');
+                self.showToast('Wallet connected successfully via Privy!');
             }
             
             if (msg?.type === 'privy_logged_out') {
-                console.log('Privy logged out');
-                this.wallet = null;
-                this.isConnected = false;
-                this.balance = { mGas: this.balance.mGas, lucid: 0, sol: 0 };
+                console.log('🔓 Privy logged out - clearing wallet state');
                 
-                this.updateUI();
-                this.saveToStorage();
+                // Clear all wallet-related state
+                self.wallet = null;
+                self.isConnected = false;
+                self.balance = { 
+                    mGas: self.balance.mGas, // Keep mGas
+                    lucid: 0, 
+                    sol: 0 
+                };
                 
-                this.showToast('Wallet disconnected');
+                // Clear privy_session from storage
+                chrome.storage.local.remove('privy_session', () => {
+                    console.log('✅ Session cleared from storage');
+                });
+                
+                // Update UI immediately
+                self.updateUI();
+                self.saveToStorage();
+                
+                self.showToast('Wallet disconnected successfully!');
             }
         });
     }
