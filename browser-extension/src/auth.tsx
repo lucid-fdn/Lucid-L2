@@ -171,24 +171,54 @@ function App() {
     <PrivyProvider 
       appId={PRIVY_APP_ID}
       config={{
-        appearance: {
-          theme: 'dark',
-          accentColor: '#676FFF',
-          walletChainType: 'solana-only',
-        },
-        embeddedWallets: {
-          createOnLogin: 'off',
-        },
-        externalWallets: {
-          solana: {
-            // Import specific wallet adapters instead of all wallets
-            connectors: toSolanaWalletConnectors()
-          },
-        },
-        // Privy limitation: toSolanaWalletConnectors() shows all Solana wallets
-        // This is Privy's default behavior - cannot filter to installed only
-        // User will see full list but can still select Phantom if installed
-        loginMethods: ['wallet'],
+        loginMethods: ['email', 'wallet', 'google'],
+            appearance: {
+              theme: 'dark',
+              accentColor: '#2563eb',
+              logo: process.env.NEXT_PUBLIC_APP_LOGO || 'https://your-logo-url.com/logo.png',
+              showWalletLoginFirst: true,
+              walletChainType: 'ethereum-and-solana',
+              walletList: [
+                // Priority wallets (most popular first)
+                'phantom',           // #1 Solana wallet (most popular)
+                'backpack',          // #2 Solana wallet (xNFT platform)
+                'metamask',          // #3 Ethereum wallet (most popular)
+                
+                // Auto-detect installed wallets
+                'detected_solana_wallets',
+                'detected_ethereum_wallets',
+                
+                // Other popular wallets
+                'rainbow',           // Ethereum - great UX
+                'coinbase_wallet',   // Multi-chain - major exchange
+                'wallet_connect',    // Protocol - connects many wallets
+              ],
+            },
+            externalWallets: {
+              solana: {
+                connectors: toSolanaWalletConnectors()
+              }
+            },
+            embeddedWallets: {
+              createOnLogin: 'users-without-wallets',
+            },
+            supportedChains: [
+              // Ethereum mainnet
+              {
+                id: 1,
+                name: 'Ethereum',
+                network: 'mainnet',
+                nativeCurrency: {
+                  name: 'Ether',
+                  symbol: 'ETH',
+                  decimals: 18,
+                },
+                rpcUrls: {
+                  default: { http: ['https://eth.llamarpc.com'] },
+                  public: { http: ['https://eth.llamarpc.com'] },
+                },
+              },
+            ],
       }}
     >
       <AuthContent />
