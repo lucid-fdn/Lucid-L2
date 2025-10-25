@@ -1,0 +1,42 @@
+{
+  "name": "lucid-ext",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Lucid L2 Browser Extension - Earn mGas by interacting with AI models",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:clean && npm run build:popup && npm run build:auth && npm run build:content && npm run build:background",
+    "build:clean": "rm -rf dist build && mkdir -p dist build",
+    "build:popup": "BUILD_TARGET=popup vite build",
+    "build:auth": "BUILD_TARGET=auth vite build --emptyOutDir=false",
+    "build:content": "BUILD_TARGET=content vite build --emptyOutDir=false",
+    "build:background": "BUILD_TARGET=background vite build --emptyOutDir=false",
+    "watch": "BUILD_TARGET=popup vite build --watch",
+    "watch:auth": "BUILD_TARGET=auth vite build --watch --emptyOutDir=false",
+    "watch:content": "BUILD_TARGET=content vite build --watch --emptyOutDir=false",
+    "watch:background": "BUILD_TARGET=background vite build --watch --emptyOutDir=false",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@privy-io/react-auth": "^3.1.0",
+    "@solana-program/memo": "^0.8.0",
+    "@solana-program/system": "0.8.0",
+    "@solana-program/token": "0.6.0",
+    "@solana/kit": "3.0.3",
+    "@solana/spl-token": "^0.4.14",
+    "@solana/web3.js": "^1.98.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "viem": "^2.37.5"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.277",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "~5.8.3",
+    "vite": "^7.1.2",
+    "vite-plugin-node-polyfills": "^0.24.0"
+  }
+}
