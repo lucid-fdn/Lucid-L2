@@ -37,7 +37,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["styles.css", "icons/*", "dist/*", "auth.html", "privy-api-bridge.js", "injected.js"],
+      "resources": ["styles.css", "icons/*", "dist/*", "auth.html", "auth-redirect.js", "privy-api-bridge.js", "injected.js"],
       "matches": ["https://*/*", "http://*/*"]
     }
   ],

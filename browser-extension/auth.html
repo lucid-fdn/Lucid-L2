@@ -1,25 +1,12 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Connect Solana Wallet</title>
-    <style>
-      body { 
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-        margin: 0; 
-        padding: 0;
-        background: #0b1020; 
-        color: #e5e7eb; 
-        min-height: 100vh;
-      }
-    </style>
+    <title>Auth Redirect - Lucid Extension</title>
+    <script src="auth-redirect.js"></script>
   </head>
   <body>
-    <!-- Privy will render into this div -->
-    <div id="lucid-privy-root"></div>
-    
-    <!-- Load the Privy React component bundle -->
-    <script src="dist/auth.js"></script>
+    <!-- This page immediately redirects to popup.html#auth for OAuth callbacks -->
   </body>
 </html>

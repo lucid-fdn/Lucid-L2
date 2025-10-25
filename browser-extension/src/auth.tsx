@@ -182,6 +182,7 @@ function App() {
           theme: 'dark',
           accentColor: '#2563eb',
           logo: 'https://your-logo-url.com/logo.png',
+          walletChainType: 'ethereum-and-solana',
           walletList: [
             // Solana wallets (prioritized)
             'phantom',
@@ -202,7 +203,12 @@ function App() {
           }
         },
         embeddedWallets: {
-          createOnLogin: 'users-without-wallets',
+          ethereum: {
+            createOnLogin: 'users-without-wallets',
+          },
+          solana: {
+            createOnLogin: 'users-without-wallets',
+          },
         },
       }}
     >
