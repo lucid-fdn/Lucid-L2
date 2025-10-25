@@ -36,12 +36,14 @@ export default defineConfig({
     outDir: buildTarget === 'popup' ? 'build' : 'dist',
     emptyOutDir: buildTarget === 'popup',
     sourcemap: false,
+    minify: 'terser',
     rollupOptions: {
       input: entries[buildTarget as keyof typeof entries],
       output: {
         entryFileNames: `${outFiles[buildTarget as keyof typeof outFiles]}.js`,
         chunkFileNames: `chunks/[name]-[hash].js`,
         assetFileNames: `assets/[name]-[hash].[ext]`,
+        format: 'iife',
       },
     },
   },
