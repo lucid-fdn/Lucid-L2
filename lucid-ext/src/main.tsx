@@ -17,20 +17,21 @@ createRoot(rootElement).render(
       appId={config.privyAppId}
       config={{
         embeddedWallets: {
+          ethereum: {
+            createOnLogin: "users-without-wallets",
+          },
           solana: {
-            createOnLogin: 'users-without-wallets',
+            createOnLogin: "users-without-wallets",
           },
         },
         appearance: {
-          walletChainType: 'solana-only',
+          walletChainType: 'ethereum-and-solana',
         },
         externalWallets: {
           solana: {
             connectors: toSolanaWalletConnectors(),
           },
         },
-        loginMethods: ['wallet', 'email'],
-        supportedChains: [config.network === 'mainnet-beta' ? 'solana' : 'solana:devnet'],
       }}
     >
       <App />
