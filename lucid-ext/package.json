@@ -12,7 +12,7 @@
     "build:auth": "BUILD_TARGET=auth vite build --emptyOutDir=false",
     "build:content": "BUILD_TARGET=content vite build --emptyOutDir=false",
     "build:background": "BUILD_TARGET=background vite build --emptyOutDir=false",
-    "build:copy-assets": "cp public/manifest.json . && cp public/auth.html . && cp -r public/icons .",
+    "build:copy-assets": "cp public/manifest.json . && cp public/auth.html . && cp -r public/icons . && rm -f dist/manifest.json dist/auth.html dist/index.html",
     "watch": "BUILD_TARGET=popup vite build --watch",
     "watch:auth": "BUILD_TARGET=auth vite build --watch --emptyOutDir=false",
     "watch:content": "BUILD_TARGET=content vite build --watch --emptyOutDir=false",
@@ -36,6 +36,7 @@
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.0",
+    "terser": "^5.44.0",
     "typescript": "~5.8.3",
     "vite": "^7.1.2",
     "vite-plugin-node-polyfills": "^0.24.0"
