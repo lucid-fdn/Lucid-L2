@@ -31,6 +31,17 @@ export default defineConfig({
         process: true,
       },
     }),
+    // Exclude test files from the build
+    {
+      name: 'exclude-test-files',
+      resolveId(id) {
+        // Exclude test .pem files from node_modules
+        if (id.includes('test_') && id.endsWith('.pem')) {
+          return { id, external: true };
+        }
+        return null;
+      },
+    },
   ],
   build: {
     outDir: buildTarget === 'popup' ? 'build' : 'dist',
