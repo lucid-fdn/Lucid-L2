@@ -55,6 +55,6 @@
     "default_title": "Lucid Extension"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; connect-src 'self' https://*.privy.io https://auth.privy.io https://api.privy.io https://challenges.cloudflare.com http: https: ws: wss: data:;"
+    "extension_pages": "script-src 'self'; object-src 'self'; frame-ancestors 'none';"
   }
 }
