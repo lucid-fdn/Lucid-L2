@@ -12,7 +12,7 @@ const fs = require('fs');
 // Configuration
 const API_URL = 'http://localhost:3001/api/flow/nodes';
 const OUTPUT_FILE = 'organized-nodes.json';
-const TOP_N_NODES = 100;
+const TOP_N_NODES = 796;
 
 // Category mapping - organize nodes by function
 const CATEGORY_MAPPING = {
