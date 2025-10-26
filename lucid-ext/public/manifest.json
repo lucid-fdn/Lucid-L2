@@ -20,6 +20,7 @@
     "https://*.privy.io/*",
     "https://auth.privy.io/*",
     "https://api.privy.io/*",
+    "https://challenges.cloudflare.com/*",
     "https://chatgpt.com/*",
     "https://chat.openai.com/*",
     "http://localhost:3001/*",
