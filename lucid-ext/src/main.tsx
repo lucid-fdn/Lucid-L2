@@ -32,6 +32,7 @@ createRoot(rootElement).render(
             connectors: toSolanaWalletConnectors(),
           },
         },
+        loginMethods: ['wallet', 'email', 'sms'],
       }}
     >
       <App />
