@@ -1,0 +1,36 @@
+{
+  "timestamp": "2025-10-26T17:31:02.069Z",
+  "summary": {
+    "total": 3,
+    "passed": 0,
+    "failed": 3,
+    "skipped": 0,
+    "successRate": "0.0"
+  },
+  "tests": [
+    {
+      "name": "Echo Workflow - Create",
+      "status": "fail",
+      "startTime": 1761499861963,
+      "error": "Request failed with status code 500",
+      "endTime": 1761499861996,
+      "duration": 33
+    },
+    {
+      "name": "HTTP API - Create",
+      "status": "fail",
+      "startTime": 1761499861996,
+      "error": "Request failed with status code 500",
+      "endTime": 1761499862028,
+      "duration": 32
+    },
+    {
+      "name": "Branch Workflow - Create",
+      "status": "fail",
+      "startTime": 1761499862028,
+      "error": "Request failed with status code 500",
+      "endTime": 1761499862068,
+      "duration": 40
+    }
+  ]
+}

@@ -35,6 +35,11 @@ export class FlowSpecService {
     // Compile to n8n format
     const n8nWorkflow = this.compiler.compile(spec);
 
+    // Debug: log what we're sending to n8n
+    console.log('🔍 FlowSpec input name:', spec.name);
+    console.log('🔍 Compiled workflow name:', n8nWorkflow.name);
+    console.log('🔍 Full payload to n8n API:', JSON.stringify(n8nWorkflow, null, 2));
+
     // Create workflow via n8n API
     try {
       const response = await axios.post(
@@ -46,7 +51,7 @@ export class FlowSpecService {
       );
 
       const workflowId = response.data.id;
-
+      
       // Activate the workflow
       await this.activateWorkflow(workflowId);
 
@@ -211,20 +216,29 @@ export class FlowSpecService {
     }
   }
 
+
   /**
-   * Activate a workflow
+   * Activate a workflow using the official n8n API endpoint
+   * POST /api/v1/workflows/{id}/activate
    */
   private async activateWorkflow(workflowId: string): Promise<void> {
     try {
-      await axios.patch(
-        `${this.n8nUrl}/api/v1/workflows/${workflowId}`,
-        { active: true },
+      // Use the dedicated activation endpoint
+      await axios.post(
+        `${this.n8nUrl}/api/v1/workflows/${workflowId}/activate`,
+        {},  // No body required
         {
           headers: this.getAuthHeaders()
         }
       );
+      
+      console.log(`✅ Activated workflow ${workflowId}`);
     } catch (error) {
-      console.warn(`Failed to activate workflow ${workflowId}:`, error);
+      console.error(`❌ Failed to activate workflow ${workflowId}`);
+      if (axios.isAxiosError(error)) {
+        console.error('Error:', error.response?.data || error.message);
+      }
+      throw error;
     }
   }
 

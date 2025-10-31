@@ -1,0 +1,91 @@
+{
+  "timestamp": "2025-10-26T17:39:37.594Z",
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "skipped": 0,
+    "successRate": "100.0"
+  },
+  "tests": [
+    {
+      "name": "Echo Workflow - Create",
+      "status": "pass",
+      "startTime": 1761500368087,
+      "workflowId": "NJV0huv5tsSde9NV",
+      "url": "http://localhost:5678/workflow/NJV0huv5tsSde9NV",
+      "endTime": 1761500368291,
+      "duration": 204
+    },
+    {
+      "name": "Echo Workflow - Execute",
+      "status": "pass",
+      "startTime": 1761500368292,
+      "workflowId": "NJV0huv5tsSde9NV",
+      "executionId": "unknown",
+      "executionDuration": 441,
+      "outputs": "",
+      "endTime": 1761500370744,
+      "duration": 2452
+    },
+    {
+      "name": "Get execution history for workflow NJV0huv5tsSde9NV",
+      "status": "pass",
+      "startTime": 1761500370744,
+      "historyCount": 0,
+      "endTime": 1761500370819,
+      "duration": 75
+    },
+    {
+      "name": "HTTP API - Create",
+      "status": "pass",
+      "startTime": 1761500370819,
+      "workflowId": "9fm6hUzqGESwLmpf",
+      "url": "http://localhost:5678/workflow/9fm6hUzqGESwLmpf",
+      "endTime": 1761500370879,
+      "duration": 60
+    },
+    {
+      "name": "HTTP API - Execute",
+      "status": "pass",
+      "startTime": 1761500370879,
+      "workflowId": "9fm6hUzqGESwLmpf",
+      "executionId": "unknown",
+      "executionDuration": 74,
+      "outputs": "",
+      "endTime": 1761500372963,
+      "duration": 2084
+    },
+    {
+      "name": "Branch Workflow - Create",
+      "status": "pass",
+      "startTime": 1761500372963,
+      "workflowId": "idZPphU4K4zgQbdX",
+      "url": "http://localhost:5678/workflow/idZPphU4K4zgQbdX",
+      "endTime": 1761500373095,
+      "duration": 132
+    },
+    {
+      "name": "Branch Workflow - Execute (High Priority)",
+      "status": "pass",
+      "startTime": 1761500373095,
+      "workflowId": "idZPphU4K4zgQbdX",
+      "executionId": "unknown",
+      "executionDuration": 68,
+      "outputs": "",
+      "endTime": 1761500375170,
+      "duration": 2075
+    },
+    {
+      "name": "Branch Workflow - Execute (Normal Priority)",
+      "status": "pass",
+      "startTime": 1761500375170,
+      "workflowId": "idZPphU4K4zgQbdX",
+      "executionId": "unknown",
+      "executionDuration": 77,
+      "outputs": "",
+      "endTime": 1761500377256,
+      "duration": 2086
+    }
+  ]
+}

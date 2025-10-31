@@ -21,7 +21,7 @@ export type FlowNodeType =
 
 export interface FlowNode {
   id: string;
-  type: FlowNodeType;
+  type: FlowNodeType | string; // FlowNodeType for predefined types, or any string for real n8n node types
   input?: Record<string, unknown>;
   config?: Record<string, unknown>;
   position?: { x: number; y: number }; // UI positioning

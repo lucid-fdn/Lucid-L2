@@ -1,9 +1,24 @@
 // offchain/src/services/n8nNodeIndexer.ts
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 import { getElasticsearchService, N8nNode } from './elasticsearchService';
 
 const execAsync = promisify(exec);
+
+interface EnrichmentData {
+  name: string;
+  description: string;
+  usableAsTool: boolean;
+  popularityScore: number;
+  tags: string[];
+}
+
+interface EnrichmentFile {
+  categories: Record<string, EnrichmentData[]>;
+  Other?: EnrichmentData[];
+}
 
 export interface IndexingResult {
   success: boolean;
@@ -18,6 +33,99 @@ export class N8nNodeIndexer {
   private isIndexing = false;
   private lastIndexTime: Date | null = null;
   private cachedNodes: N8nNode[] = [];
+  private enrichmentMap: Map<string, EnrichmentData> | null = null;
+
+  /**
+   * Load and parse the enrichment JSON file
+   */
+  private async loadEnrichmentData(): Promise<Map<string, EnrichmentData>> {
+    if (this.enrichmentMap) {
+      return this.enrichmentMap;
+    }
+
+    try {
+      const enrichmentPath = join(__dirname, '../data/n8n-nodes-enrichment.json');
+      console.log('📚 Loading node enrichment data from:', enrichmentPath);
+      
+      const fileContent = await readFile(enrichmentPath, 'utf-8');
+      const enrichmentFile: EnrichmentFile = JSON.parse(fileContent);
+
+      // Build a map for fast lookup by node name
+      const map = new Map<string, EnrichmentData>();
+
+      // Process all categories
+      for (const [category, nodes] of Object.entries(enrichmentFile.categories)) {
+        for (const node of nodes) {
+          map.set(node.name, node);
+        }
+      }
+
+      // Process "Other" category if it exists
+      if (enrichmentFile.Other) {
+        for (const node of enrichmentFile.Other) {
+          map.set(node.name, node);
+        }
+      }
+
+      this.enrichmentMap = map;
+      console.log(`✅ Loaded enrichment data for ${map.size} nodes`);
+      
+      return map;
+    } catch (error) {
+      console.warn('⚠️  Failed to load enrichment data, continuing without it:', error);
+      this.enrichmentMap = new Map();
+      return this.enrichmentMap;
+    }
+  }
+
+  /**
+   * Mask n8n references in icon URLs
+   */
+  private maskIconUrl(iconUrl?: string | { light: string; dark: string }): string | { light: string; dark: string } | undefined {
+    if (!iconUrl) {
+      return iconUrl;
+    }
+
+    const maskPath = (path: string): string => {
+      // Handle multiple n8n icon path patterns:
+      // 1. "icons/@n8n/n8n-nodes-langchain/..." -> "nodes-langchain/..."
+      // 2. "icons/n8n-nodes-base/..." -> "nodes-base/..."
+      return path
+        .replace(/^icons\/@n8n\/n8n-/, '')  // Pattern 1: @n8n scoped packages
+        .replace(/^icons\/n8n-/, '');        // Pattern 2: plain n8n- prefixed packages
+    };
+
+    if (typeof iconUrl === 'string') {
+      return maskPath(iconUrl);
+    }
+
+    return {
+      light: maskPath(iconUrl.light),
+      dark: maskPath(iconUrl.dark),
+    };
+  }
+
+  /**
+   * Merge enrichment data into a node
+   */
+  private enrichNode(node: N8nNode, enrichmentData?: EnrichmentData): N8nNode {
+    if (!enrichmentData) {
+      // Still mask icon URLs even without enrichment
+      return {
+        ...node,
+        iconUrl: this.maskIconUrl(node.iconUrl) as any,
+      };
+    }
+
+    return {
+      ...node,
+      description: enrichmentData.description || node.description,
+      usableAsTool: enrichmentData.usableAsTool,
+      popularityScore: enrichmentData.popularityScore,
+      tags: enrichmentData.tags,
+      iconUrl: this.maskIconUrl(node.iconUrl) as any,
+    };
+  }
 
   /**
    * Fetch all n8n nodes using the Docker CLI command
@@ -69,7 +177,22 @@ export class N8nNodeIndexer {
       const filteredNodes = Array.from(nodeMap.values()) as N8nNode[];
       console.log(`📦 Filtered to ${filteredNodes.length} unique nodes (removed duplicate versions)`);
 
-      return filteredNodes;
+      // Load enrichment data and merge with nodes
+      const enrichmentMap = await this.loadEnrichmentData();
+      
+      let enrichedCount = 0;
+      const enrichedNodes = filteredNodes.map(node => {
+        const enrichmentData = enrichmentMap.get(node.displayName);
+        if (enrichmentData) {
+          enrichedCount++;
+          return this.enrichNode(node, enrichmentData);
+        }
+        return node;
+      });
+
+      console.log(`🎨 Enriched ${enrichedCount} nodes with enhanced descriptions, popularity scores, and tags`);
+
+      return enrichedNodes;
     } catch (error) {
       console.error('Error fetching nodes from CLI:', error);
       throw new Error(`Failed to fetch nodes: ${error instanceof Error ? error.message : 'Unknown error'}`);

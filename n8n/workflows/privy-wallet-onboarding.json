@@ -1,0 +1,171 @@
+{
+  "name": "Privy Wallet Onboarding",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "8b6d1e42-4f9f-4e0e-8b9c-3a2d7e5f9c1a",
+      "name": "When clicking 'Test workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3001/api/wallets/onboard",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "userId",
+              "value": "test-user-001"
+            },
+            {
+              "name": "chainType",
+              "value": "solana"
+            },
+            {
+              "name": "policies",
+              "value": "={\"ttl\": 86400, \"maxAmount\": \"1000000000\", \"dailyLimit\": \"5000000000\", \"allowedPrograms\": [\"JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB\"]}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9c7e2f53-5g0g-5f1f-9c0d-4b3e8f6g0d2b",
+      "name": "Onboard User Wallet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "0d8f3g64-6h1h-6g2g-0d1e-5c4f9g7h1e3c",
+      "name": "Check Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Wallet Created Successfully"
+            },
+            {
+              "name": "walletId",
+              "value": "={{ $json.wallet.walletId }}"
+            },
+            {
+              "name": "address",
+              "value": "={{ $json.wallet.address }}"
+            },
+            {
+              "name": "signerId",
+              "value": "={{ $json.sessionSigner.signerId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1e9g4h75-7i2i-7h3h-1e2f-6d5g0h8i2f4d",
+      "name": "Format Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Onboarding Failed"
+            },
+            {
+              "name": "error",
+              "value": "={{ $json.error }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2f0h5i86-8j3j-8i4i-2f3g-7e6h1i9j3g5e",
+      "name": "Format Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [850, 400]
+    }
+  ],
+  "connections": {
+    "When clicking 'Test workflow'": {
+      "main": [
+        [
+          {
+            "node": "Onboard User Wallet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Onboard User Wallet": {
+      "main": [
+        [
+          {
+            "node": "Check Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Success": {
+      "main": [
+        [
+          {
+            "node": "Format Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-31T00:00:00.000Z",
+  "versionId": "1"
+}

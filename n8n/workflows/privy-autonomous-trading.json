@@ -1,0 +1,223 @@
+{
+  "name": "Privy Autonomous Solana Trading",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "3g1i6j97-9k4k-9j5j-3g4h-8f7i2j0k4h6f",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://host.docker.internal:3001/api/wallets/user-123/solana",
+        "options": {}
+      },
+      "id": "4h2j7k08-0l5l-0k6k-4h5i-9g8j3k1l5i7g",
+      "name": "Get User Wallet",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build a simple Solana transfer transaction\n// In production, use Jupiter SDK for swaps\n\nconst wallet = $input.first().json.wallet;\n\nreturn {\n  walletId: wallet.walletId,\n  userId: 'user-123',\n  transaction: {\n    // Base64 encoded transaction would go here\n    // This is a placeholder for demo\n    data: 'BASE64_TRANSACTION_HERE',\n    amount: '100000000', // 0.1 SOL\n    programId: 'JUP4Fb2cqiRUcaTHdrPC8h2gNsA2ETXiPDD33WcGuJB'\n  },\n  chainType: 'solana',\n  n8nWorkflowId: $workflow.id,\n  n8nExecutionId: $execution.id\n};"
+      },
+      "id": "5i3k8l19-1m6m-1l7l-5i6j-0h9k4l2m6j8h",
+      "name": "Build Transaction",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:3001/api/wallets/{{ $json.walletId }}/sign-transaction",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "userId",
+              "value": "={{ $json.userId }}"
+            },
+            {
+              "name": "transaction",
+              "value": "={{ $json.transaction.data }}"
+            },
+            {
+              "name": "chainType",
+              "value": "={{ $json.chainType }}"
+            },
+            {
+              "name": "n8nWorkflowId",
+              "value": "={{ $json.n8nWorkflowId }}"
+            },
+            {
+              "name": "n8nExecutionId",
+              "value": "={{ $json.n8nExecutionId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6j4l9m20-2n7n-2m8m-6j7k-1i0l5m3n7k9i",
+      "name": "Sign and Send",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "7k5m0n31-3o8o-3n9n-7k8l-2j1m6n4o8l0j",
+      "name": "Check Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Transaction Successful"
+            },
+            {
+              "name": "signature",
+              "value": "={{ $json.data.signature }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8l6n1o42-4p9p-4o0o-8l9m-3k2n7o5p9m1k",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Transaction Failed"
+            },
+            {
+              "name": "error",
+              "value": "={{ $json.error }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9m7o2p53-5q0q-5p1p-9m0n-4l3o8p6q0n2l",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [1250, 400]
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get User Wallet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User Wallet": {
+      "main": [
+        [
+          {
+            "node": "Build Transaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Transaction": {
+      "main": [
+        [
+          {
+            "node": "Sign and Send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign and Send": {
+      "main": [
+        [
+          {
+            "node": "Check Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Success": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": ["privy", "solana", "trading"],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-31T00:00:00.000Z",
+  "versionId": "1"
+}

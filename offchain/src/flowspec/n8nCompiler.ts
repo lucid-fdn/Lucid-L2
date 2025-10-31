@@ -55,15 +55,7 @@ export class N8nCompiler {
       name: spec.name,
       nodes: n8nNodes,
       connections,
-      settings: {
-        executionOrder: 'v1'
-      },
-      tags: spec.metadata?.tags as string[] || [],
-      meta: {
-        description: spec.description,
-        version: spec.version || '1.0.0',
-        ...spec.metadata
-      }
+      settings: {}
     };
   }
 
@@ -77,13 +69,13 @@ export class N8nCompiler {
     const position = node.position || this.calculatePosition(index);
 
     const n8nNode: N8nNode = {
-      id: n8nId,
+      // Don't include id - n8n generates it
       name: node.id,
       type: this.mapNodeType(node.type),
       typeVersion: 1,
       position: [position.x, position.y],
       parameters: this.compileNodeParameters(node)
-    };
+    } as any;
 
     if (node.config?.credentials) {
       n8nNode.credentials = this.compileCredentials(node.config.credentials as Record<string, string>);
@@ -95,7 +87,12 @@ export class N8nCompiler {
   /**
    * Map FlowSpec node types to n8n node types
    */
-  private mapNodeType(type: FlowNodeType): string {
+  private mapNodeType(type: FlowNodeType | string): string {
+    // If the type is already an n8n node type (starts with 'n8n-nodes-'), use it directly
+    if (typeof type === 'string' && (type.startsWith('n8n-nodes-') || type.startsWith('@n8n/'))) {
+      return type;
+    }
+
     const typeMap: Record<FlowNodeType, string> = {
       'llm.chat': 'n8n-nodes-langchain.lmChatOpenAi',
       'embed': 'n8n-nodes-langchain.embeddingsOpenAi',
@@ -111,7 +108,7 @@ export class N8nCompiler {
       'schedule': 'n8n-nodes-base.cron'
     };
 
-    return typeMap[type] || 'n8n-nodes-base.noOp';
+    return typeMap[type as FlowNodeType] || 'n8n-nodes-base.noOp';
   }
 
   /**
@@ -119,6 +116,69 @@ export class N8nCompiler {
    */
   private compileNodeParameters(node: FlowNode): Record<string, unknown> {
     const baseParams = node.input || {};
+    const nodeType = typeof node.type === 'string' ? node.type : '';
+
+    // If using a real n8n node type directly, use config as-is with some smart defaults
+    if (nodeType.startsWith('n8n-nodes-') || nodeType.startsWith('@n8n/')) {
+      // For n8n-nodes-base.httpRequest specifically
+      if (nodeType === 'n8n-nodes-base.httpRequest') {
+        return {
+          ...baseParams,
+          ...node.config,
+          method: node.config?.method || 'GET',
+          url: node.config?.url || '',
+          options: node.config?.options || {}
+        };
+      }
+      
+      // For n8n-nodes-base.rssFeed
+      if (nodeType === 'n8n-nodes-base.rssFeed') {
+        return {
+          ...baseParams,
+          ...node.config,
+          url: node.config?.url || ''
+        };
+      }
+      
+      // For n8n-nodes-base.emailSend
+      if (nodeType === 'n8n-nodes-base.emailSend') {
+        return {
+          ...baseParams,
+          ...node.config
+        };
+      }
+      
+      // For n8n-nodes-base.manualTrigger
+      if (nodeType === 'n8n-nodes-base.manualTrigger') {
+        return {};  // No parameters needed
+      }
+      
+      // For n8n-nodes-base.webhook
+      if (nodeType === 'n8n-nodes-base.webhook') {
+        return {
+          ...baseParams,
+          path: node.config?.path || '',
+          httpMethod: node.config?.method || 'POST',
+          responseMode: node.config?.responseMode || 'lastNode',  // Wait for last node (respond)
+          responseData: node.config?.responseData || 'firstEntryJson'  // Defer to respond node
+        };
+      }
+      
+      // For n8n-nodes-base.respondToWebhook
+      if (nodeType === 'n8n-nodes-base.respondToWebhook') {
+        return {
+          ...baseParams,
+          respondWith: node.config?.respondWith || 'allIncomingItems',
+          responseMode: node.config?.responseMode || 'responseNode'
+        };
+      }
+      
+      // For any other real n8n node, just merge config with baseParams
+      return {
+        ...baseParams,
+        ...node.config
+      };
+    }
 
     switch (node.type) {
       case 'llm.chat':
@@ -164,7 +224,8 @@ export class N8nCompiler {
           ...baseParams,
           path: node.config?.path || '',
           httpMethod: node.config?.method || 'POST',
-          responseMode: 'onReceived'
+          responseMode: node.config?.responseMode || 'responseNode',  // Wait for respond node by default
+          responseData: node.config?.responseData || 'allEntries'
         };
 
       default:
@@ -190,25 +251,22 @@ export class N8nCompiler {
 
   /**
    * Compile connections between nodes
+   * n8n uses node NAMES (not internal IDs) in the connections object
    */
   private compileConnections(edges: FlowEdge[]): N8nConnection {
     const connections: N8nConnection = {};
 
     for (const edge of edges) {
-      const fromN8nId = this.nodeIdMap.get(edge.from);
-      const toN8nId = this.nodeIdMap.get(edge.to);
+      // Use the FlowSpec node IDs directly as they become node names in n8n
+      const fromNodeName = edge.from;
+      const toNodeName = edge.to;
 
-      if (!fromN8nId || !toN8nId) {
-        console.warn(`Skipping edge: ${edge.from} -> ${edge.to} (node not found)`);
-        continue;
+      if (!connections[fromNodeName]) {
+        connections[fromNodeName] = { main: [[]] };
       }
 
-      if (!connections[fromN8nId]) {
-        connections[fromN8nId] = { main: [[]] };
-      }
-
-      connections[fromN8nId].main[0].push({
-        node: toN8nId,
+      connections[fromNodeName].main[0].push({
+        node: toNodeName,
         type: 'main',
         index: 0
       });

@@ -1194,6 +1194,10 @@ export function createApiRouter(): express.Router {
   router.post('/run', handleRun);
   router.post('/batch', handleBatch);
   
+  // Privy wallet management endpoints
+  const walletRoutes = require('../routes/walletRoutes').default;
+  router.use('/wallets', walletRoutes);
+  
   // AI Agent endpoints
   router.post('/agents/init', handleAgentInit);
   router.post('/agents/epoch', handleAgentEpoch);
@@ -1963,8 +1967,24 @@ export async function handleN8nIcon(req: express.Request, res: express.Response)
       });
     }
     
+    // Restore the n8n prefix that was masked in the indexer
+    // Handle two patterns:
+    // 1. "nodes-langchain/..." -> "icons/@n8n/n8n-nodes-langchain/..."
+    // 2. "nodes-base/..." -> "icons/n8n-nodes-base/..."
+    let fullIconPath: string;
+    if (iconPath.startsWith('icons/')) {
+      // Already has full path, use as-is
+      fullIconPath = iconPath;
+    } else if (iconPath.startsWith('nodes-base/') || iconPath.startsWith('nodes-builtin/')) {
+      // Plain n8n- package (pattern 2)
+      fullIconPath = `icons/n8n-${iconPath}`;
+    } else {
+      // @n8n scoped package (pattern 1)
+      fullIconPath = `icons/@n8n/n8n-${iconPath}`;
+    }
+    
     // Fetch icon from n8n server
-    const iconUrl = `${N8N_URL}/${iconPath}`;
+    const iconUrl = `${N8N_URL}/${fullIconPath}`;
     const response = await axios.get(iconUrl, {
       responseType: 'arraybuffer',
       headers: {

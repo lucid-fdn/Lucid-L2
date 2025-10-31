@@ -25,6 +25,8 @@ export interface N8nNode {
   };
   credentials?: Array<{ name: string; required?: boolean }>;
   usableAsTool?: boolean;
+  popularityScore?: number;
+  tags?: string[];
   inputs?: string[];
   outputs?: string[];
   properties?: any[];
@@ -135,6 +137,8 @@ export class ElasticsearchService {
               subtitle: { type: 'text' },
               'codex.categories': { type: 'keyword' },
               'credentials.name': { type: 'keyword' },
+              popularityScore: { type: 'integer' },
+              tags: { type: 'keyword' },
             },
           },
           settings: {
