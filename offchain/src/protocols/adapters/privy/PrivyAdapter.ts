@@ -255,16 +255,17 @@ export class PrivyAdapter extends BaseProtocolAdapter {
         };
       }
 
-      // Create new Privy user with embedded wallet
-      const privyUser = await this.client!.createUser({ chainType });
+      // Create new Privy wallet with owner_id (userId)
+      const response = await this.client!.createUser({ 
+        chainType,
+        ownerId: userId
+      });
       
-      // Extract wallet info
-      const wallet = privyUser.linked_accounts?.find((acc: any) => 
-        acc.type === 'wallet' && acc.chain_type === chainType
-      );
+      // Extract wallet info from response.linked_accounts
+      const wallet = response.linked_accounts?.[0];
 
       if (!wallet) {
-        throw new Error('Wallet not created');
+        throw new Error('Wallet not created - no linked_accounts in response');
       }
 
       // Store in database
@@ -272,7 +273,7 @@ export class PrivyAdapter extends BaseProtocolAdapter {
         .from('user_wallets')
         .insert({
           user_id: userId,
-          privy_user_id: privyUser.id,
+          privy_user_id: wallet.id, // Wallet ID from Privy
           wallet_address: wallet.address,
           wallet_id: wallet.id,
           chain_type: chainType
@@ -280,13 +281,16 @@ export class PrivyAdapter extends BaseProtocolAdapter {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Database insert error:', error);
+        throw error;
+      }
 
       return {
         walletId: wallet.id,
         address: wallet.address,
         chainType: chainType,
-        privyUserId: privyUser.id,
+        privyUserId: wallet.id,
         existed: false
       };
     });

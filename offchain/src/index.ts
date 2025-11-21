@@ -2,8 +2,22 @@
 import 'dotenv/config';
 import express from 'express';
 import bodyParser from 'body-parser';
+import path from 'path';
 import { createApiRouter } from './services/api';
 import { API_PORT } from './utils/config';
+import { validateEnvironmentOrThrow, printEnvironmentStatus } from './utils/environmentValidator';
+
+// Validate environment variables on startup
+validateEnvironmentOrThrow();
+printEnvironmentStatus();
+
+// Import protocol adapters to trigger auto-registration
+import './protocols/adapters';
+
+// Import OAuth routes
+import oauthRoutes from './routes/oauthRoutes';
+import healthRoutes from './routes/healthRoutes';
+import hyperliquidRoutes from './routes/hyperliquidRoutes';
 
 const app = express();
 
@@ -26,8 +40,20 @@ app.use((req, res, next) => {
 
 app.use(bodyParser.json());
 
+// Serve static assets from auth-frontend build
+app.use('/api/wallets/auth/assets', express.static(path.join(__dirname, '../../auth-frontend/dist/assets')));
+
 // Mount API routes
 app.use('/api', createApiRouter());
+
+// Mount OAuth routes for Nango integration
+app.use('/api/oauth', oauthRoutes);
+
+// Mount Hyperliquid trading routes
+app.use('/api/hyperliquid', hyperliquidRoutes);
+
+// Mount health check routes
+app.use('/health', healthRoutes);
 
 app.listen(API_PORT, '0.0.0.0', () => {
   console.log(`▶️  Lucid L2 API listening on:`);

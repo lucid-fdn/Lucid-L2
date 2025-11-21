@@ -1,226 +1,14 @@
-version: '3.8'
-
 services:
-  # Supabase PostgreSQL Database
-  supabase-db:
-    image: supabase/postgres:15.1.0.117
-    container_name: lucid-supabase-db
-    restart: unless-stopped
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_PASSWORD: ${SUPABASE_DB_PASSWORD}
-      POSTGRES_DB: postgres
-      POSTGRES_USER: postgres
-    volumes:
-      - supabase_db_data:/var/lib/postgresql/data
-    networks:
-      - lucid-oauth-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # Supabase Studio (Database UI)
-  supabase-studio:
-    image: supabase/studio:20231123-64a766c
-    container_name: lucid-supabase-studio
-    restart: unless-stopped
-    ports:
-      - "3010:3000"
-    environment:
-      SUPABASE_URL: http://supabase-kong:8000
-      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:8000}
-      STUDIO_PG_META_URL: http://supabase-meta:8080
-      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
-      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
-    networks:
-      - lucid-oauth-network
-    depends_on:
-      - supabase-db
-
-  # Supabase Kong (API Gateway)
-  supabase-kong:
-    image: kong:2.8.1
-    container_name: lucid-supabase-kong
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-      - "8443:8443"
-    environment:
-      KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
-      KONG_DNS_ORDER: LAST,A,CNAME
-      KONG_PLUGINS: request-transformer,cors,key-auth,acl
-      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
-      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
-    volumes:
-      - ./supabase/kong.yml:/var/lib/kong/kong.yml:ro
-    networks:
-      - lucid-oauth-network
-    depends_on:
-      - supabase-db
-
-  # Supabase Meta (Database management API)
-  supabase-meta:
-    image: supabase/postgres-meta:v0.68.0
-    container_name: lucid-supabase-meta
-    restart: unless-stopped
-    environment:
-      PG_META_PORT: 8080
-      PG_META_DB_HOST: supabase-db
-      PG_META_DB_PORT: 5432
-      PG_META_DB_NAME: postgres
-      PG_META_DB_USER: postgres
-      PG_META_DB_PASSWORD: ${SUPABASE_DB_PASSWORD}
-    networks:
-      - lucid-oauth-network
-    depends_on:
-      - supabase-db
-
-  # Supabase Auth (Authentication service)
-  supabase-auth:
-    image: supabase/gotrue:v2.99.0
-    container_name: lucid-supabase-auth
-    restart: unless-stopped
-    environment:
-      GOTRUE_API_HOST: 0.0.0.0
-      GOTRUE_API_PORT: 9999
-      API_EXTERNAL_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:8000}
-      GOTRUE_DB_DRIVER: postgres
-      GOTRUE_DB_DATABASE_URL: postgres://postgres:${SUPABASE_DB_PASSWORD}@supabase-db:5432/postgres?search_path=auth
-      GOTRUE_SITE_URL: ${SITE_URL:-http://localhost:3000}
-      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
-      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
-      GOTRUE_JWT_ADMIN_ROLES: service_role
-      GOTRUE_JWT_AUD: authenticated
-      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
-      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
-      GOTRUE_JWT_SECRET: ${JWT_SECRET}
-      GOTRUE_EXTERNAL_EMAIL_ENABLED: ${ENABLE_EMAIL_SIGNUP:-true}
-      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM:-true}
-      GOTRUE_SMTP_ADMIN_EMAIL: ${SMTP_ADMIN_EMAIL}
-      GOTRUE_SMTP_HOST: ${SMTP_HOST}
-      GOTRUE_SMTP_PORT: ${SMTP_PORT}
-      GOTRUE_SMTP_USER: ${SMTP_USER}
-      GOTRUE_SMTP_PASS: ${SMTP_PASS}
-      GOTRUE_SMTP_SENDER_NAME: ${SMTP_SENDER_NAME}
-      GOTRUE_MAILER_URLPATHS_INVITE: ${MAILER_URLPATHS_INVITE}
-      GOTRUE_MAILER_URLPATHS_CONFIRMATION: ${MAILER_URLPATHS_CONFIRMATION}
-      GOTRUE_MAILER_URLPATHS_RECOVERY: ${MAILER_URLPATHS_RECOVERY}
-      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${MAILER_URLPATHS_EMAIL_CHANGE}
-    networks:
-      - lucid-oauth-network
-    depends_on:
-      - supabase-db
-
-  # Supabase REST API
-  supabase-rest:
-    image: postgrest/postgrest:v11.2.0
-    container_name: lucid-supabase-rest
-    restart: unless-stopped
-    environment:
-      PGRST_DB_URI: postgres://postgres:${SUPABASE_DB_PASSWORD}@supabase-db:5432/postgres
-      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public,storage,graphql_public}
-      PGRST_DB_ANON_ROLE: anon
-      PGRST_JWT_SECRET: ${JWT_SECRET}
-      PGRST_DB_USE_LEGACY_GUCS: "false"
-      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
-      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
-    networks:
-      - lucid-oauth-network
-    depends_on:
-      - supabase-db
-
-  # Supabase Storage
-  supabase-storage:
-    image: supabase/storage-api:v0.40.4
-    container_name: lucid-supabase-storage
-    restart: unless-stopped
-    environment:
-      ANON_KEY: ${SUPABASE_ANON_KEY}
-      SERVICE_KEY: ${SUPABASE_SERVICE_KEY}
-      POSTGREST_URL: http://supabase-rest:3000
-      PGRST_JWT_SECRET: ${JWT_SECRET}
-      DATABASE_URL: postgres://postgres:${SUPABASE_DB_PASSWORD}@supabase-db:5432/postgres
-      FILE_SIZE_LIMIT: 52428800
-      STORAGE_BACKEND: file
-      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
-      TENANT_ID: stub
-      REGION: stub
-      GLOBAL_S3_BUCKET: stub
-      ENABLE_IMAGE_TRANSFORMATION: "true"
-      IMGPROXY_URL: http://supabase-imgproxy:5001
-    volumes:
-      - supabase_storage_data:/var/lib/storage
-    networks:
-      - lucid-oauth-network
-    depends_on:
-      - supabase-db
-      - supabase-rest
-
-  # Supabase ImgProxy (Image transformation)
-  supabase-imgproxy:
-    image: darthsim/imgproxy:v3.8.0
-    container_name: lucid-supabase-imgproxy
-    restart: unless-stopped
-    environment:
-      IMGPROXY_BIND: ":5001"
-      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
-      IMGPROXY_USE_ETAG: "true"
-      IMGPROXY_ENABLE_WEBP_DETECTION: ${IMGPROXY_ENABLE_WEBP_DETECTION:-true}
-    volumes:
-      - supabase_storage_data:/var/lib/storage
-    networks:
-      - lucid-oauth-network
-
-  # Nango OAuth Server
-  nango:
-    image: nangohq/nango:latest
-    container_name: lucid-nango
-    restart: unless-stopped
-    ports:
-      - "3003:3003"
-    environment:
-      # Nango Server Configuration
-      - SERVER_PORT=3003
-      - SERVER_URL=${NANGO_SERVER_URL:-http://localhost:3003}
-      - NANGO_ENCRYPTION_KEY=${NANGO_SECRET_KEY}
-      - LOG_LEVEL=info
-      - TELEMETRY=false
-      
-      # Database Connection (use Supabase PostgreSQL)
-      - NANGO_DB_HOST=supabase-db
-      - NANGO_DB_PORT=5432
-      - NANGO_DB_NAME=postgres
-      - NANGO_DB_USER=postgres
-      - NANGO_DB_PASSWORD=${SUPABASE_DB_PASSWORD}
-      - NANGO_DB_SSL=false
-      
-      # Redis (optional, for session management)
-      - NANGO_REDIS_HOST=nango-redis
-      - NANGO_REDIS_PORT=6379
-      
-      # Callback URL
-      - NANGO_CALLBACK_URL=${NANGO_SERVER_URL:-http://localhost:3003}/oauth/callback
-      
-    volumes:
-      - nango_data:/nango
-    networks:
-      - lucid-oauth-network
-    depends_on:
-      - supabase-db
-      - nango-redis
-
-  # Redis for Nango (session management)
-  nango-redis:
+  # Redis (for Nango token caching)
+  redis:
     image: redis:7-alpine
-    container_name: lucid-nango-redis
+    container_name: lucid-redis
     restart: unless-stopped
+    ports:
+      - "6379:6379"
     command: redis-server --appendonly yes
     volumes:
-      - nango_redis_data:/data
+      - redis_data:/data
     networks:
       - lucid-oauth-network
     healthcheck:
@@ -229,14 +17,67 @@ services:
       timeout: 5s
       retries: 5
 
+  # Nango OAuth Server (connecting to Cloud Supabase)
+  nango:
+    image: nangohq/nango-server:latest
+    container_name: lucid-nango
+    restart: unless-stopped
+    ports:
+      - "3003:3003"  # API
+      - "3007:3007"  # Dashboard
+    environment:
+      SERVER_PORT: 3003
+      NANGO_DB_HOST: aws-1-eu-north-1.pooler.supabase.com
+      NANGO_DB_PORT: 6543
+      NANGO_DB_NAME: postgres
+      NANGO_DB_USER: postgres.kwihlcnapmkaivijyiif
+      NANGO_DB_PASSWORD: Tk5JbpMcX!qdEvE
+      NANGO_ENCRYPTION_KEY: ${NANGO_ENCRYPTION_KEY}
+      NANGO_SECRET_KEY: ${NANGO_SECRET_KEY}
+      NANGO_CALLBACK_URL: ${NANGO_CALLBACK_URL:-http://localhost:3001/api/oauth/callback}
+      SERVER_RUN_MODE: DOCKERIZED
+      TELEMETRY_SDK: "false"
+    volumes:
+      - nango_data:/var/lib/nango
+    networks:
+      - lucid-oauth-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Traefik Reverse Proxy with SSL
+  traefik:
+    image: traefik:v2.10
+    container_name: lucid-traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"     # HTTP
+      - "443:443"   # HTTPS
+      - "8080:8080" # Dashboard
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/log/traefik:/var/log/traefik
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - lucid-oauth-network
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
 volumes:
-  supabase_db_data:
-    driver: local
-  supabase_storage_data:
-    driver: local
   nango_data:
     driver: local
-  nango_redis_data:
+  redis_data:
     driver: local
 
 networks:

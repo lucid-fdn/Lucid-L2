@@ -1,0 +1,41 @@
+http:
+  routers:
+    api-lucid:
+      rule: "Host(`api.lucid.foundation`)"
+      entryPoints:
+        - websecure
+      service: offchain-api
+      tls: {}
+      priority: 1
+
+    proxy-lucid:
+      rule: "Host(`api.lucid.foundation`) && PathPrefix(`/proxy`)"
+      entryPoints:
+        - websecure
+      service: llm-proxy
+      middlewares:
+        - proxy-stripprefix
+      tls: {}
+      priority: 2
+
+  services:
+    offchain-api:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3001"
+
+    llm-proxy:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:8001"
+
+  middlewares:
+    proxy-stripprefix:
+      stripPrefix:
+        prefixes:
+          - "/proxy"
+
+tls:
+  certificates:
+    - certFile: /etc/letsencrypt/live/api.lucid.foundation/fullchain.pem
+      keyFile: /etc/letsencrypt/live/api.lucid.foundation/privkey.pem

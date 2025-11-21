@@ -61,10 +61,52 @@ PRIVY_API_BASE_URL=https://api.privy.io/v1
 # Session Signer Encryption (output from openssl rand -hex 32)
 PRIVY_SIGNER_ENCRYPTION_KEY=your_64_char_hex_key_here
 
-# Supabase Configuration
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your_supabase_service_key_here
+# Supabase Configuration - OPTION 1: Local Supabase (Already Configured!)
+SUPABASE_URL=http://localhost:8000
+SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.QgI22wW2Xr8r7AqZJ3tpNuNBCASQ-tmJdTGowkqnnaU
+
+# OR OPTION 2: Cloud Supabase (if you prefer)
+# SUPABASE_URL=https://your-project.supabase.co
+# SUPABASE_SERVICE_KEY=your_cloud_service_key_here
 ```
+
+**Note:** You already have a local Supabase instance running! Check `Lucid-L2/infrastructure/.env` for your existing configuration. You can use this local instance or create a cloud project.
+
+#### Option 1: Use Local Supabase (Recommended for Development)
+
+Your local Supabase is already configured in `Lucid-L2/infrastructure/.env`. Simply use these values:
+
+```bash
+SUPABASE_URL=http://localhost:8000
+SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.QgI22wW2Xr8r7AqZJ3tpNuNBCASQ-tmJdTGowkqnnaU
+```
+
+Make sure your local Supabase is running:
+```bash
+cd Lucid-L2/infrastructure
+docker-compose up -d
+```
+
+#### Option 2: Use Cloud Supabase (For Production)
+
+If you want to use Supabase cloud instead:
+
+1. Go to [supabase.com](https://supabase.com) and sign up
+2. Click "New Project"
+3. Fill in project details (name, database password, region)
+4. Wait for project to be created (2-3 minutes)
+5. Go to Settings → API
+6. Copy your credentials:
+   - **Project URL** → Use as `SUPABASE_URL`
+   - **service_role secret** → Use as `SUPABASE_SERVICE_KEY`
+
+**Example cloud values:**
+```bash
+SUPABASE_URL=https://abcdefghijklmno.supabase.co
+SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFiY2RlZmdoaWprbG1ubyIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJpYXQiOjE2MjE1MjM2MDAsImV4cCI6MTkzNzA5OTYwMH0.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+⚠️ **Important:** Never commit your `service_role` key to git! It has admin access to your database.
 
 ### Step 4: Run Database Migration
 

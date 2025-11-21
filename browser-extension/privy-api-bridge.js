@@ -2,8 +2,8 @@
 // Connects Privy wallet authentication to Lucid L2 API endpoints
 
 class PrivyAPIBridge {
-    constructor() {
-        this.apiUrl = 'http://172.28.35.139:3001';
+  constructor() {
+    this.apiUrl = 'https://www.lucid.foundation';
         this.privySession = null;
         this.isConnected = false;
         

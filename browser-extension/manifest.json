@@ -9,7 +9,7 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "identity", "activeTab", "alarms", "notifications", "contextMenus", "scripting"],
+  "permissions": ["storage", "identity", "activeTab", "tabs", "alarms", "notifications", "contextMenus", "scripting"],
   "host_permissions": [
     "https://*.privy.io/*",
     "https://auth.privy.io/*", 
@@ -18,7 +18,8 @@
     "https://chatgpt.com/*", 
     "https://chat.openai.com/*",
     "http://localhost:3001/*",
-    "http://172.28.35.139:3001/*",
+    "http://13.221.253.195:3001/*",
+    "https://www.lucid.foundation/*",
     "https://api.lucid-l2.com/*",
     "https://api.devnet.solana.com/*",
     "https://api.testnet.solana.com/*",
@@ -26,6 +27,11 @@
     "https://*.walletconnect.org/*",
     "https://*.walletconnect.com/*"
   ],
+  "externally_connectable": {
+    "matches": [
+      "https://www.lucid.foundation/*"
+    ]
+  },
   "background": {
     "service_worker": "background.js"
   },
@@ -37,7 +43,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["styles.css", "icons/*", "dist/*", "auth.html", "auth-redirect.js", "privy-api-bridge.js", "injected.js"],
+      "resources": ["icons/*", "auth.html", "auth-redirect.js", "privy-api-bridge.js", "injected.js", "sidebar.js", "sidebar-styles.css"],
       "matches": ["https://*/*", "http://*/*"]
     }
   ],

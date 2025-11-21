@@ -21,6 +21,7 @@ import * as hl from '@nktkas/hyperliquid';
 
 export class HyperliquidAdapter extends BaseProtocolAdapter {
   private infoClient: hl.InfoClient | null = null;
+  private exchangeClient: hl.ExchangeClient | null = null;
 
   // =============================================================================
   // Protocol Metadata

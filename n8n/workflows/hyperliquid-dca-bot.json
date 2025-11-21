@@ -1,0 +1,238 @@
+{
+  "name": "Hyperliquid DCA Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 12 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-daily",
+      "name": "Schedule Daily 12pm UTC",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "userId",
+              "value": "user123"
+            },
+            {
+              "name": "symbol",
+              "value": "BTC"
+            },
+            {
+              "name": "orderType",
+              "value": "market"
+            },
+            {
+              "name": "side",
+              "value": "BUY"
+            },
+            {
+              "name": "quoteSize",
+              "value": "100"
+            }
+          ]
+        }
+      },
+      "id": "dca-config",
+      "name": "DCA Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300],
+      "notes": "Configure: userId, symbol (BTC/ETH/SOL), daily buy amount ($100)"
+    },
+    {
+      "parameters": {
+        "url": "={{$env.LUCID_API_URL}}/api/hyperliquid/health",
+        "authentication": "none",
+        "requestMethod": "GET",
+        "options": {}
+      },
+      "id": "check-health",
+      "name": "Check Hyperliquid Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 300],
+      "notes": "Verify Hyperliquid service is online before trading"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Get current BTC mid price to calculate size\nconst symbol = $node['DCA Configuration'].json.symbol;\nconst quoteSize = parseFloat($node['DCA Configuration'].json.quoteSize);\n\nconsole.log(`📊 Fetching ${symbol} price to calculate order size`);\n\nreturn {\n  symbol,\n  quoteSize,\n  timestamp: Date.now()\n};"
+      },
+      "id": "prepare-price-check",
+      "name": "Prepare Price Check",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://api.hyperliquid.xyz/info",
+        "authentication": "none",
+        "requestMethod": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"type\": \"allMids\" } }}",
+        "options": {}
+      },
+      "id": "get-market-price",
+      "name": "Get Market Price",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1120, 300],
+      "notes": "Fetch current mid price from Hyperliquid"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Calculate order size based on quote amount and current price\nconst symbol = $node['Prepare Price Check'].json.symbol;\nconst quoteSize = $node['Prepare Price Check'].json.quoteSize;\nconst allMids = $json;\n\nconst currentPrice = parseFloat(allMids[symbol]);\n\nif (!currentPrice || currentPrice <= 0) {\n  throw new Error(`Invalid price for ${symbol}: ${currentPrice}`);\n}\n\n// Calculate size (amount of BTC to buy)\nconst size = quoteSize / currentPrice;\n\nconsole.log(`💰 ${symbol} Price: $${currentPrice}`);\nconsole.log(`📦 Order Size: ${size.toFixed(6)} ${symbol}`);\nconsole.log(`💵 Quote Amount: $${quoteSize}`);\n\nretun {\n  symbol,\n  side: 'BUY',\n  orderType: 'market',\n  size: size.toFixed(6),\n  currentPrice,\n  quoteSize\n};"
+      },
+      "id": "calculate-order-size",
+      "name": "Calculate Order Size",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{$env.N8N_WEBHOOK_URL}}/hyperliquid-adapter",
+        "authentication": "none",
+        "requestMethod": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"operation\": \"placeOrder\", \"userId\": $node['DCA Configuration'].json.userId, \"parameters\": { \"symbol\": $json.symbol, \"side\": $json.side, \"orderType\": $json.orderType, \"size\": parseFloat($json.size) } } }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "place-order",
+      "name": "Place DCA Order",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1560, 300],
+      "notes": "Execute market buy order via Hyperliquid adapter"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log successful DCA execution\nconst config = $node['DCA Configuration'].json;\nconst orderCalc = $node['Calculate Order Size'].json;\nconst result = $json;\n\nconst logEntry = {\n  success: true,\n  timestamp: new Date().toISOString(),\n  userId: config.userId,\n  symbol: orderCalc.symbol,\n  side: orderCalc.side,\n  orderType: orderCalc.orderType,\n  size: orderCalc.size,\n  currentPrice: orderCalc.currentPrice,\n  quoteAmount: orderCalc.quoteSize,\n  estimatedCost: `$${orderCalc.quoteSize}`,\n  orderId: result.result?.response?.data?.statuses?.[0]?.resting?.oid || 'N/A',\n  executionId: $execution.id\n};\n\nconsole.log('✅ DCA Order Executed Successfully');\nconsole.log(JSON.stringify(logEntry, null, 2));\n\nreturn logEntry;"
+      },
+      "id": "log-success",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Log DCA failure\nconst error = $json.error || 'Unknown error';\n\nconsole.error('❌ DCA Order Failed:', error);\n\nreturn {\n  success: false,\n  timestamp: new Date().toISOString(),\n  error: error,\n  executionId: $execution.id\n};"
+      },
+      "id": "log-error",
+      "name": "Log Error",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1560, 450]
+    }
+  ],
+  "connections": {
+    "Schedule Daily 12pm UTC": {
+      "main": [
+        [
+          {
+            "node": "DCA Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DCA Configuration": {
+      "main": [
+        [
+          {
+            "node": "Check Hyperliquid Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Hyperliquid Health": {
+      "main": [
+        [
+          {
+            "node": "Prepare Price Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Price Check": {
+      "main": [
+        [
+          {
+            "node": "Get Market Price",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Market Price": {
+      "main": [
+        [
+          {
+            "node": "Calculate Order Size",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Order Size": {
+      "main": [
+        [
+          {
+            "node": "Place DCA Order",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Place DCA Order": {
+      "main": [
+        [
+          {
+            "node": "Log Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "id": "hyperliquid-trading",
+      "name": "Hyperliquid Trading"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-11-17T10:07:00.000Z",
+  "versionId": "1"
+}

@@ -1198,6 +1198,10 @@ export function createApiRouter(): express.Router {
   const walletRoutes = require('../routes/walletRoutes').default;
   router.use('/wallets', walletRoutes);
   
+  // Reward system endpoints
+  const rewardRoutes = require('../routes/rewardRoutes').default;
+  router.use('/rewards', rewardRoutes);
+  
   // AI Agent endpoints
   router.post('/agents/init', handleAgentInit);
   router.post('/agents/epoch', handleAgentEpoch);

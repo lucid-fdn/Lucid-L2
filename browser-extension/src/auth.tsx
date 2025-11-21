@@ -138,10 +138,19 @@ function AuthContent() {
     notifyPrivyAuthenticated(payload);
     console.log('✅ Authentication complete, wallet data stored');
     
-    // Close the auth window after a short delay (per Privy docs recommendation)
+    // ✅ FIX: Close the auth tab after success (not window, since we're in a tab now)
     try {
       setTimeout(() => {
-        try { window.close(); } catch {}
+        try {
+          chrome.tabs.getCurrent((tab: any) => {
+            if (tab?.id) {
+              chrome.tabs.remove(tab.id);
+            }
+          });
+        } catch {
+          // Fallback to window.close() if not in tab context
+          window.close();
+        }
       }, 1000);
     } catch {}
   }, [authenticated, user, wallets]);
@@ -207,6 +216,7 @@ function App() {
           theme: 'dark',
           accentColor: '#2563eb',
           logo: 'https://your-logo-url.com/logo.png',
+          showWalletLoginFirst: true,
           walletChainType: 'ethereum-and-solana',
           walletList: [
             // Solana wallets (prioritized)
@@ -224,16 +234,8 @@ function App() {
         },
         externalWallets: {
           solana: {
-            connectors: toSolanaWalletConnectors()
+            connectors: toSolanaWalletConnectors({shouldAutoConnect: true,})
           }
-        },
-        embeddedWallets: {
-          ethereum: {
-            createOnLogin: 'users-without-wallets',
-          },
-          solana: {
-            createOnLogin: 'users-without-wallets',
-          },
         },
       }}
     >
@@ -242,4 +244,34 @@ function App() {
   );
 }
 
-createRoot(document.getElementById('lucid-privy-root')!).render(<App />);
+// Export initialization function for server-side usage
+// This simply mounts the same App component to a different root
+(window as any).initPrivyAuth = function(config: {
+  containerId: string;
+  appId: string;
+  extensionId: string;
+  onSuccess: (walletData: any) => void;
+  onError: (error: Error) => void;
+}) {
+  console.log('🔐 Initializing Privy on server page with config:', config);
+  
+  // Store callbacks globally for the AuthContent component to access
+  (window as any).__privyCallbacks = {
+    onSuccess: config.onSuccess,
+    onError: config.onError
+  };
+  
+  const container = document.getElementById(config.containerId);
+  if (!container) {
+    throw new Error(`Container element with id '${config.containerId}' not found`);
+  }
+  
+  // Simply mount the same App component
+  createRoot(container).render(<App />);
+};
+
+// Also initialize for extension context if root element exists
+const extensionRoot = document.getElementById('lucid-privy-root');
+if (extensionRoot) {
+  createRoot(extensionRoot).render(<App />);
+}

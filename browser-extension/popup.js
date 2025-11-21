@@ -24,6 +24,18 @@ class ExtensionState {
         this.referralData = null;
         this.lastDailyReset = null;
         
+        // ChatGPT capture data
+        this.chatgptSessionStats = {
+            inputTokens: 0,
+            outputTokens: 0,
+            totalMessages: 0,
+            pointsEarned: 0,
+            mGasEarned: 0,
+            lucidTokensEarned: 0
+        };
+        this.conversationHistory = [];
+        this.totalLifetimePoints = 0;
+        
         // Initialize wallet connection state
         this.isConnected = false;
         this.configManager = new ConfigurationManager();
@@ -49,6 +61,49 @@ class ExtensionState {
         
         // Check for existing wallet connection
         await this.checkExistingConnection();
+        
+        // NEW: Load rewards from backend if authenticated
+        await this.loadRewardsFromBackend();
+    }
+    
+    async loadRewardsFromBackend() {
+        try {
+            const { privy_session } = await chrome.storage.local.get(['privy_session']);
+            if (!privy_session?.userId) {
+                console.log('No Privy session, skipping backend reward fetch');
+                return;
+            }
+            
+            console.log('📊 Popup: Fetching rewards from backend for user:', privy_session.userId);
+            const response = await fetch(`http://13.221.253.195:3001/api/rewards/balance/${privy_session.userId}`);
+            const data = await response.json();
+            
+            if (data.success && data.rewards) {
+                console.log('✅ Popup: Backend rewards loaded:', data.rewards);
+                
+                // Update state with backend data
+                this.balance.mGas = data.rewards.balance.mGas || 0;
+                this.balance.lucid = data.rewards.balance.lucid || 0;
+                this.streak = data.rewards.streakDays || 0;
+                this.dailyProgress.completed = Math.min(data.rewards.totalThoughts || 0, 10);
+                
+                // CRITICAL: Save backend balance to storage so sidebar can access it
+                await chrome.storage.local.set({ 
+                    balance: {
+                        mGas: this.balance.mGas,
+                        lucid: this.balance.lucid,
+                        sol: this.balance.sol
+                    },
+                    backend_balance_timestamp: Date.now()
+                });
+                console.log('💾 Popup: Saved backend balance to storage:', this.balance);
+                
+                // Update UI immediately
+                await this.updateUI();
+            }
+        } catch (error) {
+            console.error('❌ Popup: Error loading rewards from backend:', error);
+        }
     }
 
     async loadFromStorage() {
@@ -65,7 +120,10 @@ class ExtensionState {
                 'unlockedAchievements',
                 'totalShares',
                 'referralData',
-                'lastDailyReset'
+                'lastDailyReset',
+                'chatgpt_session_stats',
+                'conversationHistory',
+                'totalLifetimePoints'
             ], (result) => {
                 this.wallet = result.wallet || null;
                 this.balance = result.balance || { mGas: 0, lucid: 0 };
@@ -79,6 +137,19 @@ class ExtensionState {
                 this.totalShares = result.totalShares || 0;
                 this.referralData = result.referralData || null;
                 this.lastDailyReset = result.lastDailyReset || null;
+                
+                // Load ChatGPT capture data
+                this.chatgptSessionStats = result.chatgpt_session_stats || {
+                    inputTokens: 0,
+                    outputTokens: 0,
+                    totalMessages: 0,
+                    pointsEarned: 0,
+                    mGasEarned: 0,
+                    lucidTokensEarned: 0
+                };
+                this.conversationHistory = result.conversationHistory || [];
+                this.totalLifetimePoints = result.totalLifetimePoints || 0;
+                
                 resolve();
             });
         });
@@ -114,9 +185,24 @@ class ExtensionState {
     }
 
     setupEventListeners() {
+        // Listen for storage changes from content script
+        chrome.storage.onChanged.addListener((changes, area) => {
+            if (area === 'local') {
+                if (changes.chatgpt_session_stats || changes.conversationHistory || changes.totalLifetimePoints) {
+                    // Reload ChatGPT data and update UI
+                    this.loadFromStorage().then(() => this.updateUI());
+                }
+            }
+        });
+        
+        // Tab navigation
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => this.switchTab(e.target.closest('.tab-btn').dataset.tab));
+        });
+
         // Wallet connection
         document.getElementById('connectWalletBtn').addEventListener('click', () => this.connectWallet());
-        document.getElementById('disconnectWalletBtn')?.addEventListener('click', () => this.disconnectWallet());
+        document.getElementById('disconnectWalletBtn')?.addEventListener('click', () => this.forceDisconnect());
         document.getElementById('copyAddressBtn').addEventListener('click', () => this.copyAddress());
 
         // AI interaction
@@ -145,9 +231,31 @@ class ExtensionState {
         document.getElementById('achievementsBtn')?.addEventListener('click', () => this.showAchievements());
         document.getElementById('leaderboardBtn')?.addEventListener('click', () => this.showLeaderboard());
         document.getElementById('shareAdvancedBtn')?.addEventListener('click', () => this.shareAdvanced());
+        
+        // Pin button for sidebar mode
+        document.getElementById('pinBtn')?.addEventListener('click', () => this.toggleSidebarMode());
+    }
+
+    switchTab(tabName) {
+        // Remove active class from all tabs and content
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+        // Add active class to selected tab and content
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+        document.getElementById(`${tabName}-tab`).classList.add('active');
     }
 
     async updateUI() {
+        // Update quick stats banner
+        // IMPORTANT: Don't add session stats - backend balance already includes all earnings
+        const totalMGas = this.balance.mGas || 0;
+        const totalLUCID = this.balance.lucid || 0;
+        
+        document.getElementById('statMGas').textContent = totalMGas.toLocaleString();
+        document.getElementById('statLUCID').textContent = totalLUCID.toLocaleString();
+        document.getElementById('statDaily').textContent = `${this.dailyProgress.completed}/${this.dailyProgress.total}`;
+
         // Update wallet status
         if (this.wallet && this.isConnected) {
             document.getElementById('walletDisconnected').classList.add('hidden');
@@ -187,6 +295,9 @@ class ExtensionState {
 
         // Update history
         this.renderHistory();
+        
+        // Update ChatGPT captures
+        this.renderChatGPTCaptures();
 
         // Update settings
         document.getElementById('notificationsToggle').checked = this.settings.notifications;
@@ -241,17 +352,103 @@ class ExtensionState {
         });
     }
 
+    renderChatGPTCaptures() {
+        const capturesList = document.getElementById('chatgptCapturesList');
+        if (!capturesList) return;
+
+        // Clear existing content
+        capturesList.innerHTML = '';
+
+        // Display session stats
+        const stats = this.chatgptSessionStats;
+        const statsCard = document.createElement('div');
+        statsCard.className = 'chatgpt-stats-card';
+        statsCard.innerHTML = `
+            <h4>📊 ChatGPT Session Stats</h4>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Messages</span>
+                    <span class="stat-value">${stats.totalMessages || 0}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Input Tokens</span>
+                    <span class="stat-value">${stats.inputTokens || 0}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Output Tokens</span>
+                    <span class="stat-value">${stats.outputTokens || 0}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Points Earned</span>
+                    <span class="stat-value">${(stats.pointsEarned || 0).toFixed(1)}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">mGas Earned</span>
+                    <span class="stat-value highlight">${stats.mGasEarned || 0}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">LUCID Earned</span>
+                    <span class="stat-value highlight">${stats.lucidTokensEarned || 0}</span>
+                </div>
+            </div>
+            <div class="lifetime-stats">
+                <strong>Lifetime Points:</strong> ${(this.totalLifetimePoints || 0).toFixed(1)}
+            </div>
+        `;
+        capturesList.appendChild(statsCard);
+
+        // Display recent captures
+        if (this.conversationHistory && this.conversationHistory.length > 0) {
+            const capturesHeader = document.createElement('h4');
+            capturesHeader.textContent = '💬 Recent Captures';
+            capturesHeader.style.marginTop = '20px';
+            capturesList.appendChild(capturesHeader);
+
+            const recentCaptures = this.conversationHistory.slice(-10).reverse(); // Show last 10, most recent first
+            recentCaptures.forEach(capture => {
+                const captureItem = document.createElement('div');
+                captureItem.className = 'capture-item';
+                captureItem.innerHTML = `
+                    <div class="capture-header">
+                        <span class="capture-type ${capture.type}">${capture.type === 'user' ? '👤 You' : '🤖 ChatGPT'}</span>
+                        <span class="capture-time">${this.formatTime(new Date(capture.timestamp).getTime())}</span>
+                    </div>
+                    <div class="capture-content">${this.truncateText(capture.content, 150)}</div>
+                `;
+                capturesList.appendChild(captureItem);
+            });
+        } else {
+            const noCaptures = document.createElement('div');
+            noCaptures.className = 'no-captures';
+            noCaptures.innerHTML = `
+                <p>No ChatGPT conversations captured yet.</p>
+                <p>Visit <a href="https://chat.openai.com" target="_blank">ChatGPT</a> and start a conversation to earn points!</p>
+            `;
+            capturesList.appendChild(noCaptures);
+        }
+    }
+
+    truncateText(text, maxLength) {
+        if (text.length <= maxLength) return text;
+        return text.substring(0, maxLength) + '...';
+    }
+
     async connectWallet() {
         try {
-            // Open Privy auth popup directly via background script
+            console.log('🔗 Opening Privy authentication tab...');
+            
+            // ✅ FIX: Open Privy auth via background script (opens in tab now)
             chrome.runtime.sendMessage({ type: 'open_privy_auth' }, (response) => {
                 if (chrome.runtime.lastError) {
                     this.showToast('Failed to open wallet connection: ' + chrome.runtime.lastError.message);
+                } else {
+                    console.log('✅ Auth tab opened, waiting for wallet connection...');
                 }
-                // The auth popup will handle the connection
+                // The auth tab will handle the connection
                 // Results will come back via privy_authenticated message
             });
         } catch (error) {
+            console.error('❌ Wallet connection failed:', error);
             this.showToast('Wallet connection failed: ' + error.message);
         }
     }
@@ -709,6 +906,48 @@ class ExtensionState {
         chrome.tabs.create({ url: 'https://lucid-l2.com/privacy' });
     }
 
+    async toggleSidebarMode() {
+        // Get current tab
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs.length === 0) return;
+        
+        const tabId = tabs[0].id;
+        
+        // Check if sidebar is already open
+        chrome.storage.local.get(['sidebarPinned'], async (result) => {
+            const isPinned = result.sidebarPinned || false;
+            
+            if (!isPinned) {
+                // Pin: Inject sidebar into current page
+                try {
+                    await chrome.scripting.executeScript({
+                        target: { tabId },
+                        files: ['sidebar.js']
+                    });
+                    
+                    await chrome.scripting.insertCSS({
+                        target: { tabId },
+                        files: ['sidebar-styles.css']
+                    });
+                    
+                    chrome.storage.local.set({ sidebarPinned: true });
+                    this.showToast('Sidebar pinned! Access it from the side of your browser.');
+                    
+                    // Close popup after a short delay
+                    setTimeout(() => window.close(), 1000);
+                } catch (error) {
+                    console.error('Failed to inject sidebar:', error);
+                    this.showToast('Failed to pin sidebar: ' + error.message);
+                }
+            } else {
+                // Unpin: Remove sidebar
+                chrome.tabs.sendMessage(tabId, { type: 'closeSidebar' });
+                chrome.storage.local.set({ sidebarPinned: false });
+                this.showToast('Sidebar unpinned!');
+            }
+        });
+    }
+
     // Real wallet connection methods
     setupWalletListeners() {
         // Listen for wallet balance updates
@@ -720,16 +959,30 @@ class ExtensionState {
             this.saveToStorage();
         });
         
-        // Listen for Privy authentication results
+        // Listen for Privy authentication results and reward updates
         const self = this;
         chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+            if (msg?.type === 'rewards_updated') {
+                console.log('🎉 Popup: Rewards updated from backend:', msg.data);
+                
+                // Reload full state from backend to get fresh data
+                self.loadRewardsFromBackend();
+            }
+            
             if (msg?.type === 'privy_authenticated') {
                 console.log('✅ Privy authenticated:', msg.payload);
                 
-                // Extract wallet info from Privy payload
+                // Store complete session data in chrome.storage.local for persistence
                 const payload = msg.payload;
+                chrome.storage.local.set({ privy_session: payload }, () => {
+                    console.log('✅ Privy session stored in chrome.storage.local');
+                });
+                
+                // Extract wallet info from Privy payload
                 self.wallet = {
-                    address: payload.solanaAddress || payload.address
+                    address: payload.solanaAddress || payload.address,
+                    type: payload.solanaAddress ? 'solana' : 'evm',
+                    userId: payload.userId
                 };
                 self.isConnected = true;
                 
@@ -768,7 +1021,30 @@ class ExtensionState {
 
     async checkExistingConnection() {
         try {
-            // Check if wallet was previously connected
+            // PRIORITY 1: Check for Privy session in storage (persists across popup reopens)
+            const storageResult = await chrome.storage.local.get(['privy_session']);
+            
+            if (storageResult.privy_session) {
+                console.log('✅ Found existing Privy session in storage');
+                const session = storageResult.privy_session;
+                
+                // Restore wallet state from session - prioritize Solana address
+                this.wallet = {
+                    address: session.solanaAddress || session.address,
+                    type: session.solanaAddress ? 'solana' : 'evm',
+                    userId: session.userId
+                };
+                this.isConnected = true;
+                
+                console.log('✅ Restored wallet from session:', this.wallet.address);
+                
+                await this.updateUI();
+                await this.saveToStorage();
+                return; // Exit early - we found the session
+            }
+            
+            // PRIORITY 2: Fall back to checking content script (for non-Privy connections)
+            console.log('No Privy session found, checking content script...');
             const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
             if (tabs.length > 0 && !this.isInvalidTabForWallet(tabs[0].url)) {
                 try {
@@ -805,6 +1081,38 @@ class ExtensionState {
         }
     }
 
+    // Force disconnect - immediate local cleanup
+    async forceDisconnect() {
+        try {
+            console.log('🔓 Force disconnecting wallet...');
+            
+            // Clear session data
+            await chrome.storage.local.remove('privy_session');
+            
+            // Clear wallet state
+            this.wallet = null;
+            this.isConnected = false;
+            this.balance = { 
+                mGas: this.balance.mGas, // Keep mGas
+                lucid: 0, 
+                sol: 0 
+            };
+            
+            // Update UI
+            await this.updateUI();
+            await this.saveToStorage();
+            
+            this.showToast('Wallet disconnected successfully!');
+            
+            // Also try to trigger proper Privy logout in background
+            chrome.runtime.sendMessage({ type: 'privy_logged_out' });
+            
+        } catch (error) {
+            console.error('Error during force disconnect:', error);
+            this.showToast('Error: ' + error.message);
+        }
+    }
+    
     async disconnectWallet() {
         try {
             // Open Privy logout popup via background script
