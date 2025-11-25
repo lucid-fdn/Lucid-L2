@@ -108,11 +108,17 @@
         chrome.storage.local.set({ sidebarPinned: false });
     });
 
-    // Listen for close message from popup
-    chrome.runtime.onMessage.addListener((msg) => {
+    // Listen for messages from popup
+    chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (msg.type === 'closeSidebar') {
             closeSidebar();
+            sendResponse({ success: true });
+        } else if (msg.type === 'checkSidebar') {
+            // Check if sidebar exists in DOM
+            const exists = !!document.getElementById('lucid-sidebar');
+            sendResponse({ exists: exists });
         }
+        return true; // Keep message channel open for async response
     });
 
     async function updateSidebarData() {

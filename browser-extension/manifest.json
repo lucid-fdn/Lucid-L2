@@ -37,13 +37,16 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://*/*", "http://*/*"],
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*"
+      ],
       "js": ["content.js"]
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["icons/*", "auth.html", "auth-redirect.js", "privy-api-bridge.js", "injected.js", "sidebar.js", "sidebar-styles.css"],
+      "resources": ["icons/*", "auth.html", "auth-redirect.js", "privy-api-bridge.js", "config.js", "sidebar.html", "sidebar.js", "sidebar-styles.css", "dist/*"],
       "matches": ["https://*/*", "http://*/*"]
     }
   ],

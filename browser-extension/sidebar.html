@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucid L2™ Sidebar</title>
+    <link rel="stylesheet" href="dist/sidebar.css">
+    <style>
+        /* Add closing animation styles */
+        .lucid-sidebar-closing {
+            animation: slideOut 0.3s ease-out forwards;
+        }
+        
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="dist/sidebar.js"></script>
+</body>

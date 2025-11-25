@@ -1781,13 +1781,19 @@ export async function handleN8nNodesList(req: express.Request, res: express.Resp
 
     // Check if Elasticsearch is available and index exists
     if (esService.isAvailable()) {
-      // Check if reindexing is needed (e.g., first time or stale cache)
-      if (indexer.needsReindex(60)) {
+      const indexerStatus = indexer.getStatus();
+      
+      // Check if reindexing is needed and not already in progress
+      if (indexer.needsReindex(60) && !indexerStatus.isIndexing && indexerStatus.cooldownRemaining === 0) {
         console.log('🔄 Index needs refresh, triggering background reindex...');
         // Start reindexing in background (don't wait)
         indexer.indexNodes(false).catch(err => {
           console.error('Background reindex failed:', err);
         });
+      } else if (indexerStatus.isIndexing) {
+        console.log('⏳ Reindex already in progress, skipping...');
+      } else if (indexerStatus.cooldownRemaining > 0) {
+        console.log(`⏱️  Reindex cooldown active (${Math.ceil(indexerStatus.cooldownRemaining / 1000)}s remaining), skipping...`);
       }
 
       // Try to search using Elasticsearch

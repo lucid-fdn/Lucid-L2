@@ -56,6 +56,12 @@ class ExtensionState {
             });
         } catch (e) {}
 
+        // Initialize sidebarPinned state if not set
+        const result = await chrome.storage.local.get(['sidebarPinned']);
+        if (result.sidebarPinned === undefined) {
+            await chrome.storage.local.set({ sidebarPinned: false });
+        }
+
         await this.updateUI();
         this.checkDailyReset();
         
@@ -907,17 +913,33 @@ class ExtensionState {
     }
 
     async toggleSidebarMode() {
-        // Get current tab
-        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (tabs.length === 0) return;
-        
-        const tabId = tabs[0].id;
-        
-        // Check if sidebar is already open
-        chrome.storage.local.get(['sidebarPinned'], async (result) => {
-            const isPinned = result.sidebarPinned || false;
+        try {
+            // Get current tab
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs.length === 0) {
+                this.showToast('No active tab found');
+                return;
+            }
             
-            if (!isPinned) {
+            const tabId = tabs[0].id;
+            
+            // Check if sidebar actually exists in the DOM
+            let sidebarExists = false;
+            try {
+                const response = await chrome.tabs.sendMessage(tabId, { type: 'checkSidebar' });
+                sidebarExists = response?.exists || false;
+            } catch (error) {
+                // Content script not available or sidebar doesn't exist
+                sidebarExists = false;
+            }
+            
+            // Get stored state
+            const result = await chrome.storage.local.get(['sidebarPinned']);
+            const storedState = result.sidebarPinned || false;
+            
+            console.log('Toggle sidebar - exists:', sidebarExists, 'stored:', storedState);
+            
+            if (!sidebarExists) {
                 // Pin: Inject sidebar into current page
                 try {
                     await chrome.scripting.executeScript({
@@ -930,7 +952,7 @@ class ExtensionState {
                         files: ['sidebar-styles.css']
                     });
                     
-                    chrome.storage.local.set({ sidebarPinned: true });
+                    await chrome.storage.local.set({ sidebarPinned: true });
                     this.showToast('Sidebar pinned! Access it from the side of your browser.');
                     
                     // Close popup after a short delay
@@ -941,11 +963,21 @@ class ExtensionState {
                 }
             } else {
                 // Unpin: Remove sidebar
-                chrome.tabs.sendMessage(tabId, { type: 'closeSidebar' });
-                chrome.storage.local.set({ sidebarPinned: false });
-                this.showToast('Sidebar unpinned!');
+                try {
+                    await chrome.tabs.sendMessage(tabId, { type: 'closeSidebar' });
+                    await chrome.storage.local.set({ sidebarPinned: false });
+                    this.showToast('Sidebar unpinned!');
+                } catch (error) {
+                    console.error('Failed to unpin sidebar:', error);
+                    // Force state reset if sidebar removal fails
+                    await chrome.storage.local.set({ sidebarPinned: false });
+                    this.showToast('Sidebar state reset');
+                }
             }
-        });
+        } catch (error) {
+            console.error('Toggle sidebar error:', error);
+            this.showToast('Failed to toggle sidebar: ' + error.message);
+        }
     }
 
     // Real wallet connection methods
@@ -1249,52 +1281,7 @@ class ExtensionState {
     }
 }
 
-// Configuration Manager for browser extension
-class ConfigurationManager {
-    constructor() {
-        this.environments = {
-            localnet: {
-                rpcUrl: 'http://localhost:8899',
-                commitment: 'processed',
-                environment: 'localnet',
-                lucidMint: '4sWEwy73f7ViLeuSYgBGRt9zZxH3VJ7SsBRitpBFCQSh'
-            },
-            devnet: {
-                rpcUrl: 'https://api.devnet.solana.com',
-                commitment: 'confirmed',
-                environment: 'devnet',
-                lucidMint: 'FevHSnbJ3567nxaJoCBZMmdR6SKwB9xsTZgdFGJ9WoHQ'
-            },
-            testnet: {
-                rpcUrl: 'https://api.testnet.solana.com',
-                commitment: 'confirmed',
-                environment: 'testnet',
-                // Note: replace with real testnet mint if different
-                lucidMint: '8FJLRcc681GxefHgsPg32ZdGAveQNTFLVy5GgmotiimG'
-            }
-        };
-        
-        this.currentEnvironment = 'devnet'; // Default to devnet for Phase 8.4/Devnet testing
-    }
-
-    getConfig() {
-        return this.environments[this.currentEnvironment];
-    }
-
-    setEnvironment(env) {
-        if (this.environments[env]) {
-            this.currentEnvironment = env;
-            // Persist environment so other parts (content script) can reflect correct network
-            try {
-                const cfg = this.getConfig();
-                chrome.storage.local.set({
-                    lucid_env: env,
-                    lucid_network: cfg.environment
-                });
-            } catch (e) {}
-        }
-    }
-}
+// ConfigurationManager now loaded from config.js
 
 // Initialize extension when DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {

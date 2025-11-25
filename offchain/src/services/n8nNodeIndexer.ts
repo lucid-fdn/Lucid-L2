@@ -3,9 +3,13 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
+import { setMaxListeners } from 'events';
 import { getElasticsearchService, N8nNode } from './elasticsearchService';
 
 const execAsync = promisify(exec);
+
+// Increase EventEmitter max listeners to prevent warnings during concurrent operations
+setMaxListeners(50);
 
 interface EnrichmentData {
   name: string;
@@ -32,8 +36,10 @@ export interface IndexingResult {
 export class N8nNodeIndexer {
   private isIndexing = false;
   private lastIndexTime: Date | null = null;
+  private lastIndexAttempt: Date | null = null;
   private cachedNodes: N8nNode[] = [];
   private enrichmentMap: Map<string, EnrichmentData> | null = null;
+  private readonly COOLDOWN_MS = 5000; // 5 second cooldown between reindex attempts
 
   /**
    * Load and parse the enrichment JSON file
@@ -203,6 +209,7 @@ export class N8nNodeIndexer {
    * Index all n8n nodes into Elasticsearch
    */
   async indexNodes(forceRefresh: boolean = false): Promise<IndexingResult> {
+    // Check if indexing is already in progress
     if (this.isIndexing) {
       return {
         success: false,
@@ -214,8 +221,24 @@ export class N8nNodeIndexer {
       };
     }
 
+    // Check cooldown period to prevent rapid consecutive reindex attempts
+    if (!forceRefresh && this.lastIndexAttempt) {
+      const timeSinceLastAttempt = Date.now() - this.lastIndexAttempt.getTime();
+      if (timeSinceLastAttempt < this.COOLDOWN_MS) {
+        return {
+          success: false,
+          totalNodes: 0,
+          indexed: 0,
+          failed: 0,
+          executionTimeMs: 0,
+          error: `Cooldown period active. Please wait ${Math.ceil((this.COOLDOWN_MS - timeSinceLastAttempt) / 1000)}s before reindexing again.`,
+        };
+      }
+    }
+
     const startTime = Date.now();
     this.isIndexing = true;
+    this.lastIndexAttempt = new Date();
 
     try {
       const esService = getElasticsearchService();
@@ -265,6 +288,7 @@ export class N8nNodeIndexer {
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     } finally {
+      // Always reset indexing flag, even on error
       this.isIndexing = false;
     }
   }
@@ -289,12 +313,20 @@ export class N8nNodeIndexer {
   getStatus(): {
     isIndexing: boolean;
     lastIndexTime: Date | null;
+    lastIndexAttempt: Date | null;
     cachedNodesCount: number;
+    cooldownRemaining: number;
   } {
+    const cooldownRemaining = this.lastIndexAttempt
+      ? Math.max(0, this.COOLDOWN_MS - (Date.now() - this.lastIndexAttempt.getTime()))
+      : 0;
+
     return {
       isIndexing: this.isIndexing,
       lastIndexTime: this.lastIndexTime,
+      lastIndexAttempt: this.lastIndexAttempt,
       cachedNodesCount: this.cachedNodes.length,
+      cooldownRemaining,
     };
   }
 

@@ -161,8 +161,12 @@ chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
       sendResponse({ success: true, received: true });
     }
     
-    // The message is already received by popup via runtime.onMessage
-    // No need to relay to tabs since popup isn't a tab
+    // CRITICAL FIX: Broadcast internally so popup receives the message
+    // External messages (onMessageExternal) don't automatically reach internal listeners (onMessage)
+    chrome.runtime.sendMessage(msg).catch(err => {
+      console.log('[BG] No popup listening for internal broadcast (normal if popup is closed):', err.message);
+    });
+    
     return true;
   } else {
     console.log('❌ Message type did not match expected types');

@@ -209,8 +209,9 @@ class RewardSystem {
         const lucidAmount = Math.floor(mGasAmount / this.conversionRate);
         const remainingMGas = mGasAmount % this.conversionRate;
 
-        // Simulate blockchain transaction
-        const txSignature = await this.simulateConversion(lucidAmount);
+        // TODO: Implement real blockchain transaction via backend
+        // For now, just update local state
+        console.warn('convertMGasToLUCID: Backend integration pending');
 
         // Update balances
         this.state.balance.mGas = remainingMGas;
@@ -225,7 +226,7 @@ class RewardSystem {
             timestamp: Date.now(),
             mGasConverted: mGasAmount - remainingMGas,
             lucidReceived: lucidAmount,
-            txSignature: txSignature
+            txSignature: 'pending_backend_integration'
         });
 
         await this.state.saveToStorage();
@@ -233,14 +234,8 @@ class RewardSystem {
         return {
             lucidReceived: lucidAmount,
             remainingMGas: remainingMGas,
-            txSignature: txSignature
+            txSignature: 'pending_backend_integration'
         };
-    }
-
-    async simulateConversion(lucidAmount) {
-        // In real implementation, this would create a blockchain transaction
-        await this.delay(2000);
-        return `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
 
     // Social Features
