@@ -54,7 +54,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return;
       }
       
-      const LUCID_API_BASE = 'http://13.221.253.195:3001';
+      const LUCID_API_BASE = 'https://www.lucid.foundation';
       
       try {
         const response = await fetch(`${LUCID_API_BASE}/api/rewards/process-conversation`, {
@@ -91,7 +91,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg?.type === 'lucid_run') {
     // Perform backend fetch from the service worker to avoid mixed-content/CORS issues
-    const LUCID_API_BASE = 'http://13.221.253.195:3001';
+    const LUCID_API_BASE = 'https://www.lucid.foundation';
     try {
       console.log('[BG] lucid_run received. text length:', (msg.payload?.text || '').length);
       fetch(`${LUCID_API_BASE}/run`, {

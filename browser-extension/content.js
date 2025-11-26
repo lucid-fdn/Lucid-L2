@@ -25,7 +25,7 @@
   };
 
   // Lucid L2 API Configuration
-  const LUCID_API_BASE = 'http://13.221.253.195:3001';
+  const LUCID_API_BASE = 'https://www.lucid.foundation';
   let LUCID_ENV = 'devnet';
   
   try {
