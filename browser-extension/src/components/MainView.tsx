@@ -479,15 +479,12 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
                   variant="destructive"
                   size="sm"
                   className="w-full"
-                  onClick={() => {
-                    const extensionId = chrome.runtime.id
-                    window.open(`https://www.lucid.foundation/test/auth?extension_id=${extensionId}`, '_blank')
-                  }}
+                  onClick={handleWalletDisconnect}
                 >
                   Disconnect
                 </Button>
                 <p className="text-xs text-slate-500">
-                  This will sign you out and clear your session
+                  This will sign you out and clear all your session data
                 </p>
               </div>
               

@@ -16,7 +16,7 @@ export function Heading({ className, level, as, dark, ...props }: HeadingProps) 
   return (
     <Element
       {...props}
-      className={cn(className, 'text-2xl/8 font-semibold text-zinc-950 sm:text-xl/8', dark && 'dark:text-white')}
+      className={cn(className, 'text-3xl/8 font-semibold text-zinc-950' , dark && 'dark:text-white')}
     />
   )
 }

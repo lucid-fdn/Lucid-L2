@@ -63,16 +63,13 @@ export function ConnectWallet({ onConnected }: ConnectWalletProps) {
               <img 
                 src={chrome.runtime.getURL('icons/lucid_w.gif')} 
                 alt="Lucid" 
-                className="w-14 h-14"
+                className="w-24 h-24"
               />
             </div>
 
-            <Heading as="h1" dark className="mt-8 text-base/6 font-medium">
+            <Heading as="h1" dark className="mt-8 font-medium">
               Welcome to <AuroraText>Lucid AI</AuroraText>
             </Heading>
-            <Subheading dark className="mt-1 text-sm/5 text-gray-600">
-              Sign in to access the Internet of AI.
-            </Subheading>
           </CardHeader>
 
           <CardContent className="space-y-6 pb-8">
@@ -117,7 +114,7 @@ export function ConnectWallet({ onConnected }: ConnectWalletProps) {
               className="w-full rounded-full bg-gradient-to-r from-[#081D3C] to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white h-11 text-base font-medium transition-colors duration-200 ease-in-out"
               onClick={handleConnect}
             >
-              Login
+              Log In to the Internet of AI
             </Button>
 
             {/* Footer Note */}

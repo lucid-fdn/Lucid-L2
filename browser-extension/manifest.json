@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Lucid AI Memory",
+  "name": "Lucid AI",
   "version": "1.0.0",
-  "description": "Earn crypto rewards by connecting your ChatGPT conversations to Lucid L2 blockchain. Processes conversations with your consent to calculate mGas token rewards. Requires Solana wallet.",
+  "description": "Stake your AI chats (ChatGPT, Claude, Gemini, etc.) into your Solana Lucid Memory Map to unlock portable memory, agent collaboration, reuse, and rewards — privately.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
