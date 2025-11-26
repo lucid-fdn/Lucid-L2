@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Lucid",
+  "name": "Lucid AI Memory",
   "version": "1.0.0",
-  "description": "AI Thought Mining for Lucid Chain - This extension uploads your selected AI chats (ChatGPT, Claude, Gemini, etc.) into your Lucid Memory Map to unlock portable memory, agent collaboration, reuse, and rewards — privately.",
+  "description": "Earn crypto rewards by connecting your ChatGPT conversations to Lucid L2 blockchain. Processes conversations with your consent to calculate mGas token rewards. Requires Solana wallet.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "identity", "activeTab", "tabs", "alarms", "notifications", "contextMenus", "scripting"],
+  "permissions": ["storage", "identity", "activeTab", "tabs", "notifications", "scripting"],
   "host_permissions": [
     "https://*.privy.io/*",
     "https://auth.privy.io/*", 
@@ -17,8 +17,6 @@
     "https://auth-api.privy.io/*",
     "https://chatgpt.com/*", 
     "https://chat.openai.com/*",
-    "http://localhost:3001/*",
-    "http://13.221.253.195:3001/*",
     "https://www.lucid.foundation/*",
     "https://api.lucid-l2.com/*",
     "https://api.devnet.solana.com/*",
@@ -52,9 +50,10 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Lucid-Extension - AI Thought Mining"
+    "default_title": "Lucid AI Memory - Earn Crypto Rewards"
   },
+  "homepage_url": "https://www.lucid.foundation/privacy",
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'self'; connect-src 'self' http: https: ws: wss: data:; frame-ancestors 'none';"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'self'; connect-src 'self' https://www.lucid.foundation https://*.privy.io https://auth.privy.io https://api.privy.io https://auth-api.privy.io https://api.devnet.solana.com https://api.testnet.solana.com https://*.walletconnect.org https://cdn.jsdelivr.net wss://*.walletconnect.com data:; frame-ancestors 'none';"
   }
 }

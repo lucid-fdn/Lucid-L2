@@ -81,7 +81,7 @@ class ExtensionState {
             }
             
             console.log('📊 Popup: Fetching rewards from backend for user:', privy_session.userId);
-            const response = await fetch(`http://13.221.253.195:3001/api/rewards/balance/${privy_session.userId}`);
+            const response = await fetch(`https://www.lucid.foundation/api/rewards/balance/${privy_session.userId}`);
             const data = await response.json();
             
             if (data.success && data.rewards) {
