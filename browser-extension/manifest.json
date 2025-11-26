@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Lucid-Extension",
+  "name": "Lucid",
   "version": "1.0.0",
-  "description": "AI Thought Mining extension for Lucid L2™ - Earn mGas by interacting with AI models.",
+  "description": "AI Thought Mining for Lucid Chain - This extension uploads your selected AI chats (ChatGPT, Claude, Gemini, etc.) into your Lucid Memory Map to unlock portable memory, agent collaboration, reuse, and rewards — privately.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",

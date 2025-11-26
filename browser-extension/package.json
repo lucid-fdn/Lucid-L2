@@ -5,16 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "npm run build:clean && npm run build:popup && npm run build:sidebar && npm run build:auth && npm run build:bridge",
-    "build:clean": "rm -rf dist && mkdir -p dist",
-    "build:popup": "BUILD_TARGET=popup vite build",
-    "build:sidebar": "BUILD_TARGET=sidebar vite build --emptyOutDir=false",
-    "build:auth": "BUILD_TARGET=auth vite build --emptyOutDir=false",
-    "build:bridge": "BUILD_TARGET=bridge vite build --emptyOutDir=false",
-    "watch": "BUILD_TARGET=popup vite build --watch",
-    "watch:sidebar": "BUILD_TARGET=sidebar vite build --watch --emptyOutDir=false",
-    "watch:auth": "BUILD_TARGET=auth vite build --watch --emptyOutDir=false",
-    "watch:bridge": "BUILD_TARGET=bridge vite build --watch --emptyOutDir=false"
+    "build": "npm run build:popup && npm run build:sidebar && npm run build:auth && npm run build:bridge",
+    "build:popup": "cross-env BUILD_TARGET=popup vite build",
+    "build:sidebar": "cross-env BUILD_TARGET=sidebar vite build --emptyOutDir=false",
+    "build:auth": "cross-env BUILD_TARGET=auth vite build --emptyOutDir=false",
+    "build:bridge": "cross-env BUILD_TARGET=bridge vite build --emptyOutDir=false",
+    "watch": "cross-env BUILD_TARGET=popup vite build --watch",
+    "watch:sidebar": "cross-env BUILD_TARGET=sidebar vite build --watch --emptyOutDir=false",
+    "watch:auth": "cross-env BUILD_TARGET=auth vite build --watch --emptyOutDir=false",
+    "watch:bridge": "cross-env BUILD_TARGET=bridge vite build --watch --emptyOutDir=false"
   },
   "dependencies": {
     "@privy-io/react-auth": "^2.25.0",
@@ -38,6 +37,7 @@
     "autoprefixer": "^10.4.22",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cross-env": "^10.1.0",
     "postcss": "^8.5.6",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^3.4.18",

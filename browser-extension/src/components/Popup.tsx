@@ -1,8 +1,42 @@
 /// <reference types="chrome"/>
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { MainView } from './MainView'
+import { ConnectWallet } from './ConnectWallet'
 
 export function Popup() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    checkAuthentication()
+    
+    // Listen for auth changes
+    const handleStorageChange = (changes: any, area: string) => {
+      if (area === 'local' && changes.privy_session) {
+        checkAuthentication()
+      }
+    }
+    
+    chrome.storage.onChanged.addListener(handleStorageChange)
+    
+    return () => {
+      chrome.storage.onChanged.removeListener(handleStorageChange)
+    }
+  }, [])
+
+  const checkAuthentication = async () => {
+    try {
+      const data = await chrome.storage.local.get(['privy_session'])
+      setIsAuthenticated(!!data.privy_session)
+    } catch (error) {
+      console.error('Error checking authentication:', error)
+      setIsAuthenticated(false)
+    }
+  }
+
+  const handleConnected = () => {
+    setIsAuthenticated(true)
+  }
+
   const handlePin = async () => {
     try {
       // Get current tab
@@ -73,5 +107,23 @@ export function Popup() {
     }
   }
 
+  // Show loading state while checking authentication
+  if (isAuthenticated === null) {
+    return (
+      <div className="w-[420px] h-[600px] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-sm text-slate-400">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show ConnectWallet if not authenticated
+  if (!isAuthenticated) {
+    return <ConnectWallet onConnected={handleConnected} />
+  }
+
+  // Show MainView if authenticated
   return <MainView mode="popup" onPin={handlePin} />
 }
