@@ -286,6 +286,117 @@ router.post('/share', async (req, res) => {
 });
 
 /**
+ * GET /api/rewards/events
+ * Get current active events (weekend bonus, monthly challenge, etc.)
+ */
+router.get('/events', async (req, res) => {
+  try {
+    console.log('🎪 Fetching active events');
+    
+    const rewardService = getRewardService();
+    const events = rewardService.getCurrentEvents();
+    
+    res.json({
+      success: true,
+      events: events,
+      count: events.length
+    });
+  } catch (error) {
+    console.error('Error fetching events:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * GET /api/rewards/leaderboard
+ * Get top users by earnings, streak, or achievements
+ * Query params: category (total_earnings|streak|achievements), limit (default 10)
+ */
+router.get('/leaderboard', async (req, res) => {
+  try {
+    const category = (req.query.category as string) || 'total_earnings';
+    const limit = parseInt(req.query.limit as string) || 10;
+    
+    console.log(`🏆 Fetching leaderboard: ${category}, limit: ${limit}`);
+    
+    const { Pool } = await import('pg');
+    const pool = new Pool({
+      host: process.env.POSTGRES_HOST || 'localhost',
+      port: parseInt(process.env.POSTGRES_PORT || '5432'),
+      database: process.env.POSTGRES_DB || 'postgres',
+      user: process.env.POSTGRES_USER || 'postgres',
+      password: process.env.POSTGRES_PASSWORD || process.env.SUPABASE_DB_PASSWORD || '',
+      ssl: { rejectUnauthorized: false }
+    });
+    
+    let query = '';
+    
+    switch (category) {
+      case 'total_earnings':
+        query = `
+          SELECT u.privy_user_id, u.wallet_address, r.lifetime_mgas_earned as value
+          FROM users u
+          JOIN rewards r ON u.id = r.user_id
+          ORDER BY r.lifetime_mgas_earned DESC
+          LIMIT $1
+        `;
+        break;
+      case 'streak':
+        query = `
+          SELECT u.privy_user_id, u.wallet_address, u.streak_days as value
+          FROM users u
+          ORDER BY u.streak_days DESC
+          LIMIT $1
+        `;
+        break;
+      case 'achievements':
+        query = `
+          SELECT u.privy_user_id, u.wallet_address, COUNT(ua.id) as value
+          FROM users u
+          LEFT JOIN user_achievements ua ON u.id = ua.user_id
+          GROUP BY u.id, u.privy_user_id, u.wallet_address
+          ORDER BY COUNT(ua.id) DESC
+          LIMIT $1
+        `;
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid category. Use: total_earnings, streak, or achievements'
+        });
+    }
+    
+    const result = await pool.query(query, [limit]);
+    await pool.end();
+    
+    const leaderboard = result.rows.map((row, index) => ({
+      rank: index + 1,
+      userId: row.privy_user_id,
+      address: row.wallet_address ? 
+        `${row.wallet_address.slice(0, 6)}...${row.wallet_address.slice(-4)}` : 
+        'Anonymous',
+      value: parseInt(row.value) || 0,
+      category: category
+    }));
+    
+    res.json({
+      success: true,
+      category: category,
+      leaderboard: leaderboard
+    });
+  } catch (error) {
+    console.error('Error fetching leaderboard:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
  * GET /api/rewards/stats
  * Get overall system statistics (for admin/monitoring)
  */

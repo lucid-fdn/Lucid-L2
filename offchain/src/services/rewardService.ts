@@ -153,6 +153,24 @@ export class RewardService {
       requirement: 'average_quality',
       threshold: 0.8,
       icon: '👑'
+    },
+    {
+      id: 'batch_processor',
+      title: 'Batch Processor',
+      description: 'Process 50 thoughts in batch mode',
+      reward: 40,
+      requirement: 'batch_thoughts',
+      threshold: 50,
+      icon: '⚡'
+    },
+    {
+      id: 'referral_champion',
+      title: 'Referral Champion',
+      description: 'Refer 10 new users',
+      reward: 200,
+      requirement: 'referrals',
+      threshold: 10,
+      icon: '🏆'
     }
   ];
 
@@ -364,6 +382,58 @@ export class RewardService {
   }
 
   // ============================================================================
+  // EVENT SYSTEM - Weekend/Monthly Bonus (aligned with extension)
+  // ============================================================================
+
+  getCurrentEvents(): Array<{
+    type: string;
+    title: string;
+    description: string;
+    multiplier: number;
+    icon: string;
+  }> {
+    const now = new Date();
+    const events = [];
+
+    // Weekend bonus (Saturday = 6, Sunday = 0)
+    if (now.getDay() === 0 || now.getDay() === 6) {
+      events.push({
+        type: 'weekend_bonus',
+        title: 'Weekend Bonus',
+        description: '+20% mGas earnings all weekend!',
+        multiplier: 1.2,
+        icon: '🎉'
+      });
+    }
+
+    // Monthly challenge (first week of the month)
+    if (now.getDate() <= 7) {
+      events.push({
+        type: 'monthly_challenge',
+        title: 'New Month Challenge',
+        description: 'First week double rewards!',
+        multiplier: 2.0,
+        icon: '🚀'
+      });
+    }
+
+    return events;
+  }
+
+  applyEventMultipliers(earnings: number): number {
+    const events = this.getCurrentEvents();
+    let totalMultiplier = 1.0;
+
+    events.forEach(event => {
+      if (event.multiplier) {
+        totalMultiplier *= event.multiplier;
+      }
+    });
+
+    return Math.round(earnings * totalMultiplier);
+  }
+
+  // ============================================================================
   // CONVERSATION PROCESSING
   // ============================================================================
 
@@ -556,7 +626,7 @@ export class RewardService {
     const user = userResult.rows[0];
 
     const convsResult = await client.query(
-      'SELECT quality_tier, quality_score FROM conversations WHERE user_id = $1',
+      'SELECT quality_tier, quality_score, metadata FROM conversations WHERE user_id = $1',
       [userId]
     );
     const conversations = convsResult.rows;
@@ -565,6 +635,19 @@ export class RewardService {
       'SELECT id FROM mgas_conversions WHERE user_id = $1',
       [userId]
     );
+
+    // Count batch thoughts (conversations with is_batch metadata)
+    const batchThoughtsCount = conversations.filter((c: any) => {
+      try {
+        const metadata = typeof c.metadata === 'string' ? JSON.parse(c.metadata) : c.metadata;
+        return metadata?.is_batch === true;
+      } catch {
+        return false;
+      }
+    }).length;
+
+    // Count referrals from user's referred_users array
+    const referralsCount = user?.referred_users?.length || 0;
 
     const excellentCount = conversations.filter((c: any) => c.quality_tier === 'excellent').length;
     const qualityScores = conversations.map((c: any) => c.quality_score || 0.5);
@@ -578,7 +661,9 @@ export class RewardService {
       max_streak: user?.streak_days || 0,
       conversions: conversionsResult.rows.length,
       shares: user?.total_shares || 0,
-      average_quality: averageQuality
+      average_quality: averageQuality,
+      batch_thoughts: batchThoughtsCount,
+      referrals: referralsCount
     };
   }
 

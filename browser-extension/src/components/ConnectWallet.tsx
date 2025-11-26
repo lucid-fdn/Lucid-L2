@@ -11,8 +11,9 @@ interface ConnectWalletProps {
 
 export function ConnectWallet({ onConnected }: ConnectWalletProps) {
   const handleConnect = () => {
-    // Open auth page in new tab
-    chrome.tabs.create({ url: chrome.runtime.getURL('auth.html') })
+    // Send message to background script to open server-hosted auth page
+    // This ensures Phantom can properly inject into the page
+    chrome.runtime.sendMessage({ type: 'open_privy_auth' })
     
     // Listen for connection success
     const checkConnection = setInterval(async () => {
