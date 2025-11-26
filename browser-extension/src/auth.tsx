@@ -168,7 +168,16 @@ function AuthContent() {
       alignItems: 'center',
       justifyContent: 'center'
     }}>
-      {!ready && <div>🔄 Loading Privy...</div>}
+      {!ready && (
+        <div className="text-center">
+          <img 
+            src={chrome.runtime.getURL('icons/lucid_w.gif')}
+            alt="Loading..."
+            className="w-16 h-16 mx-auto mb-4"
+          />
+          <p className="text-sm text-slate-400">Loading Privy...</p>
+        </div>
+      )}
       
       {ready && !authenticated && (doLogout || forceLogout) && <div>🔓 Logging out...</div>}
       

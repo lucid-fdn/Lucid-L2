@@ -1,25 +1,19 @@
 /// <reference types="chrome"/>
 import React, { useState, useEffect } from 'react'
 import { 
-  Wallet, 
-  Sparkles, 
   Settings, 
   Activity,
   Home,
-  X,
   Copy,
-  Pin,
-  PinOff
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
-import { Textarea } from './ui/textarea'
-import { Progress } from './ui/progress'
 import { cn } from '../lib/utils'
 import { StatCard } from './StatCard'
 import { ActionButton } from './ActionButton'
+import { BorderBeam } from './ui/border-beam'
 import { STATS_CONFIG, ACTIONS_CONFIG } from '../config/ui-config'
 
 interface MainViewProps {
@@ -53,6 +47,11 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
   const isSidebar = mode === 'sidebar'
   const width = isSidebar ? 'w-[350px]' : 'w-[420px]'
   const height = isSidebar ? 'h-screen' : 'min-h-[600px]'
+  const OpenAILogo = ({ size = 32, className }: { size?: number; className?: string }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M21.55 10.004a5.416 5.416 0 00-.478-4.501c-1.217-2.09-3.662-3.166-6.05-2.66A5.59 5.59 0 0010.831 1C8.39.995 6.224 2.546 5.473 4.838A5.553 5.553 0 001.76 7.496a5.487 5.487 0 00.691 6.5 5.416 5.416 0 00.477 4.502c1.217 2.09 3.662 3.165 6.05 2.66A5.586 5.586 0 0013.168 23c2.443.006 4.61-1.546 5.361-3.84a5.553 5.553 0 003.715-2.66 5.488 5.488 0 00-.693-6.497v.001zm-8.381 11.558a4.199 4.199 0 01-2.675-.954c.034-.018.093-.05.132-.074l4.44-2.53a.71.71 0 00.364-.623v-6.176l1.877 1.069c.02.01.033.029.036.05v5.115c-.003 2.274-1.87 4.118-4.174 4.123zM4.192 17.78a4.059 4.059 0 01-.498-2.763c.032.02.09.055.131.078l4.44 2.53c.225.13.504.13.73 0l5.42-3.088v2.138a.068.068 0 01-.027.057L9.9 19.288c-1.999 1.136-4.552.46-5.707-1.51h-.001zM3.023 8.216A4.15 4.15 0 015.198 6.41l-.002.151v5.06a.711.711 0 00.364.624l5.42 3.087-1.876 1.07a.067.067 0 01-.063.005l-4.489-2.559c-1.995-1.14-2.679-3.658-1.53-5.63h.001zm15.417 3.54l-5.42-3.088L14.896 7.6a.067.067 0 01.063-.006l4.489 2.557c1.998 1.14 2.683 3.662 1.529 5.633a4.163 4.163 0 01-2.174 1.807V12.38a.71.71 0 00-.363-.623zm1.867-2.773a6.04 6.04 0 00-.132-.078l-4.44-2.53a.731.731 0 00-.729 0l-5.42 3.088V7.325a.068.068 0 01.027-.057L14.1 4.713c2-1.137 4.555-.46 5.707 1.513.487.833.664 1.809.499 2.757h.001zm-11.741 3.81l-1.877-1.068a.065.065 0 01-.036-.051V6.559c.001-2.277 1.873-4.122 4.181-4.12.976 0 1.92.338 2.671.954-.034.018-.092.05-.131.073l-4.44 2.53a.71.71 0 00-.365.623l-.003 6.173v.002zm1.02-2.168L12 9.25l2.414 1.375v2.75L12 14.75l-2.415-1.375v-2.75z"/>
+    </svg>
+  )
 
   useEffect(() => {
     loadData()
@@ -126,9 +125,31 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
   }
 
   const handleWalletDisconnect = async () => {
-    await chrome.storage.local.remove(['privy_session'])
-    setWalletConnected(false)
-    setWalletAddress('')
+    try {
+      // Clear all auth-related data
+      await chrome.storage.local.remove([
+        'privy_session',
+        'chatgpt_session_stats',
+        'conversationHistory',
+        'balance'
+      ])
+      
+      // Reset local state
+      setWalletConnected(false)
+      setWalletAddress('')
+      setSessionStats({
+        totalMessages: 0,
+        pointsEarned: 0,
+        mGasEarned: 0
+      })
+      setMGasBalance(0)
+      setLucidBalance(0)
+      setRecentCaptures([])
+      
+      // The Popup component will detect the storage change and show ConnectWallet
+    } catch (error) {
+      console.error('Error disconnecting:', error)
+    }
   }
 
   const handleCopyAddress = () => {
@@ -158,7 +179,7 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-900/20 via-transparent to-transparent opacity-50 pointer-events-none -z-10" />
       
       {/* Header - Sticky */}
-      <header className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 bg-slate-900/80 backdrop-blur-xl border-b border-indigo-500/20">
+      <header className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 bg-slate-900/50 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <img src={chrome.runtime.getURL('icons/lucid_w.png')} alt="Lucid" className="w-10 h-10" />
           <div>
@@ -209,35 +230,6 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
         </div>
       </header>
 
-      {/* Quick Stats Banner - Sticky below header */}
-      <div className={cn(
-        "z-10 grid gap-2 p-3 shadow-xs ring-1 bg-neutral-900/30 ring-white/5",
-        isSidebar ? "grid-cols-2" : "grid-cols-3"
-      )}>
-        {STATS_CONFIG.map((stat) => {
-          if (isSidebar && stat.key === 'daily') return null
-          
-          const statValues = {
-            mGas: mGasBalance,
-            lucid: lucidBalance,
-            daily: `${dailyProgress}/10`
-          }
-          
-          return (
-            <StatCard
-              key={stat.key}
-              icon={stat.icon}
-              label={stat.label}
-              value={statValues[stat.key]}
-              iconColor={stat.iconColor}
-              iconBgColor={stat.iconBgColor}
-              borderColor={stat.borderColor}
-              hoverBorderColor={stat.hoverBorderColor}
-            />
-          )
-        })}
-      </div>
-
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col relative z-10">
         <TabsList className="grid w-full grid-cols-3 shadow-xs ring-1 bg-neutral-900/30 ring-white/5 rounded-none">
@@ -257,9 +249,71 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
 
         {/* Dashboard Tab */}
         <TabsContent value="dashboard" className="flex-1 overflow-y-auto scrollbar-hide p-4 pb-20 space-y-4">
+          {/* Start Session CTA - Show only when no session active */}
+      {/* Quick Stats Banner - Sticky below header */}
+          <div className={cn(
+            "grid gap-2",
+            isSidebar ? "grid-cols-1" : "grid-cols-2"
+          )}>
+            {STATS_CONFIG.map((stat) => {
+              // Hide LUCID stat (always)
+              if (stat.key === 'lucid') return null
+              // Hide daily stat in sidebar
+              if (isSidebar && stat.key === 'daily') return null
+              
+              const statValues = {
+                mGas: mGasBalance,
+                lucid: lucidBalance,
+                daily: `${dailyProgress}/10`
+              }
+              
+              return (
+                <StatCard
+                  key={stat.key}
+                  icon={stat.icon}
+                  label={stat.label}
+                  value={statValues[stat.key]}
+                  iconColor={stat.iconColor}
+                  iconBgColor={stat.iconBgColor}
+                  borderColor={stat.borderColor}
+                  hoverBorderColor={stat.hoverBorderColor}
+                />
+              )
+            })}
+          </div>
+          {sessionStats.totalMessages === 0 && (
+            <Card className="shadow-xs ring-1 bg-neutral-900/30 ring-white/5">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-center">
+                  <img 
+                    src={chrome.runtime.getURL('icons/lucid_w.gif')} 
+                    alt="Lucid" 
+                    className="w-14 h-14"
+                  />
+                </div>
+                <CardTitle className="text-center text-base">Start Earning mGas</CardTitle>
+                <CardDescription className="text-center text-xs">
+                  Start a ChatGPT conversation to begin mining mGas tokens from your AI interactions
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button 
+                  className="w-full bg-gradient-to-r from-[#081D3C] to-purple-600 hover:from-indigo-500 hover:to-purple-500 transition-colors duration-200 ease-in-out"
+                  onClick={() => window.open('https://chatgpt.com', '_blank')}
+                >
+                  <OpenAILogo className="mr-2" size={22} />
+                  Start ChatGPT Chat
+                </Button>
+                <p className="text-[10px] text-center text-slate-500 mt-2">
+                  Your conversations will be tracked privately
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Wallet Status Card */}
           {walletConnected && walletAddress && (
-            <Card className="bg-gradient-to-br from-emerald-900/20 to-teal-900/20 border-emerald-500/30">
+            <Card className="shadow-xs ring-1 bg-neutral-900/30 ring-white/5">
               <CardContent className="pt-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
@@ -284,7 +338,8 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
 
           {/* ChatGPT Session Stats */}
           {sessionStats.totalMessages > 0 && (
-            <Card className="shadow-xs ring-1 bg-neutral-900/30 ring-white/5">
+            <Card className="shadow-xs ring-1 bg-neutral-900/30 ring-white/5 relative overflow-hidden">
+              <BorderBeam size={100} duration={8} colorFrom="#a855f7" colorTo="#6366f1" />
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
                   <Activity className="w-4 h-4 text-purple-400" />
@@ -377,6 +432,7 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
                   borderColor={action.borderColor}
                   hoverBgColor={action.hoverBgColor}
                   hoverBorderColor={action.hoverBorderColor}
+                  tooltip={action.tooltip}
                   onClick={() => console.log(`${action.key} clicked`)}
                 />
               ))}
@@ -412,11 +468,29 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
 
         {/* Settings Tab */}
         <TabsContent value="settings" className="flex-1 overflow-y-auto scrollbar-hide p-4 pb-20 space-y-4">
-          <Card className="bg-slate-900/50 border-slate-800">
+          <Card className="shadow-xs ring-1 bg-neutral-900/30 ring-white/5">
             <CardHeader>
               <CardTitle className="text-sm">Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <h3 className="text-xs font-semibold text-slate-300">Account</h3>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => {
+                    const extensionId = chrome.runtime.id
+                    window.open(`https://www.lucid.foundation/test/auth?extension_id=${extensionId}`, '_blank')
+                  }}
+                >
+                  Disconnect
+                </Button>
+                <p className="text-xs text-slate-500">
+                  This will sign you out and clear your session
+                </p>
+              </div>
+              
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold text-slate-300">Notifications</h3>
                 <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
@@ -424,6 +498,7 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
                   Enable notifications
                 </label>
               </div>
+              
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold text-slate-300">Version</h3>
                 <p className="text-xs text-slate-500">v1.0.0</p>

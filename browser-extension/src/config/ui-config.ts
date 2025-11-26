@@ -19,12 +19,13 @@ export interface ActionConfig {
   hoverBgColor: string
   hoverBorderColor: string
   iconColor: string
+  tooltip: string
 }
 
 export const STATS_CONFIG: StatConfig[] = [
   {
     icon: Zap,
-    label: 'mGas',
+    label: 'mGas Token',
     key: 'mGas',
     iconColor: 'text-indigo-400',
     iconBgColor: 'bg-indigo-500/20',
@@ -42,7 +43,7 @@ export const STATS_CONFIG: StatConfig[] = [
   },
   {
     icon: Target,
-    label: 'Daily',
+    label: 'Daily Achievements',
     key: 'daily',
     iconColor: 'text-emerald-400',
     iconBgColor: 'bg-emerald-500/20',
@@ -59,7 +60,8 @@ export const ACTIONS_CONFIG: ActionConfig[] = [
     iconColor: 'text-indigo-400',
     borderColor: 'border-indigo-500/20',
     hoverBgColor: 'hover:bg-indigo-900/20',
-    hoverBorderColor: 'hover:border-indigo-500/40'
+    hoverBorderColor: 'hover:border-indigo-500/40',
+    tooltip: 'Coming Soon'
   },
   {
     icon: Target,
@@ -68,7 +70,8 @@ export const ACTIONS_CONFIG: ActionConfig[] = [
     iconColor: 'text-purple-400',
     borderColor: 'border-purple-500/20',
     hoverBgColor: 'hover:bg-purple-900/20',
-    hoverBorderColor: 'hover:border-purple-500/40'
+    hoverBorderColor: 'hover:border-purple-500/40',
+    tooltip: 'Coming Soon'
   },
   {
     icon: Activity,
@@ -77,6 +80,7 @@ export const ACTIONS_CONFIG: ActionConfig[] = [
     iconColor: 'text-emerald-400',
     borderColor: 'border-emerald-500/20',
     hoverBgColor: 'hover:bg-emerald-900/20',
-    hoverBorderColor: 'hover:border-emerald-500/40'
+    hoverBorderColor: 'hover:border-emerald-500/40',
+    tooltip: 'Coming Soon'
   }
 ]

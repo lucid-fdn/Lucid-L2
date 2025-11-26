@@ -56,16 +56,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background-color: rgba(2, 6, 23, 0.5);
+  background-color: rgba(rgba(0, 0, 0, 0.1));
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(79, 70, 229, 0.3);
+  background-color: rgba(rgba(0, 0, 0, 0.1));
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(79, 70, 229, 0.5);
+  background-color: rgba(rgba(0, 0, 0, 0.1));
 }
 
 /* Animation keyframes */
@@ -92,4 +92,43 @@
 
 .animate-spin {
   animation: spin 0.8s linear infinite;
+}
+
+@keyframes beam {
+  0% {
+    transform: translateX(-100%) translateY(-100%) rotate(0deg);
+  }
+  25% {
+    transform: translateX(100%) translateY(-100%) rotate(90deg);
+  }
+  50% {
+    transform: translateX(100%) translateY(100%) rotate(180deg);
+  }
+  75% {
+    transform: translateX(-100%) translateY(100%) rotate(270deg);
+  }
+  100% {
+    transform: translateX(-100%) translateY(-100%) rotate(360deg);
+  }
+}
+
+.animate-beam {
+  animation: beam linear infinite;
+  will-change: transform;
+}
+
+@keyframes aurora {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-aurora {
+  animation: aurora 10s ease-in-out infinite;
 }

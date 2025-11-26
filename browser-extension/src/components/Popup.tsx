@@ -110,9 +110,13 @@ export function Popup() {
   // Show loading state while checking authentication
   if (isAuthenticated === null) {
     return (
-      <div className="w-[420px] h-[600px] bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+      <div className="w-[420px] min-h-[600px] bg-black flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <img 
+            src={chrome.runtime.getURL('icons/lucid_w.gif')}
+            alt="Loading..."
+            className="w-16 h-16 mx-auto mb-4"
+          />
           <p className="text-sm text-slate-400">Loading...</p>
         </div>
       </div>
