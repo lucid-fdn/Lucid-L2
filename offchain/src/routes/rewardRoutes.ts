@@ -351,7 +351,7 @@ router.post('/share', async (req, res) => {
     res.json({
       success: true,
       message: 'Share recorded successfully',
-      totalShares: (user.total_shares || 0) + 1
+      totalShares: (user.totalShares || 0) + 1
     });
   } catch (error) {
     console.error('Error recording share:', error);

@@ -1,8 +1,9 @@
 // Reward Service - Backend implementation of reward system
-// Ported from browser-extension/reward-system.js
+// Now integrated with profiles + identity_links schema via sessionService
 // Using direct PostgreSQL connection
 
 import { Pool } from 'pg';
+import { resolveInternalUserId, ResolvedUser } from '../lib/auth/sessionService';
 
 // Initialize PostgreSQL connection pool (direct connection)
 const getPassword = (): string => {
@@ -66,7 +67,7 @@ interface EarningsResult {
 }
 
 interface ConversationData {
-  userId: string;
+  userId: string;  // This is now the Privy user ID
   messageType: 'user' | 'assistant';
   content: string;
   inputTokens?: number;
@@ -81,6 +82,19 @@ interface Achievement {
   requirement: string;
   threshold: number;
   icon: string;
+}
+
+// Extended user data for rewards (combines profiles with reward-specific fields)
+interface RewardUserData {
+  id: string;           // profiles.id
+  privyUserId: string;  // From identity_links
+  handle: string | null;
+  email: string | null;
+  walletAddress: string | null;
+  streakDays: number;
+  lastActiveDate: string | null;
+  totalThoughtsProcessed: number;
+  totalShares: number;
 }
 
 export class RewardService {
@@ -175,40 +189,93 @@ export class RewardService {
   ];
 
   // ============================================================================
-  // USER MANAGEMENT
+  // USER MANAGEMENT - Now uses profiles + identity_links via sessionService
   // ============================================================================
 
-  async getOrCreateUser(privyUserId: string, walletAddress?: string): Promise<any> {
+  /**
+   * Get or create user using the unified profiles + identity_links schema
+   * This is the key integration point with the serverless app team's schema
+   */
+  async getOrCreateUser(privyUserId: string, walletAddress?: string): Promise<RewardUserData> {
+    // Use the new sessionService to resolve Privy ID to internal user ID
+    const resolvedUser = await resolveInternalUserId(privyUserId);
+    const userId = resolvedUser.userId;
+    
     const client = await pool.connect();
     try {
-      // Check if user exists
-      const existingResult = await client.query(
+      // Check if user already has reward-specific data in the users table
+      // (for backward compatibility with existing reward data)
+      const existingRewardUser = await client.query(
         'SELECT * FROM users WHERE privy_user_id = $1',
         [privyUserId]
       );
 
-      if (existingResult.rows.length > 0) {
-        return existingResult.rows[0];
+      if (existingRewardUser.rows.length > 0) {
+        const row = existingRewardUser.rows[0];
+        return {
+          id: userId,  // Use profiles.id as the canonical ID
+          privyUserId: privyUserId,
+          handle: resolvedUser.profile.handle,
+          email: resolvedUser.profile.email,
+          walletAddress: row.wallet_address || walletAddress,
+          streakDays: row.streak_days || 0,
+          lastActiveDate: row.last_active_date,
+          totalThoughtsProcessed: row.total_thoughts_processed || 0,
+          totalShares: row.total_shares || 0
+        };
       }
 
-      // Create new user
+      // Create reward-specific user record if it doesn't exist
+      // This maintains backward compatibility with the existing rewards schema
       const newUserResult = await client.query(
         `INSERT INTO users (privy_user_id, wallet_address, streak_days, last_active_date, total_thoughts_processed, total_shares)
          VALUES ($1, $2, 0, CURRENT_DATE, 0, 0)
+         ON CONFLICT (privy_user_id) DO UPDATE SET wallet_address = COALESCE(users.wallet_address, $2)
          RETURNING *`,
         [privyUserId, walletAddress]
       );
 
       const newUser = newUserResult.rows[0];
 
-      // Create initial rewards record
+      // Create initial rewards record if it doesn't exist
       await client.query(
         `INSERT INTO rewards (user_id, mgas_balance, lucid_balance, lifetime_mgas_earned, lifetime_lucid_earned)
-         VALUES ($1, 0, 0, 0, 0)`,
+         VALUES ($1, 0, 0, 0, 0)
+         ON CONFLICT (user_id) DO NOTHING`,
         [newUser.id]
       );
 
-      return newUser;
+      return {
+        id: userId,  // Use profiles.id as the canonical ID
+        privyUserId: privyUserId,
+        handle: resolvedUser.profile.handle,
+        email: resolvedUser.profile.email,
+        walletAddress: newUser.wallet_address,
+        streakDays: newUser.streak_days || 0,
+        lastActiveDate: newUser.last_active_date,
+        totalThoughtsProcessed: newUser.total_thoughts_processed || 0,
+        totalShares: newUser.total_shares || 0
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
+   * Get the legacy users table ID for reward operations
+   * (needed since rewards/conversations tables reference users.id, not profiles.id)
+   */
+  private async getLegacyUserId(privyUserId: string): Promise<string> {
+    const client = await pool.connect();
+    try {
+      const result = await client.query(
+        'SELECT id FROM users WHERE privy_user_id = $1',
+        [privyUserId]
+      );
+      if (result.rows.length === 0) {
+        throw new Error(`No legacy user found for Privy ID: ${privyUserId}`);
+      }
+      return result.rows[0].id;
     } finally {
       client.release();
     }
@@ -442,15 +509,18 @@ export class RewardService {
     try {
       await client.query('BEGIN');
 
-      // Get or create user
+      // Get or create user (this now uses profiles + identity_links)
       const user = await this.getOrCreateUser(conversationData.userId);
+      
+      // Get the legacy user ID for FK relationships
+      const legacyUserId = await this.getLegacyUserId(conversationData.userId);
 
       // Only process user messages for rewards
       if (conversationData.messageType !== 'user') {
         await client.query(
           `INSERT INTO conversations (user_id, message_type, content, input_tokens, output_tokens)
            VALUES ($1, $2, $3, $4, $5)`,
-          [user.id, conversationData.messageType, conversationData.content, conversationData.inputTokens, conversationData.outputTokens]
+          [legacyUserId, conversationData.messageType, conversationData.content, conversationData.inputTokens, conversationData.outputTokens]
         );
         await client.query('COMMIT');
         return { success: true, earned: 0, message: 'Assistant message saved (no rewards)' };
@@ -460,7 +530,7 @@ export class RewardService {
       const qualityAssessment = await this.assessQuality(conversationData.content);
 
       // Update streak
-      const { isFirstDaily, streakDays } = await this.updateStreak(user.id, client);
+      const { isFirstDaily, streakDays } = await this.updateStreak(legacyUserId, client);
 
       // Calculate earnings
       const baseReward = 5;
@@ -470,7 +540,7 @@ export class RewardService {
       await client.query(
         `INSERT INTO conversations (user_id, message_type, content, input_tokens, output_tokens, quality_score, quality_tier, quality_breakdown)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [user.id, conversationData.messageType, conversationData.content, conversationData.inputTokens, conversationData.outputTokens,
+        [legacyUserId, conversationData.messageType, conversationData.content, conversationData.inputTokens, conversationData.outputTokens,
          qualityAssessment.score, qualityAssessment.tier, JSON.stringify(qualityAssessment.breakdown)]
       );
 
@@ -479,14 +549,14 @@ export class RewardService {
         `UPDATE rewards 
          SET mgas_balance = mgas_balance + $1, lifetime_mgas_earned = lifetime_mgas_earned + $1
          WHERE user_id = $2`,
-        [earnings.total, user.id]
+        [earnings.total, legacyUserId]
       );
 
       // Create transaction record
       await client.query(
         `INSERT INTO reward_transactions (user_id, transaction_type, mgas_amount, source, metadata)
          VALUES ($1, $2, $3, $4, $5)`,
-        [user.id, 'earn', earnings.total, 'conversation', JSON.stringify({
+        [legacyUserId, 'earn', earnings.total, 'conversation', JSON.stringify({
           quality_score: qualityAssessment.score,
           quality_tier: qualityAssessment.tier,
           quality_breakdown: qualityAssessment.breakdown,
@@ -499,14 +569,14 @@ export class RewardService {
       // Update user stats
       await client.query(
         'UPDATE users SET total_thoughts_processed = total_thoughts_processed + 1 WHERE id = $1',
-        [user.id]
+        [legacyUserId]
       );
 
       // Check achievements
-      const newAchievements = await this.checkAchievements(user.id, client);
+      const newAchievements = await this.checkAchievements(legacyUserId, client);
 
       // Get updated balance
-      const rewardsResult = await client.query('SELECT * FROM rewards WHERE user_id = $1', [user.id]);
+      const rewardsResult = await client.query('SELECT * FROM rewards WHERE user_id = $1', [legacyUserId]);
       const updatedRewards = rewardsResult.rows[0];
 
       await client.query('COMMIT');
@@ -522,6 +592,12 @@ export class RewardService {
         balance: {
           mGas: updatedRewards?.mgas_balance || 0,
           lucid: parseFloat(updatedRewards?.lucid_balance || '0')
+        },
+        // Include unified user info
+        user: {
+          id: user.id,
+          handle: user.handle,
+          email: user.email
         }
       };
     } catch (error) {
@@ -679,17 +755,28 @@ export class RewardService {
   async getUserRewards(privyUserId: string): Promise<any> {
     const client = await pool.connect();
     try {
+      // Get unified user info
       const user = await this.getOrCreateUser(privyUserId);
+      const legacyUserId = await this.getLegacyUserId(privyUserId);
 
-      const rewardsResult = await client.query('SELECT * FROM rewards WHERE user_id = $1', [user.id]);
+      const rewardsResult = await client.query('SELECT * FROM rewards WHERE user_id = $1', [legacyUserId]);
       const rewards = rewardsResult.rows[0];
 
-      const achievementsResult = await client.query('SELECT * FROM user_achievements WHERE user_id = $1', [user.id]);
+      const achievementsResult = await client.query('SELECT * FROM user_achievements WHERE user_id = $1', [legacyUserId]);
       const achievements = achievementsResult.rows;
 
+      // Get legacy user data for streak/stats
+      const legacyUserResult = await client.query('SELECT * FROM users WHERE id = $1', [legacyUserId]);
+      const legacyUser = legacyUserResult.rows[0];
+
       return {
-        userId: user.privy_user_id,
-        walletAddress: user.wallet_address,
+        // Unified user info from profiles
+        userId: user.id,
+        privyUserId: privyUserId,
+        handle: user.handle,
+        email: user.email,
+        walletAddress: user.walletAddress,
+        // Reward data
         balance: {
           mGas: rewards?.mgas_balance || 0,
           lucid: parseFloat(rewards?.lucid_balance || '0')
@@ -698,10 +785,11 @@ export class RewardService {
           mGas: rewards?.lifetime_mgas_earned || 0,
           lucid: parseFloat(rewards?.lifetime_lucid_earned || '0')
         },
-        streakDays: user.streak_days,
-        totalThoughts: user.total_thoughts_processed,
+        // Stats from legacy users table
+        streakDays: legacyUser?.streak_days || 0,
+        totalThoughts: legacyUser?.total_thoughts_processed || 0,
         achievements: achievements,
-        lastActive: user.last_active_date
+        lastActive: legacyUser?.last_active_date
       };
     } finally {
       client.release();
@@ -711,11 +799,12 @@ export class RewardService {
   async getConversationHistory(privyUserId: string, limit: number = 50): Promise<any[]> {
     const client = await pool.connect();
     try {
-      const user = await this.getOrCreateUser(privyUserId);
+      await this.getOrCreateUser(privyUserId);
+      const legacyUserId = await this.getLegacyUserId(privyUserId);
 
       const result = await client.query(
         'SELECT * FROM conversations WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2',
-        [user.id, limit]
+        [legacyUserId, limit]
       );
 
       return result.rows;
@@ -737,9 +826,10 @@ export class RewardService {
     try {
       await client.query('BEGIN');
 
-      const user = await this.getOrCreateUser(privyUserId);
+      await this.getOrCreateUser(privyUserId);
+      const legacyUserId = await this.getLegacyUserId(privyUserId);
 
-      const rewardsResult = await client.query('SELECT * FROM rewards WHERE user_id = $1', [user.id]);
+      const rewardsResult = await client.query('SELECT * FROM rewards WHERE user_id = $1', [legacyUserId]);
       const currentRewards = rewardsResult.rows[0];
 
       if ((currentRewards?.mgas_balance || 0) < mGasAmount) {
@@ -754,19 +844,19 @@ export class RewardService {
         `UPDATE rewards 
          SET mgas_balance = mgas_balance - $1, lucid_balance = lucid_balance + $2
          WHERE user_id = $3`,
-        [mGasAmount - remainingMGas, lucidAmount, user.id]
+        [mGasAmount - remainingMGas, lucidAmount, legacyUserId]
       );
 
       await client.query(
         `INSERT INTO mgas_conversions (user_id, mgas_converted, lucid_received, conversion_rate, tx_signature)
          VALUES ($1, $2, $3, $4, $5)`,
-        [user.id, mGasAmount - remainingMGas, lucidAmount, this.conversionRate, txSignature]
+        [legacyUserId, mGasAmount - remainingMGas, lucidAmount, this.conversionRate, txSignature]
       );
 
       await client.query(
         `INSERT INTO reward_transactions (user_id, transaction_type, mgas_amount, lucid_amount, source, metadata)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [user.id, 'convert', -(mGasAmount - remainingMGas), lucidAmount, 'conversion', JSON.stringify({
+        [legacyUserId, 'convert', -(mGasAmount - remainingMGas), lucidAmount, 'conversion', JSON.stringify({
           conversion_rate: this.conversionRate,
           tx_signature: txSignature
         })]

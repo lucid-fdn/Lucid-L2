@@ -31,8 +31,8 @@ export function initSolana(): Program {
   const idlJson = JSON.parse(fs.readFileSync(idlPath, 'utf8'));
   
   console.log('Program ID:', programId.toString());
-  console.log('IDL name:', idlJson.name);
-  console.log('IDL version:', idlJson.version);
+  console.log('IDL name:', idlJson.name || idlJson.metadata?.name);
+  console.log('IDL version:', idlJson.version || idlJson.metadata?.version);
 
   // Ensure metadata exists with program address
   if (!idlJson.metadata) {
