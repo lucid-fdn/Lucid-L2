@@ -80,11 +80,8 @@ class ExtensionState {
                 return;
             }
             
-            // Use the configured API URL from ConfigurationManager
-            const apiUrl = this.configManager.getApiUrl();
             console.log('📊 Popup: Fetching rewards from backend for user:', privy_session.userId);
-            console.log('🔗 Using API URL:', apiUrl);
-            const response = await fetch(`${apiUrl}/api/rewards/balance/${privy_session.userId}`);
+            const response = await fetch(`https://www.lucid.foundation/api/rewards/balance/${privy_session.userId}`);
             const data = await response.json();
             
             if (data.success && data.rewards) {
@@ -521,14 +518,11 @@ class ExtensionState {
                 // Apply event multipliers
                 const finalEarnings = this.rewardSystem.applyEventMultipliers(earningsResult.total);
                 
-                // Update balance locally
+                // Update balance
                 this.balance.mGas += finalEarnings;
                 
                 // Update daily progress
                 this.dailyProgress.completed = Math.min(this.dailyProgress.completed + 1, this.dailyProgress.total);
-                
-                // CRITICAL: Sync earnings to backend
-                await this.syncEarningsToBackend(finalEarnings, input, qualityAssessment);
                 
                 // Add to history with quality data
                 this.history.push({
@@ -580,53 +574,6 @@ class ExtensionState {
         } catch (error) {
             this.hideLoading();
             this.showToast('Failed to process thought: ' + error.message);
-        }
-    }
-
-    async syncEarningsToBackend(mGasEarned, thoughtText, qualityAssessment) {
-        try {
-            const { privy_session } = await chrome.storage.local.get(['privy_session']);
-            if (!privy_session?.userId) {
-                console.warn('⚠️ No Privy session, cannot sync earnings to backend');
-                return;
-            }
-
-            const apiUrl = this.configManager.getApiUrl();
-            console.log('💾 Syncing earnings to backend:', {
-                userId: privy_session.userId,
-                mGasEarned,
-                thoughtText: thoughtText.substring(0, 50) + '...'
-            });
-
-            const response = await fetch(`${apiUrl}/api/rewards/earn`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    userId: privy_session.userId,
-                    mGasEarned,
-                    thoughtText,
-                    qualityScore: qualityAssessment.score,
-                    qualityTier: qualityAssessment.tier,
-                    streakDays: this.streak,
-                    timestamp: Date.now()
-                })
-            });
-
-            if (!response.ok) {
-                throw new Error(`Backend responded with status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log('✅ Backend sync successful:', data);
-
-            // Reload fresh balance from backend
-            await this.loadRewardsFromBackend();
-
-        } catch (error) {
-            console.error('❌ Failed to sync earnings to backend:', error);
-            // Don't throw - we already updated local state, just log the error
         }
     }
 

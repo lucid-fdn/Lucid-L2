@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Lucid AI",
+  "name": "Lucid AI Memory",
   "version": "1.0.0",
-  "description": "Stake your AI chats (ChatGPT, Claude, Gemini, etc.) into your Solana Lucid Memory Map to unlock portable memory, agent collaboration, reuse, and rewards — privately.",
+  "description": "Earn crypto rewards by connecting your ChatGPT conversations to Lucid L2 blockchain. Processes conversations with your consent to calculate mGas token rewards. Requires Solana wallet.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -54,6 +54,6 @@
   },
   "homepage_url": "https://www.lucid.foundation/privacy",
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'self'; connect-src 'self' https://*.lucid.foundation https://*.privy.io https://auth.privy.io https://api.privy.io https://auth-api.privy.io https://api.devnet.solana.com https://api.testnet.solana.com https://*.walletconnect.org https://cdn.jsdelivr.net wss://*.walletconnect.com data:; frame-ancestors 'none';"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'self'; connect-src 'self' https://www.lucid.foundation https://*.privy.io https://auth.privy.io https://api.privy.io https://auth-api.privy.io https://api.devnet.solana.com https://api.testnet.solana.com https://*.walletconnect.org https://cdn.jsdelivr.net wss://*.walletconnect.com data:; frame-ancestors 'none';"
   }
 }

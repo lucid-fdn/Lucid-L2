@@ -46,13 +46,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     console.log('[BG] chatgpt_message received:', msg.data?.messageType);
     
     chrome.storage.local.get(['privy_session'], async (result) => {
-      // FIX: privy_session stores wallet address, not userId
-      // Use solanaAddress, address, or wallet.address as the userId
-      const session = result.privy_session;
-      const userId = session?.userId || session?.solanaAddress || session?.address || session?.wallet?.address;
-      
-      console.log('[BG] privy_session:', JSON.stringify(session, null, 2));
-      console.log('[BG] Resolved userId:', userId);
+      const userId = result.privy_session?.userId;
       
       if (!userId) {
         console.log('[BG] No userId found, skipping reward processing');
@@ -60,7 +54,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return;
       }
       
-      const LUCID_API_BASE = 'https://api.lucid.foundation';
+      const LUCID_API_BASE = 'https://www.lucid.foundation';
       
       try {
         const response = await fetch(`${LUCID_API_BASE}/api/rewards/process-conversation`, {
@@ -78,22 +72,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         const data = await response.json();
         console.log('[BG] Reward processing result:', data);
         
-        if (data.success) {
-          // CRITICAL FIX: Store the balance in chrome.storage.local
-          // This was missing - balance was never being persisted!
-          if (data.balance) {
-            chrome.storage.local.set({ balance: data.balance }, () => {
-              console.log('[BG] ✅ Balance stored:', data.balance);
-            });
-          }
-          
-          if (data.earned > 0) {
-            // Notify popup to refresh
-            chrome.runtime.sendMessage({
-              type: 'rewards_updated',
-              data: data.balance
-            }).catch(err => console.log('[BG] Popup not open:', err));
-          }
+        if (data.success && data.earned > 0) {
+          // Notify popup to refresh
+          chrome.runtime.sendMessage({
+            type: 'rewards_updated',
+            data: data.balance
+          }).catch(err => console.log('[BG] Popup not open:', err));
         }
         
         sendResponse?.({ ok: true, data });
@@ -107,10 +91,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if (msg?.type === 'lucid_run') {
     // Perform backend fetch from the service worker to avoid mixed-content/CORS issues
-    const LUCID_API_BASE = 'https://api.lucid.foundation';
+    const LUCID_API_BASE = 'https://www.lucid.foundation';
     try {
       console.log('[BG] lucid_run received. text length:', (msg.payload?.text || '').length);
-      fetch(`${LUCID_API_BASE}/api/run`, {
+      fetch(`${LUCID_API_BASE}/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

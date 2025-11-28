@@ -5,6 +5,83 @@ import { getRewardService } from '../services/rewardService';
 const router = express.Router();
 
 /**
+ * POST /api/rewards/earn
+ * Record mGas earnings from thought processing
+ */
+router.post('/earn', async (req, res) => {
+  try {
+    const { userId, mGasEarned, thoughtText, qualityScore, qualityTier, streakDays, timestamp } = req.body;
+
+    if (!userId || !mGasEarned) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: userId and mGasEarned are required'
+      });
+    }
+
+    console.log(`💰 Recording ${mGasEarned} mGas earnings for user ${userId}`);
+
+    const rewardService = getRewardService();
+    const user = await rewardService.getOrCreateUser(userId);
+
+    // Update user's balance
+    const { Pool } = await import('pg');
+    const pool = new Pool({
+      host: process.env.POSTGRES_HOST || 'localhost',
+      port: parseInt(process.env.POSTGRES_PORT || '5432'),
+      database: process.env.POSTGRES_DB || 'postgres',
+      user: process.env.POSTGRES_USER || 'postgres',
+      password: process.env.POSTGRES_PASSWORD || process.env.SUPABASE_DB_PASSWORD || '',
+    });
+
+    await pool.query(
+      `UPDATE rewards 
+       SET mgas_balance = mgas_balance + $1, 
+           lifetime_mgas_earned = lifetime_mgas_earned + $1,
+           total_thoughts = total_thoughts + 1
+       WHERE user_id = $2`,
+      [mGasEarned, user.id]
+    );
+
+    // Record the thought in conversations table
+    await pool.query(
+      `INSERT INTO conversations (user_id, message_type, content, input_tokens, output_tokens, mgas_earned, quality_score, quality_tier, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [user.id, 'thought', thoughtText, 0, 0, mGasEarned, qualityScore || 0.5, qualityTier || 'average', new Date(timestamp || Date.now())]
+    );
+
+    // Get updated balance
+    const balanceResult = await pool.query(
+      'SELECT mgas_balance, lucid_balance, lifetime_mgas_earned, total_thoughts FROM rewards WHERE user_id = $1',
+      [user.id]
+    );
+
+    await pool.end();
+
+    const balance = balanceResult.rows[0] || { mgas_balance: 0, lucid_balance: 0 };
+
+    console.log(`✅ Earnings recorded. New balance: ${balance.mgas_balance} mGas`);
+
+    res.json({
+      success: true,
+      earned: mGasEarned,
+      balance: {
+        mGas: balance.mgas_balance,
+        lucid: balance.lucid_balance,
+        lifetimeEarned: balance.lifetime_mgas_earned,
+        totalThoughts: balance.total_thoughts
+      }
+    });
+  } catch (error) {
+    console.error('Error recording earnings:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
  * POST /api/rewards/process-conversation
  * Process a ChatGPT conversation message and award rewards
  * This is the core endpoint called by the browser extension
