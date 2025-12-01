@@ -75,16 +75,21 @@ class ExtensionState {
     async loadRewardsFromBackend() {
         try {
             const { privy_session } = await chrome.storage.local.get(['privy_session']);
-            if (!privy_session?.userId) {
-                console.log('No Privy session, skipping backend reward fetch');
+            
+            // Use robust userId resolution (same as background.js)
+            const userId = privy_session?.userId || privy_session?.solanaAddress || privy_session?.address || privy_session?.wallet?.address;
+            
+            if (!userId) {
+                console.log('No Privy session or userId found, skipping backend reward fetch');
+                console.log('📊 privy_session structure:', JSON.stringify(privy_session, null, 2));
                 return;
             }
             
             // Use the configured API URL from ConfigurationManager
             const apiUrl = this.configManager.getApiUrl();
-            console.log('📊 Popup: Fetching rewards from backend for user:', privy_session.userId);
+            console.log('📊 Popup: Fetching rewards from backend for user:', userId);
             console.log('🔗 Using API URL:', apiUrl);
-            const response = await fetch(`${apiUrl}/api/rewards/balance/${privy_session.userId}`);
+            const response = await fetch(`${apiUrl}/api/rewards/balance/${userId}`);
             const data = await response.json();
             
             if (data.success && data.rewards) {

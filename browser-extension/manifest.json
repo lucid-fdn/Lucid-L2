@@ -9,7 +9,7 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "identity", "activeTab", "tabs", "notifications", "scripting"],
+  "permissions": ["storage", "identity", "activeTab", "tabs", "notifications", "scripting", "alarms"],
   "host_permissions": [
     "https://*.privy.io/*",
     "https://auth.privy.io/*", 
@@ -18,6 +18,7 @@
     "https://chatgpt.com/*", 
     "https://chat.openai.com/*",
     "https://www.lucid.foundation/*",
+    "https://api.lucid.foundation/*",
     "https://api.lucid-l2.com/*",
     "https://api.devnet.solana.com/*",
     "https://api.testnet.solana.com/*",
