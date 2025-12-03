@@ -1,0 +1,25 @@
+http:
+  routers:
+    # Nango API - accessible at https://api.lucid.foundation/nango/*
+    # Used for OAuth token management and API proxy calls
+    nango-api:
+      rule: "Host(`api.lucid.foundation`) && PathPrefix(`/nango`)"
+      entryPoints:
+        - websecure
+      service: nango-api
+      middlewares:
+        - nango-stripprefix
+      tls: {}
+      priority: 3
+
+  services:
+    nango-api:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3003"
+
+  middlewares:
+    nango-stripprefix:
+      stripPrefix:
+        prefixes:
+          - "/nango"

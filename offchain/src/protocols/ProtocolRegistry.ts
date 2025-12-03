@@ -140,6 +140,14 @@ export class ProtocolRegistry {
   }
 
   /**
+   * Get registered protocol adapter (synchronous)
+   */
+  get(protocolId: string): BaseProtocolAdapter | undefined {
+    const protocol = this.protocols.get(protocolId);
+    return protocol?.adapter;
+  }
+
+  /**
    * Check if protocol is registered
    */
   has(protocolId: string): boolean {

@@ -70,6 +70,60 @@ class ExtensionState {
         
         // NEW: Load rewards from backend if authenticated
         await this.loadRewardsFromBackend();
+        
+        // NEW: Load conversation history from backend if authenticated
+        await this.loadHistoryFromBackend();
+    }
+    
+    async loadHistoryFromBackend() {
+        try {
+            const { privy_session } = await chrome.storage.local.get(['privy_session']);
+            
+            // Use robust userId resolution (same as background.js)
+            const userId = privy_session?.userId || privy_session?.solanaAddress || privy_session?.address || privy_session?.wallet?.address;
+            
+            if (!userId) {
+                console.log('📜 No Privy session or userId found, skipping backend history fetch');
+                return;
+            }
+            
+            // Use the configured API URL from ConfigurationManager
+            const apiUrl = this.configManager.getApiUrl();
+            console.log('📜 Popup: Fetching conversation history from backend for user:', userId);
+            
+            const response = await fetch(`${apiUrl}/api/rewards/history/${userId}?limit=50`);
+            const data = await response.json();
+            
+            if (data.success && data.history) {
+                console.log('✅ Popup: Backend history loaded:', data.history.length, 'items');
+                
+                // Convert backend history format to local format
+                const backendHistory = data.history.map(item => ({
+                    type: item.message_type || item.messageType || 'user',
+                    content: item.content || '',
+                    timestamp: item.created_at || item.timestamp || new Date().toISOString(),
+                    inputTokens: item.input_tokens || item.inputTokens || 0,
+                    outputTokens: item.output_tokens || item.outputTokens || 0,
+                    mGasEarned: item.mgas_earned || item.mGasEarned || 0,
+                    qualityScore: item.quality_score || item.qualityScore || 0.5
+                }));
+                
+                // Merge with existing local history (backend takes priority for duplicates)
+                // Only update if backend has items
+                if (backendHistory.length > 0) {
+                    this.conversationHistory = backendHistory;
+                    
+                    // Save to storage so it persists across sessions
+                    await chrome.storage.local.set({ conversationHistory: this.conversationHistory });
+                    console.log('💾 Popup: Saved backend history to storage:', this.conversationHistory.length, 'items');
+                    
+                    // Update UI to show the history
+                    await this.updateUI();
+                }
+            }
+        } catch (error) {
+            console.error('❌ Popup: Error loading history from backend:', error);
+        }
     }
     
     async loadRewardsFromBackend() {
@@ -183,7 +237,11 @@ class ExtensionState {
                 unlockedAchievements: this.unlockedAchievements,
                 totalShares: this.totalShares,
                 referralData: this.referralData,
-                lastDailyReset: this.lastDailyReset
+                lastDailyReset: this.lastDailyReset,
+                // FIX: Now saving ChatGPT data that was previously only loaded
+                chatgpt_session_stats: this.chatgptSessionStats,
+                conversationHistory: this.conversationHistory,
+                totalLifetimePoints: this.totalLifetimePoints
             }, resolve);
         });
     }
@@ -1064,8 +1122,13 @@ class ExtensionState {
                 
                 // Store complete session data in chrome.storage.local for persistence
                 const payload = msg.payload;
-                chrome.storage.local.set({ privy_session: payload }, () => {
+                chrome.storage.local.set({ privy_session: payload }, async () => {
                     console.log('✅ Privy session stored in chrome.storage.local');
+                    
+                    // IMPORTANT: Fetch rewards and history from backend after authentication
+                    console.log('🔄 Fetching rewards and history after auth...');
+                    await self.loadRewardsFromBackend();
+                    await self.loadHistoryFromBackend();
                 });
                 
                 // Extract wallet info from Privy payload
