@@ -92,11 +92,16 @@ export class NangoService {
   private nango: Nango;
   private supabase: SupabaseClient;
   private redis: Redis;
+  private nangoHost: string;
+  private nangoSecretKey: string;
   
   constructor() {
+    this.nangoSecretKey = process.env.NANGO_SECRET_KEY!;
+    this.nangoHost = process.env.NANGO_API_URL || 'http://localhost:3003';
+    
     this.nango = new Nango({
-      secretKey: process.env.NANGO_SECRET_KEY!,
-      host: process.env.NANGO_API_URL || 'http://localhost:3003'
+      secretKey: this.nangoSecretKey,
+      host: this.nangoHost
     });
     
     this.supabase = createClient(
@@ -105,6 +110,112 @@ export class NangoService {
     );
     
     this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+  }
+  
+  /**
+   * Get list of providers with their configuration status from Nango
+   * Returns only providers that are actually configured in Nango
+   * Uses direct database query to bypass Nango API authentication issues
+   */
+  async getConfiguredProviders(): Promise<(OAuthProvider & { configured: boolean })[]> {
+    const cacheKey = 'nango:configured-providers';
+    
+    // Check cache first (5 minute TTL)
+    const cached = await this.redis.get(cacheKey);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+    
+    // Fetch all configured integrations from Nango database directly
+    let configuredIntegrations: Set<string> = new Set();
+    
+    try {
+      // Query the Nango database directly for PROD environment integrations
+      // Environment ID 1 = prod, Environment ID 2 = dev
+      // Using pg for direct query since supabase client doesn't expose nango schema
+      const { Pool } = require('pg');
+      const pool = new Pool({
+        host: process.env.POSTGRES_HOST || 'aws-1-eu-north-1.pooler.supabase.com',
+        port: parseInt(process.env.POSTGRES_PORT || '6543'),
+        database: process.env.POSTGRES_DB || 'postgres',
+        user: process.env.POSTGRES_USER || 'postgres.kwihlcnapmkaivijyiif',
+        password: process.env.POSTGRES_PASSWORD,
+        ssl: { rejectUnauthorized: false }
+      });
+      
+      try {
+        const result = await pool.query(
+          'SELECT unique_key, provider FROM nango._nango_configs WHERE environment_id = 1 AND deleted = false'
+        );
+        
+        const configs = result.rows;
+        console.log(`[NangoService] Fetched ${configs.length} integrations from Nango database (prod environment)`);
+        
+        configs.forEach((config: any) => {
+          // Both unique_key and provider can identify the integration
+          const key = config.unique_key || config.provider;
+          if (key) {
+            configuredIntegrations.add(key.toLowerCase());
+            console.log(`[NangoService] Found configured integration: ${key}`);
+          }
+        });
+      } finally {
+        await pool.end();
+      }
+    } catch (error) {
+      console.error('[NangoService] Error fetching Nango integrations from database:', error);
+      
+      // Fallback to Nango API as secondary option
+      try {
+        const response = await fetch(
+          `${this.nangoHost}/config`,
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${this.nangoSecretKey}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          const configs = data.configs || data || [];
+          
+          if (Array.isArray(configs)) {
+            configs.forEach((config: any) => {
+              const key = config.unique_key || config.provider_config_key || config.provider;
+              if (key) {
+                configuredIntegrations.add(key.toLowerCase());
+              }
+            });
+          }
+        }
+      } catch (apiError) {
+        console.error('[NangoService] API fallback also failed:', apiError);
+      }
+    }
+    
+    // Map SUPPORTED_PROVIDERS with their configuration status
+    const configuredProviders = SUPPORTED_PROVIDERS.map(provider => ({
+      ...provider,
+      configured: configuredIntegrations.has(provider.id.toLowerCase())
+    }));
+    
+    // Cache results for 5 minutes
+    await this.redis.setex(cacheKey, 300, JSON.stringify(configuredProviders));
+    
+    console.log(`[NangoService] Configured providers: ${configuredProviders.filter(p => p.configured).map(p => p.id).join(', ') || 'none'}`);
+    
+    return configuredProviders;
+  }
+  
+  /**
+   * Get only providers that are actually configured in Nango
+   */
+  async getActiveProviders(): Promise<OAuthProvider[]> {
+    const allProviders = await this.getConfiguredProviders();
+    return allProviders.filter(p => p.configured).map(({ configured, ...provider }) => provider);
   }
   
   /**

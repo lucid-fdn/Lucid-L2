@@ -20,13 +20,37 @@ router.use((req, res, next) => {
 
 /**
  * GET /api/oauth/providers
- * List available OAuth providers
+ * List available OAuth providers with their configuration status
+ * Returns providers with a 'configured' field indicating if they're set up in Nango
  */
-router.get('/providers', (req, res) => {
-  res.json({
-    providers: SUPPORTED_PROVIDERS,
-    timestamp: new Date().toISOString()
-  });
+router.get('/providers', async (req, res) => {
+  try {
+    // Get providers with their Nango configuration status
+    const providers = await nangoService.getConfiguredProviders();
+    
+    // Separate into configured and unconfigured
+    const configuredProviders = providers.filter(p => p.configured);
+    const unconfiguredProviders = providers.filter(p => !p.configured);
+    
+    res.json({
+      providers: configuredProviders,
+      availableProviders: unconfiguredProviders.map(({ configured, ...p }) => p),
+      totalConfigured: configuredProviders.length,
+      totalAvailable: providers.length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Error fetching providers:', error);
+    // Fallback to static list if Nango check fails
+    res.json({
+      providers: SUPPORTED_PROVIDERS.map(p => ({ ...p, configured: false })),
+      availableProviders: SUPPORTED_PROVIDERS,
+      totalConfigured: 0,
+      totalAvailable: SUPPORTED_PROVIDERS.length,
+      timestamp: new Date().toISOString(),
+      warning: 'Unable to verify Nango configuration. Showing all potential providers.'
+    });
+  }
 });
 
 /**

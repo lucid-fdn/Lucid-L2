@@ -18,6 +18,7 @@ import './protocols/adapters';
 import oauthRoutes from './routes/oauthRoutes';
 import healthRoutes from './routes/healthRoutes';
 import hyperliquidRoutes from './routes/hyperliquidRoutes';
+import solanaRoutes from './routes/solanaRoutes';
 
 const app = express();
 
@@ -51,6 +52,9 @@ app.use('/api/oauth', oauthRoutes);
 
 // Mount Hyperliquid trading routes
 app.use('/api/hyperliquid', hyperliquidRoutes);
+
+// Mount Solana blockchain routes
+app.use('/api/solana', solanaRoutes);
 
 // Mount health check routes
 app.use('/health', healthRoutes);
