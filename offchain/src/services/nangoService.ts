@@ -238,12 +238,20 @@ export class NangoService {
     // Connection ID format: {privyUserId}-{provider}
     const connectionId = `${privyUserId}-${provider}`;
     
-    // Get Nango auth URL (use type assertion for SDK compatibility)
-    const authUrl = (this.nango as any).getAuthorizationUrl({
-      integrationId: provider,
-      connectionId,
-      state
+    // Construct the Nango OAuth connect URL manually
+    // The @nangohq/node SDK does NOT have a getAuthorizationUrl method
+    // We must construct the URL ourselves using Nango's OAuth connect endpoint
+    const params = new URLSearchParams({
+      connection_id: connectionId,
     });
+    
+    // Add state for CSRF protection
+    if (state) {
+      params.append('state', state);
+    }
+    
+    // Nango OAuth connect URL format: ${NANGO_HOST}/oauth/connect/${integrationId}
+    const authUrl = `${this.nangoHost}/oauth/connect/${provider}?${params.toString()}`;
     
     // Store state temporarily (5 min expiry)
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
