@@ -21,12 +21,18 @@ export interface OAuthProvider {
   category: 'social' | 'exchange' | 'communication' | 'other';
 }
 
+// Map external provider IDs to Nango integration IDs
+// This allows backward compatibility when Nango provider names change
+export const PROVIDER_TO_NANGO_MAP: Record<string, string> = {
+  'twitter': 'twitter-v2',  // Twitter now uses OAuth 2.0 (twitter-v2)
+};
+
 export const SUPPORTED_PROVIDERS: OAuthProvider[] = [
   {
     id: 'twitter',
     name: 'Twitter / X',
     icon: '/icons/twitter.svg',
-    requiredScopes: ['tweet.read', 'tweet.write', 'users.read'],
+    requiredScopes: ['tweet.read', 'tweet.write', 'users.read', 'offline.access'],
     category: 'social'
   },
   {
@@ -93,11 +99,18 @@ export class NangoService {
   private supabase: SupabaseClient;
   private redis: Redis;
   private nangoHost: string;
+  private nangoPublicUrl: string;
+  private nangoPublicKey: string;
   private nangoSecretKey: string;
   
   constructor() {
     this.nangoSecretKey = process.env.NANGO_SECRET_KEY!;
+    // Public key for OAuth connect URLs (required for browser-initiated flows)
+    this.nangoPublicKey = process.env.NANGO_PUBLIC_KEY!;
+    // Internal URL for server-to-server API calls (SDK, proxy, etc.)
     this.nangoHost = process.env.NANGO_API_URL || 'http://localhost:3003';
+    // Public URL for browser redirects (OAuth authorization URLs)
+    this.nangoPublicUrl = process.env.NANGO_PUBLIC_URL || this.nangoHost;
     
     this.nango = new Nango({
       secretKey: this.nangoSecretKey,
@@ -197,10 +210,16 @@ export class NangoService {
     }
     
     // Map SUPPORTED_PROVIDERS with their configuration status
-    const configuredProviders = SUPPORTED_PROVIDERS.map(provider => ({
-      ...provider,
-      configured: configuredIntegrations.has(provider.id.toLowerCase())
-    }));
+    // Check both the provider ID and its mapped Nango integration ID (e.g., twitter -> twitter-v2)
+    const configuredProviders = SUPPORTED_PROVIDERS.map(provider => {
+      const nangoId = PROVIDER_TO_NANGO_MAP[provider.id] || provider.id;
+      const isConfigured = configuredIntegrations.has(provider.id.toLowerCase()) || 
+                          configuredIntegrations.has(nangoId.toLowerCase());
+      return {
+        ...provider,
+        configured: isConfigured
+      };
+    });
     
     // Cache results for 5 minutes
     await this.redis.setex(cacheKey, 300, JSON.stringify(configuredProviders));
@@ -243,6 +262,7 @@ export class NangoService {
     // We must construct the URL ourselves using Nango's OAuth connect endpoint
     const params = new URLSearchParams({
       connection_id: connectionId,
+      public_key: this.nangoPublicKey,
     });
     
     // Add state for CSRF protection
@@ -250,8 +270,11 @@ export class NangoService {
       params.append('state', state);
     }
     
-    // Nango OAuth connect URL format: ${NANGO_HOST}/oauth/connect/${integrationId}
-    const authUrl = `${this.nangoHost}/oauth/connect/${provider}?${params.toString()}`;
+    // Nango OAuth connect URL format: ${NANGO_PUBLIC_URL}/oauth/connect/${integrationId}
+    // Use the public URL for browser redirects (not the internal API URL)
+    // Map provider to Nango integration ID (e.g., 'twitter' -> 'twitter-v2')
+    const nangoIntegrationId = PROVIDER_TO_NANGO_MAP[provider] || provider;
+    const authUrl = `${this.nangoPublicUrl}/oauth/connect/${nangoIntegrationId}?${params.toString()}`;
     
     // Store state temporarily (5 min expiry)
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);

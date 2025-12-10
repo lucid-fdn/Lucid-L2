@@ -16,14 +16,14 @@ class ConfigurationManager {
                 commitment: 'confirmed',
                 environment: 'devnet',
                 lucidMint: 'FevHSnbJ3567nxaJoCBZMmdR6SKwB9xsTZgdFGJ9WoHQ',
-                apiUrl: 'http://13.221.253.195:3001'
+                apiUrl: 'https://api.lucid.foundation'
             },
             testnet: {
                 rpcUrl: 'https://api.testnet.solana.com',
                 commitment: 'confirmed',
                 environment: 'testnet',
                 lucidMint: '8FJLRcc681GxefHgsPg32ZdGAveQNTFLVy5GgmotiimG',
-                apiUrl: 'http://13.221.253.195:3001'
+                apiUrl: 'https://api.lucid.foundation'
             }
         };
         

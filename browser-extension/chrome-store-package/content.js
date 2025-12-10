@@ -24,8 +24,8 @@
     lucidTokensEarned: 0
   };
 
-  // Lucid L2 API Configuration
-  const LUCID_API_BASE = 'https://www.lucid.foundation';
+  // Lucid L2 API Configuration  
+  const LUCID_API_BASE = 'https://api.lucid.foundation';
   let LUCID_ENV = 'devnet';
   
   try {
@@ -293,6 +293,24 @@
                   outputTokens: latest.type === 'assistant' ? estimateTokens(latest.content) : 0
                 }
               }).catch(err => console.log('⚠️ Could not send to reward system:', err.message));
+              
+              // IMPORTANT: If we just captured an assistant message, also send the user message that triggered it
+              // Backend only awards mGas for 'user' messages, not 'assistant' messages
+              if (latest.type === 'assistant' && messages.length >= 2) {
+                const userMessage = messages[messages.length - 2];
+                if (userMessage && userMessage.type === 'user') {
+                  console.log(`📤 Also sending user message for rewards (${userMessage.content.length} chars)`);
+                  chrome.runtime.sendMessage({
+                    type: 'chatgpt_message',
+                    data: {
+                      messageType: 'user',
+                      content: userMessage.content,
+                      inputTokens: estimateTokens(userMessage.content),
+                      outputTokens: 0
+                    }
+                  }).catch(err => console.log('⚠️ Could not send user message to reward system:', err.message));
+                }
+              }
             }
 
             console.log(`✅ Captured ${messages.length} messages (background mode)`);
