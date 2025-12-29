@@ -142,13 +142,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (openerTabId) {
         chrome.storage.local.set({ opener_tab_id: openerTabId });
       }
-      const url = chrome.runtime.getURL('auth.html') + '?logout=1';
-      chrome.windows.create({ 
-        url, 
-        type: 'popup', 
-        width: 420, 
-        height: 520 
+
+      // IMPORTANT (MV3 compliance): logout flow is hosted on our website to avoid any
+      // remote-code dependencies inside extension pages.
+      const extensionId = chrome.runtime.id;
+      chrome.tabs.create({
+        url: `https://www.lucid.foundation/test/auth?extension_id=${extensionId}&logout=1`,
+        active: true
       });
+
       sendResponse?.({ ok: true });
     });
     return true;

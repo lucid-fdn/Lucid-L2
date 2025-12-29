@@ -16,6 +16,7 @@ import './protocols/adapters';
 
 // Import OAuth routes
 import oauthRoutes from './routes/oauthRoutes';
+import oauthResourcesRoutes from './routes/oauthResourcesRoutes';
 import healthRoutes from './routes/healthRoutes';
 import hyperliquidRoutes from './routes/hyperliquidRoutes';
 import solanaRoutes from './routes/solanaRoutes';
@@ -49,6 +50,7 @@ app.use('/api', createApiRouter());
 
 // Mount OAuth routes for Nango integration
 app.use('/api/oauth', oauthRoutes);
+app.use('/api/oauth', oauthResourcesRoutes);
 
 // Mount Hyperliquid trading routes
 app.use('/api/hyperliquid', hyperliquidRoutes);

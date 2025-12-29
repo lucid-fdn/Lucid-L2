@@ -80,7 +80,7 @@ cp popup-styles.css chrome-store-package/
 cp sidebar.html chrome-store-package/
 cp sidebar.js chrome-store-package/
 cp sidebar-styles.css chrome-store-package/
-cp auth.html chrome-store-package/
+# auth.html removed: auth flow is hosted on https://www.lucid.foundation for MV3 compliance
 cp auth-redirect.js chrome-store-package/
 cp config.js chrome-store-package/
 cp reward-system.js chrome-store-package/

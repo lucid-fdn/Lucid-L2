@@ -121,7 +121,7 @@ router.post('/:provider/initiate', async (req: PrivyRequest, res) => {
       });
     }
     
-    const { authUrl, state } = await nangoService.initiateOAuthFlow(
+    const { authUrl, state, connectionId } = await nangoService.initiateOAuthFlow(
       privyUserId,
       userId,
       provider
@@ -130,6 +130,7 @@ router.post('/:provider/initiate', async (req: PrivyRequest, res) => {
     res.json({
       authUrl,
       state,
+      connectionId,
       provider: supportedProvider.name,
       scopes: supportedProvider.requiredScopes,
       expiresIn: 300 // 5 minutes
@@ -184,10 +185,12 @@ router.get('/callback', async (req, res) => {
 router.get('/:privyUserId/:provider/token', verifyHmacSignature, async (req: HmacRequest, res) => {
   try {
     const { privyUserId, provider } = req.params;
+    const { connectionId } = req.query as { connectionId?: string };
     
     const { token, expiresAt, metadata } = await nangoService.getAccessToken(
       privyUserId,
-      provider
+      provider,
+      connectionId
     );
     
     res.json({
@@ -243,6 +246,8 @@ router.post('/:privyUserId/:provider/proxy', async (req, res) => {
       });
     }
     
+    const { connectionId } = req.body;
+
     const result = await nangoService.proxyApiCall(
       privyUserId,
       provider,
@@ -250,7 +255,8 @@ router.post('/:privyUserId/:provider/proxy', async (req, res) => {
       method.toUpperCase(),
       data,
       n8nWorkflowId,
-      n8nExecutionId
+      n8nExecutionId,
+      connectionId
     );
     
     res.json({
@@ -287,8 +293,9 @@ router.delete('/:provider', async (req: PrivyRequest, res) => {
   try {
     const { provider } = req.params;
     const privyUserId = req.user!.privyUserId;
+    const { connectionId } = req.body as { connectionId?: string };
     
-    await nangoService.revokeConnection(privyUserId, provider);
+    await nangoService.revokeConnection(privyUserId, provider, connectionId);
     
     res.json({
       success: true,
@@ -301,6 +308,55 @@ router.delete('/:provider', async (req: PrivyRequest, res) => {
     res.status(500).json({ 
       error: 'Failed to revoke connection',
       message: error.message 
+    });
+  }
+});
+
+/**
+ * POST /api/oauth/:provider/sync
+ * Sync (upsert) a Nango connection into `user_oauth_connections`.
+ *
+ * Use this after the Nango-hosted OAuth flow completes successfully.
+ * This endpoint is authenticated via Privy (same as other protected routes).
+ */
+router.post('/:provider/sync', async (req: PrivyRequest, res) => {
+  try {
+    const { provider } = req.params;
+    const privyUserId = req.user!.privyUserId;
+    const userId = req.user!.userId;
+
+    const { connectionId } = req.body;
+
+    if (!connectionId || typeof connectionId !== 'string') {
+      return res.status(400).json({
+        error: 'connectionId required',
+        message: 'Provide the Nango connectionId used during /initiate (connection_id query param sent to Nango)'
+      });
+    }
+
+    const result = await nangoService.syncConnectionFromNango(privyUserId, userId, provider, connectionId);
+
+    res.json({
+      ...result,
+      // backward + forward compatible: surface profile at top level
+      profile: result.profile,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Error syncing connection:', error);
+
+    // If Nango doesn't have the connection yet
+    if (error.message?.toLowerCase().includes('no nango connection')) {
+      return res.status(404).json({
+        error: 'Connection not found in Nango',
+        message: error.message,
+        action: 'complete_oauth'
+      });
+    }
+
+    res.status(500).json({
+      error: 'Failed to sync connection',
+      message: error.message
     });
   }
 });

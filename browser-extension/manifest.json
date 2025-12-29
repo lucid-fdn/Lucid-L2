@@ -2,14 +2,14 @@
   "manifest_version": 3,
   "name": "Lucid AI",
   "version": "1.0.0",
-  "description": "Stake your AI chats (ChatGPT, Claude, Gemini, etc.) into your Solana Lucid Memory Map to unlock portable memory, agent collaboration, reuse, and rewards — privately.",
+  "description": "Earn crypto rewards by staking your ChatGPT conversations to Lucid L2 blockchain. Secure wallet connection via Privy.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "identity", "activeTab", "tabs", "notifications", "scripting", "alarms"],
+  "permissions": ["storage", "activeTab", "tabs", "scripting", "alarms"],
   "host_permissions": [
     "https://*.privy.io/*",
     "https://auth.privy.io/*", 
@@ -22,7 +22,6 @@
     "https://api.lucid-l2.com/*",
     "https://api.devnet.solana.com/*",
     "https://api.testnet.solana.com/*",
-    "https://cdn.jsdelivr.net/*",
     "https://*.walletconnect.org/*",
     "https://*.walletconnect.com/*"
   ],
@@ -45,7 +44,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["icons/*", "auth.html", "auth-redirect.js", "privy-api-bridge.js", "config.js", "sidebar.html", "sidebar.js", "sidebar-styles.css", "dist/*"],
+      "resources": ["icons/*", "auth-redirect.js", "privy-api-bridge.js", "config.js", "sidebar.html", "sidebar.js", "sidebar-styles.css", "dist/*"],
       "matches": ["https://*/*", "http://*/*"]
     }
   ],
@@ -55,6 +54,6 @@
   },
   "homepage_url": "https://www.lucid.foundation/privacy",
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'self'; connect-src 'self' https://*.lucid.foundation https://*.privy.io https://auth.privy.io https://api.privy.io https://auth-api.privy.io https://api.devnet.solana.com https://api.testnet.solana.com https://*.walletconnect.org https://cdn.jsdelivr.net wss://*.walletconnect.com data:; frame-ancestors 'none';"
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; object-src 'self'; connect-src 'self' https://*.lucid.foundation https://*.privy.io https://auth.privy.io https://api.privy.io https://auth-api.privy.io https://api.devnet.solana.com https://api.testnet.solana.com https://*.walletconnect.org wss://*.walletconnect.com data:; frame-ancestors 'none';"
   }
 }

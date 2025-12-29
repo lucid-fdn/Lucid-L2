@@ -2,6 +2,87 @@ import { Nango } from '@nangohq/node';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import Redis from 'ioredis';
+import { fetchProviderProfile, normalizeProfile, NormalizedProfile } from './providerProfileService';
+
+type ProxyProfileConfig = {
+  endpoint: string;
+  method: 'GET';
+  normalize: (data: any) => NormalizedProfile;
+};
+
+function safeString(v: any): string | null {
+  if (typeof v === 'string' && v.trim().length > 0) return v;
+  return null;
+}
+
+const PROVIDER_PROFILE_ENDPOINTS: Record<string, ProxyProfileConfig> = {
+  twitter: {
+    endpoint: '/2/users/me?user.fields=profile_image_url,name,username',
+    method: 'GET',
+    normalize: (resp: any) => {
+      const data = resp?.data || resp;
+      return {
+        username: safeString(data?.username),
+        displayName: safeString(data?.name),
+        email: null,
+        avatarUrl: safeString(data?.profile_image_url)
+      };
+    }
+  },
+  github: {
+    endpoint: '/user',
+    method: 'GET',
+    normalize: (resp: any) => {
+      const data = resp?.data || resp;
+      return {
+        username: safeString(data?.login),
+        displayName: safeString(data?.name),
+        email: safeString(data?.email),
+        avatarUrl: safeString(data?.avatar_url)
+      };
+    }
+  },
+  slack: {
+    endpoint: '/users.identity',
+    method: 'GET',
+    normalize: (resp: any) => {
+      const data = resp?.data || resp;
+      const user = data?.user || data;
+      return {
+        username: safeString(user?.name),
+        displayName: safeString(user?.name),
+        email: safeString(user?.email),
+        avatarUrl: safeString(user?.image_192 || user?.image_72 || user?.image_48)
+      };
+    }
+  },
+  notion: {
+    endpoint: '/v1/users/me',
+    method: 'GET',
+    normalize: (resp: any) => {
+      const data = resp?.data || resp;
+      return {
+        username: safeString(data?.name),
+        displayName: safeString(data?.name),
+        email: null,
+        avatarUrl: safeString(data?.avatar_url)
+      };
+    }
+  },
+  google: {
+    endpoint: '/oauth2/v2/userinfo',
+    method: 'GET',
+    normalize: (resp: any) => {
+      const data = resp?.data || resp;
+      return {
+        username: safeString(data?.email),
+        displayName: safeString(data?.name),
+        email: safeString(data?.email),
+        avatarUrl: safeString(data?.picture)
+      };
+    }
+  }
+};
 
 // Type-safe wrapper for Nango credentials
 interface NangoCredentials {
@@ -244,7 +325,7 @@ export class NangoService {
     privyUserId: string,
     userId: string,
     provider: string
-  ): Promise<{ authUrl: string; state: string }> {
+  ): Promise<{ authUrl: string; state: string; connectionId: string }> {
     // Validate provider
     const supportedProvider = SUPPORTED_PROVIDERS.find(p => p.id === provider);
     if (!supportedProvider) {
@@ -254,21 +335,30 @@ export class NangoService {
     // Generate state token for CSRF protection
     const state = crypto.randomUUID();
     
-    // Connection ID format: {privyUserId}-{provider}
-    const connectionId = `${privyUserId}-${provider}`;
+    // Connection ID format: {privyUserId}-{provider}-{uuid}
+    // We need multiple accounts per provider per user.
+    const connectionId = `${privyUserId}-${provider}-${crypto.randomUUID()}`;
     
-    // Construct the Nango OAuth connect URL manually
-    // The @nangohq/node SDK does NOT have a getAuthorizationUrl method
-    // We must construct the URL ourselves using Nango's OAuth connect endpoint
+    // Construct the Nango OAuth connect URL manually.
+    // IMPORTANT: If you include a custom `state` param here, Nango will NOT persist it
+    // through its OAuth callback flow (Nango uses its own internal state).
+    //
+    // That means our offchain `/api/oauth/callback` handler will never receive the
+    // state we generate here, unless we own the callback URL.
+    //
+    // Current architecture:
+    // - Browser goes to: {NANGO_PUBLIC_URL}/oauth/connect/{integrationId}
+    // - Provider redirects to: {NANGO_PUBLIC_URL}/oauth/callback
+    // - Nango completes OAuth and stores credentials in nango._nango_connections
+    //
+    // Therefore: we MUST NOT rely on our own state for callback unless we change the flow.
     const params = new URLSearchParams({
       connection_id: connectionId,
       public_key: this.nangoPublicKey,
     });
     
-    // Add state for CSRF protection
-    if (state) {
-      params.append('state', state);
-    }
+    // Do NOT append custom state here.
+    // (If we want offchain-owned state, we must implement an offchain callback or a Nango webhook.)
     
     // Nango OAuth connect URL format: ${NANGO_PUBLIC_URL}/oauth/connect/${integrationId}
     // Use the public URL for browser redirects (not the internal API URL)
@@ -276,8 +366,8 @@ export class NangoService {
     const nangoIntegrationId = PROVIDER_TO_NANGO_MAP[provider] || provider;
     const authUrl = `${this.nangoPublicUrl}/oauth/connect/${nangoIntegrationId}?${params.toString()}`;
     
-    // Store state temporarily (5 min expiry)
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    // Store state temporarily (10 min expiry - increased from 5 min for slower users)
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await this.supabase
       .from('oauth_states')
       .insert({
@@ -288,9 +378,131 @@ export class NangoService {
         expires_at: expiresAt.toISOString()
       });
     
-    return { authUrl, state };
+    return { authUrl, state, connectionId };
   }
   
+  /**
+   * Sync a connection from Nango into our `user_oauth_connections` table.
+   *
+   * Use this after Nango has successfully created the connection (i.e. after the user completes
+   * the Nango-hosted OAuth flow). This avoids relying on an offchain callback/state.
+   */
+  async syncConnectionFromNango(
+    privyUserId: string,
+    userId: string,
+    provider: string,
+    connectionId: string
+  ): Promise<{ success: boolean; provider: string; privyUserId: string; profile?: NormalizedProfile; connectionId: string }> {
+    const supportedProvider = SUPPORTED_PROVIDERS.find(p => p.id === provider);
+    if (!supportedProvider) {
+      throw new Error(`Unsupported provider: ${provider}`);
+    }
+
+    const nangoIntegrationId = PROVIDER_TO_NANGO_MAP[provider] || provider;
+
+    console.log('[NangoService] Syncing connection from Nango...', {
+      privyUserId,
+      provider,
+      nangoIntegrationId,
+      connectionId
+    });
+
+    // Fetch connection from Nango (Nango refreshes tokens automatically)
+    const connection = await this.nango.getConnection(nangoIntegrationId, connectionId);
+    if (!connection) {
+      throw new Error(`No Nango connection found for ${provider}`);
+    }
+
+    const creds = connection.credentials as any;
+
+    // Attempt to fetch provider profile right after OAuth sync.
+    // Prefer Nango Proxy (more reliable than reading tokens directly), then fall back to direct fetch.
+    let normalizedProfile: NormalizedProfile | null = null;
+
+    // 1) Prefer proxy-based profile fetch
+    try {
+      const proxyCfg = PROVIDER_PROFILE_ENDPOINTS[provider];
+      if (proxyCfg) {
+        const proxyResp = await (this.nango as any).proxy({
+          integrationId: nangoIntegrationId,
+          connectionId,
+          method: proxyCfg.method,
+          endpoint: proxyCfg.endpoint
+        });
+        normalizedProfile = proxyCfg.normalize(proxyResp);
+      }
+    } catch (e: any) {
+      console.warn('[NangoService] Proxy profile fetch failed (will try fallback):', e?.message || e);
+    }
+
+    // 2) Fallback to direct token-based profile fetch
+    try {
+      if (!normalizedProfile) {
+        const accessToken = creds?.access_token;
+        if (accessToken) {
+          const rawProfile = await fetchProviderProfile(provider, accessToken);
+          normalizedProfile = normalizeProfile(rawProfile);
+        } else {
+          console.warn('[NangoService] No access_token available in connection credentials; skipping fallback profile fetch');
+        }
+      }
+    } catch (e: any) {
+      // Do not fail sync if profile endpoint fails
+      console.warn('[NangoService] Fallback profile fetch failed (continuing without profile):', e?.message || e);
+    }
+
+    // Store connection metadata (plus profile fields if available) in our database
+    const { error: insertError } = await this.supabase
+      .from('user_oauth_connections')
+      .upsert({
+        privy_user_id: privyUserId,
+        user_id: userId,
+        provider,
+        // Nango connection_id is the compound ID, but the SDK also provides connection.id
+        nango_connection_id: connection.connection_id || connection.id?.toString() || connectionId,
+        nango_integration_id: nangoIntegrationId,
+        provider_account_id: connection.metadata?.accountId,
+        provider_account_name: connection.metadata?.accountName || connection.metadata?.username || normalizedProfile?.displayName || normalizedProfile?.username,
+        provider_account_email: connection.metadata?.email || normalizedProfile?.email,
+        provider_username: normalizedProfile?.username,
+        provider_display_name: normalizedProfile?.displayName,
+        provider_avatar_url: normalizedProfile?.avatarUrl,
+        scopes: connection.metadata?.scopes || [],
+        expires_at: creds?.expires_at ? new Date(creds.expires_at).toISOString() : null,
+        revoked_at: null
+      }, {
+        onConflict: 'privy_user_id,provider,nango_connection_id'
+      });
+
+    if (insertError) {
+      console.error('[NangoService] Error syncing connection into database:', insertError);
+      throw new Error(`Failed to store connection: ${insertError.message}`);
+    }
+
+    // Clear token cache (force refresh next time)
+    await this.redis.del(`token:${privyUserId}:${provider}`);
+
+    console.log('[OAuth Sync API] ✅ Sync successful', {
+      provider,
+      connectionId,
+      profile: normalizedProfile
+        ? {
+            username: normalizedProfile.username,
+            displayName: normalizedProfile.displayName,
+            avatarUrl: normalizedProfile.avatarUrl
+          }
+        : null
+    });
+
+    return {
+      success: true,
+      provider,
+      privyUserId,
+      connectionId,
+      profile: normalizedProfile || undefined
+    };
+  }
+
   /**
    * Handle OAuth callback
    */
@@ -298,6 +510,8 @@ export class NangoService {
     code: string,
     state: string
   ): Promise<{ success: boolean; provider: string; privyUserId: string }> {
+    console.log('[NangoService] Handling OAuth callback', { code: code?.substring(0, 10) + '...', state });
+    
     // Verify state
     const { data: stateData, error: stateError } = await this.supabase
       .from('oauth_states')
@@ -307,23 +521,58 @@ export class NangoService {
       .single();
     
     if (stateError || !stateData) {
+      console.error('[NangoService] State validation failed:', stateError);
       throw new Error('Invalid or expired state token');
     }
     
+    console.log('[NangoService] State validated:', { 
+      privyUserId: stateData.privy_user_id, 
+      provider: stateData.provider 
+    });
+    
     const connectionId = `${stateData.privy_user_id}-${stateData.provider}`;
     
-    // Exchange code for tokens (Nango handles this automatically)
-    // We just need to verify the connection was created
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for Nango to process
+    // Map provider to Nango integration ID (e.g., 'twitter' -> 'twitter-v2')
+    const nangoIntegrationId = PROVIDER_TO_NANGO_MAP[stateData.provider] || stateData.provider;
     
-    const connection = await this.nango.getConnection(
-      stateData.provider,
-      connectionId
-    );
+    console.log('[NangoService] Waiting for Nango to process OAuth callback...');
+    
+    // Wait longer for Nango to process (increased from 2s to 5s)
+    await new Promise(resolve => setTimeout(resolve, 5000));
+    
+    // Retry logic for getConnection (Nango might need more time)
+    let connection;
+    let retries = 3;
+    
+    console.log('[NangoService] Fetching connection from Nango with retry logic...');
+    
+    while (retries > 0) {
+      try {
+        connection = await this.nango.getConnection(
+          nangoIntegrationId,  // Use mapped integration ID
+          connectionId
+        );
+        console.log('[NangoService] Successfully retrieved connection from Nango');
+        break;
+      } catch (error) {
+        retries--;
+        console.warn(`[NangoService] Failed to get connection (${retries} retries left):`, error);
+        
+        if (retries === 0) {
+          console.error('[NangoService] All retries exhausted');
+          throw new Error(`Failed to retrieve connection after multiple attempts: ${error}`);
+        }
+        
+        // Wait 2 seconds before retry
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
     
     if (!connection) {
       throw new Error('Failed to establish OAuth connection');
     }
+    
+    console.log('[NangoService] Storing connection metadata in database...');
     
     // Store connection metadata in our database (upsert on conflict)
     const creds = connection.credentials as any;
@@ -334,7 +583,7 @@ export class NangoService {
         user_id: stateData.user_id,
         provider: stateData.provider,
         nango_connection_id: connection.id?.toString() || connectionId,
-        nango_integration_id: stateData.provider,
+        nango_integration_id: nangoIntegrationId,  // Use mapped integration ID
         provider_account_id: connection.metadata?.accountId,
         provider_account_name: connection.metadata?.accountName || connection.metadata?.username,
         provider_account_email: connection.metadata?.email,
@@ -345,8 +594,11 @@ export class NangoService {
       });
     
     if (insertError) {
-      console.error('Error storing connection:', insertError);
+      console.error('[NangoService] Error storing connection in database:', insertError);
+      throw new Error(`Failed to store connection: ${insertError.message}`);
     }
+    
+    console.log('[NangoService] Connection successfully stored in database');
     
     // Cleanup state
     await this.supabase
@@ -369,10 +621,11 @@ export class NangoService {
    */
   async getAccessToken(
     privyUserId: string,
-    provider: string
+    provider: string,
+    connectionId?: string
   ): Promise<{ token: string; expiresAt: Date | null; metadata?: any }> {
     // Check cache first
-    const cacheKey = `token:${privyUserId}:${provider}`;
+    const cacheKey = `token:${privyUserId}:${provider}:${connectionId || 'default'}`;
     const cached = await this.redis.get(cacheKey);
     
     if (cached) {
@@ -380,23 +633,34 @@ export class NangoService {
     }
     
     // Check if connection exists in our database
-    const { data: connection, error } = await this.supabase
+    let query = this.supabase
       .from('user_oauth_connections')
       .select('*')
       .eq('privy_user_id', privyUserId)
       .eq('provider', provider)
-      .is('revoked_at', null)
-      .single();
+      .is('revoked_at', null);
+
+    if (connectionId) {
+      query = query.eq('nango_connection_id', connectionId);
+    } else {
+      // Backward compatibility: if not provided, return the most recently used connection.
+      query = query.order('last_used_at', { ascending: false, nullsFirst: false })
+                 .order('created_at', { ascending: false });
+    }
+
+    const { data: connection, error } = connectionId
+      ? await query.single()
+      : await query.limit(1).maybeSingle();
     
     if (error || !connection) {
       throw new Error(`No ${provider} connection found for user`);
     }
     
     // Get fresh token from Nango (handles refresh automatically)
-    const connectionId = `${privyUserId}-${provider}`;
+    const nangoConnectionId = connection.nango_connection_id;
     const nangoConnection = await this.nango.getConnection(
       connection.nango_integration_id,
-      connectionId
+      nangoConnectionId
     );
     
     if (!nangoConnection || !nangoConnection.credentials) {
@@ -441,7 +705,8 @@ export class NangoService {
     method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
     data?: any,
     n8nWorkflowId?: string,
-    n8nExecutionId?: string
+    n8nExecutionId?: string,
+    connectionId?: string
   ): Promise<any> {
     const startTime = Date.now();
     
@@ -453,24 +718,34 @@ export class NangoService {
       }
       
       // Get connection
-      const { data: connection, error } = await this.supabase
+      let query = this.supabase
         .from('user_oauth_connections')
         .select('*')
         .eq('privy_user_id', privyUserId)
         .eq('provider', provider)
-        .is('revoked_at', null)
-        .single();
+        .is('revoked_at', null);
+
+      if (connectionId) {
+        query = query.eq('nango_connection_id', connectionId);
+      } else {
+        query = query.order('last_used_at', { ascending: false, nullsFirst: false })
+                     .order('created_at', { ascending: false });
+      }
+
+      const { data: connection, error } = connectionId
+        ? await query.single()
+        : await query.limit(1).maybeSingle();
       
       if (error || !connection) {
         throw new Error(`No ${provider} connection found`);
       }
       
-      const connectionId = `${privyUserId}-${provider}`;
+      const nangoConnectionId = connection.nango_connection_id;
       
       // Make request through Nango proxy (use type assertion for SDK compatibility)
       const response = await (this.nango as any).proxy({
         integrationId: connection.nango_integration_id,
-        connectionId,
+        connectionId: nangoConnectionId,
         method,
         endpoint,
         data
@@ -551,14 +826,25 @@ export class NangoService {
    */
   async revokeConnection(
     privyUserId: string,
-    provider: string
+    provider: string,
+    connectionId?: string
   ): Promise<void> {
-    const { data: connection } = await this.supabase
+    let query = this.supabase
       .from('user_oauth_connections')
       .select('*')
       .eq('privy_user_id', privyUserId)
-      .eq('provider', provider)
-      .single();
+      .eq('provider', provider);
+
+    if (connectionId) {
+      query = query.eq('nango_connection_id', connectionId);
+    } else {
+      query = query.order('last_used_at', { ascending: false, nullsFirst: false })
+                   .order('created_at', { ascending: false });
+    }
+
+    const { data: connection } = connectionId
+      ? await query.single()
+      : await query.limit(1).maybeSingle();
     
     if (!connection) {
       return; // Already gone
@@ -566,10 +852,10 @@ export class NangoService {
     
     try {
       // Delete from Nango
-      const connectionId = `${privyUserId}-${provider}`;
+      const nangoConnectionId = connection.nango_connection_id;
       await this.nango.deleteConnection(
         connection.nango_integration_id,
-        connectionId
+        nangoConnectionId
       );
     } catch (error) {
       console.error('Error deleting Nango connection:', error);
@@ -583,6 +869,7 @@ export class NangoService {
     
     // Clear cache
     await this.redis.del(`token:${privyUserId}:${provider}`);
+    await this.redis.del(`token:${privyUserId}:${provider}:${connectionId || 'default'}`);
   }
   
   /**
@@ -603,9 +890,13 @@ export class NangoService {
     
     return (data || []).map(conn => ({
       id: conn.id,
+      nangoConnectionId: conn.nango_connection_id,
       provider: conn.provider,
       providerAccountName: conn.provider_account_name,
       providerAccountEmail: conn.provider_account_email,
+      providerUsername: conn.provider_username,
+      providerDisplayName: conn.provider_display_name,
+      providerAvatarUrl: conn.provider_avatar_url,
       scopes: conn.scopes,
       createdAt: conn.created_at,
       lastUsedAt: conn.last_used_at,
