@@ -8,6 +8,12 @@ const router = express.Router();
 // Initialize session signer service
 let sessionSignerService: SessionSignerService | null = null;
 
+// Test hook: allow unit tests to inject a mocked SessionSignerService.
+// This avoids hitting Supabase/env-dependent constructor in Jest.
+export function __setSessionSignerServiceForTests(service: SessionSignerService | null) {
+  sessionSignerService = service;
+}
+
 function getSessionSignerService(): SessionSignerService {
   if (!sessionSignerService) {
     sessionSignerService = new SessionSignerService();
@@ -506,6 +512,49 @@ router.post('/onboard', async (req, res) => {
 });
 
 /**
+ * GET /api/wallets/:walletId/session-signers
+ * List all session signers for a wallet
+ * NOTE: Must come before /:userId/:chainType to avoid route conflicts.
+ */
+router.get('/:walletId/session-signers', async (req, res) => {
+  try {
+    const { walletId } = req.params;
+    const { userId } = req.query;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required query parameter: userId'
+      });
+    }
+
+    console.log(`📋 Listing session signers for wallet ${walletId}...`);
+
+    const result = await protocolManager.execute({
+      protocolId: 'privy',
+      operationId: 'listSessionSigners',
+      parameters: { walletId },
+      userId: userId as string,
+      config: getPrivyConfig() as any
+    });
+
+    res.json({
+      success: result.success,
+      data: result.data,
+      error: result.error,
+      message: result.success ? 'Session signers retrieved' : 'Failed to retrieve signers'
+    });
+
+  } catch (error) {
+    console.error('Error listing session signers:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
  * GET /api/wallets/:userId/:chainType
  * Get wallet for a user
  */
@@ -705,48 +754,6 @@ router.delete('/:walletId/session-signers/:signerId', async (req, res) => {
     res.status(500).json({ 
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error' 
-    });
-  }
-});
-
-/**
- * GET /api/wallets/:walletId/session-signers
- * List all session signers for a wallet
- */
-router.get('/:walletId/session-signers', async (req, res) => {
-  try {
-    const { walletId } = req.params;
-    const { userId } = req.query;
-    
-    if (!userId) {
-      return res.status(400).json({ 
-        success: false,
-        error: 'Missing required query parameter: userId' 
-      });
-    }
-
-    console.log(`📋 Listing session signers for wallet ${walletId}...`);
-    
-    const result = await protocolManager.execute({
-      protocolId: 'privy',
-      operationId: 'listSessionSigners',
-      parameters: { walletId },
-      userId: userId as string,
-      config: getPrivyConfig() as any
-    });
-    
-    res.json({
-      success: result.success,
-      data: result.data,
-      error: result.error,
-      message: result.success ? 'Session signers retrieved' : 'Failed to retrieve signers'
-    });
-    
-  } catch (error) {
-    console.error('Error listing session signers:', error);
-    res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });

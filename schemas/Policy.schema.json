@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucidlayer.ai/schemas/policy/1.0/Policy.schema.json",
+  "title": "Lucid Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["policy_version"],
+  "properties": {
+    "policy_version": {
+      "type": "string",
+      "const": "1.0"
+    },
+    "allow_regions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "default": []
+    },
+    "residency_required": { "type": "boolean", "default": false },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attestation_required": { "type": "boolean", "default": false },
+        "require_cc_on": { "type": "boolean", "default": false },
+        "fallback_allowed": { "type": "boolean", "default": true }
+      },
+      "default": {}
+    },
+    "latency": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "p95_ms_budget": { "type": "integer", "minimum": 1 },
+        "hard_timeout_ms": { "type": "integer", "minimum": 1 }
+      },
+      "default": {}
+    },
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_price_per_1k_tokens_usd": { "type": "number", "minimum": 0 },
+        "spot_only": { "type": "boolean", "default": false }
+      },
+      "default": {}
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "store_inputs": { "type": "boolean", "default": false },
+        "redact_pii": { "type": "boolean", "default": false }
+      },
+      "default": {}
+    }
+  }
+}

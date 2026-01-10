@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucidlayer.ai/schemas/passport/1.0/ModelMeta.schema.json",
+  "title": "Lucid Model Metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "model_passport_id", "format", "runtime_recommended"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "model_passport_id": { "type": "string", "minLength": 10 },
+    "format": { "type": "string", "enum": ["safetensors", "gguf"] },
+    "runtime_recommended": { "type": "string", "enum": ["vllm", "tgi", "tensorrt"] },
+    "base": {
+      "type": "string",
+      "enum": ["hf", "openai", "anthropic", "custom_endpoint"],
+      "default": "hf"
+    },
+    "hf": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repo_id": { "type": "string" },
+        "revision": { "type": "string" }
+      }
+    },
+    "context_length": { "type": "integer", "minimum": 1 },
+    "quantizations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["fp16", "int8", "awq", "gptq", "gguf_q4"]
+      },
+      "default": []
+    },
+    "requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min_vram_gb": { "type": "integer", "minimum": 0 },
+        "gpu_classes": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "cuda_min": { "type": "string" }
+      },
+      "default": {}
+    },
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "openai_compat_base_url": { "type": "string" },
+        "auth_mode": { "type": "string", "enum": ["byok", "lucid_key", "none"], "default": "none" }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": []
+    },
+    "weights_uri": { "type": "string" },
+    "weights_hash": { "type": "string" }
+  }
+}

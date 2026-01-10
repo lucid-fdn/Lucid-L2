@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucidlayer.ai/schemas/receipts/1.0/RunReceipt.schema.json",
+  "title": "Lucid Run Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "timestamp",
+    "policy_hash",
+    "model_passport_id",
+    "compute_passport_id",
+    "runtime",
+    "metrics",
+    "receipt_hash",
+    "receipt_signature",
+    "signer_pubkey",
+    "signer_type"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "run_id": { "type": "string", "minLength": 10 },
+    "timestamp": { "type": "integer" },
+    "trace_id": { "type": "string" },
+    "policy_hash": { "type": "string" },
+    "model_passport_id": { "type": "string" },
+    "compute_passport_id": { "type": "string" },
+    "runtime": { "type": "string" },
+    "image_hash": { "type": "string" },
+    "model_hash": { "type": "string" },
+    "attestation": { "type": "object" },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ttft_ms", "tokens_in", "tokens_out"],
+      "properties": {
+        "ttft_ms": { "type": "integer", "minimum": 0 },
+        "p95_ms": { "type": "integer", "minimum": 0 },
+        "tokens_in": { "type": "integer", "minimum": 0 },
+        "tokens_out": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "receipt_hash": { "type": "string" },
+    "receipt_signature": { "type": "string" },
+    "signer_pubkey": { "type": "string" },
+    "signer_type": { "type": "string", "enum": ["orchestrator", "compute"] },
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "chain": { "type": "string", "enum": ["solana"] },
+        "tx": { "type": "string" },
+        "root": { "type": "string" },
+        "epoch_id": { "type": "string" }
+      }
+    }
+  }
+}

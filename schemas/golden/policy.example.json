@@ -1,0 +1,22 @@
+{
+  "policy_version": "1.0",
+  "allow_regions": ["eu"],
+  "residency_required": false,
+  "attestation": {
+    "attestation_required": false,
+    "require_cc_on": false,
+    "fallback_allowed": true
+  },
+  "latency": {
+    "p95_ms_budget": 2500,
+    "hard_timeout_ms": 30000
+  },
+  "cost": {
+    "max_price_per_1k_tokens_usd": 1.0,
+    "spot_only": false
+  },
+  "privacy": {
+    "store_inputs": false,
+    "redact_pii": false
+  }
+}

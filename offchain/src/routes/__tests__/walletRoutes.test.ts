@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import walletRoutes from '../walletRoutes';
+import walletRoutes, { __setSessionSignerServiceForTests } from '../walletRoutes';
 import { protocolManager } from '../../services/protocolManager';
 import { SessionSignerService } from '../../services/sessionSignerService';
 
@@ -22,10 +22,14 @@ describe('Wallet Routes', () => {
     // Setup mocks
     mockProtocolManager = protocolManager as jest.Mocked<typeof protocolManager>;
     mockSessionSignerService = new SessionSignerService() as jest.Mocked<SessionSignerService>;
+
+    // Inject the mocked SessionSignerService into the router module.
+    __setSessionSignerServiceForTests(mockSessionSignerService);
   });
 
   afterEach(() => {
     jest.clearAllMocks();
+    __setSessionSignerServiceForTests(null);
   });
 
   describe('POST /api/wallets/onboard', () => {
@@ -325,6 +329,9 @@ describe('Wallet Routes', () => {
           ]
         }
       });
+
+      // The handler internally calls SessionSignerService via protocolManager; ensure the mock is set.
+      // (This is already handled by __setSessionSignerServiceForTests in beforeEach)
 
       const response = await request(app)
         .get('/api/wallets/wallet-123/session-signers')

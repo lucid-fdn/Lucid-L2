@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucidlayer.ai/schemas/passport/1.0/ComputeMeta.schema.json",
+  "title": "Lucid Compute Metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "compute_passport_id", "provider_type", "regions", "hardware", "runtimes", "endpoints"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "compute_passport_id": { "type": "string", "minLength": 10 },
+    "provider_type": { "type": "string", "enum": ["depin", "cloud", "onprem"] },
+    "regions": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "residency_supported": { "type": "boolean", "default": false },
+    "hardware": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gpu", "vram_gb"],
+      "properties": {
+        "gpu": { "type": "string" },
+        "vram_gb": { "type": "integer", "minimum": 0 },
+        "arch": { "type": "string" }
+      }
+    },
+    "runtimes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "enum": ["vllm", "tgi", "tensorrt"] },
+          "version": { "type": "string" }
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "supports_streaming": { "type": "boolean", "default": true },
+        "supports_attestation": { "type": "boolean", "default": false },
+        "supports_cc_on": { "type": "boolean", "default": false }
+      },
+      "default": {}
+    },
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "p95_ms_estimate": { "type": "integer", "minimum": 0 },
+        "bandwidth": { "type": "string" }
+      },
+      "default": {}
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_context": { "type": "integer", "minimum": 0 },
+        "max_batch": { "type": "integer", "minimum": 0 }
+      },
+      "default": {}
+    },
+    "pricing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "price_per_1k_tokens_estimate": { "type": "number", "minimum": 0 },
+        "price_per_minute_estimate": { "type": "number", "minimum": 0 }
+      },
+      "default": {}
+    },
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inference_url"],
+      "properties": {
+        "inference_url": { "type": "string" }
+      }
+    }
+  }
+}

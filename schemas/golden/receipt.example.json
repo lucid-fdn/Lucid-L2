@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "run_id": "01JH9N4Q7Z7J4S8B5NPN4G0T4K",
+  "timestamp": 1736420000,
+  "trace_id": "trace_123",
+  "policy_hash": "<to_fill_by_test>",
+  "model_passport_id": "passport_model_abc",
+  "compute_passport_id": "passport_compute_xyz",
+  "runtime": "vllm",
+  "metrics": {
+    "ttft_ms": 120,
+    "p95_ms": 2100,
+    "tokens_in": 12,
+    "tokens_out": 24
+  },
+  "receipt_hash": "<to_fill_by_test>",
+  "receipt_signature": "<to_fill_by_test>",
+  "signer_pubkey": "<to_fill_by_test>",
+  "signer_type": "orchestrator",
+  "anchor": {
+    "chain": "solana"
+  }
+}

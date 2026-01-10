@@ -20,6 +20,7 @@ import oauthResourcesRoutes from './routes/oauthResourcesRoutes';
 import healthRoutes from './routes/healthRoutes';
 import hyperliquidRoutes from './routes/hyperliquidRoutes';
 import solanaRoutes from './routes/solanaRoutes';
+import { lucidLayerRouter } from './routes/lucidLayerRoutes';
 
 const app = express();
 
@@ -47,6 +48,9 @@ app.use('/api/wallets/auth/assets', express.static(path.join(__dirname, '../../a
 
 // Mount API routes
 app.use('/api', createApiRouter());
+
+// Mount LucidLayer MVP routes (versioned)
+app.use('/', lucidLayerRouter);
 
 // Mount OAuth routes for Nango integration
 app.use('/api/oauth', oauthRoutes);

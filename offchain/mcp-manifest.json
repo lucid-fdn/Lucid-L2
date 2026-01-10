@@ -1,0 +1,394 @@
+{
+  "$schema": "https://modelcontextprotocol.io/schemas/2024-11/server-manifest.json",
+  "name": "lucid-layer-sdk",
+  "version": "1.0.0",
+  "description": "LucidLayer SDK - AI compute routing, policy enforcement, and receipt generation for decentralized AI infrastructure",
+  "vendor": "Lucid Protocol",
+  "homepage": "https://lucid.network",
+  "repository": "https://github.com/lucid-network/lucid-layer-sdk",
+  "capabilities": {
+    "tools": true,
+    "resources": true,
+    "prompts": false,
+    "logging": true
+  },
+  "tools": [
+    {
+      "name": "lucid_match_explain",
+      "description": "Evaluate a policy against compute metadata and explain the decision. Returns allowed/denied status with detailed reason codes.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "policy": {
+            "type": "object",
+            "description": "Policy configuration including geo, latency, cost, privacy constraints"
+          },
+          "compute_meta": {
+            "type": "object",
+            "description": "Compute node metadata (region, GPU, capabilities)"
+          },
+          "model_meta": {
+            "type": "object",
+            "description": "Model metadata (required runtimes, min_vram_gb)"
+          }
+        },
+        "required": ["policy"]
+      }
+    },
+    {
+      "name": "lucid_match",
+      "description": "Match a model to compatible compute from a catalog based on policy constraints. Returns best match and fallbacks.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "model_meta": {
+            "type": "object",
+            "description": "Model metadata with required runtimes and VRAM requirements",
+            "required": ["model_passport_id", "required_runtimes"]
+          },
+          "policy": {
+            "type": "object",
+            "description": "Policy constraints for matching"
+          },
+          "compute_catalog": {
+            "type": "array",
+            "description": "Array of compute node metadata to match against",
+            "items": { "type": "object" }
+          },
+          "require_live_healthy": {
+            "type": "boolean",
+            "description": "Require compute nodes to have recent healthy heartbeats",
+            "default": true
+          }
+        },
+        "required": ["model_meta", "policy", "compute_catalog"]
+      }
+    },
+    {
+      "name": "lucid_route",
+      "description": "Get an executable route for a model request. Returns endpoint, runtime, policy_hash, and fallbacks.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "model_meta": {
+            "type": "object",
+            "description": "Model metadata"
+          },
+          "policy": {
+            "type": "object",
+            "description": "Policy constraints"
+          },
+          "compute_catalog": {
+            "type": "array",
+            "description": "Available compute nodes with endpoints"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "Optional request correlation ID"
+          }
+        },
+        "required": ["model_meta", "policy", "compute_catalog"]
+      }
+    },
+    {
+      "name": "lucid_heartbeat",
+      "description": "Send a heartbeat for a compute node to update its live state.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "compute_passport_id": {
+            "type": "string",
+            "description": "Unique identifier for the compute node"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["healthy", "degraded", "down"],
+            "description": "Current health status"
+          },
+          "queue_depth": {
+            "type": "integer",
+            "description": "Number of requests in queue"
+          },
+          "price_per_1k_tokens_estimate": {
+            "type": "number",
+            "description": "Current price estimate in lamports per 1k tokens"
+          },
+          "p95_ms_estimate": {
+            "type": "number",
+            "description": "P95 latency estimate in milliseconds"
+          }
+        },
+        "required": ["compute_passport_id", "status"]
+      }
+    },
+    {
+      "name": "lucid_get_health",
+      "description": "Get the current health state of a compute node.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "compute_passport_id": {
+            "type": "string",
+            "description": "Compute node identifier"
+          }
+        },
+        "required": ["compute_passport_id"]
+      }
+    },
+    {
+      "name": "lucid_create_receipt",
+      "description": "Create a run receipt for an AI inference execution. Generates receipt_hash and adds to MMR.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "model_passport_id": {
+            "type": "string",
+            "description": "Model identifier"
+          },
+          "compute_passport_id": {
+            "type": "string",
+            "description": "Compute node identifier"
+          },
+          "policy_hash": {
+            "type": "string",
+            "description": "SHA-256 hash of the policy used"
+          },
+          "runtime": {
+            "type": "string",
+            "description": "Runtime used (vLLM, TGI, etc.)"
+          },
+          "tokens_in": {
+            "type": "integer",
+            "description": "Input tokens consumed"
+          },
+          "tokens_out": {
+            "type": "integer",
+            "description": "Output tokens generated"
+          },
+          "ttft_ms": {
+            "type": "integer",
+            "description": "Time to first token in milliseconds"
+          },
+          "total_ms": {
+            "type": "integer",
+            "description": "Total execution time in milliseconds"
+          },
+          "error_code": {
+            "type": "string",
+            "description": "Error code if execution failed"
+          }
+        },
+        "required": ["model_passport_id", "compute_passport_id", "policy_hash", "runtime", "tokens_in", "tokens_out", "ttft_ms"]
+      }
+    },
+    {
+      "name": "lucid_get_receipt",
+      "description": "Retrieve a run receipt by its ID.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "receipt_id": {
+            "type": "string",
+            "description": "Receipt identifier"
+          }
+        },
+        "required": ["receipt_id"]
+      }
+    },
+    {
+      "name": "lucid_verify_receipt",
+      "description": "Verify the integrity of a receipt by recomputing its hash.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "receipt_id": {
+            "type": "string",
+            "description": "Receipt identifier"
+          }
+        },
+        "required": ["receipt_id"]
+      }
+    },
+    {
+      "name": "lucid_get_mmr_root",
+      "description": "Get the current Merkle Mountain Range root for receipt anchoring.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "lucid_calculate_payout",
+      "description": "Calculate payout split between compute provider, model provider, and protocol treasury.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "Run identifier"
+          },
+          "total_amount_lamports": {
+            "type": "string",
+            "description": "Total amount in lamports (as string for BigInt)"
+          },
+          "compute_wallet": {
+            "type": "string",
+            "description": "Compute provider wallet address"
+          },
+          "model_wallet": {
+            "type": "string",
+            "description": "Model provider wallet address (optional)"
+          },
+          "orchestrator_wallet": {
+            "type": "string",
+            "description": "Orchestrator wallet address (optional)"
+          },
+          "config": {
+            "type": "object",
+            "description": "Custom split configuration in basis points",
+            "properties": {
+              "compute_provider_bp": { "type": "integer" },
+              "model_provider_bp": { "type": "integer" },
+              "protocol_treasury_bp": { "type": "integer" },
+              "orchestrator_bp": { "type": "integer" }
+            }
+          }
+        },
+        "required": ["run_id", "total_amount_lamports", "compute_wallet"]
+      }
+    },
+    {
+      "name": "lucid_payout_from_receipt",
+      "description": "Create a payout split from receipt token data.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "Run identifier"
+          },
+          "tokens_in": {
+            "type": "integer",
+            "description": "Input tokens"
+          },
+          "tokens_out": {
+            "type": "integer",
+            "description": "Output tokens"
+          },
+          "price_per_1k_tokens_lamports": {
+            "type": "string",
+            "description": "Price per 1k tokens in lamports"
+          },
+          "compute_wallet": {
+            "type": "string",
+            "description": "Compute provider wallet"
+          },
+          "model_wallet": {
+            "type": "string",
+            "description": "Model provider wallet (optional)"
+          }
+        },
+        "required": ["run_id", "tokens_in", "tokens_out", "price_per_1k_tokens_lamports", "compute_wallet"]
+      }
+    },
+    {
+      "name": "lucid_get_payout",
+      "description": "Get a stored payout split by run_id.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "Run identifier"
+          }
+        },
+        "required": ["run_id"]
+      }
+    },
+    {
+      "name": "lucid_verify_payout",
+      "description": "Verify the integrity of a payout split.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "Run identifier"
+          }
+        },
+        "required": ["run_id"]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "name": "lucid://schemas/policy",
+      "description": "JSON Schema for Policy configuration",
+      "mimeType": "application/schema+json"
+    },
+    {
+      "name": "lucid://schemas/model-meta",
+      "description": "JSON Schema for Model metadata",
+      "mimeType": "application/schema+json"
+    },
+    {
+      "name": "lucid://schemas/compute-meta",
+      "description": "JSON Schema for Compute metadata",
+      "mimeType": "application/schema+json"
+    },
+    {
+      "name": "lucid://schemas/run-receipt",
+      "description": "JSON Schema for Run Receipt",
+      "mimeType": "application/schema+json"
+    },
+    {
+      "name": "lucid://mmr/root",
+      "description": "Current MMR root for receipt anchoring",
+      "mimeType": "application/json"
+    }
+  ],
+  "authentication": {
+    "type": "none",
+    "description": "MVP version - no authentication required. Production will use API keys or JWT."
+  },
+  "rateLimit": {
+    "requests_per_minute": 1000,
+    "burst": 100
+  },
+  "endpoints": {
+    "base_url": "http://localhost:3001",
+    "routes": {
+      "match_explain": "POST /v1/match/explain",
+      "match": "POST /v1/match",
+      "route": "POST /v1/route",
+      "heartbeat": "POST /v1/compute/nodes/heartbeat",
+      "health": "GET /v1/compute/nodes/:computePassportId/health",
+      "create_receipt": "POST /v1/receipts",
+      "get_receipt": "GET /v1/receipts/:receipt_id",
+      "verify_receipt": "GET /v1/receipts/:receipt_id/verify",
+      "mmr_root": "GET /v1/mmr/root",
+      "calculate_payout": "POST /v1/payouts/calculate",
+      "payout_from_receipt": "POST /v1/payouts/from-receipt",
+      "get_payout": "GET /v1/payouts/:run_id",
+      "verify_payout": "GET /v1/payouts/:run_id/verify"
+    }
+  },
+  "reason_codes": {
+    "policy_evaluation": [
+      "INVALID_POLICY",
+      "REGION_NOT_ALLOWED",
+      "RESIDENCY_REQUIRED_NOT_SUPPORTED",
+      "ATTESTATION_REQUIRED_NOT_SUPPORTED",
+      "CC_ON_REQUIRED_NOT_SUPPORTED",
+      "LATENCY_BUDGET_EXCEEDED",
+      "COST_BUDGET_EXCEEDED"
+    ],
+    "matching": [
+      "NO_RUNTIME_MATCH",
+      "VRAM_TOO_LOW",
+      "MAX_CONTEXT_TOO_LOW",
+      "COMPUTE_NOT_HEALTHY",
+      "NO_COMPATIBLE_COMPUTE"
+    ]
+  }
+}
