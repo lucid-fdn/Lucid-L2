@@ -318,6 +318,308 @@
         },
         "required": ["run_id"]
       }
+    },
+    {
+      "name": "lucid_create_passport",
+      "description": "Create a new passport for a model, compute provider, tool, dataset, or agent.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["model", "compute", "tool", "dataset", "agent"],
+            "description": "Type of passport to create"
+          },
+          "owner": {
+            "type": "string",
+            "description": "Solana wallet address of the passport owner"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Type-specific metadata (ModelMeta, ComputeMeta, etc.)"
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable name for the passport"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the passport"
+          },
+          "version": {
+            "type": "string",
+            "description": "Semantic version (e.g., '1.0.0')"
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Tags for discovery"
+          }
+        },
+        "required": ["type", "owner", "metadata"]
+      }
+    },
+    {
+      "name": "lucid_get_passport",
+      "description": "Retrieve a passport by its ID.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "passport_id": {
+            "type": "string",
+            "description": "Passport identifier"
+          }
+        },
+        "required": ["passport_id"]
+      }
+    },
+    {
+      "name": "lucid_update_passport",
+      "description": "Update an existing passport.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "passport_id": {
+            "type": "string",
+            "description": "Passport identifier"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Updated metadata"
+          },
+          "name": {
+            "type": "string",
+            "description": "Updated name"
+          },
+          "description": {
+            "type": "string",
+            "description": "Updated description"
+          },
+          "version": {
+            "type": "string",
+            "description": "Updated version"
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Updated tags"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "deprecated", "revoked"],
+            "description": "Updated status"
+          },
+          "owner_address": {
+            "type": "string",
+            "description": "Owner address for verification (optional)"
+          }
+        },
+        "required": ["passport_id"]
+      }
+    },
+    {
+      "name": "lucid_search_models",
+      "description": "Search model passports with ModelMeta-specific filters.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "runtime": {
+            "type": "string",
+            "description": "Filter by recommended runtime (vllm, tgi, tensorrt)"
+          },
+          "format": {
+            "type": "string",
+            "description": "Filter by format (safetensors, gguf)"
+          },
+          "max_vram": {
+            "type": "number",
+            "description": "Maximum VRAM requirement in GB"
+          },
+          "owner": {
+            "type": "string",
+            "description": "Filter by owner address"
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Filter by tags"
+          },
+          "search": {
+            "type": "string",
+            "description": "Full-text search on name/description"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number (default: 1)"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Results per page (default: 20, max: 100)"
+          }
+        }
+      }
+    },
+    {
+      "name": "lucid_search_compute",
+      "description": "Search compute passports with ComputeMeta-specific filters.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "regions": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Filter by regions"
+          },
+          "runtimes": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Filter by supported runtimes"
+          },
+          "provider_type": {
+            "type": "string",
+            "enum": ["depin", "cloud", "onprem"],
+            "description": "Filter by provider type"
+          },
+          "min_vram_gb": {
+            "type": "number",
+            "description": "Minimum VRAM in GB"
+          },
+          "gpu": {
+            "type": "string",
+            "description": "Filter by GPU type (partial match)"
+          },
+          "owner": {
+            "type": "string",
+            "description": "Filter by owner address"
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Filter by tags"
+          },
+          "search": {
+            "type": "string",
+            "description": "Full-text search"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Results per page"
+          }
+        }
+      }
+    },
+    {
+      "name": "lucid_list_passports",
+      "description": "List passports with filtering and pagination.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Filter by passport type(s)"
+          },
+          "owner": {
+            "type": "string",
+            "description": "Filter by owner address"
+          },
+          "status": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Filter by status"
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Filter by tags"
+          },
+          "tag_match": {
+            "type": "string",
+            "enum": ["all", "any"],
+            "description": "Tag matching mode"
+          },
+          "search": {
+            "type": "string",
+            "description": "Full-text search"
+          },
+          "page": {
+            "type": "integer",
+            "description": "Page number"
+          },
+          "per_page": {
+            "type": "integer",
+            "description": "Results per page"
+          },
+          "sort_by": {
+            "type": "string",
+            "enum": ["created_at", "updated_at", "name"],
+            "description": "Sort field"
+          },
+          "sort_order": {
+            "type": "string",
+            "enum": ["asc", "desc"],
+            "description": "Sort order"
+          }
+        }
+      }
+    },
+    {
+      "name": "lucid_run_inference",
+      "description": "Execute AI inference using a model passport. Routes to compatible compute and returns response.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "model_passport_id": {
+            "type": "string",
+            "description": "Model passport identifier"
+          },
+          "prompt": {
+            "type": "string",
+            "description": "Input prompt for the model"
+          },
+          "policy": {
+            "type": "object",
+            "description": "Policy constraints for routing",
+            "properties": {
+              "geo": {
+                "type": "object",
+                "properties": {
+                  "allowed_regions": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                  }
+                }
+              },
+              "cost": {
+                "type": "object",
+                "properties": {
+                  "max_price_per_1k_tokens_lamports": { "type": "integer" }
+                }
+              }
+            }
+          },
+          "max_tokens": {
+            "type": "integer",
+            "description": "Maximum tokens to generate",
+            "default": 256
+          },
+          "temperature": {
+            "type": "number",
+            "description": "Sampling temperature",
+            "default": 0.7
+          },
+          "stream": {
+            "type": "boolean",
+            "description": "Enable streaming response",
+            "default": false
+          }
+        },
+        "required": ["model_passport_id", "prompt"]
+      }
     }
   ],
   "resources": [

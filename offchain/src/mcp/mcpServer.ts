@@ -11,6 +11,8 @@ import { getComputeRegistry } from '../services/computeRegistry';
 import { createReceipt, getReceipt, verifyReceipt, getReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey } from '../services/receiptService';
 import { calculatePayoutSplit, createPayoutFromReceipt, getPayout, storePayout, verifyPayoutSplit } from '../services/payoutService';
 import { validateWithSchema } from '../utils/schemaValidator';
+import { getPassportManager } from '../services/passportManager';
+import type { PassportType, PassportStatus, PassportFilters } from '../storage/passportStore';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -189,6 +191,21 @@ export class LucidMcpServer {
         return this.toolGetPayout(args);
       case 'lucid_verify_payout':
         return this.toolVerifyPayout(args);
+      // Passport tools
+      case 'lucid_create_passport':
+        return this.toolCreatePassport(args);
+      case 'lucid_get_passport':
+        return this.toolGetPassport(args);
+      case 'lucid_update_passport':
+        return this.toolUpdatePassport(args);
+      case 'lucid_search_models':
+        return this.toolSearchModels(args);
+      case 'lucid_search_compute':
+        return this.toolSearchCompute(args);
+      case 'lucid_list_passports':
+        return this.toolListPassports(args);
+      case 'lucid_run_inference':
+        return this.toolRunInference(args);
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -462,6 +479,200 @@ export class LucidMcpServer {
 
     const result = verifyPayoutSplit(payout);
     return { success: true, ...result };
+  }
+
+  // Passport tool implementations
+
+  private async toolCreatePassport(args: Record<string, unknown>) {
+    const { type, owner, metadata, name, description, version, tags } = args;
+    
+    if (!type) {
+      return { success: false, error: 'Missing required field: type' };
+    }
+    if (!owner) {
+      return { success: false, error: 'Missing required field: owner' };
+    }
+    if (!metadata) {
+      return { success: false, error: 'Missing required field: metadata' };
+    }
+
+    const manager = getPassportManager();
+    const result = await manager.createPassport({
+      type: type as PassportType,
+      owner: owner as string,
+      metadata,
+      name: name as string | undefined,
+      description: description as string | undefined,
+      version: version as string | undefined,
+      tags: tags as string[] | undefined,
+    });
+
+    if (!result.ok) {
+      return { success: false, error: result.error, details: result.details };
+    }
+
+    return { success: true, passport_id: result.data!.passport_id, passport: result.data };
+  }
+
+  private async toolGetPassport(args: Record<string, unknown>) {
+    const { passport_id } = args;
+    
+    if (!passport_id) {
+      return { success: false, error: 'Missing required field: passport_id' };
+    }
+
+    const manager = getPassportManager();
+    const result = await manager.getPassport(passport_id as string);
+
+    if (!result.ok) {
+      return { success: false, error: result.error };
+    }
+
+    return { success: true, passport: result.data };
+  }
+
+  private async toolUpdatePassport(args: Record<string, unknown>) {
+    const { passport_id, metadata, name, description, version, tags, status, owner_address } = args;
+    
+    if (!passport_id) {
+      return { success: false, error: 'Missing required field: passport_id' };
+    }
+
+    const manager = getPassportManager();
+    const result = await manager.updatePassport(
+      passport_id as string,
+      {
+        metadata: metadata as any,
+        name: name as string | undefined,
+        description: description as string | undefined,
+        version: version as string | undefined,
+        tags: tags as string[] | undefined,
+        status: status as PassportStatus | undefined,
+      },
+      owner_address as string | undefined
+    );
+
+    if (!result.ok) {
+      return { success: false, error: result.error, details: result.details };
+    }
+
+    return { success: true, passport: result.data };
+  }
+
+  private async toolSearchModels(args: Record<string, unknown>) {
+    const { runtime, format, max_vram, owner, tags, search, page, per_page } = args;
+    
+    const manager = getPassportManager();
+    const result = await manager.searchModels({
+      runtime: runtime as string | undefined,
+      format: format as string | undefined,
+      max_vram: max_vram as number | undefined,
+      owner: owner as string | undefined,
+      tags: tags as string[] | undefined,
+      search: search as string | undefined,
+      page: page as number | undefined,
+      per_page: per_page as number | undefined,
+    });
+
+    return {
+      success: true,
+      models: result.items,
+      pagination: result.pagination,
+    };
+  }
+
+  private async toolSearchCompute(args: Record<string, unknown>) {
+    const { regions, runtimes, provider_type, min_vram_gb, gpu, owner, tags, search, page, per_page } = args;
+    
+    const manager = getPassportManager();
+    const result = await manager.searchCompute({
+      regions: regions as string[] | undefined,
+      runtimes: runtimes as string[] | undefined,
+      provider_type: provider_type as string | undefined,
+      min_vram_gb: min_vram_gb as number | undefined,
+      gpu: gpu as string | undefined,
+      owner: owner as string | undefined,
+      tags: tags as string[] | undefined,
+      search: search as string | undefined,
+      page: page as number | undefined,
+      per_page: per_page as number | undefined,
+    });
+
+    return {
+      success: true,
+      compute: result.items,
+      pagination: result.pagination,
+    };
+  }
+
+  private async toolListPassports(args: Record<string, unknown>) {
+    const { type, owner, status, tags, tag_match, search, page, per_page, sort_by, sort_order } = args;
+    
+    const filters: PassportFilters = {};
+    
+    if (type) {
+      const types = Array.isArray(type) ? type : [type];
+      filters.type = types.length === 1 ? types[0] as PassportType : types as PassportType[];
+    }
+    if (owner) filters.owner = owner as string;
+    if (status) {
+      const statuses = Array.isArray(status) ? status : [status];
+      filters.status = statuses.length === 1 ? statuses[0] as PassportStatus : statuses as PassportStatus[];
+    }
+    if (tags) filters.tags = tags as string[];
+    if (tag_match === 'all' || tag_match === 'any') filters.tag_match = tag_match;
+    if (search) filters.search = search as string;
+    if (page) filters.page = page as number;
+    if (per_page) filters.per_page = per_page as number;
+    if (sort_by === 'created_at' || sort_by === 'updated_at' || sort_by === 'name') {
+      filters.sort_by = sort_by;
+    }
+    if (sort_order === 'asc' || sort_order === 'desc') {
+      filters.sort_order = sort_order;
+    }
+
+    const manager = getPassportManager();
+    const result = await manager.listPassports(filters);
+
+    return {
+      success: true,
+      passports: result.items,
+      pagination: result.pagination,
+    };
+  }
+
+  private async toolRunInference(args: Record<string, unknown>) {
+    const { model_passport_id, prompt, policy, max_tokens, temperature, stream } = args;
+    
+    if (!model_passport_id) {
+      return { success: false, error: 'Missing required field: model_passport_id' };
+    }
+    if (!prompt) {
+      return { success: false, error: 'Missing required field: prompt' };
+    }
+
+    // For MCP tool, we don't support streaming - it returns synchronously
+    if (stream) {
+      return { success: false, error: 'Streaming not supported via MCP tools. Use the HTTP API for streaming.' };
+    }
+
+    // Note: This requires the execution gateway to be properly set up
+    // For MVP, we return a placeholder indicating the tool is available but needs HTTP API
+    return {
+      success: false,
+      error: 'lucid_run_inference via MCP is not fully implemented yet. Use POST /v1/run/inference HTTP endpoint.',
+      hint: {
+        endpoint: 'POST /v1/run/inference',
+        body: {
+          model_passport_id,
+          prompt,
+          policy: policy || {},
+          max_tokens: max_tokens || 256,
+          temperature: temperature || 0.7,
+          stream: stream || false,
+        },
+      },
+    };
   }
 }
 

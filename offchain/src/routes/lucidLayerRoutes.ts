@@ -5,6 +5,30 @@ import { getComputeRegistry } from '../services/computeRegistry';
 import { matchComputeForModel } from '../services/matchingEngine';
 import { createReceipt, getReceipt, verifyReceiptHash, verifyReceipt, getReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey } from '../services/receiptService';
 import { calculatePayoutSplit, createPayoutFromReceipt, getPayout, storePayout, verifyPayoutSplit } from '../services/payoutService';
+import {
+  executeInferenceRequest,
+  executeStreamingInferenceRequest,
+  executeChatCompletion,
+  ExecutionRequest,
+  ChatCompletionRequest,
+} from '../services/executionGateway';
+import {
+  createEpoch,
+  getCurrentEpoch,
+  getEpoch,
+  listEpochs,
+  getEpochsReadyForFinalization,
+  getEpochStats,
+  retryEpoch,
+  EpochStatus,
+} from '../services/epochService';
+import {
+  commitEpochRoot,
+  commitEpochRootsBatch,
+  verifyEpochAnchor,
+  getAnchorTransaction,
+  checkAnchoringHealth,
+} from '../services/anchoringService';
 
 export const lucidLayerRouter = express.Router();
 
@@ -470,5 +494,715 @@ lucidLayerRouter.get('/v1/payouts/:run_id/verify', async (req, res) => {
   } catch (error) {
     console.error('Error in GET /v1/payouts/:run_id/verify:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// =============================================================================
+// EXECUTION GATEWAY ENDPOINTS
+// =============================================================================
+
+/**
+ * POST /v1/run/inference
+ * Execute inference through the execution gateway
+ * 
+ * Body: {
+ *   model_passport_id: string,
+ *   prompt?: string,
+ *   messages?: Array<{ role: string, content: string }>,
+ *   max_tokens?: number,
+ *   temperature?: number,
+ *   top_p?: number,
+ *   top_k?: number,
+ *   stop?: string[],
+ *   stream?: boolean,
+ *   policy?: Policy,
+ *   compute_catalog?: any[],
+ *   compute_passport_id?: string,
+ *   trace_id?: string,
+ *   request_id?: string
+ * }
+ * 
+ * Response (non-streaming): ExecutionResult
+ * Response (streaming): SSE stream of tokens
+ */
+lucidLayerRouter.post('/v1/run/inference', async (req, res) => {
+  try {
+    const request = req.body as ExecutionRequest;
+
+    // Validate required fields
+    if (!request.model_passport_id && !request.model_meta) {
+      return res.status(400).json({
+        success: false,
+        error: 'model_passport_id or model_meta is required',
+      });
+    }
+
+    if (!request.prompt && !request.messages) {
+      return res.status(400).json({
+        success: false,
+        error: 'prompt or messages is required',
+      });
+    }
+
+    // Handle streaming response
+    if (request.stream) {
+      try {
+        const streamResult = await executeStreamingInferenceRequest(request);
+        
+        // Set up SSE headers
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Run-ID', streamResult.run_id);
+        res.setHeader('X-Model-Passport-ID', streamResult.model_passport_id);
+        res.setHeader('X-Compute-Passport-ID', streamResult.compute_passport_id);
+        res.flushHeaders();
+
+        // Stream tokens
+        for await (const chunk of streamResult.stream) {
+          const data = JSON.stringify({
+            run_id: streamResult.run_id,
+            text: chunk.text,
+            is_first: chunk.is_first,
+            is_last: chunk.is_last,
+            finish_reason: chunk.finish_reason,
+          });
+          res.write(`data: ${data}\n\n`);
+        }
+
+        // Finalize and get metrics
+        const final = await streamResult.finalize();
+        const doneData = JSON.stringify({
+          run_id: streamResult.run_id,
+          done: true,
+          tokens_in: final.tokens_in,
+          tokens_out: final.tokens_out,
+          ttft_ms: final.ttft_ms,
+          total_latency_ms: final.total_latency_ms,
+          receipt_id: final.receipt_id,
+        });
+        res.write(`data: ${doneData}\n\n`);
+        res.write('data: [DONE]\n\n');
+        res.end();
+      } catch (streamError) {
+        const errorMsg = streamError instanceof Error ? streamError.message : 'Stream error';
+        if (!res.headersSent) {
+          return res.status(503).json({
+            success: false,
+            error: errorMsg,
+            error_code: errorMsg === 'NO_COMPATIBLE_COMPUTE' ? 'NO_COMPATIBLE_COMPUTE' : 'STREAM_ERROR',
+          });
+        }
+        // If headers already sent, send error in stream
+        res.write(`data: ${JSON.stringify({ error: errorMsg })}\n\n`);
+        res.end();
+      }
+      return;
+    }
+
+    // Non-streaming response
+    const result = await executeInferenceRequest(request);
+
+    if (!result.success) {
+      const statusCode = result.error_code === 'NO_COMPATIBLE_COMPUTE' ? 422 : 503;
+      return res.status(statusCode).json({
+        success: false,
+        run_id: result.run_id,
+        error: result.error,
+        error_code: result.error_code,
+        total_latency_ms: result.total_latency_ms,
+      });
+    }
+
+    return res.json({
+      success: true,
+      run_id: result.run_id,
+      request_id: result.request_id,
+      trace_id: result.trace_id,
+      text: result.text,
+      finish_reason: result.finish_reason,
+      tokens_in: result.tokens_in,
+      tokens_out: result.tokens_out,
+      ttft_ms: result.ttft_ms,
+      total_latency_ms: result.total_latency_ms,
+      model_passport_id: result.model_passport_id,
+      compute_passport_id: result.compute_passport_id,
+      runtime: result.runtime,
+      policy_hash: result.policy_hash,
+      receipt_id: result.receipt_id,
+      used_fallback: result.used_fallback,
+      fallback_reason: result.fallback_reason,
+    });
+  } catch (error) {
+    console.error('Error in POST /v1/run/inference:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /v1/chat/completions
+ * OpenAI-compatible chat completions endpoint
+ * 
+ * Body: OpenAI ChatCompletionRequest format
+ * - model: string (use "passport:<passport_id>" for LucidLayer models)
+ * - messages: Array<{ role: string, content: string }>
+ * - max_tokens?: number
+ * - temperature?: number
+ * - top_p?: number
+ * - stop?: string | string[]
+ * - stream?: boolean
+ * 
+ * LucidLayer extensions:
+ * - policy?: Policy
+ * - trace_id?: string
+ * 
+ * Response: OpenAI ChatCompletionResponse format with LucidLayer extensions
+ */
+lucidLayerRouter.post('/v1/chat/completions', async (req, res) => {
+  try {
+    const request = req.body as ChatCompletionRequest;
+
+    // Validate required fields
+    if (!request.model) {
+      return res.status(400).json({
+        error: {
+          message: 'model is required',
+          type: 'invalid_request_error',
+          param: 'model',
+          code: 'missing_required_parameter',
+        },
+      });
+    }
+
+    if (!request.messages || !Array.isArray(request.messages) || request.messages.length === 0) {
+      return res.status(400).json({
+        error: {
+          message: 'messages is required and must be a non-empty array',
+          type: 'invalid_request_error',
+          param: 'messages',
+          code: 'missing_required_parameter',
+        },
+      });
+    }
+
+    // Handle streaming response
+    if (request.stream) {
+      // Parse model to get passport ID
+      let model_passport_id: string | undefined;
+      if (request.model.startsWith('passport:')) {
+        model_passport_id = request.model.slice(9);
+      }
+
+      // Build execution request
+      const execRequest: ExecutionRequest = {
+        model_passport_id,
+        messages: request.messages,
+        max_tokens: request.max_tokens,
+        temperature: request.temperature,
+        top_p: request.top_p,
+        stop: Array.isArray(request.stop) ? request.stop : request.stop ? [request.stop] : undefined,
+        stream: true,
+        policy: request.policy,
+        trace_id: request.trace_id,
+      };
+
+      try {
+        const streamResult = await executeStreamingInferenceRequest(execRequest);
+
+        // Set up SSE headers for OpenAI-compatible streaming
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.flushHeaders();
+
+        let chunkIndex = 0;
+        for await (const chunk of streamResult.stream) {
+          const sseChunk = {
+            id: streamResult.run_id,
+            object: 'chat.completion.chunk',
+            created: Math.floor(Date.now() / 1000),
+            model: request.model,
+            choices: [{
+              index: 0,
+              delta: chunkIndex === 0 
+                ? { role: 'assistant', content: chunk.text }
+                : { content: chunk.text },
+              finish_reason: chunk.finish_reason || null,
+            }],
+          };
+          res.write(`data: ${JSON.stringify(sseChunk)}\n\n`);
+          chunkIndex++;
+        }
+
+        res.write('data: [DONE]\n\n');
+        res.end();
+
+        // Finalize asynchronously (receipt creation)
+        streamResult.finalize().catch(console.error);
+      } catch (streamError) {
+        const errorMsg = streamError instanceof Error ? streamError.message : 'Stream error';
+        if (!res.headersSent) {
+          return res.status(503).json({
+            error: {
+              message: errorMsg,
+              type: 'server_error',
+              code: errorMsg === 'NO_COMPATIBLE_COMPUTE' ? 'no_compatible_compute' : 'stream_error',
+            },
+          });
+        }
+        res.end();
+      }
+      return;
+    }
+
+    // Non-streaming response
+    const response = await executeChatCompletion(request);
+
+    return res.json(response);
+  } catch (error) {
+    console.error('Error in POST /v1/chat/completions:', error);
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    return res.status(500).json({
+      error: {
+        message: errorMsg,
+        type: 'server_error',
+        code: 'internal_error',
+      },
+    });
+  }
+});
+
+// =============================================================================
+// EPOCH MANAGEMENT ENDPOINTS
+// =============================================================================
+
+/**
+ * GET /v1/epochs/current
+ * Get the current active epoch
+ */
+lucidLayerRouter.get('/v1/epochs/current', async (req, res) => {
+  try {
+    const project_id = req.query.project_id as string | undefined;
+    const epoch = getCurrentEpoch(project_id);
+    
+    return res.json({
+      success: true,
+      epoch: {
+        epoch_id: epoch.epoch_id,
+        project_id: epoch.project_id,
+        mmr_root: epoch.mmr_root,
+        leaf_count: epoch.leaf_count,
+        created_at: epoch.created_at,
+        status: epoch.status,
+      },
+    });
+  } catch (error) {
+    console.error('Error in GET /v1/epochs/current:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /v1/epochs/:epoch_id
+ * Get a specific epoch by ID
+ */
+lucidLayerRouter.get('/v1/epochs/:epoch_id', async (req, res) => {
+  try {
+    const { epoch_id } = req.params;
+    const epoch = getEpoch(epoch_id);
+    
+    if (!epoch) {
+      return res.status(404).json({
+        success: false,
+        error: 'Epoch not found',
+      });
+    }
+
+    return res.json({
+      success: true,
+      epoch: {
+        epoch_id: epoch.epoch_id,
+        project_id: epoch.project_id,
+        mmr_root: epoch.mmr_root,
+        leaf_count: epoch.leaf_count,
+        created_at: epoch.created_at,
+        finalized_at: epoch.finalized_at,
+        status: epoch.status,
+        chain_tx: epoch.chain_tx,
+        error: epoch.error,
+        start_leaf_index: epoch.start_leaf_index,
+        end_leaf_index: epoch.end_leaf_index,
+      },
+    });
+  } catch (error) {
+    console.error('Error in GET /v1/epochs/:epoch_id:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /v1/epochs
+ * List epochs with optional filtering
+ */
+lucidLayerRouter.get('/v1/epochs', async (req, res) => {
+  try {
+    const {
+      project_id,
+      status,
+      page,
+      per_page,
+    } = req.query;
+
+    const result = listEpochs({
+      project_id: project_id as string | undefined,
+      status: status as EpochStatus | undefined,
+      page: page ? parseInt(page as string, 10) : undefined,
+      per_page: per_page ? parseInt(per_page as string, 10) : undefined,
+    });
+
+    return res.json({
+      success: true,
+      epochs: result.epochs,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        per_page: result.per_page,
+        total_pages: result.total_pages,
+      },
+    });
+  } catch (error) {
+    console.error('Error in GET /v1/epochs:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /v1/epochs/stats
+ * Get epoch statistics
+ */
+lucidLayerRouter.get('/v1/epochs/stats', async (_req, res) => {
+  try {
+    const stats = getEpochStats();
+    return res.json({
+      success: true,
+      stats,
+    });
+  } catch (error) {
+    console.error('Error in GET /v1/epochs/stats:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /v1/epochs
+ * Create a new epoch (optional - epochs are created automatically)
+ */
+lucidLayerRouter.post('/v1/epochs', async (req, res) => {
+  try {
+    const { project_id } = req.body || {};
+    const epoch = createEpoch(project_id);
+    
+    return res.status(201).json({
+      success: true,
+      epoch: {
+        epoch_id: epoch.epoch_id,
+        project_id: epoch.project_id,
+        mmr_root: epoch.mmr_root,
+        leaf_count: epoch.leaf_count,
+        created_at: epoch.created_at,
+        status: epoch.status,
+      },
+    });
+  } catch (error) {
+    console.error('Error in POST /v1/epochs:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /v1/epochs/:epoch_id/retry
+ * Retry a failed epoch
+ */
+lucidLayerRouter.post('/v1/epochs/:epoch_id/retry', async (req, res) => {
+  try {
+    const { epoch_id } = req.params;
+    const epoch = retryEpoch(epoch_id);
+    
+    if (!epoch) {
+      return res.status(400).json({
+        success: false,
+        error: 'Epoch not found or not in failed state',
+      });
+    }
+
+    return res.json({
+      success: true,
+      epoch: {
+        epoch_id: epoch.epoch_id,
+        status: epoch.status,
+      },
+    });
+  } catch (error) {
+    console.error('Error in POST /v1/epochs/:epoch_id/retry:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// =============================================================================
+// RECEIPT ANCHORING ENDPOINTS
+// =============================================================================
+
+/**
+ * POST /v1/receipts/commit-root
+ * Commit the current epoch's MMR root to the blockchain
+ * 
+ * Body: {
+ *   project_id?: string,
+ *   epoch_id?: string,  // If specified, commits this specific epoch
+ *   force?: boolean     // Force commit even if thresholds not met
+ * }
+ */
+lucidLayerRouter.post('/v1/receipts/commit-root', async (req, res) => {
+  try {
+    const { project_id, epoch_id, force } = req.body || {};
+
+    // If specific epoch_id provided, commit that epoch
+    if (epoch_id) {
+      const result = await commitEpochRoot(epoch_id);
+      
+      if (!result.success) {
+        return res.status(503).json({
+          success: false,
+          error: result.error,
+          epoch_id: result.epoch_id,
+          root: result.root,
+        });
+      }
+
+      return res.status(202).json({
+        success: true,
+        epoch_id: result.epoch_id,
+        root: result.root,
+        tx: result.signature,
+      });
+    }
+
+    // Otherwise, get current epoch and commit if ready (or forced)
+    const currentEpoch = getCurrentEpoch(project_id);
+    
+    if (!force) {
+      // Check if epoch should be finalized
+      const readyEpochs = getEpochsReadyForFinalization();
+      const isReady = readyEpochs.some(e => e.epoch_id === currentEpoch.epoch_id);
+      
+      if (!isReady && currentEpoch.leaf_count === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Current epoch is empty',
+          epoch_id: currentEpoch.epoch_id,
+          leaf_count: currentEpoch.leaf_count,
+        });
+      }
+    }
+
+    const result = await commitEpochRoot(currentEpoch.epoch_id);
+    
+    if (!result.success) {
+      return res.status(503).json({
+        success: false,
+        error: result.error,
+        epoch_id: result.epoch_id,
+        root: result.root,
+      });
+    }
+
+    return res.status(202).json({
+      success: true,
+      epoch_id: result.epoch_id,
+      root: result.root,
+      tx: result.signature,
+      leaf_count: currentEpoch.leaf_count,
+    });
+  } catch (error) {
+    console.error('Error in POST /v1/receipts/commit-root:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /v1/receipts/commit-roots-batch
+ * Commit multiple epoch roots in a single transaction
+ * 
+ * Body: {
+ *   epoch_ids: string[]
+ * }
+ */
+lucidLayerRouter.post('/v1/receipts/commit-roots-batch', async (req, res) => {
+  try {
+    const { epoch_ids } = req.body || {};
+
+    if (!epoch_ids || !Array.isArray(epoch_ids) || epoch_ids.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'epoch_ids array is required',
+      });
+    }
+
+    if (epoch_ids.length > 16) {
+      return res.status(400).json({
+        success: false,
+        error: 'Maximum 16 epochs per batch',
+      });
+    }
+
+    const results = await commitEpochRootsBatch(epoch_ids);
+    
+    const successful = results.filter(r => r.success);
+    const failed = results.filter(r => !r.success);
+
+    return res.status(202).json({
+      success: failed.length === 0,
+      total: results.length,
+      successful_count: successful.length,
+      failed_count: failed.length,
+      results,
+    });
+  } catch (error) {
+    console.error('Error in POST /v1/receipts/commit-roots-batch:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /v1/epochs/:epoch_id/verify
+ * Verify that an epoch's root is anchored on-chain
+ */
+lucidLayerRouter.get('/v1/epochs/:epoch_id/verify', async (req, res) => {
+  try {
+    const { epoch_id } = req.params;
+    const result = await verifyEpochAnchor(epoch_id);
+
+    return res.json({
+      success: true,
+      valid: result.valid,
+      on_chain_root: result.on_chain_root,
+      expected_root: result.expected_root,
+      tx_signature: result.tx_signature,
+      error: result.error,
+    });
+  } catch (error) {
+    console.error('Error in GET /v1/epochs/:epoch_id/verify:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /v1/epochs/:epoch_id/transaction
+ * Get the blockchain transaction details for an anchored epoch
+ */
+lucidLayerRouter.get('/v1/epochs/:epoch_id/transaction', async (req, res) => {
+  try {
+    const { epoch_id } = req.params;
+    const result = await getAnchorTransaction(epoch_id);
+
+    if (!result.found) {
+      return res.status(404).json({
+        success: false,
+        error: result.error || 'Transaction not found',
+      });
+    }
+
+    return res.json({
+      success: true,
+      tx_signature: result.tx_signature,
+      slot: result.slot,
+      block_time: result.block_time,
+    });
+  } catch (error) {
+    console.error('Error in GET /v1/epochs/:epoch_id/transaction:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /v1/anchoring/health
+ * Check the health of the anchoring service
+ */
+lucidLayerRouter.get('/v1/anchoring/health', async (_req, res) => {
+  try {
+    const health = await checkAnchoringHealth();
+
+    const statusCode = health.connected ? 200 : 503;
+    return res.status(statusCode).json({
+      success: health.connected,
+      ...health,
+    });
+  } catch (error) {
+    console.error('Error in GET /v1/anchoring/health:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /v1/epochs/ready
+ * Get epochs that are ready for finalization
+ */
+lucidLayerRouter.get('/v1/epochs/ready', async (_req, res) => {
+  try {
+    const epochs = getEpochsReadyForFinalization();
+
+    return res.json({
+      success: true,
+      count: epochs.length,
+      epochs: epochs.map(e => ({
+        epoch_id: e.epoch_id,
+        project_id: e.project_id,
+        leaf_count: e.leaf_count,
+        created_at: e.created_at,
+        mmr_root: e.mmr_root,
+      })),
+    });
+  } catch (error) {
+    console.error('Error in GET /v1/epochs/ready:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
 });

@@ -21,6 +21,8 @@ import healthRoutes from './routes/healthRoutes';
 import hyperliquidRoutes from './routes/hyperliquidRoutes';
 import solanaRoutes from './routes/solanaRoutes';
 import { lucidLayerRouter } from './routes/lucidLayerRoutes';
+import { passportRouter } from './routes/passportRoutes';
+import { getPassportManager } from './services/passportManager';
 
 const app = express();
 
@@ -52,6 +54,9 @@ app.use('/api', createApiRouter());
 // Mount LucidLayer MVP routes (versioned)
 app.use('/', lucidLayerRouter);
 
+// Mount Passport CRUD routes (LucidLayer Phase 1)
+app.use('/', passportRouter);
+
 // Mount OAuth routes for Nango integration
 app.use('/api/oauth', oauthRoutes);
 app.use('/api/oauth', oauthResourcesRoutes);
@@ -64,6 +69,13 @@ app.use('/api/solana', solanaRoutes);
 
 // Mount health check routes
 app.use('/health', healthRoutes);
+
+// Initialize Passport Manager
+getPassportManager().init().then(() => {
+  console.log('📦 Passport Manager ready');
+}).catch((err) => {
+  console.error('Failed to initialize Passport Manager:', err);
+});
 
 app.listen(API_PORT, '0.0.0.0', () => {
   console.log(`▶️  Lucid L2 API listening on:`);

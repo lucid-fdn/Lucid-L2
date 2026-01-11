@@ -1,0 +1,446 @@
+/**
+ * Epoch Service - Manages epoch lifecycle for receipt anchoring.
+ * 
+ * An epoch is a batch of receipts that get anchored together to the chain.
+ * This reduces on-chain costs by committing a single MMR root for multiple receipts.
+ * 
+ * Epoch finalization triggers:
+ * - Receipt count > 100
+ * - Time since epoch start > 1 hour
+ * - Manual trigger via API
+ */
+import { v4 as uuid } from 'uuid';
+import { getMmrRoot, getMmrLeafCount, listReceipts, SignedReceipt } from './receiptService';
+
+// =============================================================================
+// TYPES
+// =============================================================================
+
+export type EpochStatus = 'open' | 'anchoring' | 'anchored' | 'failed';
+
+export interface Epoch {
+  epoch_id: string;
+  project_id?: string;
+  mmr_root: string;
+  leaf_count: number;
+  created_at: number;         // Unix timestamp (seconds)
+  finalized_at?: number;      // When the epoch was finalized
+  status: EpochStatus;
+  chain_tx?: string;          // Solana transaction signature
+  error?: string;             // Error message if failed
+  start_leaf_index: number;   // First leaf index in this epoch
+  end_leaf_index?: number;    // Last leaf index in this epoch (set on finalization)
+  receipt_run_ids: string[];  // Run IDs of receipts in this epoch
+}
+
+export interface EpochSummary {
+  epoch_id: string;
+  project_id?: string;
+  status: EpochStatus;
+  leaf_count: number;
+  created_at: number;
+  finalized_at?: number;
+  chain_tx?: string;
+}
+
+export interface EpochFilters {
+  project_id?: string;
+  status?: EpochStatus;
+  page?: number;
+  per_page?: number;
+}
+
+export interface PaginatedEpochs {
+  epochs: EpochSummary[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+}
+
+// Configuration
+export interface EpochConfig {
+  max_receipts_per_epoch: number;  // Default: 100
+  max_epoch_duration_ms: number;   // Default: 1 hour (3600000 ms)
+}
+
+const DEFAULT_CONFIG: EpochConfig = {
+  max_receipts_per_epoch: 100,
+  max_epoch_duration_ms: 60 * 60 * 1000, // 1 hour
+};
+
+// =============================================================================
+// IN-MEMORY STORAGE (MVP)
+// =============================================================================
+
+// Active epoch per project (or global if no project)
+const activeEpochs = new Map<string, Epoch>(); // key: project_id or '__global__'
+
+// All epochs (historical + active)
+const epochStore = new Map<string, Epoch>(); // key: epoch_id
+
+// Configuration
+let config: EpochConfig = { ...DEFAULT_CONFIG };
+
+// Track which receipts belong to which epoch
+const receiptToEpoch = new Map<string, string>(); // key: run_id, value: epoch_id
+
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
+
+/**
+ * Update epoch configuration.
+ */
+export function setEpochConfig(newConfig: Partial<EpochConfig>): void {
+  config = { ...config, ...newConfig };
+}
+
+/**
+ * Get current epoch configuration.
+ */
+export function getEpochConfig(): EpochConfig {
+  return { ...config };
+}
+
+// =============================================================================
+// EPOCH LIFECYCLE
+// =============================================================================
+
+/**
+ * Get the storage key for active epoch.
+ */
+function getActiveKey(project_id?: string): string {
+  return project_id || '__global__';
+}
+
+/**
+ * Create a new epoch.
+ */
+export function createEpoch(project_id?: string): Epoch {
+  const epoch_id = `epoch_${uuid().replace(/-/g, '')}`;
+  const now = Math.floor(Date.now() / 1000);
+  
+  // Get current state for starting point
+  const currentRoot = getMmrRoot();
+  const currentLeafCount = getMmrLeafCount();
+
+  const epoch: Epoch = {
+    epoch_id,
+    project_id,
+    mmr_root: currentRoot,
+    leaf_count: 0,
+    created_at: now,
+    status: 'open',
+    start_leaf_index: currentLeafCount,
+    receipt_run_ids: [],
+  };
+
+  // Store epoch
+  epochStore.set(epoch_id, epoch);
+  
+  // Set as active epoch
+  const activeKey = getActiveKey(project_id);
+  activeEpochs.set(activeKey, epoch);
+
+  return epoch;
+}
+
+/**
+ * Get the current active epoch, creating one if needed.
+ */
+export function getCurrentEpoch(project_id?: string): Epoch {
+  const activeKey = getActiveKey(project_id);
+  let epoch = activeEpochs.get(activeKey);
+  
+  // Create new epoch if none exists
+  if (!epoch) {
+    epoch = createEpoch(project_id);
+  }
+  
+  return epoch;
+}
+
+/**
+ * Get an epoch by ID.
+ */
+export function getEpoch(epoch_id: string): Epoch | null {
+  return epochStore.get(epoch_id) || null;
+}
+
+/**
+ * List epochs with optional filtering.
+ */
+export function listEpochs(filters: EpochFilters = {}): PaginatedEpochs {
+  const {
+    project_id,
+    status,
+    page = 1,
+    per_page = 20,
+  } = filters;
+
+  // Get all epochs
+  let epochs = Array.from(epochStore.values());
+
+  // Apply filters
+  if (project_id !== undefined) {
+    epochs = epochs.filter(e => e.project_id === project_id);
+  }
+  if (status !== undefined) {
+    epochs = epochs.filter(e => e.status === status);
+  }
+
+  // Sort by created_at descending (newest first)
+  epochs.sort((a, b) => b.created_at - a.created_at);
+
+  // Paginate
+  const total = epochs.length;
+  const total_pages = Math.ceil(total / per_page);
+  const startIndex = (page - 1) * per_page;
+  const pageEpochs = epochs.slice(startIndex, startIndex + per_page);
+
+  // Map to summary
+  const summaries: EpochSummary[] = pageEpochs.map(e => ({
+    epoch_id: e.epoch_id,
+    project_id: e.project_id,
+    status: e.status,
+    leaf_count: e.leaf_count,
+    created_at: e.created_at,
+    finalized_at: e.finalized_at,
+    chain_tx: e.chain_tx,
+  }));
+
+  return {
+    epochs: summaries,
+    total,
+    page,
+    per_page,
+    total_pages,
+  };
+}
+
+/**
+ * Add a receipt to the current epoch.
+ * Called after receipt creation.
+ */
+export function addReceiptToEpoch(run_id: string, project_id?: string): void {
+  const epoch = getCurrentEpoch(project_id);
+  
+  // Don't add to non-open epochs
+  if (epoch.status !== 'open') {
+    // Create new epoch
+    const newEpoch = createEpoch(project_id);
+    newEpoch.receipt_run_ids.push(run_id);
+    newEpoch.leaf_count++;
+    receiptToEpoch.set(run_id, newEpoch.epoch_id);
+    return;
+  }
+
+  epoch.receipt_run_ids.push(run_id);
+  epoch.leaf_count++;
+  receiptToEpoch.set(run_id, epoch.epoch_id);
+
+  // Update MMR root snapshot
+  epoch.mmr_root = getMmrRoot();
+}
+
+/**
+ * Get the epoch ID for a specific receipt.
+ */
+export function getEpochForReceipt(run_id: string): string | null {
+  return receiptToEpoch.get(run_id) || null;
+}
+
+/**
+ * Check if an epoch should be finalized based on configuration.
+ */
+export function shouldFinalizeEpoch(epoch: Epoch): { should: boolean; reason?: string } {
+  // Only finalize open epochs
+  if (epoch.status !== 'open') {
+    return { should: false };
+  }
+
+  // Check receipt count
+  if (epoch.leaf_count >= config.max_receipts_per_epoch) {
+    return { should: true, reason: 'max_receipts_reached' };
+  }
+
+  // Check time elapsed
+  const now = Date.now();
+  const epochStartMs = epoch.created_at * 1000;
+  const elapsed = now - epochStartMs;
+  
+  if (elapsed >= config.max_epoch_duration_ms) {
+    return { should: true, reason: 'max_duration_reached' };
+  }
+
+  return { should: false };
+}
+
+/**
+ * Prepare an epoch for finalization (marks as 'anchoring').
+ * Returns the epoch data needed for anchoring.
+ */
+export function prepareEpochForFinalization(epoch_id: string): Epoch | null {
+  const epoch = epochStore.get(epoch_id);
+  if (!epoch) {
+    return null;
+  }
+
+  // Can only prepare open epochs
+  if (epoch.status !== 'open') {
+    return null;
+  }
+
+  // Update status
+  epoch.status = 'anchoring';
+  epoch.finalized_at = Math.floor(Date.now() / 1000);
+  
+  // Capture final state
+  epoch.mmr_root = getMmrRoot();
+  epoch.end_leaf_index = getMmrLeafCount() - 1;
+
+  // Remove from active epochs (so a new one can be created)
+  const activeKey = getActiveKey(epoch.project_id);
+  if (activeEpochs.get(activeKey)?.epoch_id === epoch_id) {
+    activeEpochs.delete(activeKey);
+  }
+
+  return epoch;
+}
+
+/**
+ * Finalize an epoch - Mark as anchored with transaction signature.
+ */
+export function finalizeEpoch(
+  epoch_id: string,
+  chain_tx: string,
+  final_root: string
+): Epoch | null {
+  const epoch = epochStore.get(epoch_id);
+  if (!epoch) {
+    return null;
+  }
+
+  // Can only finalize epochs that are anchoring
+  if (epoch.status !== 'anchoring') {
+    return null;
+  }
+
+  // Update epoch
+  epoch.status = 'anchored';
+  epoch.chain_tx = chain_tx;
+  epoch.mmr_root = final_root;
+  
+  return epoch;
+}
+
+/**
+ * Mark an epoch as failed.
+ */
+export function failEpoch(epoch_id: string, error: string): Epoch | null {
+  const epoch = epochStore.get(epoch_id);
+  if (!epoch) {
+    return null;
+  }
+
+  // Can only fail epochs that are anchoring
+  if (epoch.status !== 'anchoring') {
+    return null;
+  }
+
+  epoch.status = 'failed';
+  epoch.error = error;
+  
+  return epoch;
+}
+
+/**
+ * Retry a failed epoch - Reset to open status.
+ */
+export function retryEpoch(epoch_id: string): Epoch | null {
+  const epoch = epochStore.get(epoch_id);
+  if (!epoch) {
+    return null;
+  }
+
+  // Can only retry failed epochs
+  if (epoch.status !== 'failed') {
+    return null;
+  }
+
+  // Reset to open
+  epoch.status = 'open';
+  delete epoch.error;
+  delete epoch.finalized_at;
+
+  // Set as active again
+  const activeKey = getActiveKey(epoch.project_id);
+  if (!activeEpochs.has(activeKey)) {
+    activeEpochs.set(activeKey, epoch);
+  }
+
+  return epoch;
+}
+
+/**
+ * Get all open epochs that should be finalized.
+ */
+export function getEpochsReadyForFinalization(): Epoch[] {
+  const ready: Epoch[] = [];
+  
+  for (const epoch of activeEpochs.values()) {
+    const check = shouldFinalizeEpoch(epoch);
+    if (check.should) {
+      ready.push(epoch);
+    }
+  }
+
+  return ready;
+}
+
+/**
+ * Get statistics about epochs.
+ */
+export function getEpochStats(): {
+  total_epochs: number;
+  open_epochs: number;
+  anchoring_epochs: number;
+  anchored_epochs: number;
+  failed_epochs: number;
+  total_receipts_anchored: number;
+} {
+  const epochs = Array.from(epochStore.values());
+  
+  return {
+    total_epochs: epochs.length,
+    open_epochs: epochs.filter(e => e.status === 'open').length,
+    anchoring_epochs: epochs.filter(e => e.status === 'anchoring').length,
+    anchored_epochs: epochs.filter(e => e.status === 'anchored').length,
+    failed_epochs: epochs.filter(e => e.status === 'failed').length,
+    total_receipts_anchored: epochs
+      .filter(e => e.status === 'anchored')
+      .reduce((sum, e) => sum + e.leaf_count, 0),
+  };
+}
+
+// =============================================================================
+// TESTING UTILITIES
+// =============================================================================
+
+/**
+ * Reset all epoch state (for testing).
+ */
+export function resetEpochStore(): void {
+  activeEpochs.clear();
+  epochStore.clear();
+  receiptToEpoch.clear();
+  config = { ...DEFAULT_CONFIG };
+}
+
+/**
+ * Get all epochs (for testing/debugging).
+ */
+export function getAllEpochs(): Epoch[] {
+  return Array.from(epochStore.values());
+}

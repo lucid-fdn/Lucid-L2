@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lucidlayer-sdk"
+version = "1.0.0"
+description = "Python SDK for LucidLayer - Decentralized AI Compute Orchestration"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "LucidLayer Team", email = "team@lucidlayer.io"}
+]
+keywords = ["lucidlayer", "ai", "llm", "inference", "compute", "passport", "solana", "blockchain", "decentralized"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "httpx>=0.25.0",
+    "pydantic>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-httpx>=0.21.0",
+]
+
+[project.urls]
+Homepage = "https://lucidlayer.io"
+Documentation = "https://docs.lucidlayer.io"
+Repository = "https://github.com/lucidlayer/lucid-l2"
+Issues = "https://github.com/lucidlayer/lucid-l2/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lucid_sdk*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
