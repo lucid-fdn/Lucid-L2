@@ -14,6 +14,7 @@ function initializeLLMRouter(): LLMRouter {
       provider: LLM_CONFIG.provider as any,
       model: LLM_CONFIG.model,
       apiKey: LLM_CONFIG.apiKey,
+      baseUrl: LLM_CONFIG.baseUrl,
       maxTokens: LLM_CONFIG.maxTokens,
       temperature: LLM_CONFIG.temperature,
       fallbackProviders: LLM_CONFIG.fallbackProviders
