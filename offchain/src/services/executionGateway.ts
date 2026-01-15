@@ -616,7 +616,7 @@ async function executeWithFallback(
         compute_passport_id,
         runtime,
         used_fallback: usedFallback,
-        fallback_reason,
+        fallback_reason: fallbackReason,
       };
     } catch (error) {
       lastError = error as Error;
