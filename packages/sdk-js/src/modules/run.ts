@@ -214,7 +214,7 @@ export class RunModule {
       temperature?: number;
     }
   ): Promise<StreamChunk | void> {
-    let finalChunk: StreamChunk | void;
+    let finalChunk: StreamChunk | void = undefined;
 
     for await (const chunk of this.inferenceStream({
       model_passport_id: modelId,

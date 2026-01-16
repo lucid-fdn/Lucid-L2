@@ -8,6 +8,9 @@ version = "1.0.0"
 description = "Python SDK for LucidLayer - Decentralized AI Compute Orchestration"
 readme = "README.md"
 license = {text = "MIT"}
+
+[tool.poetry.scripts]
+generate_openapi = "lucid_sdk.generated_codegen:main"
 requires-python = ">=3.9"
 authors = [
     {name = "LucidLayer Team", email = "team@lucidlayer.io"}
