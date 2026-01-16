@@ -1,0 +1,1193 @@
+openapi: 3.0.3
+info:
+  title: LucidLayer API
+  version: 0.1.0
+  description: |
+    LucidLayer Offchain API.
+
+    This OpenAPI spec is used to generate SDK clients.
+servers:
+  - url: http://localhost:3001
+    description: Local
+
+tags:
+  - name: Passports
+  - name: Match
+  - name: Run
+  - name: Receipts
+  - name: Epochs
+  - name: Payouts
+  - name: Compute
+
+paths:
+  /v1/passports:
+    post:
+      tags: [Passports]
+      summary: Create a passport
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePassportRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreatePassportResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    get:
+      tags: [Passports]
+      summary: List passports
+      parameters:
+        - in: query
+          name: type
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/PassportType'
+              - type: array
+                items: { $ref: '#/components/schemas/PassportType' }
+        - in: query
+          name: owner
+          schema: { type: string }
+        - in: query
+          name: status
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/PassportStatus'
+              - type: array
+                items: { $ref: '#/components/schemas/PassportStatus' }
+        - in: query
+          name: tags
+          description: Comma-separated
+          schema: { type: string }
+        - in: query
+          name: tag_match
+          schema: { type: string, enum: [all, any] }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: per_page
+          schema: { type: integer, minimum: 1, maximum: 100 }
+        - in: query
+          name: sort_by
+          schema: { type: string, enum: [created_at, updated_at, name] }
+        - in: query
+          name: sort_order
+          schema: { type: string, enum: [asc, desc] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListPassportsResponse'
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/passports/{passport_id}:
+    get:
+      tags: [Passports]
+      summary: Get a passport
+      parameters:
+        - in: path
+          name: passport_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPassportResponse'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    patch:
+      tags: [Passports]
+      summary: Update a passport
+      parameters:
+        - in: path
+          name: passport_id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Owner-Address
+          required: false
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePassportRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPassportResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    delete:
+      tags: [Passports]
+      summary: Delete a passport (soft delete)
+      parameters:
+        - in: path
+          name: passport_id
+          required: true
+          schema: { type: string }
+        - in: header
+          name: X-Owner-Address
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, deleted]
+                properties:
+                  success: { type: boolean }
+                  deleted: { type: boolean }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/passports/{passport_id}/sync:
+    post:
+      tags: [Passports]
+      summary: Trigger on-chain sync for a passport
+      parameters:
+        - in: path
+          name: passport_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean }
+                  on_chain_pda: { type: string, nullable: true }
+                  on_chain_tx: { type: string, nullable: true }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/passports/pending-sync:
+    get:
+      tags: [Passports]
+      summary: Get passports pending sync
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, count, passports]
+                properties:
+                  success: { type: boolean }
+                  count: { type: integer }
+                  passports:
+                    type: array
+                    items: { $ref: '#/components/schemas/Passport' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/passports/stats:
+    get:
+      tags: [Passports]
+      summary: Passport statistics
+      responses:
+        '200':
+          description: OK
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/models:
+    get:
+      tags: [Passports]
+      summary: Search model passports
+      parameters:
+        - in: query
+          name: runtime
+          schema: { type: string }
+        - in: query
+          name: format
+          schema: { type: string }
+        - in: query
+          name: max_vram
+          schema: { type: integer }
+        - in: query
+          name: owner
+          schema: { type: string }
+        - in: query
+          name: tags
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: per_page
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: OK
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/compute:
+    get:
+      tags: [Passports]
+      summary: Search compute passports
+      parameters:
+        - in: query
+          name: regions
+          schema: { type: string }
+        - in: query
+          name: runtimes
+          schema: { type: string }
+        - in: query
+          name: provider_type
+          schema: { type: string }
+        - in: query
+          name: min_vram
+          schema: { type: integer }
+        - in: query
+          name: gpu
+          schema: { type: string }
+        - in: query
+          name: owner
+          schema: { type: string }
+        - in: query
+          name: tags
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: per_page
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: OK
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/match/explain:
+    post:
+      tags: [Match]
+      summary: Evaluate policy against compute/model meta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                policy: { $ref: '#/components/schemas/Policy' }
+                compute_meta: { type: object, additionalProperties: true }
+                model_meta: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: OK
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/match:
+    post:
+      tags: [Match]
+      summary: Match compute for model
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model_meta: { type: object, additionalProperties: true }
+                policy: { $ref: '#/components/schemas/Policy' }
+                compute_catalog:
+                  type: array
+                  items: { type: object, additionalProperties: true }
+                require_live_healthy: { type: boolean, default: true }
+      responses:
+        '200':
+          description: OK
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/route:
+    post:
+      tags: [Match]
+      summary: Plan a route (match + resolve endpoint)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model_meta: { type: object, additionalProperties: true }
+                policy: { $ref: '#/components/schemas/Policy' }
+                compute_catalog:
+                  type: array
+                  items: { type: object, additionalProperties: true }
+                request_id: { type: string }
+                require_live_healthy: { type: boolean, default: true }
+      responses:
+        '200':
+          description: OK
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/run/inference:
+    post:
+      tags: [Run]
+      summary: Run inference (optionally streaming via SSE)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InferenceRequest'
+      responses:
+        '200':
+          description: Non-streaming inference result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InferenceResult'
+        '422': { $ref: '#/components/responses/UnprocessableEntity' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/chat/completions:
+    post:
+      tags: [Run]
+      summary: OpenAI-compatible chat completions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatCompletionRequest'
+      responses:
+        '200':
+          description: Chat completion response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatCompletionResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  # ---------------------------------------------------------------------------
+  # Compute live-state
+  # ---------------------------------------------------------------------------
+  /v1/compute/nodes/heartbeat:
+    post:
+      tags: [Compute]
+      summary: Submit compute node heartbeat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComputeHeartbeat'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  state: { type: object, additionalProperties: true }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/compute/nodes/{computePassportId}/health:
+    get:
+      tags: [Compute]
+      summary: Get compute node health
+      parameters:
+        - in: path
+          name: computePassportId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  state: { type: object, additionalProperties: true }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  # ---------------------------------------------------------------------------
+  # Receipts
+  # ---------------------------------------------------------------------------
+  /v1/receipts:
+    post:
+      tags: [Receipts]
+      summary: Create a receipt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Receipt'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, receipt]
+                properties:
+                  success: { type: boolean }
+                  receipt: { $ref: '#/components/schemas/Receipt' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/receipts/{receipt_id}:
+    get:
+      tags: [Receipts]
+      summary: Get a receipt
+      parameters:
+        - in: path
+          name: receipt_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, receipt]
+                properties:
+                  success: { type: boolean }
+                  receipt: { $ref: '#/components/schemas/Receipt' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/receipts/{receipt_id}/verify:
+    get:
+      tags: [Receipts]
+      summary: Verify a receipt (hash + signature + inclusion)
+      parameters:
+        - in: path
+          name: receipt_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptVerification'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/receipts/{receipt_id}/proof:
+    get:
+      tags: [Receipts]
+      summary: Get inclusion proof for receipt
+      parameters:
+        - in: path
+          name: receipt_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, proof]
+                properties:
+                  success: { type: boolean }
+                  proof: { $ref: '#/components/schemas/ReceiptProof' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/mmr/root:
+    get:
+      tags: [Receipts]
+      summary: Get current MMR root
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, root, leaf_count]
+                properties:
+                  success: { type: boolean }
+                  root: { type: string }
+                  leaf_count: { type: integer }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/signer/pubkey:
+    get:
+      tags: [Receipts]
+      summary: Get orchestrator signing public key
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, pubkey]
+                properties:
+                  success: { type: boolean }
+                  signer_type: { type: string }
+                  pubkey: { type: string }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  # ---------------------------------------------------------------------------
+  # Epochs / anchoring
+  # ---------------------------------------------------------------------------
+  /v1/epochs/current:
+    get:
+      tags: [Epochs]
+      summary: Get current epoch
+      parameters:
+        - in: query
+          name: project_id
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, epoch]
+                properties:
+                  success: { type: boolean }
+                  epoch: { $ref: '#/components/schemas/Epoch' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/epochs:
+    get:
+      tags: [Epochs]
+      summary: List epochs
+      parameters:
+        - in: query
+          name: project_id
+          schema: { type: string }
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: per_page
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: OK
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    post:
+      tags: [Epochs]
+      summary: Create epoch
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                project_id: { type: string }
+      responses:
+        '201':
+          description: Created
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/epochs/{epoch_id}:
+    get:
+      tags: [Epochs]
+      summary: Get epoch
+      parameters:
+        - in: path
+          name: epoch_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/epochs/{epoch_id}/retry:
+    post:
+      tags: [Epochs]
+      summary: Retry failed epoch
+      parameters:
+        - in: path
+          name: epoch_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/epochs/{epoch_id}/verify:
+    get:
+      tags: [Epochs]
+      summary: Verify epoch anchor
+      parameters:
+        - in: path
+          name: epoch_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/epochs/{epoch_id}/transaction:
+    get:
+      tags: [Epochs]
+      summary: Get epoch anchoring transaction
+      parameters:
+        - in: path
+          name: epoch_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/receipts/commit-root:
+    post:
+      tags: [Epochs]
+      summary: Commit epoch root
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                project_id: { type: string }
+                epoch_id: { type: string }
+                force: { type: boolean }
+      responses:
+        '202': { description: Accepted }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/receipts/commit-roots-batch:
+    post:
+      tags: [Epochs]
+      summary: Commit multiple epoch roots
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [epoch_ids]
+              properties:
+                epoch_ids:
+                  type: array
+                  items: { type: string }
+      responses:
+        '202': { description: Accepted }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/anchoring/health:
+    get:
+      tags: [Epochs]
+      summary: Anchoring service health
+      responses:
+        '200': { description: OK }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/epochs/ready:
+    get:
+      tags: [Epochs]
+      summary: Get epochs ready for finalization
+      responses:
+        '200': { description: OK }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/epochs/stats:
+    get:
+      tags: [Epochs]
+      summary: Epoch statistics
+      responses:
+        '200': { description: OK }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  # ---------------------------------------------------------------------------
+  # Payouts
+  # ---------------------------------------------------------------------------
+  /v1/payouts/calculate:
+    post:
+      tags: [Payouts]
+      summary: Calculate payout split
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayoutCalculateRequest'
+      responses:
+        '200': { description: OK }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/payouts/from-receipt:
+    post:
+      tags: [Payouts]
+      summary: Create payout from receipt token data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PayoutFromReceiptRequest'
+      responses:
+        '200': { description: OK }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/payouts/{run_id}:
+    get:
+      tags: [Payouts]
+      summary: Get payout by run_id
+      parameters:
+        - in: path
+          name: run_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/payouts/{run_id}/verify:
+    get:
+      tags: [Payouts]
+      summary: Verify payout split
+      parameters:
+        - in: path
+          name: run_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+components:
+  responses:
+    BadRequest:
+      description: Bad Request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Not Found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    UnprocessableEntity:
+      description: Unprocessable Entity
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    ServiceUnavailable:
+      description: Service Unavailable
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    InternalServerError:
+      description: Internal Server Error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  schemas:
+    PassportType:
+      type: string
+      enum: [model, compute, tool, dataset, agent]
+    PassportStatus:
+      type: string
+      enum: [active, deprecated, revoked]
+
+    Passport:
+      type: object
+      required: [passport_id, type, owner, status, metadata, metadata_hash, created_at, updated_at]
+      properties:
+        passport_id: { type: string }
+        type: { $ref: '#/components/schemas/PassportType' }
+        owner: { type: string }
+        name: { type: string, nullable: true }
+        description: { type: string, nullable: true }
+        version: { type: string, nullable: true }
+        tags:
+          type: array
+          items: { type: string }
+          nullable: true
+        status: { $ref: '#/components/schemas/PassportStatus' }
+        metadata:
+          type: object
+          additionalProperties: true
+        metadata_hash: { type: string }
+        created_at: { type: integer }
+        updated_at: { type: integer }
+        on_chain:
+          type: object
+          nullable: true
+          properties:
+            pda: { type: string, nullable: true }
+            tx: { type: string, nullable: true }
+            synced_at: { type: integer, nullable: true }
+
+    CreatePassportRequest:
+      type: object
+      required: [type, owner, metadata]
+      properties:
+        type: { $ref: '#/components/schemas/PassportType' }
+        owner: { type: string }
+        metadata:
+          type: object
+          additionalProperties: true
+        name: { type: string }
+        description: { type: string }
+        version: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+
+    UpdatePassportRequest:
+      type: object
+      properties:
+        metadata:
+          type: object
+          additionalProperties: true
+        name: { type: string }
+        description: { type: string }
+        version: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        status: { $ref: '#/components/schemas/PassportStatus' }
+
+    CreatePassportResponse:
+      type: object
+      required: [success, passport_id, passport]
+      properties:
+        success: { type: boolean }
+        passport_id: { type: string }
+        passport: { $ref: '#/components/schemas/Passport' }
+
+    GetPassportResponse:
+      type: object
+      required: [success, passport]
+      properties:
+        success: { type: boolean }
+        passport: { $ref: '#/components/schemas/Passport' }
+
+    ListPassportsResponse:
+      type: object
+      required: [success, passports, pagination]
+      properties:
+        success: { type: boolean }
+        passports:
+          type: array
+          items: { $ref: '#/components/schemas/Passport' }
+        pagination:
+          type: object
+          required: [total, page, per_page, total_pages]
+          properties:
+            total: { type: integer }
+            page: { type: integer }
+            per_page: { type: integer }
+            total_pages: { type: integer }
+
+    Policy:
+      type: object
+      required: [version]
+      properties:
+        version: { type: string }
+        constraints:
+          type: object
+          additionalProperties: true
+        preferences:
+          type: object
+          additionalProperties: true
+        fallback:
+          type: object
+          additionalProperties: true
+
+    ChatMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant, function]
+        content: { type: string }
+        name: { type: string }
+        function_call:
+          type: object
+          properties:
+            name: { type: string }
+            arguments: { type: string }
+
+    InferenceRequest:
+      type: object
+      properties:
+        model_passport_id: { type: string }
+        model: { type: string }
+        prompt: { type: string }
+        messages:
+          type: array
+          items: { $ref: '#/components/schemas/ChatMessage' }
+        max_tokens: { type: integer }
+        temperature: { type: number }
+        top_p: { type: number }
+        top_k: { type: integer }
+        stop:
+          type: array
+          items: { type: string }
+        stream: { type: boolean }
+        policy: { $ref: '#/components/schemas/Policy' }
+        compute_passport_id: { type: string }
+        trace_id: { type: string }
+        request_id: { type: string }
+
+    InferenceResult:
+      type: object
+      required: [success, run_id, tokens_in, tokens_out, ttft_ms, total_latency_ms, model_passport_id, compute_passport_id, runtime]
+      properties:
+        success: { type: boolean }
+        run_id: { type: string }
+        request_id: { type: string }
+        trace_id: { type: string }
+        text: { type: string }
+        finish_reason: { type: string }
+        tokens_in: { type: integer }
+        tokens_out: { type: integer }
+        ttft_ms: { type: integer }
+        total_latency_ms: { type: integer }
+        model_passport_id: { type: string }
+        compute_passport_id: { type: string }
+        runtime: { type: string }
+        policy_hash: { type: string }
+        receipt_id: { type: string }
+        used_fallback: { type: boolean }
+        fallback_reason: { type: string }
+        error: { type: string }
+        error_code: { type: string }
+
+    ChatCompletionRequest:
+      type: object
+      required: [model, messages]
+      properties:
+        model: { type: string }
+        messages:
+          type: array
+          items: { $ref: '#/components/schemas/ChatMessage' }
+        max_tokens: { type: integer }
+        temperature: { type: number }
+        top_p: { type: number }
+        stop:
+          oneOf:
+            - type: string
+            - type: array
+              items: { type: string }
+        stream: { type: boolean }
+        policy: { $ref: '#/components/schemas/Policy' }
+        trace_id: { type: string }
+
+    ChatCompletionResponse:
+      type: object
+      required: [id, object, created, model, choices, usage]
+      properties:
+        id: { type: string }
+        object: { type: string }
+        created: { type: integer }
+        model: { type: string }
+        choices:
+          type: array
+          items:
+            type: object
+            properties:
+              index: { type: integer }
+              message: { $ref: '#/components/schemas/ChatMessage' }
+              finish_reason: { type: string, nullable: true }
+        usage:
+          type: object
+          required: [prompt_tokens, completion_tokens, total_tokens]
+          properties:
+            prompt_tokens: { type: integer }
+            completion_tokens: { type: integer }
+            total_tokens: { type: integer }
+
+    ErrorResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        error: { type: string }
+        message: { type: string }
+        error_code: { type: string }
+        details: {}
+
+    # -------------------------------------------------------------------------
+    # Additional schemas for full API coverage
+    # -------------------------------------------------------------------------
+    ComputeHeartbeat:
+      type: object
+      required: [compute_passport_id, status]
+      properties:
+        compute_passport_id: { type: string }
+        status:
+          type: string
+          enum: [healthy, degraded, down]
+        queue_depth: { type: integer }
+        price_per_1k_tokens_estimate: { type: number }
+        p95_ms_estimate: { type: number }
+
+    Receipt:
+      type: object
+      required: [run_id, model_passport_id, compute_passport_id, policy_hash, runtime, tokens_in, tokens_out, ttft_ms, timestamp, receipt_hash, signature]
+      properties:
+        run_id: { type: string }
+        model_passport_id: { type: string }
+        compute_passport_id: { type: string }
+        policy_hash: { type: string }
+        runtime: { type: string }
+        tokens_in: { type: integer }
+        tokens_out: { type: integer }
+        ttft_ms: { type: integer }
+        total_latency_ms: { type: integer }
+        timestamp: { type: integer }
+        receipt_hash: { type: string }
+        signature: { type: string }
+        merkle_leaf_index: { type: integer }
+        anchor:
+          type: object
+          properties:
+            chain: { type: string }
+            tx: { type: string }
+            root: { type: string }
+            epoch_id: { type: string }
+
+    ReceiptProof:
+      type: object
+      required: [run_id, receipt_hash, leaf_index, proof, root]
+      properties:
+        run_id: { type: string }
+        receipt_hash: { type: string }
+        leaf_index: { type: integer }
+        proof:
+          type: array
+          items: { type: string }
+        root: { type: string }
+
+    ReceiptVerification:
+      type: object
+      properties:
+        success: { type: boolean }
+        valid: { type: boolean }
+        hash_valid: { type: boolean }
+        signature_valid: { type: boolean }
+        inclusion_valid: { type: boolean }
+        expected_hash: { type: string }
+        computed_hash: { type: string }
+        merkle_root: { type: string }
+
+    Epoch:
+      type: object
+      required: [epoch_id, mmr_root, leaf_count, created_at, status]
+      properties:
+        epoch_id: { type: string }
+        project_id: { type: string }
+        mmr_root: { type: string }
+        leaf_count: { type: integer }
+        created_at: { type: integer }
+        finalized_at: { type: integer }
+        status:
+          type: string
+          enum: [open, anchoring, anchored, failed]
+        chain_tx: { type: string }
+        error: { type: string }
+        start_leaf_index: { type: integer }
+        end_leaf_index: { type: integer }
+
+    PayoutCalculateRequest:
+      type: object
+      required: [run_id, total_amount_lamports, compute_wallet]
+      properties:
+        run_id: { type: string }
+        total_amount_lamports:
+          oneOf:
+            - type: string
+            - type: integer
+        compute_wallet: { type: string }
+        model_wallet: { type: string }
+        orchestrator_wallet: { type: string }
+        config: { type: object, additionalProperties: true }
+
+    PayoutFromReceiptRequest:
+      type: object
+      required: [run_id, tokens_in, tokens_out, price_per_1k_tokens_lamports, compute_wallet]
+      properties:
+        run_id: { type: string }
+        tokens_in: { type: integer }
+        tokens_out: { type: integer }
+        price_per_1k_tokens_lamports:
+          oneOf:
+            - type: string
+            - type: integer
+        compute_wallet: { type: string }
+        model_wallet: { type: string }
+        orchestrator_wallet: { type: string }
+        config: { type: object, additionalProperties: true }
