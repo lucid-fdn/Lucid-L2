@@ -1,0 +1,30 @@
+{
+  "manifest_version": "0.3",
+  "name": "raijin-labs",
+  "version": "0.0.1",
+  "description": "",
+  "long_description": "LucidLayer API: LucidLayer Offchain API.\n\nThis OpenAPI spec is used to generate SDK clients.\n",
+  "author": {
+    "name": "Speakeasy"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "./bin/mcp-server.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/bin/mcp-server.js",
+        "start"
+      ]
+    }
+  },
+  "display_name": "Raijin Labs",
+  "prompts": [],
+  "keywords": [
+      "raijin",
+      "labs",
+      "lucidlayer",
+      "api",
+      "offchain"
+    ]
+}

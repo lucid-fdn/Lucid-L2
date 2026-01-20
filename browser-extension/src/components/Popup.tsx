@@ -2,17 +2,31 @@
 import React, { useState, useEffect } from 'react'
 import { MainView } from './MainView'
 import { ConnectWallet } from './ConnectWallet'
+import {
+  applyThemeToDocument,
+  getThemePreference,
+  resolveEffectiveTheme,
+  type ThemePreference,
+} from '../lib/theme'
 
 export function Popup() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null)
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>('system')
 
   useEffect(() => {
     checkAuthentication()
+    initTheme()
     
-    // Listen for auth changes
+    // Listen for auth changes + theme changes
     const handleStorageChange = (changes: any, area: string) => {
       if (area === 'local' && changes.privy_session) {
         checkAuthentication()
+      }
+
+      if (area === 'local' && changes.theme_preference) {
+        const nextPref = changes.theme_preference.newValue as ThemePreference
+        setThemePreferenceState(nextPref || 'system')
+        applyThemeToDocument(resolveEffectiveTheme(nextPref || 'system'))
       }
     }
     
@@ -22,6 +36,33 @@ export function Popup() {
       chrome.storage.onChanged.removeListener(handleStorageChange)
     }
   }, [])
+
+  const initTheme = async () => {
+    const pref = await getThemePreference()
+    setThemePreferenceState(pref)
+    applyThemeToDocument(resolveEffectiveTheme(pref))
+
+    // If user is on system preference, update live when OS theme changes
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const handler = () => {
+      // only react when preference is still system
+      setThemePreferenceState((current) => {
+        if (current === 'system') {
+          applyThemeToDocument(resolveEffectiveTheme('system'))
+        }
+        return current
+      })
+    }
+
+    // addEventListener is supported in modern Chromium; fallback for older
+    if (media.addEventListener) media.addEventListener('change', handler)
+    else (media as any).addListener?.(handler)
+
+    return () => {
+      if (media.removeEventListener) media.removeEventListener('change', handler)
+      else (media as any).removeListener?.(handler)
+    }
+  }
 
   const checkAuthentication = async () => {
     try {
@@ -125,9 +166,18 @@ export function Popup() {
 
   // Show ConnectWallet if not authenticated
   if (!isAuthenticated) {
-    return <ConnectWallet onConnected={handleConnected} />
+    return (
+      <ConnectWallet onConnected={handleConnected} />
+    )
   }
 
   // Show MainView if authenticated
-  return <MainView mode="popup" onPin={handlePin} />
+  return (
+    <MainView
+      mode="popup"
+      onPin={handlePin}
+      themePreference={themePreference}
+      onThemePreferenceChange={setThemePreferenceState}
+    />
+  )
 }

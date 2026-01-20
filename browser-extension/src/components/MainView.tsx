@@ -15,12 +15,15 @@ import { StatCard } from './StatCard'
 import { ActionButton } from './ActionButton'
 import { BorderBeam } from './ui/border-beam'
 import { STATS_CONFIG, ACTIONS_CONFIG } from '../config/ui-config'
+import { setThemePreference, type ThemePreference } from '../lib/theme'
 
 interface MainViewProps {
   mode: 'popup' | 'sidebar'
   onClose?: () => void
   onUnpin?: () => void
   onPin?: () => void
+  themePreference?: ThemePreference
+  onThemePreferenceChange?: (pref: ThemePreference) => void
 }
 
 interface ConversationItem {
@@ -29,7 +32,7 @@ interface ConversationItem {
   timestamp?: number
 }
 
-export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
+export function MainView({ mode, onClose, onUnpin, onPin, themePreference }: MainViewProps) {
   const [activeTab, setActiveTab] = useState('dashboard')
   const [walletConnected, setWalletConnected] = useState(false)
   const [aiInput, setAiInput] = useState('')
@@ -168,25 +171,31 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
     return text.substring(0, maxLength) + '...'
   }
 
+  const handleThemeChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const pref = e.target.value as ThemePreference
+    await setThemePreference(pref)
+    // Local state will be updated via chrome.storage.onChanged in Popup
+  }
+
   return (
     <div className={cn(
       width,
       height,
-      "bg-black text-foreground flex flex-col relative",
+      "bg-background text-foreground flex flex-col relative",
       isSidebar && "fixed top-0 right-0 shadow-2xl"
     )}>
       {/* Animated Background Overlay */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-indigo-900/20 via-transparent to-transparent opacity-50 pointer-events-none -z-10" />
       
       {/* Header - Sticky */}
-      <header className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 bg-slate-900/50 backdrop-blur-md">
+      <header className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 bg-card/80 backdrop-blur-md border-b border-border">
         <div className="flex items-center gap-3">
           <img src={chrome.runtime.getURL('icons/lucid_w.png')} alt="Lucid" className="w-10 h-10" />
           <div>
-            <h1 className="text-sm font-bold bg-white bg-clip-text text-transparent">
+            <h1 className="text-sm font-bold bg-foreground bg-clip-text text-transparent">
               Lucid
             </h1>
-            <p className="text-[10px] text-slate-400">AI Thought Miner</p>
+            <p className="text-[10px] text-muted-foreground">AI Thought Miner</p>
           </div>
         </div>
         
@@ -232,7 +241,7 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col relative z-10">
-        <TabsList className="grid w-full grid-cols-3 shadow-xs ring-1 bg-neutral-900/30 ring-white/5 rounded-none">
+        <TabsList className="grid w-full grid-cols-3 shadow-xs ring-1 bg-muted/40 ring-border rounded-none">
           <TabsTrigger value="dashboard" className="gap-2">
             <Home className="w-4 h-4" />
             <span className="text-xs">Dashboard</span>
@@ -258,8 +267,8 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
             {STATS_CONFIG.map((stat) => {
               // Hide LUCID stat (always)
               if (stat.key === 'lucid') return null
-              // Hide daily stat in sidebar
-              if (isSidebar && stat.key === 'daily') return null
+              // Hide daily achievements stat (always)
+              if (stat.key === 'daily') return null
               
               const statValues = {
                 mGas: mGasBalance,
@@ -282,7 +291,7 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
             })}
           </div>
           {sessionStats.totalMessages === 0 && (
-            <Card className="shadow-xs ring-1 bg-neutral-900/30 ring-white/5">
+            <Card className="shadow-xs ring-1 bg-card/80 ring-border">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-center">
                   <img 
@@ -304,7 +313,7 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
                   <OpenAILogo className="mr-2" size={22} />
                   Start ChatGPT Chat
                 </Button>
-                <p className="text-[10px] text-center text-slate-500 mt-2">
+                <p className="text-[10px] text-center text-muted-foreground mt-2">
                   Your conversations will be tracked privately
                 </p>
               </CardContent>
@@ -313,7 +322,7 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
 
           {/* Wallet Status Card */}
           {walletConnected && walletAddress && (
-            <Card className="shadow-xs ring-1 bg-neutral-900/30 ring-white/5">
+            <Card className="shadow-xs ring-1 bg-card/80 ring-border">
               <CardContent className="pt-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
@@ -323,10 +332,10 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
                     Disconnect
                   </Button>
                 </div>
-                <div className="flex items-center justify-between p-2 bg-slate-900/50 rounded-lg">
-                  <span className="text-xs text-slate-400">Wallet:</span>
+                <div className="flex items-center justify-between p-2 bg-muted/40 rounded-lg border border-border">
+                  <span className="text-xs text-muted-foreground">Wallet:</span>
                   <div className="flex items-center gap-2">
-                    <code className="text-xs text-indigo-400">{truncateAddress(walletAddress)}</code>
+                    <code className="text-xs text-primary">{truncateAddress(walletAddress)}</code>
                     <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyAddress}>
                       <Copy className="w-3 h-3" />
                     </Button>
@@ -338,7 +347,7 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
 
           {/* ChatGPT Session Stats */}
           {sessionStats.totalMessages > 0 && (
-            <Card className="shadow-xs ring-1 bg-neutral-900/30 ring-white/5 relative overflow-hidden">
+            <Card className="shadow-xs ring-1 bg-card/80 ring-border relative overflow-hidden">
               <BorderBeam size={100} duration={8} colorFrom="#a855f7" colorTo="#6366f1" />
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
@@ -348,14 +357,14 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
               </CardHeader>
               <CardContent className="space-y-2">
                 <div className="flex justify-between text-xs">
-                  <span className="text-slate-400">Messages:</span>
-                  <span className="font-semibold text-slate-200">{sessionStats.totalMessages}</span>
+                  <span className="text-muted-foreground">Messages:</span>
+                  <span className="font-semibold text-foreground">{sessionStats.totalMessages}</span>
                 </div>
                 <div className="flex justify-between text-xs">
-                  <span className="text-slate-400">Points:</span>
-                  <span className="font-semibold text-slate-200">{sessionStats.pointsEarned.toFixed(1)}</span>
+                  <span className="text-muted-foreground">Points:</span>
+                  <span className="font-semibold text-foreground">{sessionStats.pointsEarned.toFixed(1)}</span>
                 </div>
-                <div className="flex justify-between text-xs border-t border-slate-700 pt-2">
+                <div className="flex justify-between text-xs border-t border-border pt-2">
                   <span className="text-purple-400">mGas Earned:</span>
                   <span className="font-bold text-purple-400">{sessionStats.mGasEarned}</span>
                 </div>
@@ -365,20 +374,20 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
 
           {/* Recent Captures */}
           {recentCaptures.length > 0 && (
-            <Card className="shadow-xs ring-1 bg-neutral-900/30 ring-white/5">
+            <Card className="shadow-xs ring-1 bg-card/80 ring-border">
               <CardHeader>
                 <CardTitle className="text-sm">Recent Captures</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {recentCaptures.map((capture, idx) => (
-                  <div key={idx} className="flex items-start gap-2 p-2 bg-slate-900/50 rounded-lg">
+                  <div key={idx} className="flex items-start gap-2 p-2 bg-muted/40 rounded-lg border border-border">
                     <div className={cn(
                       "w-6 h-6 rounded-full flex items-center justify-center text-xs flex-shrink-0",
                       capture.type === 'user' ? 'bg-blue-500/20' : 'bg-purple-500/20'
                     )}>
                       {capture.type === 'user' ? '👤' : '🤖'}
                     </div>
-                    <p className="text-xs text-slate-300 flex-1">{truncateText(capture.content, isSidebar ? 40 : 60)}</p>
+                    <p className="text-xs text-foreground/90 flex-1">{truncateText(capture.content, isSidebar ? 40 : 60)}</p>
                   </div>
                 ))}
               </CardContent>
@@ -386,7 +395,7 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
           )}
 
           {/* AI Thought Mining 
-          <Card className="shadow-xs ring-1 bg-neutral-900/30 ring-white/5">
+          <Card className="shadow-xs ring-1 bg-card/80 ring-border">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -442,21 +451,21 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
 
         {/* Activity Tab */}
         <TabsContent value="activity" className="flex-1 overflow-y-auto scrollbar-hide p-4 pb-20 space-y-4">
-          <Card className="shadow-xs ring-1 bg-neutral-900/30 ring-white/5">
+          <Card className="shadow-xs ring-1 bg-card/80 ring-border">
             <CardHeader>
               <CardTitle className="text-sm">Recent Activity</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {recentCaptures.length === 0 ? (
-                <div className="text-center py-8 text-slate-500 text-sm">
+                <div className="text-center py-8 text-muted-foreground text-sm">
                   No activity yet
                 </div>
               ) : (
                 recentCaptures.map((capture, idx) => (
-                  <div key={idx} className="flex items-start justify-between p-2 bg-slate-800/50 rounded-lg">
+                  <div key={idx} className="flex items-start justify-between p-2 bg-muted/40 rounded-lg border border-border">
                     <div className="flex-1">
-                      <p className="text-xs text-slate-300">{truncateText(capture.content, 40)}</p>
-                      <p className="text-[10px] text-slate-500">Recent</p>
+                      <p className="text-xs text-foreground/90">{truncateText(capture.content, 40)}</p>
+                      <p className="text-[10px] text-muted-foreground">Recent</p>
                     </div>
                     <span className="text-xs font-semibold text-emerald-400">+15 mGas</span>
                   </div>
@@ -468,13 +477,32 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
 
         {/* Settings Tab */}
         <TabsContent value="settings" className="flex-1 overflow-y-auto scrollbar-hide p-4 pb-20 space-y-4">
-          <Card className="shadow-xs ring-1 bg-neutral-900/30 ring-white/5">
+          <Card className="shadow-xs ring-1 bg-card/80 ring-border">
             <CardHeader>
               <CardTitle className="text-sm">Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <h3 className="text-xs font-semibold text-slate-300">Account</h3>
+                <h3 className="text-xs font-semibold text-foreground">Theme</h3>
+                <label className="text-xs text-muted-foreground flex items-center justify-between gap-3">
+                  <span>Appearance</span>
+                  <select
+                    className="h-8 rounded-md bg-background border border-border px-2 text-xs text-foreground"
+                    value={themePreference || 'system'}
+                    onChange={handleThemeChange}
+                  >
+                    <option value="system">System</option>
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                  </select>
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Default follows your OS setting; you can override it here.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-xs font-semibold text-foreground">Account</h3>
                 <Button
                   variant="destructive"
                   size="sm"
@@ -483,22 +511,22 @@ export function MainView({ mode, onClose, onUnpin, onPin }: MainViewProps) {
                 >
                   Disconnect
                 </Button>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   This will sign you out and clear all your session data
                 </p>
               </div>
               
               <div className="space-y-2">
-                <h3 className="text-xs font-semibold text-slate-300">Notifications</h3>
-                <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+                <h3 className="text-xs font-semibold text-foreground">Notifications</h3>
+                <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                   <input type="checkbox" className="rounded" defaultChecked />
                   Enable notifications
                 </label>
               </div>
               
               <div className="space-y-2">
-                <h3 className="text-xs font-semibold text-slate-300">Version</h3>
-                <p className="text-xs text-slate-500">v1.0.0</p>
+                <h3 className="text-xs font-semibold text-foreground">Version</h3>
+                <p className="text-xs text-muted-foreground">v1.2.1</p>
               </div>
             </CardContent>
           </Card>

@@ -16,6 +16,10 @@ import type { PassportType, PassportStatus, PassportFilters } from '../storage/p
 import * as fs from 'fs';
 import * as path from 'path';
 
+// NOTE: This file implements the legacy, hand-written MCP server.
+// The repository now also contains a Speakeasy-generated MCP server under
+// src/mcp-server. Prefer that implementation going forward.
+
 // MCP Protocol Types
 export interface McpToolCall {
   name: string;
@@ -53,13 +57,11 @@ export class LucidMcpServer {
   private manifest: Record<string, unknown>;
 
   constructor() {
-    // Load manifest
-    const manifestPath = path.join(__dirname, '../../mcp-manifest.json');
-    if (fs.existsSync(manifestPath)) {
-      this.manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'));
-    } else {
-      this.manifest = { name: 'lucid-layer-sdk', version: '1.0.0' };
-    }
+    // Legacy manifest loading.
+    // The file `offchain/mcp-manifest.json` has been removed in favor of
+    // OpenAPI-driven MCP generation.
+    // Keep safe defaults so tests / legacy entrypoints don't crash.
+    this.manifest = { name: 'lucid-layer-sdk', version: '1.0.0', tools: [], resources: [] };
   }
 
   /**

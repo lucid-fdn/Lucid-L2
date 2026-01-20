@@ -1,8 +1,8 @@
 /**
  * Tests for PR7: MCP Server Implementation
  */
-import { LucidMcpServer, getMcpServer, resetMcpServer } from '../mcp/mcpServer';
-import { getComputeRegistry } from '../services/computeRegistry';
+import { LucidMcpServer, getMcpServer, resetMcpServer } from '../mcp/mcpServer.js';
+import { getComputeRegistry } from '../services/computeRegistry.js';
 
 describe('MCP Server', () => {
   let server: LucidMcpServer;
@@ -19,6 +19,13 @@ describe('MCP Server', () => {
       expect(info.version).toBe('1.0.0');
     });
 
+    it.skip('should not throw when listing tools/resources without legacy manifest', () => {
+      expect(() => server.listTools()).not.toThrow();
+      expect(() => server.listResources()).not.toThrow();
+      expect(server.listTools()).toEqual([]);
+      expect(server.listResources()).toEqual([]);
+    });
+
     it('should return capabilities', () => {
       const caps = server.getCapabilities();
       expect(caps.tools).toBeDefined();
@@ -31,7 +38,7 @@ describe('MCP Server', () => {
       const tools = server.listTools();
       expect(tools.length).toBeGreaterThan(0);
       
-      const toolNames = tools.map(t => t.name);
+      const toolNames = tools.map((t: any) => t.name);
       expect(toolNames).toContain('lucid_match_explain');
       expect(toolNames).toContain('lucid_match');
       expect(toolNames).toContain('lucid_route');
@@ -54,7 +61,7 @@ describe('MCP Server', () => {
       const resources = server.listResources();
       expect(resources.length).toBeGreaterThan(0);
       
-      const uris = resources.map(r => r.uri);
+      const uris = resources.map((r: any) => r.uri);
       expect(uris).toContain('lucid://schemas/policy');
       expect(uris).toContain('lucid://mmr/root');
     });
