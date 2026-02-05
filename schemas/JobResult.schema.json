@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucidlayer.ai/schemas/compute/1.0/JobResult.schema.json",
+  "title": "Lucid Job Result",
+  "description": "The result of a job execution, including output, metrics, storage references, and error information for failed jobs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "job_id",
+    "status"
+  ],
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this job"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["queued", "running", "completed", "failed", "cancelled"],
+      "description": "Current status of the job"
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "The actual output from the model execution (when status is 'completed')",
+      "properties": {
+        "text": {
+          "type": "string",
+          "description": "Generated text for text generation models"
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "index": { "type": "integer" },
+              "message": {
+                "type": "object",
+                "properties": {
+                  "role": { "type": "string" },
+                  "content": { "type": "string" }
+                }
+              },
+              "finish_reason": { "type": "string" }
+            }
+          },
+          "description": "OpenAI-compatible choices array for chat models"
+        },
+        "embeddings": {
+          "type": "array",
+          "items": { "type": "number" },
+          "description": "Vector embeddings for embedding models"
+        },
+        "images": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Generated images (base64 or URLs) for image generation models"
+        }
+      }
+    },
+    "output_ref": {
+      "type": "string",
+      "description": "URI to stored output (S3 or IPFS). Format: 's3://bucket/path' or 'ipfs://Qm...'"
+    },
+    "outputs_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA256 hash of canonical JSON of the output. Used for verification."
+    },
+    "ipfs_cid": {
+      "type": "string",
+      "description": "IPFS CID if output was published to IPFS"
+    },
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ttft_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Time to first token in milliseconds"
+        },
+        "p95_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "95th percentile token generation latency in milliseconds"
+        },
+        "tokens_in": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of input tokens processed"
+        },
+        "tokens_out": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of output tokens generated"
+        },
+        "total_latency_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total execution time in milliseconds (start to finish)"
+        },
+        "queue_wait_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Time spent waiting in queue before execution started"
+        },
+        "model_load_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Time spent loading model (0 if cache hit)"
+        },
+        "cache_hit": {
+          "type": "boolean",
+          "description": "Whether the model was already loaded in cache"
+        }
+      },
+      "description": "Performance metrics for the execution"
+    },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "QUOTE_EXPIRED",
+            "INVALID_QUOTE_SIGNATURE",
+            "QUOTE_HASH_MISMATCH",
+            "MODEL_MISMATCH",
+            "OFFER_MISMATCH",
+            "INPUT_EXCEEDS_QUOTE",
+            "MODEL_LOAD_FAILED",
+            "MODEL_NOT_FOUND",
+            "INFERENCE_TIMEOUT",
+            "INFERENCE_ERROR",
+            "OUTPUT_STORAGE_FAILED",
+            "GPU_OOM",
+            "GPU_UNAVAILABLE",
+            "INTERNAL_ERROR",
+            "CANCELLED"
+          ],
+          "description": "Structured error code"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable error message"
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Additional error details (e.g., stack trace in debug mode)"
+        }
+      },
+      "description": "Error information when status is 'failed'"
+    },
+    "receipt_id": {
+      "type": "string",
+      "description": "ID of the receipt created for this job (matches run_id in receipt)"
+    },
+    "start_ts": {
+      "type": "integer",
+      "description": "Unix timestamp (seconds) when execution started"
+    },
+    "end_ts": {
+      "type": "integer",
+      "description": "Unix timestamp (seconds) when execution completed/failed"
+    },
+    "worker_id": {
+      "type": "string",
+      "description": "ID of the worker that executed this job"
+    },
+    "execution_mode": {
+      "type": "string",
+      "enum": ["byo_runtime", "managed_endpoint"],
+      "description": "Execution mode used for this job"
+    }
+  }
+}

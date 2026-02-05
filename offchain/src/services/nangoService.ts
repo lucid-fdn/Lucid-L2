@@ -2,6 +2,7 @@ import { Nango } from '@nangohq/node';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import Redis from 'ioredis';
+import { Pool } from 'pg';
 import { fetchProviderProfile, normalizeProfile, NormalizedProfile } from './providerProfileService';
 
 type ProxyProfileConfig = {
@@ -221,13 +222,13 @@ export class NangoService {
     }
     
     // Fetch all configured integrations from Nango database directly
-    let configuredIntegrations: Set<string> = new Set();
+    const configuredIntegrations: Set<string> = new Set();
     
     try {
       // Query the Nango database directly for PROD environment integrations
       // Environment ID 1 = prod, Environment ID 2 = dev
       // Using pg for direct query since supabase client doesn't expose nango schema
-      const { Pool } = require('pg');
+
       const pool = new Pool({
         host: process.env.POSTGRES_HOST || 'aws-1-eu-north-1.pooler.supabase.com',
         port: parseInt(process.env.POSTGRES_PORT || '6543'),

@@ -1,0 +1,162 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucidlayer.ai/schemas/compute/1.0/JobRequest.schema.json",
+  "title": "Lucid Job Request",
+  "description": "A job submission request that binds a quote to a specific input for execution. The job_hash provides a cryptographic commitment to the entire request.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "job_id",
+    "model_id",
+    "offer_id",
+    "quote",
+    "input",
+    "job_hash"
+  ],
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this job. Used for status queries and deduplication."
+    },
+    "model_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Model passport ID or HuggingFace model ID. MUST match quote.model_id."
+    },
+    "offer_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Compute offer passport ID. MUST match quote.offer_id."
+    },
+    "compute_offer_passport_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "On-chain ComputeOfferPassport ID (Solana PDA). Links execution to on-chain registry for verifiable matching. If provided, MUST match quote.compute_offer_passport_id."
+    },
+    "quote": {
+      "$ref": "OfferQuote.schema.json",
+      "description": "The quote that authorizes this execution. Signature and expiration are validated."
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Input payload for the model execution",
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "Text prompt for completion models"
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["role", "content"],
+            "properties": {
+              "role": {
+                "type": "string",
+                "enum": ["system", "user", "assistant", "function", "tool"],
+                "description": "Role of the message sender"
+              },
+              "content": {
+                "type": "string",
+                "description": "Content of the message"
+              },
+              "name": {
+                "type": "string",
+                "description": "Optional name for function/tool messages"
+              }
+            }
+          },
+          "description": "Chat messages for chat completion models"
+        },
+        "images": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Base64 encoded images or URLs for multimodal models"
+        },
+        "audio": {
+          "type": "string",
+          "description": "Base64 encoded audio or URL for audio models"
+        }
+      }
+    },
+    "input_ref": {
+      "type": "string",
+      "description": "Optional URI to encrypted input blob in S3/IPFS (for enterprise audit trail). If provided, 'input' may be omitted."
+    },
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000,
+          "description": "Maximum tokens to generate. MUST be <= quote.max_output_tokens."
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "description": "Sampling temperature"
+        },
+        "top_p": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Top-p (nucleus) sampling"
+        },
+        "top_k": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Top-k sampling"
+        },
+        "stop": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 4,
+          "description": "Stop sequences"
+        },
+        "seed": {
+          "type": "integer",
+          "description": "Random seed for reproducibility"
+        },
+        "stream": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable streaming response (not applicable for job-based execution)"
+        },
+        "publish_ipfs": {
+          "type": "boolean",
+          "default": false,
+          "description": "Publish output to IPFS after S3 storage"
+        },
+        "store_input": {
+          "type": "boolean",
+          "default": false,
+          "description": "Store input blob for audit trail (creates input_ref in receipt)"
+        }
+      },
+      "description": "Generation options and storage preferences"
+    },
+    "trace_id": {
+      "type": "string",
+      "description": "Optional trace ID for distributed tracing"
+    },
+    "callback_url": {
+      "type": "string",
+      "format": "uri",
+      "description": "Optional webhook URL to POST result when job completes"
+    },
+    "job_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA256 hash of canonical JSON of: { job_id, model_id, quote_hash, input_hash }. Provides cryptographic commitment to the request."
+    }
+  }
+}

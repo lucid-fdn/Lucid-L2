@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
-// Program ID - will be updated after deployment
-declare_id!("11111111111111111111111111111111");
+// Program ID - deployed to devnet
+declare_id!("38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW");
 
 /// Maximum length for asset slugs (e.g., "mistral-7b-instruct-v0.2")
 const MAX_SLUG_LEN: usize = 64;
@@ -117,6 +117,7 @@ pub mod lucid_passports {
     pub fn add_attestation(
         ctx: Context<AddAttestation>,
         attestation_type: AttestationType,
+        _attestation_id: [u8; 8], // Used in PDA derivation, passed here for validation
         content_cid: String,
         description: String,
     ) -> Result<()> {
@@ -224,9 +225,9 @@ pub struct LinkVersion<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(attestation_type: AttestationType)]
+#[instruction(attestation_type: AttestationType, attestation_id: [u8; 8])]
 pub struct AddAttestation<'info> {
-    /// PDA: ["attestation", passport, attester, timestamp_as_bytes]
+    /// PDA: ["attestation", passport, attester, attestation_id]
     #[account(
         init,
         payer = attester,
@@ -235,7 +236,7 @@ pub struct AddAttestation<'info> {
             b"attestation",
             passport.key().as_ref(),
             attester.key().as_ref(),
-            &Clock::get()?.unix_timestamp.to_le_bytes(),
+            &attestation_id,
         ],
         bump
     )]

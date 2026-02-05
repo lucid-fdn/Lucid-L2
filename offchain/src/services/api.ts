@@ -24,7 +24,8 @@ export async function handleRun(req: express.Request, res: express.Response) {
     const hexRoot = Buffer.from(rootBytes).toString('hex');
 
     const program = initSolana();
-    const authority = (program.provider as any).wallet.publicKey;
+    const wallet = (program.provider as any).wallet;
+    const authority = wallet.publicKey;
 
     // PDA for this user
     const [pda] = await deriveEpochPDA(authority, program.programId);
@@ -42,6 +43,8 @@ export async function handleRun(req: express.Request, res: express.Response) {
     console.log(`💰 Gas cost: ${gasCost.iGas} iGas + ${gasCost.mGas} mGas = ${gasCost.total} $LUCID`);
 
     // 3) Commit on-chain
+    // Note: The provider's wallet automatically signs since it's the authority
+    // Do NOT add .signers() for the provider's wallet - it causes AccountNotSigner errors
     const sig = await program.methods
       .commitEpoch([...rootBytes])
       .accounts({
@@ -1187,7 +1190,7 @@ export async function handleFlowSpecList(req: express.Request, res: express.Resp
   }
 }
 
-export function createApiRouter(): express.Router {
+export async function createApiRouter(): Promise<express.Router> {
   const router = express.Router();
   
   // Original endpoints
@@ -1195,12 +1198,12 @@ export function createApiRouter(): express.Router {
   router.post('/batch', handleBatch);
   
   // Privy wallet management endpoints
-  const walletRoutes = require('../routes/walletRoutes').default;
-  router.use('/wallets', walletRoutes);
+  const walletRoutes = await import('../routes/walletRoutes');
+  router.use('/wallets', walletRoutes.default);
   
   // Reward system endpoints
-  const rewardRoutes = require('../routes/rewardRoutes').default;
-  router.use('/rewards', rewardRoutes);
+  const rewardRoutes = await import('../routes/rewardRoutes');
+  router.use('/rewards', rewardRoutes.default);
   
   // AI Agent endpoints
   router.post('/agents/init', handleAgentInit);
@@ -1844,7 +1847,7 @@ export async function handleN8nNodesList(req: express.Request, res: express.Resp
       throw new Error('Failed to parse nodes JSON from CLI output');
     }
     
-    let allNodes = JSON.parse(jsonMatch[1]);
+    const allNodes = JSON.parse(jsonMatch[1]);
     let nodes = allNodes;
     
     // Apply filters in-memory (fallback)

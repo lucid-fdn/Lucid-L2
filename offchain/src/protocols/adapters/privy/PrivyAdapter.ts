@@ -5,6 +5,7 @@
  * using Session Signers (Delegated Actions) for secure, server-side operations.
  */
 
+import crypto from 'crypto';
 import { BaseProtocolAdapter } from '../../BaseProtocolAdapter';
 import {
   ProtocolMetadata,
@@ -702,7 +703,6 @@ export class PrivyAdapter extends BaseProtocolAdapter {
    * Simple encryption for private keys (for demo - use proper KMS in production)
    */
   private encryptKey(key: string): string {
-    const crypto = require('crypto');
     const encryptionKey = process.env.PRIVY_SIGNER_ENCRYPTION_KEY || 'default-key-change-me';
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(encryptionKey.padEnd(32, '0').slice(0, 32)), iv);

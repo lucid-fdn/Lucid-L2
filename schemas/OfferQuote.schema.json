@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucidlayer.ai/schemas/compute/1.0/OfferQuote.schema.json",
+  "title": "Lucid Offer Quote",
+  "description": "A time-limited, replay-protected pricing commitment from a compute provider for executing a specific model. All binding fields MUST match the job request.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "quote_id",
+    "offer_id",
+    "model_id",
+    "policy_hash",
+    "max_input_tokens",
+    "max_output_tokens",
+    "price",
+    "expires_at",
+    "quote_hash",
+    "quote_signature"
+  ],
+  "properties": {
+    "quote_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID nonce - prevents replay attacks. Each quote MUST have a unique quote_id."
+    },
+    "offer_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Compute offer passport ID (e.g., 'compute_offer_lucid_a100_us_east')"
+    },
+    "compute_offer_passport_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "On-chain ComputeOfferPassport ID (Solana PDA). Links execution to on-chain registry for verifiable matching."
+    },
+    "model_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Model passport ID or HuggingFace model ID (e.g., 'hf-meta-llama/Llama-2-7b-chat')"
+    },
+    "policy_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA256 hash of the policy that governs this execution. Binds quote to specific policy terms."
+    },
+    "max_input_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000000,
+      "description": "Maximum input tokens this quote covers. Job MUST not exceed this."
+    },
+    "max_output_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000000,
+      "description": "Maximum output tokens this quote covers. Job MUST not exceed this."
+    },
+    "price": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["amount", "currency"],
+      "properties": {
+        "amount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Price amount in the smallest unit of the currency"
+        },
+        "currency": {
+          "type": "string",
+          "enum": ["lamports", "usd_cents", "credits"],
+          "description": "Currency for the price. lamports = Solana, usd_cents = USD in cents, credits = internal credits"
+        }
+      },
+      "description": "Price for this execution within the specified token limits"
+    },
+    "expires_at": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Unix timestamp (seconds) - quote expires after this time. MUST be validated on job submission."
+    },
+    "capacity_hint": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "available_slots": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Current available execution slots on this worker"
+        },
+        "estimated_wait_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Estimated wait time in milliseconds before execution starts"
+        },
+        "queue_depth": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Current number of jobs in queue"
+        }
+      },
+      "description": "Optional capacity hints for client-side scheduling decisions"
+    },
+    "terms_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA256 hash of additional terms/pricing rules document (optional)"
+    },
+    "worker_pubkey": {
+      "type": "string",
+      "description": "ed25519 public key of the worker that issued this quote (for signature verification)"
+    },
+    "quote_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA256 hash of canonical JSON of quote body (excluding quote_hash and quote_signature)"
+    },
+    "quote_signature": {
+      "type": "string",
+      "description": "ed25519 signature of quote_hash by worker private key"
+    }
+  }
+}

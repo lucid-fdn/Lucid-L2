@@ -20,6 +20,7 @@ export type EpochStatus = 'open' | 'anchoring' | 'anchored' | 'failed';
 
 export interface Epoch {
   epoch_id: string;
+  epoch_index: number;
   project_id?: string;
   mmr_root: string;
   leaf_count: number;
@@ -85,6 +86,9 @@ let config: EpochConfig = { ...DEFAULT_CONFIG };
 // Track which receipts belong to which epoch
 const receiptToEpoch = new Map<string, string>(); // key: run_id, value: epoch_id
 
+// Monotonic epoch index (in-memory)
+let epochIndexCounter = 0;
+
 // =============================================================================
 // CONFIGURATION
 // =============================================================================
@@ -120,6 +124,7 @@ function getActiveKey(project_id?: string): string {
 export function createEpoch(project_id?: string): Epoch {
   const epoch_id = `epoch_${uuid().replace(/-/g, '')}`;
   const now = Math.floor(Date.now() / 1000);
+  const epoch_index = ++epochIndexCounter;
   
   // Get current state for starting point
   const currentRoot = getMmrRoot();
@@ -127,6 +132,7 @@ export function createEpoch(project_id?: string): Epoch {
 
   const epoch: Epoch = {
     epoch_id,
+    epoch_index,
     project_id,
     mmr_root: currentRoot,
     leaf_count: 0,
@@ -425,6 +431,92 @@ export function getEpochStats(): {
 }
 
 // =============================================================================
+// AUTO-FINALIZATION SCHEDULER
+// =============================================================================
+
+/** Interval handle for the finalization scheduler */
+let finalizationInterval: NodeJS.Timeout | null = null;
+
+/** Callback type for anchoring */
+type AnchorCallback = (epoch_id: string) => Promise<{ success: boolean; error?: string }>;
+
+/** Optional anchor callback - set by anchoringService when integrated */
+let anchorCallback: AnchorCallback | null = null;
+
+/**
+ * Set the anchor callback for auto-finalization.
+ * This should be called by anchoringService to integrate with epochService.
+ */
+export function setAnchorCallback(callback: AnchorCallback): void {
+  anchorCallback = callback;
+}
+
+/**
+ * Start the auto-finalization scheduler.
+ * 
+ * This runs periodically and checks if any epochs should be finalized.
+ * When an epoch is ready, it calls the anchor callback to commit to chain.
+ * 
+ * @param intervalMs - Check interval in milliseconds (default: 60000 = 1 minute)
+ */
+export function startAutoFinalization(intervalMs: number = 60000): void {
+  if (finalizationInterval) {
+    console.warn('[EpochService] Auto-finalization already running');
+    return;
+  }
+
+  console.log(`[EpochService] Starting auto-finalization scheduler (interval: ${intervalMs}ms)`);
+
+  finalizationInterval = setInterval(async () => {
+    const readyEpochs = getEpochsReadyForFinalization();
+    
+    if (readyEpochs.length === 0) return;
+
+    console.log(`[EpochService] Found ${readyEpochs.length} epoch(s) ready for finalization`);
+
+    for (const epoch of readyEpochs) {
+      const reason = shouldFinalizeEpoch(epoch);
+      console.log(`[EpochService] Finalizing epoch ${epoch.epoch_id} (reason: ${reason.reason})`);
+
+      if (anchorCallback) {
+        try {
+          const result = await anchorCallback(epoch.epoch_id);
+          if (result.success) {
+            console.log(`[EpochService] Epoch ${epoch.epoch_id} anchored successfully`);
+          } else {
+            console.error(`[EpochService] Failed to anchor epoch ${epoch.epoch_id}: ${result.error}`);
+          }
+        } catch (error) {
+          console.error(`[EpochService] Error anchoring epoch ${epoch.epoch_id}:`, error);
+        }
+      } else {
+        // No anchor callback - just prepare epoch (mock mode)
+        const prepared = prepareEpochForFinalization(epoch.epoch_id);
+        console.log(`[EpochService] Epoch ${epoch.epoch_id} prepared for finalization (no anchor callback)`);
+      }
+    }
+  }, intervalMs);
+}
+
+/**
+ * Stop the auto-finalization scheduler.
+ */
+export function stopAutoFinalization(): void {
+  if (finalizationInterval) {
+    clearInterval(finalizationInterval);
+    finalizationInterval = null;
+    console.log('[EpochService] Auto-finalization scheduler stopped');
+  }
+}
+
+/**
+ * Check if auto-finalization is running.
+ */
+export function isAutoFinalizationRunning(): boolean {
+  return finalizationInterval !== null;
+}
+
+// =============================================================================
 // TESTING UTILITIES
 // =============================================================================
 
@@ -436,6 +528,12 @@ export function resetEpochStore(): void {
   epochStore.clear();
   receiptToEpoch.clear();
   config = { ...DEFAULT_CONFIG };
+  epochIndexCounter = 0;
+  anchorCallback = null;
+  if (finalizationInterval) {
+    clearInterval(finalizationInterval);
+    finalizationInterval = null;
+  }
 }
 
 /**

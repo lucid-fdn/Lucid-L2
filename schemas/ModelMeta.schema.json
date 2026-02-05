@@ -8,11 +8,14 @@
   "properties": {
     "schema_version": { "type": "string", "const": "1.0" },
     "model_passport_id": { "type": "string", "minLength": 10 },
-    "format": { "type": "string", "enum": ["safetensors", "gguf"] },
-    "runtime_recommended": { "type": "string", "enum": ["vllm", "tgi", "tensorrt"] },
+    "format": { "type": "string", "enum": ["safetensors", "gguf", "api"] },
+    "runtime_recommended": { "type": "string", "enum": ["vllm", "tgi", "tensorrt", "llmproxy", "openai"] },
+    "name": { "type": "string", "description": "Human-readable model name" },
+    "description": { "type": "string", "description": "Model description" },
+    "provider": { "type": "string", "description": "Provider name (e.g., llm-proxy, openai)" },
     "base": {
       "type": "string",
-      "enum": ["hf", "openai", "anthropic", "custom_endpoint"],
+      "enum": ["hf", "openai", "anthropic", "google", "cohere", "custom_endpoint"],
       "default": "hf"
     },
     "hf": {

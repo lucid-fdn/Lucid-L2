@@ -29,8 +29,20 @@ import { getReceipt, SignedReceipt } from './receiptService';
 // CONFIGURATION
 // =============================================================================
 
-// thought-epoch program ID
-const THOUGHT_EPOCH_PROGRAM_ID = new PublicKey('J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c');
+// thought-epoch program IDs per network
+// NOTE: J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c is the LIVE deployed program on devnet
+const THOUGHT_EPOCH_PROGRAM_IDS: Record<string, string> = {
+  localnet: 'J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c',
+  devnet: 'J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c', // LIVE on devnet!
+  testnet: 'J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c', // Use same for testnet
+  mainnet: 'J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c', // Update when deployed to mainnet
+};
+
+// Get program ID based on configured network
+function getThoughtEpochProgramId(): PublicKey {
+  const programId = THOUGHT_EPOCH_PROGRAM_IDS[config.network] || THOUGHT_EPOCH_PROGRAM_IDS.devnet;
+  return new PublicKey(programId);
+}
 
 // Default RPC endpoints
 const DEFAULT_RPC_ENDPOINTS = {
@@ -67,17 +79,20 @@ let connection: Connection | null = null;
 // =============================================================================
 
 // Anchor instruction discriminators (first 8 bytes of sha256("global:<instruction_name>"))
-// Pre-computed for commit_epoch and commit_epochs
+// VERIFIED: Computed from sha256("global:<instruction_name>")[:8]
 const COMMIT_EPOCH_DISCRIMINATOR = Buffer.from([
-  0x0d, 0x98, 0x02, 0x2a, 0x45, 0x05, 0x71, 0x00, // sha256("global:commit_epoch")[0:8]
+  0x8c, 0x00, 0x3e, 0xba, 0x49, 0xb4, 0xc9, 0xb3, // sha256("global:commit_epoch")[0:8]
 ]);
 
 const COMMIT_EPOCHS_DISCRIMINATOR = Buffer.from([
-  0xa5, 0x7e, 0xc3, 0x41, 0xc6, 0x02, 0x8c, 0xb9, // sha256("global:commit_epochs")[0:8]
+  0x90, 0x95, 0x52, 0x2e, 0xc3, 0xc0, 0xa9, 0xbc, // sha256("global:commit_epochs")[0:8]
 ]);
 
-// Note: Actual discriminators should be verified against the deployed program
-// These are placeholder values and should be updated with correct discriminators
+const COMMIT_EPOCH_V2_DISCRIMINATOR = Buffer.from([
+  0xa5, 0x30, 0x60, 0x5c, 0x09, 0xdf, 0x0c, 0x22, // sha256("global:commit_epoch_v2")[0:8]
+]);
+
+// NOTE: These discriminators have been verified on 2026-02-03
 
 // =============================================================================
 // CONFIGURATION MANAGEMENT
@@ -138,7 +153,17 @@ export function loadAuthorityFromSecretKey(secretKey: Uint8Array): Keypair {
 export function deriveEpochRecordPDA(authority: PublicKey): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
     [Buffer.from('epoch'), authority.toBuffer()],
-    THOUGHT_EPOCH_PROGRAM_ID
+    getThoughtEpochProgramId()
+  );
+}
+
+/**
+ * Derive the PDA for a v2 epoch record.
+ */
+export function deriveEpochRecordV2PDA(authority: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from('epoch_v2'), authority.toBuffer()],
+    getThoughtEpochProgramId()
   );
 }
 
@@ -148,7 +173,7 @@ export function deriveEpochRecordPDA(authority: PublicKey): [PublicKey, number] 
 export function deriveEpochBatchRecordPDA(authority: PublicKey): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
     [Buffer.from('epochs'), authority.toBuffer()],
-    THOUGHT_EPOCH_PROGRAM_ID
+    getThoughtEpochProgramId()
   );
 }
 
@@ -176,7 +201,7 @@ export function buildCommitEpochInstruction(
   ]);
 
   return new TransactionInstruction({
-    programId: THOUGHT_EPOCH_PROGRAM_ID,
+    programId: getThoughtEpochProgramId(),
     keys: [
       { pubkey: epochRecordPDA, isSigner: false, isWritable: true },
       { pubkey: authority, isSigner: true, isWritable: true },
@@ -213,9 +238,59 @@ export function buildCommitEpochsInstruction(
   ]);
 
   return new TransactionInstruction({
-    programId: THOUGHT_EPOCH_PROGRAM_ID,
+    programId: getThoughtEpochProgramId(),
     keys: [
       { pubkey: epochBatchRecordPDA, isSigner: false, isWritable: true },
+      { pubkey: authority, isSigner: true, isWritable: true },
+      { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+    ],
+    data,
+  });
+}
+
+/**
+ * Build a commit_epoch_v2 instruction with metadata.
+ */
+export function buildCommitEpochV2Instruction(
+  authority: PublicKey,
+  root: Buffer,
+  epoch_id: string,
+  epoch_index: number,
+  leaf_count: number,
+  timestamp: number,
+  mmr_size: number
+): TransactionInstruction {
+  if (root.length !== 32) {
+    throw new Error('Root must be exactly 32 bytes');
+  }
+
+  const [epochRecordPDA] = deriveEpochRecordV2PDA(authority);
+
+  const epochIdBuffer = Buffer.alloc(8);
+  epochIdBuffer.writeBigUInt64LE(BigInt(epoch_index), 0);
+
+  const leafCountBuffer = Buffer.alloc(8);
+  leafCountBuffer.writeBigUInt64LE(BigInt(leaf_count), 0);
+
+  const timestampBuffer = Buffer.alloc(8);
+  timestampBuffer.writeBigInt64LE(BigInt(timestamp), 0);
+
+  const mmrSizeBuffer = Buffer.alloc(8);
+  mmrSizeBuffer.writeBigUInt64LE(BigInt(mmr_size), 0);
+
+  const data = Buffer.concat([
+    COMMIT_EPOCH_V2_DISCRIMINATOR,
+    root,
+    epochIdBuffer,
+    leafCountBuffer,
+    timestampBuffer,
+    mmrSizeBuffer,
+  ]);
+
+  return new TransactionInstruction({
+    programId: getThoughtEpochProgramId(),
+    keys: [
+      { pubkey: epochRecordPDA, isSigner: false, isWritable: true },
       { pubkey: authority, isSigner: true, isWritable: true },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
@@ -303,9 +378,14 @@ export async function commitEpochRoot(epoch_id: string): Promise<AnchorResult> {
   const rootBuffer = Buffer.from(epoch.mmr_root, 'hex');
 
   // Build transaction
-  const instruction = buildCommitEpochInstruction(
+  const instruction = buildCommitEpochV2Instruction(
     authority.publicKey,
-    rootBuffer
+    rootBuffer,
+    epoch.epoch_id.replace('epoch_', ''),
+    epoch.epoch_index,
+    epoch.leaf_count,
+    epoch.finalized_at || Math.floor(Date.now() / 1000),
+    epoch.end_leaf_index ? epoch.end_leaf_index + 1 : epoch.leaf_count
   );
 
   const transaction = new Transaction().add(instruction);
@@ -563,7 +643,7 @@ export async function verifyEpochAnchor(epoch_id: string): Promise<VerifyAnchorR
 
   try {
     const conn = getConnection();
-    const [epochRecordPDA] = deriveEpochRecordPDA(config.authority_keypair.publicKey);
+    const [epochRecordPDA] = deriveEpochRecordV2PDA(config.authority_keypair.publicKey);
     
     // Fetch account data
     const accountInfo = await conn.getAccountInfo(epochRecordPDA);

@@ -12,8 +12,25 @@ http:
       tls: {}
       priority: 3
 
+    # Nango Dashboard - accessible at https://api.lucid.foundation/nango-admin
+    # Admin UI for managing OAuth integrations
+    nango-dashboard:
+      rule: "Host(`api.lucid.foundation`) && PathPrefix(`/nango-admin`)"
+      entryPoints:
+        - websecure
+      service: nango-dashboard
+      middlewares:
+        - nango-admin-stripprefix
+      tls: {}
+      priority: 4
+
   services:
     nango-api:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3003"
+
+    nango-dashboard:
       loadBalancer:
         servers:
           - url: "http://host.docker.internal:3003"
@@ -23,3 +40,8 @@ http:
       stripPrefix:
         prefixes:
           - "/nango"
+
+    nango-admin-stripprefix:
+      stripPrefix:
+        prefixes:
+          - "/nango-admin"

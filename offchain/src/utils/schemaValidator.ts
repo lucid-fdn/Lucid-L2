@@ -2,8 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
+import Ajv2020 from 'ajv/dist/2020.js';
 
 export type SchemaId = 'Policy' | 'ModelMeta' | 'ComputeMeta' | 'RunReceipt';
+
+/** Validation result type - discriminated union */
+export type ValidationResult<T> = 
+  | { ok: true; value: T; errors?: never }
+  | { ok: false; errors: any; value?: never };
 
 const SCHEMA_FILES: Record<SchemaId, string> = {
   Policy: 'Policy.schema.json',
@@ -17,9 +23,6 @@ const validatorCache = new Map<SchemaId, any>();
 
 function getAjv(): Ajv {
   if (!ajvSingleton) {
-    // AJV v8: easiest way to fully support draft-2020-12 is to use the dedicated class.
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const Ajv2020 = require('ajv/dist/2020').default;
     const ajv = new Ajv2020({
       allErrors: true,
       strict: false,
@@ -41,7 +44,7 @@ export function loadSchema(id: SchemaId): object {
   return JSON.parse(raw);
 }
 
-export function validateWithSchema<T>(id: SchemaId, value: unknown): { ok: true; value: T } | { ok: false; errors: any } {
+export function validateWithSchema<T>(id: SchemaId, value: unknown): ValidationResult<T> {
   const ajv = getAjv();
   let validate = validatorCache.get(id);
   if (!validate) {

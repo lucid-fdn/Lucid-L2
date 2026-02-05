@@ -2,24 +2,92 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://lucidlayer.ai/schemas/passport/1.0/ComputeMeta.schema.json",
   "title": "Lucid Compute Metadata",
+  "description": "Metadata for a compute provider passport. Extended for Fluid Compute v0 with worker identity and execution mode support.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "compute_passport_id", "provider_type", "regions", "hardware", "runtimes", "endpoints"],
   "properties": {
-    "schema_version": { "type": "string", "const": "1.0" },
-    "compute_passport_id": { "type": "string", "minLength": 10 },
-    "provider_type": { "type": "string", "enum": ["depin", "cloud", "onprem"] },
-    "regions": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
-    "residency_supported": { "type": "boolean", "default": false },
+    "schema_version": { 
+      "type": "string", 
+      "const": "1.0",
+      "description": "Schema version for backwards compatibility"
+    },
+    "compute_passport_id": { 
+      "type": "string", 
+      "minLength": 10,
+      "description": "Unique passport ID for this compute provider"
+    },
+    "provider_type": { 
+      "type": "string", 
+      "enum": ["depin", "cloud", "onprem", "managed"],
+      "description": "Type of compute provider. 'managed' for HF/external inference APIs"
+    },
+    "execution_mode": {
+      "type": "string",
+      "enum": ["byo_runtime", "managed_endpoint"],
+      "description": "Execution mode for this provider. Determines attestation guarantees."
+    },
+    "operator_pubkey": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "ed25519 public key (hex) of the provider operator for signing"
+    },
+    "regions": { 
+      "type": "array", 
+      "items": { "type": "string" }, 
+      "minItems": 1,
+      "description": "Geographic regions where this compute is available"
+    },
+    "residency_supported": { 
+      "type": "boolean", 
+      "default": false,
+      "description": "Whether data residency requirements can be met"
+    },
     "hardware": {
       "type": "object",
       "additionalProperties": false,
       "required": ["gpu", "vram_gb"],
       "properties": {
-        "gpu": { "type": "string" },
-        "vram_gb": { "type": "integer", "minimum": 0 },
-        "arch": { "type": "string" }
-      }
+        "gpu": { 
+          "type": "string",
+          "description": "GPU model (e.g., 'NVIDIA-A100-40GB')"
+        },
+        "vram_gb": { 
+          "type": "integer", 
+          "minimum": 0,
+          "description": "GPU VRAM in gigabytes"
+        },
+        "arch": { 
+          "type": "string",
+          "description": "GPU architecture (e.g., 'ampere', 'hopper')"
+        },
+        "gpu_count": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "Number of GPUs"
+        },
+        "cpu_cores": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of CPU cores"
+        },
+        "memory_gb": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "System RAM in gigabytes"
+        }
+      },
+      "description": "Hardware specifications"
+    },
+    "gpu_fingerprint": {
+      "type": ["string", "null"],
+      "description": "GPU hardware fingerprint for verification. MUST be null for managed_endpoint mode. Format: 'NVIDIA-A100-40GB'"
+    },
+    "runtime_hash": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "Docker image digest of the runtime. MUST be null for managed_endpoint mode."
     },
     "runtimes": {
       "type": "array",
@@ -29,55 +97,220 @@
         "additionalProperties": false,
         "required": ["name"],
         "properties": {
-          "name": { "type": "string", "enum": ["vllm", "tgi", "tensorrt"] },
-          "version": { "type": "string" }
+          "name": { 
+            "type": "string", 
+            "enum": ["vllm", "tgi", "tensorrt", "hf-inference-api", "openai-compatible", "custom"],
+            "description": "Runtime type"
+          },
+          "version": { 
+            "type": "string",
+            "description": "Runtime version"
+          },
+          "image": {
+            "type": "string",
+            "description": "Docker image reference"
+          }
         }
-      }
+      },
+      "description": "Supported inference runtimes"
     },
     "capabilities": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "supports_streaming": { "type": "boolean", "default": true },
-        "supports_attestation": { "type": "boolean", "default": false },
-        "supports_cc_on": { "type": "boolean", "default": false }
+        "supports_streaming": { 
+          "type": "boolean", 
+          "default": true,
+          "description": "Supports streaming responses"
+        },
+        "supports_attestation": { 
+          "type": "boolean", 
+          "default": false,
+          "description": "Supports hardware attestation (TEE, SGX)"
+        },
+        "supports_cc_on": { 
+          "type": "boolean", 
+          "default": false,
+          "description": "Supports confidential computing"
+        },
+        "inference_types": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["text-generation", "chat-completion", "embeddings", "image-generation", "speech-to-text"]
+          },
+          "description": "Supported inference types"
+        }
       },
-      "default": {}
+      "default": {},
+      "description": "Provider capabilities"
     },
     "network": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "p95_ms_estimate": { "type": "integer", "minimum": 0 },
-        "bandwidth": { "type": "string" }
+        "p95_ms_estimate": { 
+          "type": "integer", 
+          "minimum": 0,
+          "description": "Estimated P95 latency in milliseconds"
+        },
+        "bandwidth": { 
+          "type": "string",
+          "description": "Network bandwidth (e.g., '10Gbps')"
+        }
       },
-      "default": {}
+      "default": {},
+      "description": "Network characteristics"
     },
     "limits": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "max_context": { "type": "integer", "minimum": 0 },
-        "max_batch": { "type": "integer", "minimum": 0 }
+        "max_context": { 
+          "type": "integer", 
+          "minimum": 0,
+          "description": "Maximum context length (tokens)"
+        },
+        "max_batch": { 
+          "type": "integer", 
+          "minimum": 0,
+          "description": "Maximum batch size"
+        },
+        "max_input_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum input tokens per request"
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum output tokens per request"
+        },
+        "requests_per_minute": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Rate limit: requests per minute"
+        }
       },
-      "default": {}
+      "default": {},
+      "description": "Usage limits"
     },
     "pricing": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "price_per_1k_tokens_estimate": { "type": "number", "minimum": 0 },
-        "price_per_minute_estimate": { "type": "number", "minimum": 0 }
+        "price_per_1k_tokens_estimate": { 
+          "type": "number", 
+          "minimum": 0,
+          "description": "Estimated price per 1K tokens (legacy)"
+        },
+        "price_per_minute_estimate": { 
+          "type": "number", 
+          "minimum": 0,
+          "description": "Estimated price per minute (legacy)"
+        },
+        "per_input_token": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Price per input token"
+        },
+        "per_output_token": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Price per output token"
+        },
+        "currency": {
+          "type": "string",
+          "enum": ["lamports", "usd_cents", "credits"],
+          "description": "Currency for pricing"
+        }
       },
-      "default": {}
+      "default": {},
+      "description": "Pricing information"
     },
     "endpoints": {
       "type": "object",
       "additionalProperties": false,
       "required": ["inference_url"],
       "properties": {
-        "inference_url": { "type": "string" }
-      }
+        "inference_url": { 
+          "type": "string",
+          "description": "URL for inference requests (legacy)"
+        },
+        "quote_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for quote requests"
+        },
+        "jobs_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for job submission"
+        },
+        "health_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for health checks"
+        },
+        "metrics_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for Prometheus metrics"
+        }
+      },
+      "description": "API endpoints"
+    },
+    "workers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["worker_id", "status"],
+        "properties": {
+          "worker_id": {
+            "type": "string",
+            "description": "Unique worker identifier"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["online", "offline", "degraded", "draining"],
+            "description": "Worker status"
+          },
+          "last_heartbeat": {
+            "type": "integer",
+            "description": "Unix timestamp of last heartbeat"
+          }
+        }
+      },
+      "description": "List of worker instances for this provider"
+    },
+    "sla": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tier": {
+          "type": "string",
+          "enum": ["best-effort", "standard", "premium", "enterprise"],
+          "description": "SLA tier"
+        },
+        "uptime_target": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Target uptime percentage"
+        }
+      },
+      "description": "Service Level Agreement"
+    },
+    "policy_tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Policy tags for matching (e.g., 'hipaa', 'gdpr', 'no-logging')"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Additional provider metadata"
     }
   }
 }

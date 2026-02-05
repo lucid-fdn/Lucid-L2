@@ -1,0 +1,285 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucidlayer.ai/schemas/compute/1.0/ComputeOffer.schema.json",
+  "title": "Lucid Compute Offer",
+  "description": "A compute offer represents available GPU capacity from a provider, with pricing, capabilities, and SLA terms.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "offer_id",
+    "provider_passport_id",
+    "gpu_type",
+    "vram_gb",
+    "region",
+    "pricing",
+    "status"
+  ],
+  "properties": {
+    "offer_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for this compute offer. Format: 'offer_{provider}_{gpu}_{region}'"
+    },
+    "provider_passport_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Passport ID of the compute provider"
+    },
+    "display_name": {
+      "type": "string",
+      "description": "Human-readable name for this offer"
+    },
+    "description": {
+      "type": "string",
+      "description": "Description of the compute resources and use cases"
+    },
+    "gpu_type": {
+      "type": "string",
+      "enum": [
+        "NVIDIA-A100-40GB",
+        "NVIDIA-A100-80GB",
+        "NVIDIA-H100-80GB",
+        "NVIDIA-A10G",
+        "NVIDIA-L4",
+        "NVIDIA-T4",
+        "NVIDIA-V100",
+        "NVIDIA-RTX4090",
+        "NVIDIA-RTX3090",
+        "AMD-MI250X",
+        "AMD-MI300X",
+        "VIRTUAL"
+      ],
+      "description": "GPU hardware type. VIRTUAL for managed_endpoint mode."
+    },
+    "vram_gb": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "GPU VRAM in gigabytes. 0 for managed_endpoint mode."
+    },
+    "gpu_count": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "Number of GPUs in this offer"
+    },
+    "region": {
+      "type": "string",
+      "description": "Geographic region (e.g., 'us-east-1', 'eu-west-1', 'global')"
+    },
+    "execution_mode": {
+      "type": "string",
+      "enum": ["byo_runtime", "managed_endpoint"],
+      "description": "Execution mode for this offer"
+    },
+    "supported_runtimes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["vllm", "tgi", "hf-inference-api", "openai-compatible", "custom"]
+      },
+      "description": "Runtimes supported by this offer"
+    },
+    "supported_models": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of model IDs supported. Empty array = any compatible model."
+    },
+    "max_context_length": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum context length (tokens) supported"
+    },
+    "max_batch_size": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum concurrent requests"
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "text-generation",
+          "chat-completion",
+          "embeddings",
+          "image-generation",
+          "image-to-text",
+          "speech-to-text",
+          "text-to-speech",
+          "code-generation"
+        ]
+      },
+      "description": "Inference capabilities available"
+    },
+    "pricing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["per_input_token", "per_output_token", "currency"],
+      "properties": {
+        "per_input_token": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Price per input token"
+        },
+        "per_output_token": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Price per output token"
+        },
+        "per_second": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Price per second of execution (alternative pricing)"
+        },
+        "minimum_charge": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Minimum charge per job"
+        },
+        "currency": {
+          "type": "string",
+          "enum": ["lamports", "usd_cents", "credits"],
+          "description": "Currency for prices"
+        }
+      },
+      "description": "Pricing information for this offer"
+    },
+    "sla": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tier": {
+          "type": "string",
+          "enum": ["best-effort", "standard", "premium", "enterprise"],
+          "description": "SLA tier"
+        },
+        "uptime_target": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Target uptime percentage (e.g., 99.9)"
+        },
+        "max_queue_wait_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum queue wait time in milliseconds"
+        },
+        "max_ttft_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum time to first token in milliseconds"
+        },
+        "support_response_hours": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Support response time in hours"
+        }
+      },
+      "description": "Service Level Agreement terms"
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_input_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum input tokens per request"
+        },
+        "max_output_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum output tokens per request"
+        },
+        "requests_per_minute": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Rate limit: requests per minute"
+        },
+        "tokens_per_minute": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Rate limit: tokens per minute"
+        },
+        "concurrent_requests": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Maximum concurrent requests"
+        }
+      },
+      "description": "Usage limits for this offer"
+    },
+    "policy_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Policy tags for matching (e.g., 'hipaa', 'gdpr', 'no-logging')"
+    },
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "quote_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for requesting quotes"
+        },
+        "jobs_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for submitting jobs"
+        }
+      },
+      "description": "API endpoints for this offer"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["active", "inactive", "deprecated", "coming_soon"],
+      "description": "Current status of this offer"
+    },
+    "available_capacity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "slots": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Currently available execution slots"
+        },
+        "queue_depth": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Current queue depth"
+        },
+        "estimated_wait_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Estimated wait time in milliseconds"
+        },
+        "last_updated": {
+          "type": "integer",
+          "description": "Unix timestamp of last capacity update"
+        }
+      },
+      "description": "Real-time capacity information"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when this offer was created"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO timestamp when this offer was last updated"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Additional offer metadata"
+    }
+  }
+}

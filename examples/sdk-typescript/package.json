@@ -1,0 +1,23 @@
+{
+  "name": "lucid-sdk-example",
+  "version": "1.0.0",
+  "description": "Example usage of the raijin-labs-lucid-ai SDK",
+  "type": "module",
+  "scripts": {
+    "start": "npx tsx src/index.ts",
+    "passport:create": "npx tsx src/examples/passports.ts",
+    "passport:list": "npx tsx src/examples/list-passports.ts",
+    "inference": "npx tsx src/examples/inference.ts",
+    "receipts": "npx tsx src/examples/receipts.ts",
+    "epochs": "npx tsx src/examples/epochs.ts",
+    "full-demo": "npx tsx src/full-demo.ts"
+  },
+  "dependencies": {
+    "raijin-labs-lucid-ai": "^0.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}

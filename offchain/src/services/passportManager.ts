@@ -390,7 +390,7 @@ export class PassportManager {
     await this.ensureInitialized();
 
     // Start with model type filter
-    let result = await this.store.list({
+    const result = await this.store.list({
       type: 'model',
       owner: filters.owner,
       tags: filters.tags,
@@ -449,7 +449,7 @@ export class PassportManager {
     await this.ensureInitialized();
 
     // Start with compute type filter
-    let result = await this.store.list({
+    const result = await this.store.list({
       type: 'compute',
       owner: filters.owner,
       tags: filters.tags,

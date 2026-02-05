@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { ec } from 'elliptic';
 import crypto from 'crypto';
 
 export interface SignerPolicy {
@@ -35,7 +36,7 @@ export class SessionSignerService {
     policies: SignerPolicy
   ) {
     // Generate new ECDSA key pair for this session
-    const ec = require('elliptic').ec;
+   
     const curve = new ec('p256');
     const keyPair = curve.genKeyPair();
     

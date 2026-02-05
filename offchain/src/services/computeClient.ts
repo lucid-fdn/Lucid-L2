@@ -11,7 +11,7 @@
  * - Generic OpenAI-compatible endpoints
  */
 
-export type RuntimeType = 'vllm' | 'tgi' | 'tensorrt' | 'openai' | 'generic';
+export type RuntimeType = 'vllm' | 'tgi' | 'tensorrt' | 'openai' | 'generic' | 'llmproxy';
 
 export interface InferenceRequest {
   prompt?: string;
@@ -165,6 +165,51 @@ function toTensorRTFormat(request: InferenceRequest): any {
 }
 
 /**
+ * Convert inference request to LLM-Proxy format.
+ * LLM-Proxy uses a simplified API: POST /invoke/model/{model_id}
+ */
+function toLLMProxyFormat(request: InferenceRequest): any {
+  let prompt = request.prompt || '';
+  
+  // Convert messages to prompt format for llm-proxy
+  if (request.messages && request.messages.length > 0) {
+    prompt = request.messages
+      .map(m => `${m.role}: ${m.content}`)
+      .join('\n');
+    // Add assistant prompt
+    if (!prompt.endsWith('\nassistant:')) {
+      prompt += '\nassistant:';
+    }
+  }
+  
+  return {
+    prompt,
+    parameters: {
+      max_tokens: request.max_tokens || 150,
+      temperature: request.temperature ?? 0.7,
+    },
+  };
+}
+
+/**
+ * Parse LLM-Proxy response format.
+ */
+function parseLLMProxyResponse(response: any): InferenceResponse {
+  // LLM-Proxy returns: { output, result, generated_text, metadata, usage, cost }
+  const text = response.output || response.result || response.generated_text || '';
+  const usage = response.usage || response.metadata?.usage || {};
+  
+  return {
+    text,
+    tokens_in: usage.prompt_tokens || 0,
+    tokens_out: usage.completion_tokens || 0,
+    finish_reason: 'stop',
+    model: response.model,
+    raw_response: response,
+  };
+}
+
+/**
  * Parse OpenAI-format response.
  */
 function parseOpenAIResponse(response: any, isChat: boolean): InferenceResponse {
@@ -301,6 +346,15 @@ export async function executeInference(
         url = `${url}/v1/generate`;
       }
       break;
+    case 'llmproxy':
+      body = toLLMProxyFormat(request);
+      // LLM-Proxy uses /invoke/model/{model_id} - model_id should be in the endpoint
+      // If endpoint doesn't include /invoke/, use the base URL
+      if (!url.includes('/invoke/')) {
+        // Default to using openai-gpt35-turbo if no model specified in URL
+        url = `${url}/invoke/model/openai-gpt35-turbo`;
+      }
+      break;
     default:
       // Generic OpenAI format
       body = toOpenAIFormat(request);
@@ -372,6 +426,8 @@ export async function executeInference(
           return parseTGIResponse(data);
         case 'tensorrt':
           return parseTensorRTResponse(data);
+        case 'llmproxy':
+          return parseLLMProxyResponse(data);
         default:
           return parseOpenAIResponse(data, isChat);
       }

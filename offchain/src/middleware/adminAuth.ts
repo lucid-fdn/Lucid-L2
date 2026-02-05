@@ -5,6 +5,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 
 export interface AdminRequest extends Request {
   isAdmin?: boolean;
@@ -94,7 +95,6 @@ export function verifyAdminAuth(
       }
       
       // Use crypto.timingSafeEqual for constant-time comparison
-      const crypto = require('crypto');
       const isValid = crypto.timingSafeEqual(providedBuffer, expectedBuffer);
       
       if (!isValid) {
@@ -203,7 +203,6 @@ function logFailedAdminAuth(
  * Usage: node -e "require('./dist/middleware/adminAuth').generateAdminApiKey()"
  */
 export function generateAdminApiKey(): string {
-  const crypto = require('crypto');
   const apiKey = crypto.randomBytes(32).toString('hex');
   
   console.log('\n🔑 Generated Admin API Key:');

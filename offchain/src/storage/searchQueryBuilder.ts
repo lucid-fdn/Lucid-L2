@@ -441,7 +441,7 @@ export function buildSearchResult(
   includeFacets: boolean = false
 ): SearchResult {
   // Apply advanced filters
-  let filtered = applyAdvancedFilters(passports, filters);
+  const filtered = applyAdvancedFilters(passports, filters);
   
   // Calculate facets before pagination
   const facets = includeFacets ? generateFacets(filtered) : undefined;

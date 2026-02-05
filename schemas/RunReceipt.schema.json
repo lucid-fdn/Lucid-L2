@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://lucidlayer.ai/schemas/receipts/1.0/RunReceipt.schema.json",
   "title": "Lucid Run Receipt",
+  "description": "A signed receipt for an AI inference execution. Contains all information needed for verification, audit, and dispute resolution. Extended for Fluid Compute v0.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -19,41 +20,202 @@
     "signer_type"
   ],
   "properties": {
-    "schema_version": { "type": "string", "const": "1.0" },
-    "run_id": { "type": "string", "minLength": 10 },
-    "timestamp": { "type": "integer" },
-    "trace_id": { "type": "string" },
-    "policy_hash": { "type": "string" },
-    "model_passport_id": { "type": "string" },
-    "compute_passport_id": { "type": "string" },
-    "runtime": { "type": "string" },
-    "image_hash": { "type": "string" },
-    "model_hash": { "type": "string" },
-    "attestation": { "type": "object" },
+    "schema_version": { 
+      "type": "string", 
+      "const": "1.0",
+      "description": "Schema version for backwards compatibility"
+    },
+    "run_id": { 
+      "type": "string", 
+      "minLength": 10,
+      "description": "Unique identifier for this execution run"
+    },
+    "timestamp": { 
+      "type": "integer",
+      "description": "Unix timestamp (seconds) when the receipt was created"
+    },
+    "trace_id": { 
+      "type": "string",
+      "description": "Optional trace ID for distributed tracing"
+    },
+    "policy_hash": { 
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA256 hash of the policy that governed this execution"
+    },
+    "model_passport_id": { 
+      "type": "string",
+      "description": "Passport ID of the model used"
+    },
+    "compute_passport_id": { 
+      "type": "string",
+      "description": "Passport ID of the compute provider"
+    },
+    "compute_offer_passport_id": {
+      "type": "string",
+      "description": "On-chain ComputeOfferPassport ID (Solana PDA). Links execution to specific compute offer for verifiable matching."
+    },
+    "runtime": { 
+      "type": "string",
+      "description": "Runtime type used (e.g., 'vllm', 'tgi', 'hf-inference-api')"
+    },
+    "image_hash": { 
+      "type": "string",
+      "description": "Legacy field - use runtime_hash instead"
+    },
+    "model_hash": { 
+      "type": "string",
+      "description": "Hash of the model weights/files used"
+    },
+    "attestation": { 
+      "type": "object",
+      "description": "Optional attestation data (TEE, SGX, etc.)"
+    },
+    "execution_mode": {
+      "type": "string",
+      "enum": ["byo_runtime", "managed_endpoint"],
+      "description": "Execution mode used. byo_runtime = full attestation, managed_endpoint = limited attestation"
+    },
+    "job_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA256 hash of the job request (binds input to output)"
+    },
+    "quote_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA256 hash of the quote that authorized this execution"
+    },
+    "node_id": {
+      "type": "string",
+      "description": "Identifier of the worker node that executed the job"
+    },
+    "runtime_hash": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "Docker image digest of the execution runtime. MUST be null for managed_endpoint mode."
+    },
+    "gpu_fingerprint": {
+      "type": ["string", "null"],
+      "description": "GPU hardware fingerprint. MUST be null for managed_endpoint mode. Format: 'NVIDIA-A100-40GB'"
+    },
+    "outputs_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA256 hash of the canonical JSON output"
+    },
+    "output_ref": {
+      "type": "string",
+      "description": "URI to stored output (S3 or IPFS). Format: 's3://bucket/path' or 'ipfs://Qm...'"
+    },
+    "start_ts": {
+      "type": "integer",
+      "description": "Unix timestamp (seconds) when execution started"
+    },
+    "end_ts": {
+      "type": "integer",
+      "description": "Unix timestamp (seconds) when execution completed"
+    },
+    "input_ref": {
+      "type": "string",
+      "description": "Optional URI to stored input (for enterprise audit trail)"
+    },
+    "error_code": {
+      "type": "string",
+      "description": "Structured error code if execution failed"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Human-readable error message if execution failed"
+    },
     "metrics": {
       "type": "object",
       "additionalProperties": false,
       "required": ["ttft_ms", "tokens_in", "tokens_out"],
       "properties": {
-        "ttft_ms": { "type": "integer", "minimum": 0 },
-        "p95_ms": { "type": "integer", "minimum": 0 },
-        "tokens_in": { "type": "integer", "minimum": 0 },
-        "tokens_out": { "type": "integer", "minimum": 0 }
-      }
+        "ttft_ms": { 
+          "type": "integer", 
+          "minimum": 0,
+          "description": "Time to first token in milliseconds"
+        },
+        "p95_ms": { 
+          "type": "integer", 
+          "minimum": 0,
+          "description": "95th percentile token generation latency"
+        },
+        "tokens_in": { 
+          "type": "integer", 
+          "minimum": 0,
+          "description": "Number of input tokens processed"
+        },
+        "tokens_out": { 
+          "type": "integer", 
+          "minimum": 0,
+          "description": "Number of output tokens generated"
+        },
+        "total_latency_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total execution time in milliseconds"
+        },
+        "queue_wait_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Time spent waiting in queue"
+        },
+        "model_load_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Time spent loading model (0 if cache hit)"
+        },
+        "cache_hit": {
+          "type": "boolean",
+          "description": "Whether the model was already loaded in cache"
+        }
+      },
+      "description": "Execution performance metrics"
     },
-    "receipt_hash": { "type": "string" },
-    "receipt_signature": { "type": "string" },
-    "signer_pubkey": { "type": "string" },
-    "signer_type": { "type": "string", "enum": ["orchestrator", "compute"] },
+    "receipt_hash": { 
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA256 hash of the canonical JSON receipt body"
+    },
+    "receipt_signature": { 
+      "type": "string",
+      "description": "ed25519 signature of receipt_hash"
+    },
+    "signer_pubkey": { 
+      "type": "string",
+      "description": "ed25519 public key of the signer"
+    },
+    "signer_type": { 
+      "type": "string", 
+      "enum": ["orchestrator", "compute", "worker"],
+      "description": "Type of entity that signed this receipt"
+    },
     "anchor": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "chain": { "type": "string", "enum": ["solana"] },
-        "tx": { "type": "string" },
-        "root": { "type": "string" },
-        "epoch_id": { "type": "string" }
-      }
+        "chain": { 
+          "type": "string", 
+          "enum": ["solana"],
+          "description": "Blockchain where this receipt is anchored"
+        },
+        "tx": { 
+          "type": "string",
+          "description": "Transaction signature/hash"
+        },
+        "root": { 
+          "type": "string",
+          "description": "Merkle root that includes this receipt"
+        },
+        "epoch_id": { 
+          "type": "string",
+          "description": "Epoch ID this receipt was anchored in"
+        }
+      },
+      "description": "On-chain anchoring information"
     }
   }
 }

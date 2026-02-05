@@ -11,6 +11,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import * as hl from '@nktkas/hyperliquid';
 import { ethers } from 'ethers';
+import crypto from 'crypto';
 
 export interface PlaceOrderParams {
   userId: string;
@@ -495,7 +496,6 @@ export class HyperliquidTradingService {
    * Decrypt private key (simple implementation - use KMS in production)
    */
   private decryptKey(encryptedKey: string): string {
-    const crypto = require('crypto');
     const encryptionKey = process.env.PRIVY_SIGNER_ENCRYPTION_KEY || 'default-key-change-me';
     const [ivHex, encrypted] = encryptedKey.split(':');
     const iv = Buffer.from(ivHex, 'hex');

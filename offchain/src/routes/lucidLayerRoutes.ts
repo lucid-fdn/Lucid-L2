@@ -3,7 +3,7 @@ import { validateWithSchema } from '../utils/schemaValidator';
 import { evaluatePolicy } from '../services/policyEngine';
 import { getComputeRegistry } from '../services/computeRegistry';
 import { matchComputeForModel } from '../services/matchingEngine';
-import { createReceipt, getReceipt, verifyReceiptHash, verifyReceipt, getReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey } from '../services/receiptService';
+import { createReceipt, getReceipt, verifyReceiptHash, verifyReceipt, getReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey, listReceipts, listExtendedReceipts, getExtendedReceipt, verifyExtendedReceipt } from '../services/receiptService';
 import { calculatePayoutSplit, createPayoutFromReceipt, getPayout, storePayout, verifyPayoutSplit } from '../services/payoutService';
 import {
   executeInferenceRequest,
@@ -21,6 +21,7 @@ import {
   getEpochStats,
   retryEpoch,
   EpochStatus,
+  getAllEpochs,
 } from '../services/epochService';
 import {
   commitEpochRoot,
@@ -305,16 +306,182 @@ lucidLayerRouter.get('/v1/receipts/:receipt_id/verify', async (req, res) => {
 });
 
 /**
+ * GET /v1/verify/:receipt_hash
+ * Verify a receipt by its hash - returns inclusion proof and epoch anchoring status
+ * This is the P0.9 endpoint for Fluid Compute v0
+ */
+lucidLayerRouter.get('/v1/verify/:receipt_hash', async (req, res) => {
+  try {
+    const { receipt_hash } = req.params;
+    
+    // Verify the receipt hash format
+    if (!receipt_hash || receipt_hash.length !== 64) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid receipt_hash format (expected 64 hex characters)',
+      });
+    }
+    
+    // Search for receipt by hash in both regular and extended stores
+    let receipt = null;
+    let run_id: string | null = null;
+    let isExtended = false;
+    
+    // Check regular receipts
+    const regularReceipts = listReceipts();
+    for (const r of regularReceipts) {
+      if (r.receipt_hash === receipt_hash) {
+        receipt = r;
+        run_id = r.run_id;
+        break;
+      }
+    }
+    
+    // Check extended receipts if not found
+    if (!receipt) {
+      const extendedReceipts = listExtendedReceipts();
+      for (const r of extendedReceipts) {
+        if (r.receipt_hash === receipt_hash) {
+          receipt = r;
+          run_id = r.run_id;
+          isExtended = true;
+          break;
+        }
+      }
+    }
+    
+    if (!receipt || !run_id) {
+      return res.status(404).json({
+        success: false,
+        verified: false,
+        error: 'Receipt not found for this hash',
+        receipt_hash,
+      });
+    }
+    
+    // Verify the receipt
+    const verifyResult = isExtended 
+      ? verifyExtendedReceipt(run_id)
+      : verifyReceipt(run_id);
+    
+    // Get Merkle proof
+    const merkleProof = getReceiptProof(run_id);
+    
+    // Check if receipt is in an anchored epoch
+    let epoch_info = null;
+    let on_chain_verified = false;
+    let tx_signature = null;
+    
+    if (receipt._mmr_leaf_index !== undefined) {
+      // Find the epoch containing this receipt - use full Epoch objects
+      const allEpochs = getAllEpochs();
+      const anchoredEpochs = allEpochs.filter(e => e.status === 'anchored');
+      
+      for (const epoch of anchoredEpochs) {
+        if (epoch.start_leaf_index !== undefined && 
+            epoch.end_leaf_index !== undefined &&
+            receipt._mmr_leaf_index >= epoch.start_leaf_index && 
+            receipt._mmr_leaf_index <= epoch.end_leaf_index) {
+          epoch_info = {
+            epoch_id: epoch.epoch_id,
+            mmr_root: epoch.mmr_root,
+            chain_tx: epoch.chain_tx,
+            finalized_at: epoch.finalized_at,
+          };
+          tx_signature = epoch.chain_tx;
+          on_chain_verified = !!epoch.chain_tx;
+          break;
+        }
+      }
+    }
+    
+    // Build response with type-safe access to extended fields
+    const response: Record<string, unknown> = {
+      success: true,
+      verified: verifyResult.hash_valid && verifyResult.signature_valid,
+      receipt_hash,
+      run_id: receipt.run_id,
+      
+      // Hash verification
+      hash_valid: verifyResult.hash_valid,
+      
+      // Signature verification  
+      signature_valid: verifyResult.signature_valid,
+      signer_pubkey: receipt.signer_pubkey,
+      signer_type: receipt.signer_type,
+    };
+    
+    // Add Fluid Compute v0 fields if this is an extended receipt
+    if (isExtended && 'execution_mode' in receipt) {
+      response.execution_mode = receipt.execution_mode;
+      response.runtime_hash = receipt.runtime_hash;
+      response.gpu_fingerprint = receipt.gpu_fingerprint;
+    }
+    
+    // Add MMR proof if available
+    if (merkleProof) {
+      response.inclusion_proof = {
+        leaf_index: merkleProof.leafIndex,
+        proof: merkleProof.siblings,
+        root: merkleProof.root,
+        directions: merkleProof.directions,
+      };
+      response.inclusion_valid = verifyResult.inclusion_valid ?? true;
+    } else {
+      response.inclusion_valid = false;
+    }
+    
+    // Add on-chain anchoring info
+    if (epoch_info) {
+      response.epoch = epoch_info;
+      response.on_chain_verified = on_chain_verified;
+      response.tx_signature = tx_signature;
+    } else {
+      response.on_chain_verified = false;
+      response.epoch = null;
+      response.tx_signature = null;
+    }
+    
+    return res.json(response);
+  } catch (error) {
+    console.error('Error in GET /v1/verify/:receipt_hash:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
  * GET /v1/receipts/:receipt_id/proof
  * Get Merkle inclusion proof for a receipt
  */
 lucidLayerRouter.get('/v1/receipts/:receipt_id/proof', async (req, res) => {
   try {
     const { receipt_id } = req.params;
-    const proof = getReceiptProof(receipt_id);
-    if (!proof) {
-      return res.status(404).json({ success: false, error: 'Receipt not found or no proof available' });
+    
+    // Get the receipt first to get run_id and receipt_hash
+    const receipt = getReceipt(receipt_id);
+    if (!receipt) {
+      return res.status(404).json({ success: false, error: 'Receipt not found' });
     }
+    
+    const merkleProof = getReceiptProof(receipt_id);
+    if (!merkleProof) {
+      return res.status(404).json({ success: false, error: 'No proof available for this receipt' });
+    }
+    
+    // Transform MerkleProof to ReceiptProof format expected by OpenAPI schema
+    const proof = {
+      run_id: receipt.run_id,
+      receipt_hash: receipt.receipt_hash,
+      leaf_index: merkleProof.leafIndex,
+      proof: merkleProof.siblings,
+      root: merkleProof.root,
+      // Include directions for verification (not in OpenAPI but useful for clients)
+      directions: merkleProof.directions,
+    };
+    
     return res.json({ success: true, proof });
   } catch (error) {
     console.error('Error in GET /v1/receipts/:id/proof:', error);
@@ -370,13 +537,26 @@ lucidLayerRouter.post('/v1/payouts/calculate', async (req, res) => {
       ? BigInt(input.total_amount_lamports) 
       : BigInt(input.total_amount_lamports);
 
+    // Map SDK config field names to backend expected names
+    // SDK uses: compute_bp, model_bp, orchestrator_bp
+    // Backend expects: compute_provider_bp, model_provider_bp, protocol_treasury_bp, orchestrator_bp
+    let config = input.config;
+    if (config) {
+      config = {
+        compute_provider_bp: config.compute_provider_bp ?? config.compute_bp ?? 7000,
+        model_provider_bp: config.model_provider_bp ?? config.model_bp ?? 2000,
+        protocol_treasury_bp: config.protocol_treasury_bp ?? 1000, // SDK doesn't send this, default to 10%
+        orchestrator_bp: config.orchestrator_bp ?? 0,
+      };
+    }
+
     const payout = calculatePayoutSplit({
       run_id: input.run_id,
       total_amount_lamports: totalAmount,
       compute_wallet: input.compute_wallet,
       model_wallet: input.model_wallet,
       orchestrator_wallet: input.orchestrator_wallet,
-      config: input.config,
+      config,
     });
 
     // Store the payout
@@ -809,6 +989,56 @@ lucidLayerRouter.get('/v1/epochs/current', async (req, res) => {
 });
 
 /**
+ * GET /v1/epochs/stats
+ * Get epoch statistics
+ * NOTE: Must be registered BEFORE /v1/epochs/:epoch_id to avoid "stats" being matched as epoch_id
+ */
+lucidLayerRouter.get('/v1/epochs/stats', async (_req, res) => {
+  try {
+    const stats = getEpochStats();
+    return res.json({
+      success: true,
+      stats,
+    });
+  } catch (error) {
+    console.error('Error in GET /v1/epochs/stats:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /v1/epochs/ready
+ * Get epochs that are ready for finalization
+ * NOTE: Must be registered BEFORE /v1/epochs/:epoch_id to avoid "ready" being matched as epoch_id
+ */
+lucidLayerRouter.get('/v1/epochs/ready', async (_req, res) => {
+  try {
+    const epochs = getEpochsReadyForFinalization();
+
+    return res.json({
+      success: true,
+      count: epochs.length,
+      epochs: epochs.map(e => ({
+        epoch_id: e.epoch_id,
+        project_id: e.project_id,
+        leaf_count: e.leaf_count,
+        created_at: e.created_at,
+        mmr_root: e.mmr_root,
+      })),
+    });
+  } catch (error) {
+    console.error('Error in GET /v1/epochs/ready:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
  * GET /v1/epochs/:epoch_id
  * Get a specific epoch by ID
  */
@@ -881,26 +1111,6 @@ lucidLayerRouter.get('/v1/epochs', async (req, res) => {
     });
   } catch (error) {
     console.error('Error in GET /v1/epochs:', error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-  }
-});
-
-/**
- * GET /v1/epochs/stats
- * Get epoch statistics
- */
-lucidLayerRouter.get('/v1/epochs/stats', async (_req, res) => {
-  try {
-    const stats = getEpochStats();
-    return res.json({
-      success: true,
-      stats,
-    });
-  } catch (error) {
-    console.error('Error in GET /v1/epochs/stats:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -1172,34 +1382,6 @@ lucidLayerRouter.get('/v1/anchoring/health', async (_req, res) => {
     });
   } catch (error) {
     console.error('Error in GET /v1/anchoring/health:', error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-  }
-});
-
-/**
- * GET /v1/epochs/ready
- * Get epochs that are ready for finalization
- */
-lucidLayerRouter.get('/v1/epochs/ready', async (_req, res) => {
-  try {
-    const epochs = getEpochsReadyForFinalization();
-
-    return res.json({
-      success: true,
-      count: epochs.length,
-      epochs: epochs.map(e => ({
-        epoch_id: e.epoch_id,
-        project_id: e.project_id,
-        leaf_count: e.leaf_count,
-        created_at: e.created_at,
-        mmr_root: e.mmr_root,
-      })),
-    });
-  } catch (error) {
-    console.error('Error in GET /v1/epochs/ready:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

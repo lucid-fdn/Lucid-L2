@@ -4,9 +4,19 @@ import { AnchorProvider, Program, Wallet, setProvider, Idl } from '@coral-xyz/an
 import * as fs from 'fs';
 import path from 'path';
 import { getRPC_URL, getCOMMITMENT, getPROGRAM_ID } from '../utils/config';
+import { execSync } from 'child_process';
 
 // Cache the program instance to avoid re-initialization issues
 let cachedProgram: Program | null = null;
+
+/**
+ * Reset the cached Solana program instance.
+ * Call this after rebuilding the IDL or when experiencing signing issues.
+ */
+export function resetSolanaCache(): void {
+  cachedProgram = null;
+  console.log('🔄 Solana program cache cleared');
+}
 
 export function initSolana(): Program {
   // Return cached instance if available
@@ -72,7 +82,7 @@ export function getConnection(): Connection {
 
 export function getKeypair(): Keypair {
   // Use the same method as working scripts - get from solana config
-  const { execSync } = require('child_process');
+
   const configOutput = execSync('solana config get', { encoding: 'utf8' });
   const keypairMatch = configOutput.match(/Keypair Path: (.+)/);
   const configPath = keypairMatch[1].trim();

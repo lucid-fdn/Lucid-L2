@@ -3,17 +3,20 @@ anchor_version = "0.31.1"
 
 [provider]
 cluster = "devnet"
-wallet  = "/home/orkblutt/testnet-keypair.json"
+wallet  = "/home/admin/.config/solana/id.json"
 
 [programs.localnet]
-thought_epoch = "J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c"
+thought_epoch = "8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6"
 gas_utils = "11111111111111111111111111111111"
+lucid_passports = "38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW"
 
 [programs.devnet]
-thought_epoch = "GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo"
+thought_epoch = "8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6"
 gas_utils = "11111111111111111111111111111111"
+lucid_passports = "38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW"
 
 [workspace]
 members = [
-    "programs/thought-epoch"
+    "programs/thought-epoch",
+    "programs/lucid-passports"
 ]

@@ -1,0 +1,168 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucidlayer.ai/schemas/compute/1.0/WorkerIdentity.schema.json",
+  "title": "Lucid Worker Identity",
+  "description": "Worker identity binds a physical/virtual compute node to a cryptographic identity for receipt signing. The execution_mode determines which fields must be present.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "worker_id",
+    "provider_passport_id",
+    "operator_pubkey",
+    "execution_mode"
+  ],
+  "properties": {
+    "worker_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique identifier for this worker instance. Format: 'worker-{type}-{name}-{index}' (e.g., 'worker-gpu-lucid-001')"
+    },
+    "provider_passport_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Passport ID for the compute provider this worker belongs to"
+    },
+    "operator_pubkey": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "ed25519 public key (hex) for signing quotes and receipts"
+    },
+    "execution_mode": {
+      "type": "string",
+      "enum": ["byo_runtime", "managed_endpoint"],
+      "description": "Execution mode this worker operates in. Determines attestation guarantees."
+    },
+    "runtime_type": {
+      "type": "string",
+      "enum": ["vllm", "tgi", "hf-inference-api", "openai-compatible", "custom"],
+      "description": "Type of runtime this worker uses for inference"
+    },
+    "runtime_hash": {
+      "type": ["string", "null"],
+      "pattern": "^sha256:[a-f0-9]{64}$",
+      "description": "Docker image digest of the runtime container. MUST be null for managed_endpoint mode. Format: 'sha256:<digest>'"
+    },
+    "gpu_fingerprint": {
+      "type": ["string", "null"],
+      "description": "GPU hardware fingerprint. MUST be null for managed_endpoint mode. Format: '<vendor>-<model>-<vram>' (e.g., 'NVIDIA-A100-40GB')"
+    },
+    "gpu_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of GPUs available on this worker. 0 for managed_endpoint mode."
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "text-generation",
+          "chat-completion",
+          "embeddings",
+          "image-generation",
+          "image-to-text",
+          "speech-to-text",
+          "text-to-speech",
+          "code-generation"
+        ]
+      },
+      "description": "List of inference capabilities this worker supports"
+    },
+    "max_batch_size": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum batch size supported for concurrent inference"
+    },
+    "max_context_length": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum context length (tokens) supported"
+    },
+    "supported_models": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of model IDs this worker can serve (empty = any compatible model)"
+    },
+    "region": {
+      "type": "string",
+      "description": "Geographic region of this worker (e.g., 'us-east-1', 'eu-west-1')"
+    },
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "quote_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for quote requests"
+        },
+        "jobs_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for job submission"
+        },
+        "health_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for health checks"
+        },
+        "metrics_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL for Prometheus metrics"
+        }
+      },
+      "description": "API endpoints for this worker"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["online", "offline", "degraded", "draining"],
+      "description": "Current operational status of the worker"
+    },
+    "last_heartbeat": {
+      "type": "integer",
+      "description": "Unix timestamp of last heartbeat received"
+    },
+    "registered_at": {
+      "type": "integer",
+      "description": "Unix timestamp when this worker was first registered"
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Additional worker metadata (e.g., operator contact, pricing info)"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "execution_mode": { "const": "managed_endpoint" }
+        }
+      },
+      "then": {
+        "properties": {
+          "runtime_hash": { "const": null },
+          "gpu_fingerprint": { "const": null },
+          "gpu_count": { "const": 0 }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "execution_mode": { "const": "byo_runtime" }
+        }
+      },
+      "then": {
+        "required": ["runtime_hash", "gpu_fingerprint"],
+        "properties": {
+          "runtime_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "gpu_fingerprint": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  ]
+}

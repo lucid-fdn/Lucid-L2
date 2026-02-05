@@ -7,6 +7,79 @@ import type { PassportType, PassportStatus, PassportFilters } from '../storage/p
 
 export const passportRouter = express.Router();
 
+// IMPORTANT: Static routes must be defined BEFORE parameterized routes
+// to prevent Express from matching 'stats', 'pending-sync' as passport_ids
+
+/**
+ * GET /v1/passports/stats
+ * Get passport statistics
+ */
+passportRouter.get('/v1/passports/stats', async (_req, res) => {
+  try {
+    const manager = getPassportManager();
+    
+    const [total, models, compute, tools, datasets, agents, active, deprecated, revoked] = await Promise.all([
+      manager.getCount(),
+      manager.getCount({ type: 'model' }),
+      manager.getCount({ type: 'compute' }),
+      manager.getCount({ type: 'tool' }),
+      manager.getCount({ type: 'dataset' }),
+      manager.getCount({ type: 'agent' }),
+      manager.getCount({ status: 'active' }),
+      manager.getCount({ status: 'deprecated' }),
+      manager.getCount({ status: 'revoked' }),
+    ]);
+
+    return res.json({
+      success: true,
+      stats: {
+        total,
+        by_type: {
+          model: models,
+          compute,
+          tool: tools,
+          dataset: datasets,
+          agent: agents,
+        },
+        by_status: {
+          active,
+          deprecated,
+          revoked,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Error in GET /v1/passports/stats:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Internal server error',
+    });
+  }
+});
+
+/**
+ * GET /v1/passports/pending-sync
+ * Get passports pending on-chain sync
+ */
+passportRouter.get('/v1/passports/pending-sync', async (_req, res) => {
+  try {
+    const manager = getPassportManager();
+    const passports = await manager.getPendingSync();
+
+    return res.json({
+      success: true,
+      count: passports.length,
+      passports,
+    });
+  } catch (error) {
+    console.error('Error in GET /v1/passports/pending-sync:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Internal server error',
+    });
+  }
+});
+
 /**
  * POST /v1/passports
  * Create a new passport
@@ -575,76 +648,6 @@ passportRouter.post('/v1/passports/:passport_id/sync', async (req, res) => {
     });
   } catch (error) {
     console.error('Error in POST /v1/passports/:id/sync:', error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Internal server error',
-    });
-  }
-});
-
-/**
- * GET /v1/passports/pending-sync
- * Get passports pending on-chain sync
- */
-passportRouter.get('/v1/passports/pending-sync', async (_req, res) => {
-  try {
-    const manager = getPassportManager();
-    const passports = await manager.getPendingSync();
-
-    return res.json({
-      success: true,
-      count: passports.length,
-      passports,
-    });
-  } catch (error) {
-    console.error('Error in GET /v1/passports/pending-sync:', error);
-    return res.status(500).json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Internal server error',
-    });
-  }
-});
-
-/**
- * GET /v1/passports/stats
- * Get passport statistics
- */
-passportRouter.get('/v1/passports/stats', async (_req, res) => {
-  try {
-    const manager = getPassportManager();
-    
-    const [total, models, compute, tools, datasets, agents, active, deprecated, revoked] = await Promise.all([
-      manager.getCount(),
-      manager.getCount({ type: 'model' }),
-      manager.getCount({ type: 'compute' }),
-      manager.getCount({ type: 'tool' }),
-      manager.getCount({ type: 'dataset' }),
-      manager.getCount({ type: 'agent' }),
-      manager.getCount({ status: 'active' }),
-      manager.getCount({ status: 'deprecated' }),
-      manager.getCount({ status: 'revoked' }),
-    ]);
-
-    return res.json({
-      success: true,
-      stats: {
-        total,
-        by_type: {
-          model: models,
-          compute,
-          tool: tools,
-          dataset: datasets,
-          agent: agents,
-        },
-        by_status: {
-          active,
-          deprecated,
-          revoked,
-        },
-      },
-    });
-  } catch (error) {
-    console.error('Error in GET /v1/passports/stats:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',

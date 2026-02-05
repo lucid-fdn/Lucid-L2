@@ -1,7 +1,7 @@
 {
   "manifest_version": "0.3",
   "name": "raijin-labs",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "",
   "long_description": "LucidLayer API: LucidLayer Offchain API.\n\nThis OpenAPI spec is used to generate SDK clients.\n",
   "author": {
@@ -21,10 +21,168 @@
   "display_name": "Raijin Labs",
   "prompts": [],
   "keywords": [
-      "raijin",
-      "labs",
-      "lucidlayer",
-      "api",
-      "offchain"
-    ]
+    "raijin",
+    "labs",
+    "lucidlayer",
+    "api",
+    "offchain"
+  ],
+  "tools": [
+    {
+      "name": "lucid_create_passport",
+      "description": "Create a new passport (model/compute/tool/dataset/agent)."
+    },
+    {
+      "name": "lucid_list_passports",
+      "description": "List passports with filtering, sorting, and pagination."
+    },
+    {
+      "name": "lucid_get_passport",
+      "description": "Retrieve a passport by its passport_id."
+    },
+    {
+      "name": "lucid_update_passport",
+      "description": "Update an existing passport by passport_id."
+    },
+    {
+      "name": "lucid_delete_passport",
+      "description": "Soft-delete a passport by passport_id."
+    },
+    {
+      "name": "lucid_trigger_passport_sync",
+      "description": "Trigger on-chain sync for a passport."
+    },
+    {
+      "name": "lucid_list_passports_pending_sync",
+      "description": "List passports that are pending on-chain sync."
+    },
+    {
+      "name": "lucid_get_passport_stats",
+      "description": "Get passport statistics."
+    },
+    {
+      "name": "lucid_search_models",
+      "description": "Search model passports (ModelMeta filters)."
+    },
+    {
+      "name": "lucid_search_compute",
+      "description": "Search compute passports (ComputeMeta filters)."
+    },
+    {
+      "name": "lucid_match_explain",
+      "description": "Evaluate a policy against compute & model metadata and explain the decision."
+    },
+    {
+      "name": "lucid_match",
+      "description": "Match compute for a model given a compute catalog and policy constraints."
+    },
+    {
+      "name": "lucid_route",
+      "description": "Match + resolve an executable inference endpoint for a model."
+    },
+    {
+      "name": "lucid_run_inference",
+      "description": "Run inference through LucidLayer.\nNOTE: streaming responses may not be supported by all MCP clients.\n"
+    },
+    {
+      "name": "lucid_chat_completions",
+      "description": "OpenAI-compatible chat completions routed through LucidLayer."
+    },
+    {
+      "name": "lucid_heartbeat",
+      "description": "Submit a compute node heartbeat to update live state."
+    },
+    {
+      "name": "lucid_get_health",
+      "description": "Get the current health state of a compute node."
+    },
+    {
+      "name": "lucid_create_receipt",
+      "description": "Create a receipt and append it to the receipt MMR."
+    },
+    {
+      "name": "lucid_get_receipt",
+      "description": "Retrieve a receipt by receipt_id."
+    },
+    {
+      "name": "lucid_verify_receipt",
+      "description": "Verify a receipt (hash + signature + inclusion proof)."
+    },
+    {
+      "name": "lucid_get_receipt_proof",
+      "description": "Get the inclusion proof for a receipt."
+    },
+    {
+      "name": "lucid_get_mmr_root",
+      "description": "Get the current MMR root and leaf count."
+    },
+    {
+      "name": "lucid_get_signer_pubkey",
+      "description": "Get the orchestrator signing public key."
+    },
+    {
+      "name": "lucid_get_current_epoch",
+      "description": "Get the current epoch."
+    },
+    {
+      "name": "lucid_list_epochs",
+      "description": "List epochs."
+    },
+    {
+      "name": "lucid_create_epoch",
+      "description": "Create a new epoch."
+    },
+    {
+      "name": "lucid_get_epoch",
+      "description": "Get an epoch by epoch_id."
+    },
+    {
+      "name": "lucid_retry_epoch",
+      "description": "Retry a failed epoch."
+    },
+    {
+      "name": "lucid_verify_epoch",
+      "description": "Verify an epoch anchor."
+    },
+    {
+      "name": "lucid_get_epoch_transaction",
+      "description": "Get epoch anchoring transaction."
+    },
+    {
+      "name": "lucid_commit_epoch_root",
+      "description": "Commit an epoch root to chain."
+    },
+    {
+      "name": "lucid_commit_epoch_roots_batch",
+      "description": "Commit multiple epoch roots."
+    },
+    {
+      "name": "lucid_get_anchoring_health",
+      "description": "Health check for anchoring service."
+    },
+    {
+      "name": "lucid_list_epochs_ready",
+      "description": "List epochs ready for finalization."
+    },
+    {
+      "name": "lucid_get_epoch_stats",
+      "description": "Get epoch statistics."
+    },
+    {
+      "name": "lucid_calculate_payout",
+      "description": "Calculate payout split between recipients."
+    },
+    {
+      "name": "lucid_payout_from_receipt",
+      "description": "Create payout split from receipt token data."
+    },
+    {
+      "name": "lucid_get_payout",
+      "description": "Get payout for a run_id."
+    },
+    {
+      "name": "lucid_verify_payout",
+      "description": "Verify payout split integrity."
+    }
+  ]
 }

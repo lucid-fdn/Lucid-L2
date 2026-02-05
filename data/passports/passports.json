@@ -1,0 +1,1066 @@
+{
+  "version": "1.0",
+  "last_updated": 1770135781759,
+  "passports": {
+    "passport_3007eb2e89104348be5ff62673890d6a": {
+      "passport_id": "passport_3007eb2e89104348be5ff62673890d6a",
+      "type": "model",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "schema_version": "1.0",
+        "model_passport_id": "passport_3007eb2e89104348be5ff62673890d6a",
+        "format": "safetensors",
+        "runtime_recommended": "vllm",
+        "base": "hf",
+        "hf": {
+          "repo_id": "meta-llama/Llama-3.1-8B-Instruct"
+        },
+        "context_length": 128000,
+        "requirements": {
+          "min_vram_gb": 24
+        }
+      },
+      "name": "Demo Model - Llama 3.1 8B",
+      "description": "A sample model passport created via SDK quickstart",
+      "version": "1.0.0",
+      "tags": [
+        "demo",
+        "sdk",
+        "quickstart"
+      ],
+      "status": "revoked",
+      "created_at": 1769533020994,
+      "updated_at": 1769533042532
+    },
+    "passport_97dfcdd3852b480491554bb2219b1e2b": {
+      "passport_id": "passport_97dfcdd3852b480491554bb2219b1e2b",
+      "type": "model",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "schema_version": "1.0",
+        "model_passport_id": "passport_97dfcdd3852b480491554bb2219b1e2b",
+        "format": "safetensors",
+        "runtime_recommended": "vllm",
+        "base": "hf",
+        "hf": {
+          "repo_id": "meta-llama/Llama-3.1-8B-Instruct"
+        },
+        "context_length": 128000,
+        "requirements": {
+          "min_vram_gb": 24
+        }
+      },
+      "name": "Demo Model - Llama 3.1 8B",
+      "description": "A sample model passport created via SDK quickstart",
+      "version": "1.0.0",
+      "tags": [
+        "demo",
+        "sdk",
+        "quickstart"
+      ],
+      "status": "revoked",
+      "created_at": 1769533111999,
+      "updated_at": 1769533112033
+    },
+    "passport_8911a74b8fa84976890562c0d7213377": {
+      "passport_id": "passport_8911a74b8fa84976890562c0d7213377",
+      "type": "model",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "schema_version": "1.0",
+        "model_passport_id": "passport_8911a74b8fa84976890562c0d7213377",
+        "format": "safetensors",
+        "runtime_recommended": "vllm",
+        "base": "hf",
+        "hf": {
+          "repo_id": "meta-llama/Llama-3.1-8B-Instruct",
+          "revision": "main"
+        },
+        "context_length": 131072,
+        "quantizations": [
+          "fp16",
+          "int8"
+        ],
+        "requirements": {
+          "min_vram_gb": 24,
+          "gpu_classes": [
+            "A100",
+            "H100"
+          ],
+          "cuda_min": "11.8"
+        }
+      },
+      "name": "Llama-3.1-8B-Instruct",
+      "description": "Meta's Llama 3.1 8B Instruct model",
+      "version": "1.0.0",
+      "tags": [
+        "llama",
+        "instruct",
+        "8b",
+        "meta"
+      ],
+      "status": "revoked",
+      "created_at": 1769533126375,
+      "updated_at": 1769533127646
+    },
+    "passport_e5eac487fe7147798f48de7d6cb007b4": {
+      "passport_id": "passport_e5eac487fe7147798f48de7d6cb007b4",
+      "type": "compute",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_e5eac487fe7147798f48de7d6cb007b4",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "A100-80GB",
+          "vram_gb": 80,
+          "arch": "ampere"
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0"
+          },
+          {
+            "name": "tgi",
+            "version": "2.0.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "https://compute.example.com/v1/completions"
+        },
+        "capabilities": {
+          "supports_streaming": true,
+          "supports_attestation": false,
+          "supports_cc_on": false
+        },
+        "network": {
+          "p95_ms_estimate": 250,
+          "bandwidth": "10Gbps"
+        },
+        "limits": {
+          "max_context": 131072,
+          "max_batch": 64
+        },
+        "pricing": {
+          "price_per_1k_tokens_estimate": 0.0015,
+          "price_per_minute_estimate": 0.05
+        }
+      },
+      "name": "GPU-Node-A100-US-East",
+      "description": "NVIDIA A100 80GB node in US-East",
+      "version": "1.0.0",
+      "tags": [
+        "a100",
+        "80gb",
+        "us-east",
+        "vllm"
+      ],
+      "status": "active",
+      "created_at": 1769533126451,
+      "updated_at": 1769533126451
+    },
+    "passport_1ddd15faa5a44b40b94712c000131a35": {
+      "passport_id": "passport_1ddd15faa5a44b40b94712c000131a35",
+      "type": "model",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "schema_version": "1.0",
+        "model_passport_id": "passport_1ddd15faa5a44b40b94712c000131a35",
+        "format": "safetensors",
+        "runtime_recommended": "vllm",
+        "base": "hf",
+        "hf": {
+          "repo_id": "meta-llama/Llama-3.1-8B-Instruct",
+          "revision": "main"
+        },
+        "context_length": 131072,
+        "quantizations": [
+          "fp16",
+          "int8"
+        ],
+        "requirements": {
+          "min_vram_gb": 24,
+          "gpu_classes": [
+            "A100",
+            "H100"
+          ],
+          "cuda_min": "11.8"
+        }
+      },
+      "name": "Llama-3.1-8B-Instruct",
+      "description": "Meta's Llama 3.1 8B Instruct model",
+      "version": "1.0.0",
+      "tags": [
+        "llama",
+        "instruct",
+        "8b",
+        "meta"
+      ],
+      "status": "revoked",
+      "created_at": 1769593715909,
+      "updated_at": 1769593716390
+    },
+    "passport_679e63dfe1464e15ae042d181ae9e2df": {
+      "passport_id": "passport_679e63dfe1464e15ae042d181ae9e2df",
+      "type": "compute",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_679e63dfe1464e15ae042d181ae9e2df",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "A100-80GB",
+          "vram_gb": 80,
+          "arch": "ampere"
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0"
+          },
+          {
+            "name": "tgi",
+            "version": "2.0.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "https://compute.example.com/v1/completions"
+        },
+        "capabilities": {
+          "supports_streaming": true,
+          "supports_attestation": false,
+          "supports_cc_on": false
+        },
+        "network": {
+          "p95_ms_estimate": 250,
+          "bandwidth": "10Gbps"
+        },
+        "limits": {
+          "max_context": 131072,
+          "max_batch": 64
+        },
+        "pricing": {
+          "price_per_1k_tokens_estimate": 0.0015,
+          "price_per_minute_estimate": 0.05
+        }
+      },
+      "name": "GPU-Node-A100-US-East",
+      "description": "NVIDIA A100 80GB node in US-East",
+      "version": "1.0.0",
+      "tags": [
+        "a100",
+        "80gb",
+        "us-east",
+        "vllm"
+      ],
+      "status": "active",
+      "created_at": 1769593715959,
+      "updated_at": 1769593715959
+    },
+    "passport_3c9e52e43d884cdda7c54a107f19ceee": {
+      "passport_id": "passport_3c9e52e43d884cdda7c54a107f19ceee",
+      "type": "model",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "description": "Updated description - Meta's Llama 3.1 8B",
+      "tags": [
+        "llama",
+        "instruct",
+        "8b",
+        "meta",
+        "updated"
+      ],
+      "status": "revoked",
+      "created_at": 1769607997126,
+      "updated_at": 1769607997752
+    },
+    "passport_5b88d7f790504171b975e0a875cbb999": {
+      "passport_id": "passport_5b88d7f790504171b975e0a875cbb999",
+      "type": "compute",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_5b88d7f790504171b975e0a875cbb999",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "A100-80GB",
+          "vram_gb": 80,
+          "arch": "ampere"
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0"
+          },
+          {
+            "name": "tgi",
+            "version": "2.0.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "https://compute.example.com/v1/completions"
+        },
+        "capabilities": {
+          "supports_streaming": true,
+          "supports_attestation": false,
+          "supports_cc_on": false
+        },
+        "network": {
+          "p95_ms_estimate": 250,
+          "bandwidth": "10Gbps"
+        },
+        "limits": {
+          "max_context": 131072,
+          "max_batch": 64
+        },
+        "pricing": {
+          "price_per_1k_tokens_estimate": 0.0015,
+          "price_per_minute_estimate": 0.05
+        }
+      },
+      "name": "GPU-Node-A100-US-East",
+      "description": "NVIDIA A100 80GB node in US-East",
+      "version": "1.0.0",
+      "tags": [
+        "a100",
+        "80gb",
+        "us-east",
+        "vllm"
+      ],
+      "status": "active",
+      "created_at": 1769607997174,
+      "updated_at": 1769607997174
+    },
+    "passport_6981ee06ee1e4811b059ae53092c1bfa": {
+      "passport_id": "passport_6981ee06ee1e4811b059ae53092c1bfa",
+      "type": "model",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "description": "Updated description - Meta's Llama 3.1 8B",
+      "tags": [
+        "llama",
+        "instruct",
+        "8b",
+        "meta",
+        "updated"
+      ],
+      "status": "revoked",
+      "created_at": 1769608523917,
+      "updated_at": 1769608525063
+    },
+    "passport_19e0d47bb75e4d378a1d3ec292dafd17": {
+      "passport_id": "passport_19e0d47bb75e4d378a1d3ec292dafd17",
+      "type": "compute",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_19e0d47bb75e4d378a1d3ec292dafd17",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "A100-80GB",
+          "vram_gb": 80,
+          "arch": "ampere"
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0"
+          },
+          {
+            "name": "tgi",
+            "version": "2.0.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "https://compute.example.com/v1/completions"
+        },
+        "capabilities": {
+          "supports_streaming": true,
+          "supports_attestation": false,
+          "supports_cc_on": false
+        },
+        "network": {
+          "p95_ms_estimate": 250,
+          "bandwidth": "10Gbps"
+        },
+        "limits": {
+          "max_context": 131072,
+          "max_batch": 64
+        },
+        "pricing": {
+          "price_per_1k_tokens_estimate": 0.0015,
+          "price_per_minute_estimate": 0.05
+        }
+      },
+      "name": "GPU-Node-A100-US-East",
+      "description": "NVIDIA A100 80GB node in US-East",
+      "version": "1.0.0",
+      "tags": [
+        "a100",
+        "80gb",
+        "us-east",
+        "vllm"
+      ],
+      "status": "active",
+      "created_at": 1769608523962,
+      "updated_at": 1769608523962
+    },
+    "passport_a24a56cad6c54130944ac488356302ad": {
+      "passport_id": "passport_a24a56cad6c54130944ac488356302ad",
+      "type": "model",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "description": "Updated description - Meta's Llama 3.1 8B",
+      "tags": [
+        "llama",
+        "instruct",
+        "8b",
+        "meta",
+        "updated"
+      ],
+      "status": "revoked",
+      "created_at": 1769610046344,
+      "updated_at": 1769610047009
+    },
+    "passport_e7779197c436424aa54db276d73fd011": {
+      "passport_id": "passport_e7779197c436424aa54db276d73fd011",
+      "type": "compute",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_e7779197c436424aa54db276d73fd011",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "A100-80GB",
+          "vram_gb": 80,
+          "arch": "ampere"
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0"
+          },
+          {
+            "name": "tgi",
+            "version": "2.0.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "https://compute.example.com/v1/completions"
+        },
+        "capabilities": {
+          "supports_streaming": true,
+          "supports_attestation": false,
+          "supports_cc_on": false
+        },
+        "network": {
+          "p95_ms_estimate": 250,
+          "bandwidth": "10Gbps"
+        },
+        "limits": {
+          "max_context": 131072,
+          "max_batch": 64
+        },
+        "pricing": {
+          "price_per_1k_tokens_estimate": 0.0015,
+          "price_per_minute_estimate": 0.05
+        }
+      },
+      "name": "GPU-Node-A100-US-East",
+      "description": "NVIDIA A100 80GB node in US-East",
+      "version": "1.0.0",
+      "tags": [
+        "a100",
+        "80gb",
+        "us-east",
+        "vllm"
+      ],
+      "status": "active",
+      "created_at": 1769610046387,
+      "updated_at": 1769610046387
+    },
+    "passport_c78a31e85c8343268ae260550b99c830": {
+      "passport_id": "passport_c78a31e85c8343268ae260550b99c830",
+      "type": "model",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "description": "Updated description - Meta's Llama 3.1 8B",
+      "tags": [
+        "llama",
+        "instruct",
+        "8b",
+        "meta",
+        "updated"
+      ],
+      "status": "revoked",
+      "created_at": 1769686990451,
+      "updated_at": 1769686991495
+    },
+    "passport_1389f028a89943c28d9ab67b3075096d": {
+      "passport_id": "passport_1389f028a89943c28d9ab67b3075096d",
+      "type": "compute",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_1389f028a89943c28d9ab67b3075096d",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "A100-80GB",
+          "vram_gb": 80,
+          "arch": "ampere"
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0"
+          },
+          {
+            "name": "tgi",
+            "version": "2.0.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "https://compute.example.com/v1/completions"
+        },
+        "capabilities": {
+          "supports_streaming": true,
+          "supports_attestation": false,
+          "supports_cc_on": false
+        },
+        "network": {
+          "p95_ms_estimate": 250,
+          "bandwidth": "10Gbps"
+        },
+        "limits": {
+          "max_context": 131072,
+          "max_batch": 64
+        },
+        "pricing": {
+          "price_per_1k_tokens_estimate": 0.0015,
+          "price_per_minute_estimate": 0.05
+        }
+      },
+      "name": "GPU-Node-A100-US-East",
+      "description": "NVIDIA A100 80GB node in US-East",
+      "version": "1.0.0",
+      "tags": [
+        "a100",
+        "80gb",
+        "us-east",
+        "vllm"
+      ],
+      "status": "active",
+      "created_at": 1769686990504,
+      "updated_at": 1769686990504
+    },
+    "passport_9082d835100d469292a8358c51b83c16": {
+      "passport_id": "passport_9082d835100d469292a8358c51b83c16",
+      "type": "model",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "description": "Updated description - Meta's Llama 3.1 8B",
+      "tags": [
+        "llama",
+        "instruct",
+        "8b",
+        "meta",
+        "updated"
+      ],
+      "status": "revoked",
+      "created_at": 1769687017306,
+      "updated_at": 1769687018340
+    },
+    "passport_702619d34f354f0c80661cd7c72dc0a8": {
+      "passport_id": "passport_702619d34f354f0c80661cd7c72dc0a8",
+      "type": "compute",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_702619d34f354f0c80661cd7c72dc0a8",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "A100-80GB",
+          "vram_gb": 80,
+          "arch": "ampere"
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0"
+          },
+          {
+            "name": "tgi",
+            "version": "2.0.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "https://compute.example.com/v1/completions"
+        },
+        "capabilities": {
+          "supports_streaming": true,
+          "supports_attestation": false,
+          "supports_cc_on": false
+        },
+        "network": {
+          "p95_ms_estimate": 250,
+          "bandwidth": "10Gbps"
+        },
+        "limits": {
+          "max_context": 131072,
+          "max_batch": 64
+        },
+        "pricing": {
+          "price_per_1k_tokens_estimate": 0.0015,
+          "price_per_minute_estimate": 0.05
+        }
+      },
+      "name": "GPU-Node-A100-US-East",
+      "description": "NVIDIA A100 80GB node in US-East",
+      "version": "1.0.0",
+      "tags": [
+        "a100",
+        "80gb",
+        "us-east",
+        "vllm"
+      ],
+      "status": "active",
+      "created_at": 1769687017356,
+      "updated_at": 1769687017356
+    },
+    "passport_1da372c95e0b498292cb4bb33234c9b8": {
+      "passport_id": "passport_1da372c95e0b498292cb4bb33234c9b8",
+      "type": "model",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "description": "Updated description - Meta's Llama 3.1 8B",
+      "tags": [
+        "llama",
+        "instruct",
+        "8b",
+        "meta",
+        "updated"
+      ],
+      "created_at": 1769691375876,
+      "updated_at": 1769691376018
+    },
+    "passport_2ee1b5a001274521917a49c2ed39cc9f": {
+      "passport_id": "passport_2ee1b5a001274521917a49c2ed39cc9f",
+      "type": "compute",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_2ee1b5a001274521917a49c2ed39cc9f",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "A100-80GB",
+          "vram_gb": 80,
+          "arch": "ampere"
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0"
+          },
+          {
+            "name": "tgi",
+            "version": "2.0.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "https://compute.example.com/v1/completions"
+        },
+        "capabilities": {
+          "supports_streaming": true,
+          "supports_attestation": false,
+          "supports_cc_on": false
+        },
+        "network": {
+          "p95_ms_estimate": 250,
+          "bandwidth": "10Gbps"
+        },
+        "limits": {
+          "max_context": 131072,
+          "max_batch": 64
+        },
+        "pricing": {
+          "price_per_1k_tokens_estimate": 0.0015,
+          "price_per_minute_estimate": 0.05
+        }
+      },
+      "name": "GPU-Node-A100-US-East",
+      "description": "NVIDIA A100 80GB node in US-East",
+      "version": "1.0.0",
+      "tags": [
+        "a100",
+        "80gb",
+        "us-east",
+        "vllm"
+      ],
+      "status": "active",
+      "created_at": 1769691375950,
+      "updated_at": 1769691375950
+    },
+    "passport_d3b64afcccbe4d9289199ce50fe3cfbf": {
+      "passport_id": "passport_d3b64afcccbe4d9289199ce50fe3cfbf",
+      "type": "model",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "description": "Updated description - Meta's Llama 3.1 8B",
+      "tags": [
+        "llama",
+        "instruct",
+        "8b",
+        "meta",
+        "updated"
+      ],
+      "status": "revoked",
+      "created_at": 1769691397042,
+      "updated_at": 1769691397555
+    },
+    "passport_963f9c6a8a5f4eefadf4bab7f05d88eb": {
+      "passport_id": "passport_963f9c6a8a5f4eefadf4bab7f05d88eb",
+      "type": "compute",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_963f9c6a8a5f4eefadf4bab7f05d88eb",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "A100-80GB",
+          "vram_gb": 80,
+          "arch": "ampere"
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0"
+          },
+          {
+            "name": "tgi",
+            "version": "2.0.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "https://compute.example.com/v1/completions"
+        },
+        "capabilities": {
+          "supports_streaming": true,
+          "supports_attestation": false,
+          "supports_cc_on": false
+        },
+        "network": {
+          "p95_ms_estimate": 250,
+          "bandwidth": "10Gbps"
+        },
+        "limits": {
+          "max_context": 131072,
+          "max_batch": 64
+        },
+        "pricing": {
+          "price_per_1k_tokens_estimate": 0.0015,
+          "price_per_minute_estimate": 0.05
+        }
+      },
+      "name": "GPU-Node-A100-US-East",
+      "description": "NVIDIA A100 80GB node in US-East",
+      "version": "1.0.0",
+      "tags": [
+        "a100",
+        "80gb",
+        "us-east",
+        "vllm"
+      ],
+      "status": "active",
+      "created_at": 1769691397102,
+      "updated_at": 1769691397102
+    },
+    "passport_59851b2d656d42dc8688e11333664ccf": {
+      "passport_id": "passport_59851b2d656d42dc8688e11333664ccf",
+      "type": "model",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "description": "Updated description - Meta's Llama 3.1 8B",
+      "tags": [
+        "llama",
+        "instruct",
+        "8b",
+        "meta",
+        "updated"
+      ],
+      "status": "revoked",
+      "created_at": 1769691815142,
+      "updated_at": 1769691816089
+    },
+    "passport_c77e93d085fe4fcc8c676c0e33ddec6d": {
+      "passport_id": "passport_c77e93d085fe4fcc8c676c0e33ddec6d",
+      "type": "compute",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_c77e93d085fe4fcc8c676c0e33ddec6d",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "A100-80GB",
+          "vram_gb": 80,
+          "arch": "ampere"
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0"
+          },
+          {
+            "name": "tgi",
+            "version": "2.0.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "https://compute.example.com/v1/completions"
+        },
+        "capabilities": {
+          "supports_streaming": true,
+          "supports_attestation": false,
+          "supports_cc_on": false
+        },
+        "network": {
+          "p95_ms_estimate": 250,
+          "bandwidth": "10Gbps"
+        },
+        "limits": {
+          "max_context": 131072,
+          "max_batch": 64
+        },
+        "pricing": {
+          "price_per_1k_tokens_estimate": 0.0015,
+          "price_per_minute_estimate": 0.05
+        }
+      },
+      "name": "GPU-Node-A100-US-East",
+      "description": "NVIDIA A100 80GB node in US-East",
+      "version": "1.0.0",
+      "tags": [
+        "a100",
+        "80gb",
+        "us-east",
+        "vllm"
+      ],
+      "status": "active",
+      "created_at": 1769691815253,
+      "updated_at": 1769691815253
+    },
+    "passport_dc52d74ad15d400ba521a166bdc5edb3": {
+      "passport_id": "passport_dc52d74ad15d400ba521a166bdc5edb3",
+      "type": "model",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "description": "Updated description - Meta's Llama 3.1 8B",
+      "tags": [
+        "llama",
+        "instruct",
+        "8b",
+        "meta",
+        "updated"
+      ],
+      "status": "revoked",
+      "created_at": 1769726409756,
+      "updated_at": 1769726410605
+    },
+    "passport_28d9bb700526483ca63b030b1de87d09": {
+      "passport_id": "passport_28d9bb700526483ca63b030b1de87d09",
+      "type": "compute",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_28d9bb700526483ca63b030b1de87d09",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "A100-80GB",
+          "vram_gb": 80,
+          "arch": "ampere"
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0"
+          },
+          {
+            "name": "tgi",
+            "version": "2.0.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "https://compute.example.com/v1/completions"
+        },
+        "capabilities": {
+          "supports_streaming": true,
+          "supports_attestation": false,
+          "supports_cc_on": false
+        },
+        "network": {
+          "p95_ms_estimate": 250,
+          "bandwidth": "10Gbps"
+        },
+        "limits": {
+          "max_context": 131072,
+          "max_batch": 64
+        },
+        "pricing": {
+          "price_per_1k_tokens_estimate": 0.0015,
+          "price_per_minute_estimate": 0.05
+        }
+      },
+      "name": "GPU-Node-A100-US-East",
+      "description": "NVIDIA A100 80GB node in US-East",
+      "version": "1.0.0",
+      "tags": [
+        "a100",
+        "80gb",
+        "us-east",
+        "vllm"
+      ],
+      "status": "active",
+      "created_at": 1769726409821,
+      "updated_at": 1769726409821
+    },
+    "passport_e071242835e74ddb9dd1bf15f2537ef8": {
+      "passport_id": "passport_e071242835e74ddb9dd1bf15f2537ef8",
+      "type": "model",
+      "owner": "6bNmSCTrNFBmrARzhYb8svwLNFFCtTCh24VEquXnvk4K",
+      "metadata": {
+        "schema_version": "1.0",
+        "model_passport_id": "passport_e071242835e74ddb9dd1bf15f2537ef8",
+        "name": "GPT-3.5 Turbo",
+        "description": "OpenAI GPT-3.5 Turbo via LLM-Proxy",
+        "format": "api",
+        "runtime_recommended": "llmproxy",
+        "base": "openai",
+        "context_length": 16385,
+        "provider": "llm-proxy",
+        "requirements": {
+          "min_vram_gb": 0
+        }
+      },
+      "tags": [],
+      "status": "active",
+      "created_at": 1770135754060,
+      "updated_at": 1770135754060
+    },
+    "passport_3a5a75699a45462eaf7e2fa9f197d4da": {
+      "passport_id": "passport_3a5a75699a45462eaf7e2fa9f197d4da",
+      "type": "model",
+      "owner": "6bNmSCTrNFBmrARzhYb8svwLNFFCtTCh24VEquXnvk4K",
+      "metadata": {
+        "schema_version": "1.0",
+        "model_passport_id": "passport_3a5a75699a45462eaf7e2fa9f197d4da",
+        "name": "GPT-3.5 Turbo",
+        "description": "OpenAI GPT-3.5 Turbo via LLM-Proxy",
+        "format": "api",
+        "runtime_recommended": "llmproxy",
+        "base": "openai",
+        "context_length": 16385,
+        "provider": "llm-proxy",
+        "requirements": {
+          "min_vram_gb": 0
+        }
+      },
+      "tags": [],
+      "status": "active",
+      "created_at": 1770135763800,
+      "updated_at": 1770135763800
+    },
+    "passport_308bd638940b4cad9079bb115a7b0bf0": {
+      "passport_id": "passport_308bd638940b4cad9079bb115a7b0bf0",
+      "type": "model",
+      "owner": "6bNmSCTrNFBmrARzhYb8svwLNFFCtTCh24VEquXnvk4K",
+      "metadata": {
+        "schema_version": "1.0",
+        "model_passport_id": "passport_308bd638940b4cad9079bb115a7b0bf0",
+        "name": "GPT-4",
+        "description": "OpenAI GPT-4 via LLM-Proxy",
+        "format": "api",
+        "runtime_recommended": "llmproxy",
+        "base": "openai",
+        "context_length": 128000,
+        "provider": "llm-proxy",
+        "requirements": {
+          "min_vram_gb": 0
+        }
+      },
+      "tags": [],
+      "status": "active",
+      "created_at": 1770135781018,
+      "updated_at": 1770135781018
+    },
+    "passport_65a9c40a9e3a47e3acbbe6a3badc4f3c": {
+      "passport_id": "passport_65a9c40a9e3a47e3acbbe6a3badc4f3c",
+      "type": "model",
+      "owner": "6bNmSCTrNFBmrARzhYb8svwLNFFCtTCh24VEquXnvk4K",
+      "metadata": {
+        "schema_version": "1.0",
+        "model_passport_id": "passport_65a9c40a9e3a47e3acbbe6a3badc4f3c",
+        "name": "GPT-4o",
+        "description": "OpenAI GPT-4o via LLM-Proxy",
+        "format": "api",
+        "runtime_recommended": "llmproxy",
+        "base": "openai",
+        "context_length": 128000,
+        "provider": "llm-proxy",
+        "requirements": {
+          "min_vram_gb": 0
+        }
+      },
+      "tags": [],
+      "status": "active",
+      "created_at": 1770135781032,
+      "updated_at": 1770135781032
+    },
+    "passport_b55b5d0407904d42b728a6f0fbdaa6dd": {
+      "passport_id": "passport_b55b5d0407904d42b728a6f0fbdaa6dd",
+      "type": "model",
+      "owner": "6bNmSCTrNFBmrARzhYb8svwLNFFCtTCh24VEquXnvk4K",
+      "metadata": {
+        "schema_version": "1.0",
+        "model_passport_id": "passport_b55b5d0407904d42b728a6f0fbdaa6dd",
+        "name": "Claude 3 Sonnet",
+        "description": "Anthropic Claude 3 Sonnet via LLM-Proxy",
+        "format": "api",
+        "runtime_recommended": "llmproxy",
+        "base": "anthropic",
+        "context_length": 200000,
+        "provider": "llm-proxy",
+        "requirements": {
+          "min_vram_gb": 0
+        }
+      },
+      "tags": [],
+      "status": "active",
+      "created_at": 1770135781045,
+      "updated_at": 1770135781045
+    }
+  }
+}

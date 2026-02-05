@@ -5,6 +5,7 @@
  * @privy-io/server-auth is only for authentication verification, not wallet management
  */
 
+import fs from 'fs';
 import { PrivyClient } from '@privy-io/node';
 import { PrivyCredentials } from './types';
 
@@ -20,7 +21,6 @@ export class PrivyRestClient {
     this.privateKeyContent = credentials.authPrivateKey;
     if (credentials.authPrivateKey.startsWith('/') || credentials.authPrivateKey.startsWith('./')) {
       try {
-        const fs = require('fs');
         this.privateKeyContent = fs.readFileSync(credentials.authPrivateKey, 'utf8');
         console.log(`📄 Loaded private key from file: ${credentials.authPrivateKey}`);
       } catch (error) {
