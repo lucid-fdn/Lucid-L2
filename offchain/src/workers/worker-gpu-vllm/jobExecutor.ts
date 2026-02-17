@@ -32,6 +32,7 @@ import type {
   ExtendedRunReceiptInput,
   JobOutput,
 } from '../../types/fluidCompute';
+import { mapToV0ErrorCode } from '../../types/fluidCompute';
 import { createExtendedReceipt, ExtendedSignedReceipt } from '../../services/receiptService';
 
 /**
@@ -241,7 +242,8 @@ export class JobExecutor {
       outputs_hash: jobState.result?.outputs_hash,
       metrics: jobState.result?.metrics,
       error: jobState.error_code ? {
-        code: jobState.error_code,
+        // Map to v0.2 simplified error codes for client response
+        code: mapToV0ErrorCode(jobState.error_code),
         message: jobState.error_message || 'Unknown error',
       } : undefined,
       receipt_id: jobState.receipt?.run_id,

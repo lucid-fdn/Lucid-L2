@@ -55,6 +55,10 @@
       "type": "string",
       "description": "On-chain ComputeOfferPassport ID (Solana PDA). Links execution to specific compute offer for verifiable matching."
     },
+    "model_revision": {
+      "type": "string",
+      "description": "Model revision (commit SHA or tag) for auditability. For HF models: commit SHA or revision tag."
+    },
     "runtime": { 
       "type": "string",
       "description": "Runtime type used (e.g., 'vllm', 'tgi', 'hf-inference-api')"
@@ -73,8 +77,8 @@
     },
     "execution_mode": {
       "type": "string",
-      "enum": ["byo_runtime", "managed_endpoint"],
-      "description": "Execution mode used. byo_runtime = full attestation, managed_endpoint = limited attestation"
+      "enum": ["byo_runtime", "managed_endpoint", "runpod_serverless"],
+      "description": "Execution mode used. byo_runtime = full attestation, managed_endpoint = limited attestation, runpod_serverless = container-controlled serverless execution"
     },
     "job_hash": {
       "type": "string",
@@ -97,7 +101,37 @@
     },
     "gpu_fingerprint": {
       "type": ["string", "null"],
-      "description": "GPU hardware fingerprint. MUST be null for managed_endpoint mode. Format: 'NVIDIA-A100-40GB'"
+      "description": "GPU hardware fingerprint. MUST be null for managed_endpoint mode. For byo_runtime: specific hardware ID. For runpod_serverless: GPU type only (e.g., 'NVIDIA A10G')."
+    },
+    "capacity_bucket": {
+      "type": "string",
+      "description": "Capacity bucket name (runpod_serverless mode). Maps to YAML-defined endpoint configuration."
+    },
+    "endpoint_id": {
+      "type": "string",
+      "description": "RunPod endpoint ID (runpod_serverless mode). This is the trust boundary / compute passport."
+    },
+    "billing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "compute_seconds": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total compute time in seconds"
+        },
+        "gpu_type": {
+          "type": "string",
+          "description": "GPU type used for execution"
+        },
+        "cost_usd": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Total cost in USD"
+        }
+      },
+      "required": ["compute_seconds", "gpu_type", "cost_usd"],
+      "description": "Billing details for cost transparency (runpod_serverless mode)"
     },
     "outputs_hash": {
       "type": "string",
@@ -161,7 +195,17 @@
         "queue_wait_ms": {
           "type": "integer",
           "minimum": 0,
-          "description": "Time spent waiting in queue"
+          "description": "Time spent waiting in queue (legacy, use queue_time_ms for runpod_serverless)"
+        },
+        "queue_time_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Time spent in queue before worker picked up job (runpod_serverless)"
+        },
+        "cold_start_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Cold start time if worker was scaled from zero (runpod_serverless). 0 = warm worker."
         },
         "model_load_ms": {
           "type": "integer",

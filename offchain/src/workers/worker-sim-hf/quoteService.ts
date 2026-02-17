@@ -26,10 +26,13 @@ interface ModelPricing {
   per_output_token: number;
   minimum_charge: number;
   currency: 'lamports' | 'usd_cents' | 'credits';
+  /** GPU rate per second in USD (for runpod_serverless billing) */
+  gpu_rate_per_sec?: number;
 }
 
 /**
  * Default pricing for popular models (in lamports)
+ * gpu_rate_per_sec is in USD for runpod_serverless billing transparency
  */
 const MODEL_PRICING: Record<string, ModelPricing> = {
   // Meta Llama models
@@ -38,12 +41,14 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
     per_output_token: 15,
     minimum_charge: 1000,
     currency: 'lamports',
+    gpu_rate_per_sec: 0.000231, // A10G tier
   },
   'meta-llama/Meta-Llama-3.1-70B-Instruct': {
     per_input_token: 50,
     per_output_token: 150,
     minimum_charge: 5000,
     currency: 'lamports',
+    gpu_rate_per_sec: 0.000556, // A100-80GB tier
   },
   // Mistral models
   'mistralai/Mistral-7B-Instruct-v0.3': {
@@ -51,12 +56,14 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
     per_output_token: 15,
     minimum_charge: 1000,
     currency: 'lamports',
+    gpu_rate_per_sec: 0.000231, // A10G tier
   },
   'mistralai/Mixtral-8x7B-Instruct-v0.1': {
     per_input_token: 20,
     per_output_token: 60,
     minimum_charge: 2000,
     currency: 'lamports',
+    gpu_rate_per_sec: 0.000386, // A100-40GB tier
   },
   // Microsoft Phi
   'microsoft/Phi-3-mini-4k-instruct': {
@@ -64,6 +71,7 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
     per_output_token: 10,
     minimum_charge: 500,
     currency: 'lamports',
+    gpu_rate_per_sec: 0.000122, // RTX 4090 tier
   },
   // Qwen
   'Qwen/Qwen2.5-72B-Instruct': {
@@ -71,6 +79,7 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
     per_output_token: 150,
     minimum_charge: 5000,
     currency: 'lamports',
+    gpu_rate_per_sec: 0.000556, // A100-80GB tier
   },
   // Google Gemma
   'google/gemma-2-9b-it': {
@@ -78,6 +87,7 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
     per_output_token: 24,
     minimum_charge: 1500,
     currency: 'lamports',
+    gpu_rate_per_sec: 0.000231, // A10G tier
   },
 };
 
@@ -89,6 +99,7 @@ const DEFAULT_PRICING: ModelPricing = {
   per_output_token: 30,
   minimum_charge: 2000,
   currency: 'lamports',
+  gpu_rate_per_sec: 0.000231, // Default to A10G tier
 };
 
 /**
@@ -150,7 +161,10 @@ export class QuoteService {
       price: {
         amount: totalCost,
         currency: pricing.currency,
+        gpu_rate_per_sec: pricing.gpu_rate_per_sec,
       },
+      // Include capacity_bucket if worker has one (for runpod_serverless)
+      capacity_bucket: this.workerIdentity.capacity_bucket,
       expires_at,
       capacity_hint: this.getCapacityHint(),
       worker_pubkey: getOrchestratorPublicKey(),

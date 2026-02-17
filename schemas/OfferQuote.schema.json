@@ -69,9 +69,18 @@
           "type": "string",
           "enum": ["lamports", "usd_cents", "credits"],
           "description": "Currency for the price. lamports = Solana, usd_cents = USD in cents, credits = internal credits"
+        },
+        "gpu_rate_per_sec": {
+          "type": "number",
+          "minimum": 0,
+          "description": "GPU rate per second in USD (runpod_serverless mode). Used for cost transparency in receipts."
         }
       },
       "description": "Price for this execution within the specified token limits"
+    },
+    "capacity_bucket": {
+      "type": "string",
+      "description": "Capacity bucket for serverless execution (runpod_serverless mode). Maps to YAML-defined endpoint configuration."
     },
     "expires_at": {
       "type": "integer",

@@ -4,6 +4,9 @@
  * This service resolves Privy user IDs to internal user IDs (profiles.id)
  * using the serverless app team's schema: profiles + identity_links
  * 
+ * Now uses the shared database pool from lib/db/pool.ts to prevent
+ * connection pool exhaustion across services.
+ * 
  * FLOW:
  * 1. Check if Privy ID exists in identity_links
  * 2. If exists: Return the linked profiles.id
@@ -12,41 +15,8 @@
  * This ensures both extension and web app use the SAME user records.
  */
 
-import { Pool } from 'pg';
 import crypto from 'crypto';
-
-// Initialize PostgreSQL connection pool
-const getPassword = (): string => {
-  const pwd = process.env.POSTGRES_PASSWORD || process.env.SUPABASE_DB_PASSWORD;
-  if (!pwd) {
-    console.warn('⚠️  No PostgreSQL password found in environment variables');
-    return '';
-  }
-  return String(pwd);
-};
-
-const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'postgres',
-  user: process.env.POSTGRES_USER || 'postgres',
-  password: getPassword(),
-  ssl: { rejectUnauthorized: false },
-  // Serverless-optimized connection pool settings
-  max: 5,
-  idleTimeoutMillis: 10000,
-  connectionTimeoutMillis: 10000,
-  allowExitOnIdle: true,
-});
-
-// Connection event handlers
-pool.on('connect', () => {
-  console.log('✅ PostgreSQL pool connected for session service');
-});
-
-pool.on('error', (err) => {
-  console.error('❌ PostgreSQL pool error (session service):', err);
-});
+import pool, { getClient } from '../db/pool';
 
 // Types
 export interface UserProfile {
@@ -100,7 +70,7 @@ export async function resolveInternalUserId(
   email?: string | null,
   avatarUrl?: string | null
 ): Promise<ResolvedUser> {
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     // STEP 1: Check if Privy ID exists in identity_links
@@ -195,7 +165,7 @@ export async function resolveInternalUserId(
  * Get user profile by internal user ID
  */
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const result = await client.query(
@@ -244,7 +214,7 @@ export async function linkIdentity(
   provider: string,
   externalId: string
 ): Promise<IdentityLink> {
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const result = await client.query(
@@ -272,7 +242,7 @@ export async function linkIdentity(
  * Get all identity links for a user
  */
 export async function getUserIdentities(userId: string): Promise<IdentityLink[]> {
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const result = await client.query(
@@ -299,7 +269,7 @@ export async function updateUserProfile(
   userId: string,
   updates: Partial<Pick<UserProfile, 'handle' | 'email' | 'name' | 'avatar_url' | 'bio'>>
 ): Promise<UserProfile | null> {
-  const client = await pool.connect();
+  const client = await getClient();
   
   try {
     const setClauses: string[] = ['updated_at = NOW()'];
@@ -354,5 +324,5 @@ export async function updateUserProfile(
   }
 }
 
-// Export pool for advanced use cases
+// Export pool for advanced use cases (now re-exports the shared pool)
 export { pool as sessionPool };

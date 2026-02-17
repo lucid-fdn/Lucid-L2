@@ -1,6 +1,8 @@
 // Reward Routes - API endpoints for reward system
+// Using shared database pool to prevent connection exhaustion
 import express from 'express';
 import { getRewardService } from '../services/rewardService';
+import pool, { getClient } from '../lib/db/pool';
 
 const router = express.Router();
 
@@ -22,56 +24,49 @@ router.post('/earn', async (req, res) => {
     console.log(`💰 Recording ${mGasEarned} mGas earnings for user ${userId}`);
 
     const rewardService = getRewardService();
-    const user = await rewardService.getOrCreateUser(userId);
+    const client = await getClient();
+    try {
+      const user = await rewardService.getOrCreateUser(userId, undefined, client);
 
-    // Update user's balance
-    const { Pool } = await import('pg');
-    const pool = new Pool({
-      host: process.env.POSTGRES_HOST || 'localhost',
-      port: parseInt(process.env.POSTGRES_PORT || '5432'),
-      database: process.env.POSTGRES_DB || 'postgres',
-      user: process.env.POSTGRES_USER || 'postgres',
-      password: process.env.POSTGRES_PASSWORD || process.env.SUPABASE_DB_PASSWORD || '',
-    });
+      await client.query(
+        `UPDATE rewards 
+         SET mgas_balance = mgas_balance + $1, 
+             lifetime_mgas_earned = lifetime_mgas_earned + $1,
+             total_thoughts = total_thoughts + 1
+         WHERE user_id = $2`,
+        [mGasEarned, user.id]
+      );
 
-    await pool.query(
-      `UPDATE rewards 
-       SET mgas_balance = mgas_balance + $1, 
-           lifetime_mgas_earned = lifetime_mgas_earned + $1,
-           total_thoughts = total_thoughts + 1
-       WHERE user_id = $2`,
-      [mGasEarned, user.id]
-    );
+      // Record the thought in conversations table
+      await client.query(
+        `INSERT INTO conversations (user_id, message_type, content, input_tokens, output_tokens, mgas_earned, quality_score, quality_tier, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [user.id, 'thought', thoughtText, 0, 0, mGasEarned, qualityScore || 0.5, qualityTier || 'average', new Date(timestamp || Date.now())]
+      );
 
-    // Record the thought in conversations table
-    await pool.query(
-      `INSERT INTO conversations (user_id, message_type, content, input_tokens, output_tokens, mgas_earned, quality_score, quality_tier, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-      [user.id, 'thought', thoughtText, 0, 0, mGasEarned, qualityScore || 0.5, qualityTier || 'average', new Date(timestamp || Date.now())]
-    );
+      // Get updated balance
+      const balanceResult = await client.query(
+        'SELECT mgas_balance, lucid_balance, lifetime_mgas_earned, total_thoughts FROM rewards WHERE user_id = $1',
+        [user.id]
+      );
 
-    // Get updated balance
-    const balanceResult = await pool.query(
-      'SELECT mgas_balance, lucid_balance, lifetime_mgas_earned, total_thoughts FROM rewards WHERE user_id = $1',
-      [user.id]
-    );
+      const balance = balanceResult.rows[0] || { mgas_balance: 0, lucid_balance: 0 };
 
-    await pool.end();
+      console.log(`✅ Earnings recorded. New balance: ${balance.mgas_balance} mGas`);
 
-    const balance = balanceResult.rows[0] || { mgas_balance: 0, lucid_balance: 0 };
-
-    console.log(`✅ Earnings recorded. New balance: ${balance.mgas_balance} mGas`);
-
-    res.json({
-      success: true,
-      earned: mGasEarned,
-      balance: {
-        mGas: balance.mgas_balance,
-        lucid: balance.lucid_balance,
-        lifetimeEarned: balance.lifetime_mgas_earned,
-        totalThoughts: balance.total_thoughts
-      }
-    });
+      res.json({
+        success: true,
+        earned: mGasEarned,
+        balance: {
+          mGas: balance.mgas_balance,
+          lucid: balance.lucid_balance,
+          lifetimeEarned: balance.lifetime_mgas_earned,
+          totalThoughts: balance.total_thoughts
+        }
+      });
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error('Error recording earnings:', error);
     res.status(500).json({
@@ -329,30 +324,23 @@ router.post('/share', async (req, res) => {
     console.log(`📢 Recording share for user ${userId}`);
 
     const rewardService = getRewardService();
-    const user = await rewardService.getOrCreateUser(userId);
+    const client = await getClient();
+    try {
+      const user = await rewardService.getOrCreateUser(userId, undefined, client);
 
-    // Update share count in database (using direct PostgreSQL connection)
-    const { Pool } = await import('pg');
-    const pool = new Pool({
-      host: process.env.POSTGRES_HOST || 'localhost',
-      port: parseInt(process.env.POSTGRES_PORT || '5432'),
-      database: process.env.POSTGRES_DB || 'postgres',
-      user: process.env.POSTGRES_USER || 'postgres',
-      password: process.env.POSTGRES_PASSWORD || process.env.SUPABASE_DB_PASSWORD || '',
-    });
+      await client.query(
+        'UPDATE users SET total_shares = total_shares + 1 WHERE privy_user_id = $1',
+        [userId]
+      );
 
-    await pool.query(
-      'UPDATE users SET total_shares = total_shares + 1 WHERE id = $1',
-      [user.id]
-    );
-    
-    await pool.end();
-
-    res.json({
-      success: true,
-      message: 'Share recorded successfully',
-      totalShares: (user.totalShares || 0) + 1
-    });
+      res.json({
+        success: true,
+        message: 'Share recorded successfully',
+        totalShares: (user.totalShares || 0) + 1
+      });
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error('Error recording share:', error);
     res.status(500).json({
@@ -399,16 +387,6 @@ router.get('/leaderboard', async (req, res) => {
     
     console.log(`🏆 Fetching leaderboard: ${category}, limit: ${limit}`);
     
-    const { Pool } = await import('pg');
-    const pool = new Pool({
-      host: process.env.POSTGRES_HOST || 'localhost',
-      port: parseInt(process.env.POSTGRES_PORT || '5432'),
-      database: process.env.POSTGRES_DB || 'postgres',
-      user: process.env.POSTGRES_USER || 'postgres',
-      password: process.env.POSTGRES_PASSWORD || process.env.SUPABASE_DB_PASSWORD || '',
-      ssl: { rejectUnauthorized: false }
-    });
-    
     let query = '';
     
     switch (category) {
@@ -446,24 +424,28 @@ router.get('/leaderboard', async (req, res) => {
         });
     }
     
-    const result = await pool.query(query, [limit]);
-    await pool.end();
-    
-    const leaderboard = result.rows.map((row, index) => ({
-      rank: index + 1,
-      userId: row.privy_user_id,
-      address: row.wallet_address ? 
-        `${row.wallet_address.slice(0, 6)}...${row.wallet_address.slice(-4)}` : 
-        'Anonymous',
-      value: parseInt(row.value) || 0,
-      category: category
-    }));
-    
-    res.json({
-      success: true,
-      category: category,
-      leaderboard: leaderboard
-    });
+    const client = await getClient();
+    try {
+      const result = await client.query(query, [limit]);
+      
+      const leaderboard = result.rows.map((row, index) => ({
+        rank: index + 1,
+        userId: row.privy_user_id,
+        address: row.wallet_address ? 
+          `${row.wallet_address.slice(0, 6)}...${row.wallet_address.slice(-4)}` : 
+          'Anonymous',
+        value: parseInt(row.value) || 0,
+        category: category
+      }));
+      
+      res.json({
+        success: true,
+        category: category,
+        leaderboard: leaderboard
+      });
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
     res.status(500).json({
@@ -481,44 +463,38 @@ router.get('/stats', async (req, res) => {
   try {
     console.log('📈 Fetching system reward stats');
 
-    const { Pool } = await import('pg');
-    const pool = new Pool({
-      host: process.env.POSTGRES_HOST || 'localhost',
-      port: parseInt(process.env.POSTGRES_PORT || '5432'),
-      database: process.env.POSTGRES_DB || 'postgres',
-      user: process.env.POSTGRES_USER || 'postgres',
-      password: process.env.POSTGRES_PASSWORD || process.env.SUPABASE_DB_PASSWORD || '',
-    });
+    const client = await getClient();
+    try {
+      // Get aggregate stats
+      const [usersResult, rewardsResult, convsResult, achievsResult] = await Promise.all([
+        client.query('SELECT COUNT(*) FROM users'),
+        client.query('SELECT mgas_balance, lifetime_mgas_earned FROM rewards'),
+        client.query('SELECT COUNT(*) FROM conversations'),
+        client.query('SELECT COUNT(*) FROM user_achievements')
+      ]);
 
-    // Get aggregate stats
-    const  [usersResult, rewardsResult, convsResult, achievsResult] = await Promise.all([
-      pool.query('SELECT COUNT(*) FROM users'),
-      pool.query('SELECT mgas_balance, lifetime_mgas_earned FROM rewards'),
-      pool.query('SELECT COUNT(*) FROM conversations'),
-      pool.query('SELECT COUNT(*) FROM user_achievements')
-    ]);
+      const totalUsers = parseInt(usersResult.rows[0].count);
+      const totalRewards = rewardsResult.rows;
+      const totalConversations = parseInt(convsResult.rows[0].count);
+      const totalAchievements = parseInt(achievsResult.rows[0].count);
 
-    const totalUsers = parseInt(usersResult.rows[0].count);
-    const totalRewards = rewardsResult.rows;
-    const totalConversations = parseInt(convsResult.rows[0].count);
-    const totalAchievements = parseInt(achievsResult.rows[0].count);
+      const totalMGasInCirculation = totalRewards.reduce((sum: number, r: any) => sum + (r.mgas_balance || 0), 0);
+      const totalMGasEarned = totalRewards.reduce((sum: number, r: any) => sum + (r.lifetime_mgas_earned || 0), 0);
 
-    const totalMGasInCirculation = totalRewards.reduce((sum: number, r: any) => sum + (r.mgas_balance || 0), 0);
-    const totalMGasEarned = totalRewards.reduce((sum: number, r: any) => sum + (r.lifetime_mgas_earned || 0), 0);
-    
-    await pool.end();
-
-    res.json({
-      success: true,
-      stats: {
-        totalUsers: totalUsers || 0,
-        totalConversations: totalConversations || 0,
-        totalAchievementsUnlocked: totalAchievements || 0,
-        totalMGasInCirculation,
-        totalMGasEarned,
-        timestamp: new Date().toISOString()
-      }
-    });
+      res.json({
+        success: true,
+        stats: {
+          totalUsers: totalUsers || 0,
+          totalConversations: totalConversations || 0,
+          totalAchievementsUnlocked: totalAchievements || 0,
+          totalMGasInCirculation,
+          totalMGasEarned,
+          timestamp: new Date().toISOString()
+        }
+      });
+    } finally {
+      client.release();
+    }
   } catch (error) {
     console.error('Error fetching stats:', error);
     res.status(500).json({

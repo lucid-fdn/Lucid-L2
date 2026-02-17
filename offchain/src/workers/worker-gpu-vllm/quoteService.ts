@@ -47,6 +47,8 @@ export interface PricingTier {
   base_cost_per_1k_input: number;  // lamports per 1k input tokens
   base_cost_per_1k_output: number; // lamports per 1k output tokens
   currency: 'lamports' | 'usd_cents' | 'credits';
+  /** GPU rate per second in USD (for runpod_serverless billing transparency) */
+  gpu_rate_per_sec?: number;
 }
 
 /**
@@ -82,6 +84,7 @@ export class QuoteService {
       base_cost_per_1k_input: 10,   // 10 lamports per 1k input tokens
       base_cost_per_1k_output: 30,  // 30 lamports per 1k output tokens
       currency: 'lamports',
+      gpu_rate_per_sec: 0.000231,   // Default to A10G tier ($0.83/hr)
       ...options?.pricing,
     };
   }
@@ -110,7 +113,10 @@ export class QuoteService {
       price: {
         amount: price,
         currency: this.pricing.currency,
+        gpu_rate_per_sec: this.pricing.gpu_rate_per_sec,
       },
+      // Include capacity_bucket if worker has one (for runpod_serverless)
+      capacity_bucket: this.workerIdentity.capacity_bucket,
       expires_at,
       worker_pubkey: this.signingService.getPublicKey(),
     };
@@ -135,6 +141,7 @@ export class QuoteService {
       max_input_tokens: inputTokens,
       max_output_tokens: outputTokens,
       price: quoteBody.price,
+      capacity_bucket: quoteBody.capacity_bucket,
       expires_at,
       worker_pubkey: quoteBody.worker_pubkey,
       quote_hash,
@@ -190,6 +197,7 @@ export class QuoteService {
       max_input_tokens: quote.max_input_tokens,
       max_output_tokens: quote.max_output_tokens,
       price: quote.price,
+      capacity_bucket: quote.capacity_bucket,
       expires_at: quote.expires_at,
       worker_pubkey: quote.worker_pubkey,
       terms_hash: quote.terms_hash,
@@ -302,7 +310,8 @@ export class QuoteService {
     policy_hash: string;
     max_input_tokens: number;
     max_output_tokens: number;
-    price: { amount: number; currency: string };
+    price: { amount: number; currency: string; gpu_rate_per_sec?: number };
+    capacity_bucket?: string;
     expires_at: number;
     worker_pubkey?: string;
     terms_hash?: string;
@@ -319,6 +328,9 @@ export class QuoteService {
     };
 
     // Only include optional fields if present
+    if (quoteBody.capacity_bucket) {
+      hashInput.capacity_bucket = quoteBody.capacity_bucket;
+    }
     if (quoteBody.worker_pubkey) {
       hashInput.worker_pubkey = quoteBody.worker_pubkey;
     }

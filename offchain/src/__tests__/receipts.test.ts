@@ -10,15 +10,23 @@ describe('receipts pipeline', () => {
   let run_id: string;
 
   test('POST /v1/receipts creates receipt', async () => {
+    // v0.2 requires extended fields for receipt validation
     const body = {
       model_passport_id: 'passport_model_abc',
       compute_passport_id: 'passport_compute_xyz',
-      policy_hash: 'policy_hash_123',
+      policy_hash: 'a'.repeat(64), // Must be valid 64-char hex
       runtime: 'vllm',
       tokens_in: 100,
       tokens_out: 200,
       ttft_ms: 120,
       p95_ms: 1200,
+      // Required v0.2 fields
+      execution_mode: 'byo_runtime',
+      job_hash: 'b'.repeat(64),
+      quote_hash: 'c'.repeat(64),
+      outputs_hash: 'd'.repeat(64),
+      runtime_hash: 'sha256:' + 'e'.repeat(64),
+      gpu_fingerprint: 'NVIDIA-A100-40GB',
     };
 
     const r = await request(app).post('/v1/receipts').send(body);

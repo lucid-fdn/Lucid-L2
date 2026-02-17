@@ -71,7 +71,7 @@ function createMockJob(quote: OfferQuote, overrides: Partial<JobRequest> = {}): 
       { role: 'user', content: 'Hello, how are you?' },
     ],
   };
-  
+
   return {
     job_id: `job_${uuid().replace(/-/g, '')}`,
     model_id: quote.model_id,
@@ -79,6 +79,28 @@ function createMockJob(quote: OfferQuote, overrides: Partial<JobRequest> = {}): 
     quote,
     input,
     trace_id: `trace_${uuid()}`,
+    ...overrides,
+  };
+}
+
+// Helper to create a valid v0.2 receipt input with all required fields
+function createValidReceiptInput(overrides: Record<string, unknown> = {}) {
+  return {
+    model_passport_id: 'model_001',
+    compute_passport_id: 'compute_001',
+    policy_hash: 'a'.repeat(64),
+    runtime: 'hf-inference-api',
+    tokens_in: 100,
+    tokens_out: 50,
+    ttft_ms: 150,
+    // Required v0 fields
+    execution_mode: 'managed_endpoint' as ExecutionMode,
+    job_hash: 'b'.repeat(64),
+    quote_hash: 'c'.repeat(64),
+    outputs_hash: 'd'.repeat(64),
+    node_id: 'worker-sim-hf-001',
+    runtime_hash: null,
+    gpu_fingerprint: null,
     ...overrides,
   };
 }
@@ -282,32 +304,28 @@ describe('Fluid Compute v0 - E2E Tests', () => {
         tokens_in: 200,
         tokens_out: 100,
         ttft_ms: 80,
+        // Required v0 fields
         execution_mode: 'byo_runtime',
+        job_hash: 'b'.repeat(64),
+        quote_hash: 'c'.repeat(64),
+        outputs_hash: 'd'.repeat(64),
         runtime_hash: 'sha256:' + 'e'.repeat(64),
         gpu_fingerprint: 'NVIDIA-A100-40GB',
       });
-      
+
       const verification = verifyExtendedReceipt(receipt.run_id);
-      
+
       expect(verification.hash_valid).toBe(true);
       expect(verification.signature_valid).toBe(true);
     });
 
     it('should add receipt to Merkle tree', () => {
       const leafCountBefore = getMmrLeafCount();
-      
-      createExtendedReceipt({
-        model_passport_id: 'model_001',
-        compute_passport_id: 'compute_001',
-        policy_hash: 'a'.repeat(64),
-        runtime: 'hf-inference-api',
-        tokens_in: 100,
-        tokens_out: 50,
-        ttft_ms: 150,
-      });
-      
+
+      createExtendedReceipt(createValidReceiptInput());
+
       const leafCountAfter = getMmrLeafCount();
-      
+
       expect(leafCountAfter).toBe(leafCountBefore + 1);
     });
   });
@@ -323,19 +341,11 @@ describe('Fluid Compute v0 - E2E Tests', () => {
 
     it('should add receipts to current epoch', () => {
       const epoch = getCurrentEpoch();
-      
-      const receipt = createExtendedReceipt({
-        model_passport_id: 'model_001',
-        compute_passport_id: 'compute_001',
-        policy_hash: 'a'.repeat(64),
-        runtime: 'hf-inference-api',
-        tokens_in: 100,
-        tokens_out: 50,
-        ttft_ms: 150,
-      });
-      
+
+      const receipt = createExtendedReceipt(createValidReceiptInput());
+
       addReceiptToEpoch(receipt.run_id);
-      
+
       const updatedEpoch = getEpoch(epoch.epoch_id);
       expect(updatedEpoch?.leaf_count).toBe(1);
       expect(updatedEpoch?.receipt_run_ids).toContain(receipt.run_id);
@@ -344,58 +354,40 @@ describe('Fluid Compute v0 - E2E Tests', () => {
     it('should detect when epoch should finalize (receipt count)', () => {
       // Configure low threshold for testing
       setEpochConfig({ max_receipts_per_epoch: 3 });
-      
+
       const epoch = getCurrentEpoch();
-      
+
       // Add 2 receipts
       for (let i = 0; i < 2; i++) {
-        const receipt = createExtendedReceipt({
+        const receipt = createExtendedReceipt(createValidReceiptInput({
           model_passport_id: `model_${i}`,
-          compute_passport_id: 'compute_001',
-          policy_hash: 'a'.repeat(64),
-          runtime: 'hf-inference-api',
-          tokens_in: 100,
-          tokens_out: 50,
-          ttft_ms: 150,
-        });
+          job_hash: `${'b'.repeat(62)}${i.toString().padStart(2, '0')}`,
+        }));
         addReceiptToEpoch(receipt.run_id);
       }
-      
+
       expect(shouldFinalizeEpoch(epoch).should).toBe(false);
-      
+
       // Add 3rd receipt - should trigger finalization
-      const receipt = createExtendedReceipt({
+      const receipt = createExtendedReceipt(createValidReceiptInput({
         model_passport_id: 'model_final',
-        compute_passport_id: 'compute_001',
-        policy_hash: 'a'.repeat(64),
-        runtime: 'hf-inference-api',
-        tokens_in: 100,
-        tokens_out: 50,
-        ttft_ms: 150,
-      });
+        job_hash: 'b'.repeat(62) + '99',
+      }));
       addReceiptToEpoch(receipt.run_id);
-      
+
       const updatedEpoch = getEpoch(epoch.epoch_id)!;
       expect(shouldFinalizeEpoch(updatedEpoch).should).toBe(true);
     });
 
     it('should prepare epoch for finalization', () => {
       const epoch = getCurrentEpoch();
-      
+
       // Add a receipt
-      const receipt = createExtendedReceipt({
-        model_passport_id: 'model_001',
-        compute_passport_id: 'compute_001',
-        policy_hash: 'a'.repeat(64),
-        runtime: 'hf-inference-api',
-        tokens_in: 100,
-        tokens_out: 50,
-        ttft_ms: 150,
-      });
+      const receipt = createExtendedReceipt(createValidReceiptInput());
       addReceiptToEpoch(receipt.run_id);
-      
+
       const prepared = prepareEpochForFinalization(epoch.epoch_id);
-      
+
       expect(prepared).not.toBeNull();
       expect(prepared?.status).toBe('anchoring');
       expect(prepared?.finalized_at).toBeDefined();
@@ -405,23 +397,18 @@ describe('Fluid Compute v0 - E2E Tests', () => {
   describe('5. Anchoring (Mock Mode)', () => {
     it('should commit epoch root in mock mode', async () => {
       const epoch = getCurrentEpoch();
-      
+
       // Add receipts
       for (let i = 0; i < 3; i++) {
-        const receipt = createExtendedReceipt({
+        const receipt = createExtendedReceipt(createValidReceiptInput({
           model_passport_id: `model_${i}`,
-          compute_passport_id: 'compute_001',
-          policy_hash: 'a'.repeat(64),
-          runtime: 'hf-inference-api',
-          tokens_in: 100,
-          tokens_out: 50,
-          ttft_ms: 150,
-        });
+          job_hash: `${'b'.repeat(62)}${i.toString().padStart(2, '0')}`,
+        }));
         addReceiptToEpoch(receipt.run_id);
       }
-      
+
       const result = await commitEpochRoot(epoch.epoch_id);
-      
+
       expect(result.success).toBe(true);
       expect(result.signature).toMatch(/^mock_tx_/);
       expect(result.root).toMatch(/^[a-f0-9]{64}$/);
@@ -429,22 +416,14 @@ describe('Fluid Compute v0 - E2E Tests', () => {
 
     it('should verify anchored epoch in mock mode', async () => {
       const epoch = getCurrentEpoch();
-      
-      const receipt = createExtendedReceipt({
-        model_passport_id: 'model_001',
-        compute_passport_id: 'compute_001',
-        policy_hash: 'a'.repeat(64),
-        runtime: 'hf-inference-api',
-        tokens_in: 100,
-        tokens_out: 50,
-        ttft_ms: 150,
-      });
+
+      const receipt = createExtendedReceipt(createValidReceiptInput());
       addReceiptToEpoch(receipt.run_id);
-      
+
       await commitEpochRoot(epoch.epoch_id);
-      
+
       const verification = await verifyEpochAnchor(epoch.epoch_id);
-      
+
       expect(verification.valid).toBe(true);
       expect(verification.on_chain_root).toBe(verification.expected_root);
     });
@@ -571,6 +550,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
 
   describe('7. Error Handling', () => {
     it('should create error receipt for failed jobs', () => {
+      // Error receipts don't require outputs_hash when error_code is set
       const receipt = createExtendedReceipt({
         model_passport_id: 'model_001',
         compute_passport_id: 'compute_001',
@@ -579,17 +559,25 @@ describe('Fluid Compute v0 - E2E Tests', () => {
         tokens_in: 100,
         tokens_out: 0,
         ttft_ms: 0,
+        // Required v0 fields
         execution_mode: 'managed_endpoint',
-        error_code: 'INFERENCE_TIMEOUT',
+        job_hash: 'b'.repeat(64),
+        quote_hash: 'c'.repeat(64),
+        // Note: outputs_hash NOT required when error_code is set
+        node_id: 'worker-sim-hf-001',
+        runtime_hash: null,
+        gpu_fingerprint: null,
+        // Error fields
+        error_code: 'TIMEOUT', // Using v0.2 simplified error code
         error_message: 'Request timed out after 120 seconds',
         start_ts: Math.floor(Date.now() / 1000) - 120,
         end_ts: Math.floor(Date.now() / 1000),
       }, 'worker');
-      
-      expect(receipt.error_code).toBe('INFERENCE_TIMEOUT');
+
+      expect(receipt.error_code).toBe('TIMEOUT');
       expect(receipt.error_message).toContain('timed out');
       expect(receipt.metrics.tokens_out).toBe(0);
-      
+
       // Error receipts should still be valid
       const verification = verifyExtendedReceipt(receipt.run_id);
       expect(verification.hash_valid).toBe(true);
@@ -620,22 +608,17 @@ describe('Fluid Compute v0 - E2E Tests', () => {
       for (let e = 0; e < 3; e++) {
         const epoch = createEpoch();
         for (let r = 0; r < 5; r++) {
-          const receipt = createExtendedReceipt({
+          const receipt = createExtendedReceipt(createValidReceiptInput({
             model_passport_id: `model_${e}_${r}`,
-            compute_passport_id: 'compute_001',
-            policy_hash: 'a'.repeat(64),
-            runtime: 'hf-inference-api',
-            tokens_in: 100,
-            tokens_out: 50,
-            ttft_ms: 150,
-          });
+            job_hash: `${'b'.repeat(60)}${e.toString().padStart(2, '0')}${r.toString().padStart(2, '0')}`,
+          }));
           addReceiptToEpoch(receipt.run_id);
         }
         await commitEpochRoot(epoch.epoch_id);
       }
-      
+
       const stats = getEpochStats();
-      
+
       expect(stats.total_epochs).toBeGreaterThanOrEqual(3);
       expect(stats.anchored_epochs).toBeGreaterThanOrEqual(3);
       expect(stats.total_receipts_anchored).toBeGreaterThanOrEqual(15);

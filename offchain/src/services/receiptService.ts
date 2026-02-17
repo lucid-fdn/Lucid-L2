@@ -25,6 +25,7 @@ import type {
   JobRequest,
   SignerType,
   ReceiptMetrics,
+  ReceiptBilling,
 } from '../types/fluidCompute';
 
 /**
@@ -117,49 +118,59 @@ export interface ReceiptVerifyResult {
 // ============================================================================
 
 /**
- * Extended Receipt Body for Fluid Compute v0.
- * Includes job binding, worker identity, and output verification fields.
+ * Extended Receipt Body for Fluid Compute v0.2.
+ * Includes job binding, worker identity, output verification, and serverless fields.
  */
 export interface ExtendedReceiptBody {
   schema_version: '1.0';
   run_id: string;
   timestamp: number;
   trace_id?: string;
-  
+
   // Model & Compute binding
   policy_hash: string;
   model_passport_id: string;
   compute_passport_id: string;
-  
+  /** Model revision (commit SHA or tag) for auditability */
+  model_revision?: string;
+
   // Quote binding (NEW in v0)
   job_hash?: string;
   quote_hash?: string;
-  
+
   // Worker identity (NEW in v0)
   node_id?: string;
   runtime_hash?: string | null;
   gpu_fingerprint?: string | null;
-  
+
+  // RunPod Serverless fields (NEW in v0.2)
+  /** Capacity bucket name (runpod_serverless mode) */
+  capacity_bucket?: string;
+  /** RunPod endpoint ID (runpod_serverless mode) */
+  endpoint_id?: string;
+  /** Billing details for cost transparency */
+  billing?: ReceiptBilling;
+
   // Output verification (NEW in v0)
   outputs_hash?: string;
   output_ref?: string;
-  
+
   // Execution metadata (NEW in v0)
   execution_mode?: ExecutionMode;
   start_ts?: number;
   end_ts?: number;
-  
+
   // Metrics
   runtime: string;
   metrics: ReceiptMetrics;
-  
+
   // Audit trail (NEW in v0)
   input_ref?: string;
-  
+
   // Structured errors (NEW in v0)
   error_code?: string;
   error_message?: string;
-  
+
   // Legacy optional fields
   image_hash?: string;
   model_hash?: string;
@@ -218,11 +229,12 @@ export function computeQuoteHash(quote: Omit<OfferQuote, 'quote_hash' | 'quote_s
     price: quote.price,
     expires_at: quote.expires_at,
   };
-  
-  // Only include optional fields if present
+
+  // Only include optional fields if present (v0.2 adds capacity_bucket)
+  if (quote.capacity_bucket) hashBody.capacity_bucket = quote.capacity_bucket;
   if (quote.terms_hash) hashBody.terms_hash = quote.terms_hash;
   if (quote.worker_pubkey) hashBody.worker_pubkey = quote.worker_pubkey;
-  
+
   return canonicalSha256Hex(hashBody);
 }
 
@@ -703,7 +715,7 @@ export function validateExtendedReceiptInput(
       errors.push(err);
       if (strict) throw new ReceiptValidationError(err.code, err.message, err.field);
     }
-    
+
     // Gate 6: gpu_fingerprint must NOT be null for byo_runtime
     if (input.gpu_fingerprint === null || input.gpu_fingerprint === undefined) {
       const err = {
@@ -715,7 +727,36 @@ export function validateExtendedReceiptInput(
       if (strict) throw new ReceiptValidationError(err.code, err.message, err.field);
     }
   }
-  
+
+  // Gates 7-9: RunPod Serverless specific checks (v0.2)
+  if (input.execution_mode === 'runpod_serverless') {
+    // Gate 7: runtime_hash required for runpod_serverless (container you control)
+    if (input.runtime_hash === null || input.runtime_hash === undefined) {
+      const err = {
+        code: 'RUNPOD_SERVERLESS_MISSING_RUNTIME_HASH',
+        message: 'runtime_hash is required for runpod_serverless execution mode (your container image digest)',
+        field: 'runtime_hash',
+      };
+      errors.push(err);
+      if (strict) throw new ReceiptValidationError(err.code, err.message, err.field);
+    }
+
+    // Gate 8: gpu_fingerprint required (GPU type, not serial)
+    if (input.gpu_fingerprint === null || input.gpu_fingerprint === undefined) {
+      const err = {
+        code: 'RUNPOD_SERVERLESS_MISSING_GPU_FINGERPRINT',
+        message: 'gpu_fingerprint is required for runpod_serverless execution mode (GPU type)',
+        field: 'gpu_fingerprint',
+      };
+      errors.push(err);
+      if (strict) throw new ReceiptValidationError(err.code, err.message, err.field);
+    }
+
+    // Gate 9: endpoint_id recommended (warn only, not required)
+    // Note: endpoint_id is the trust boundary for runpod_serverless
+    // We don't fail validation, but logging a warning would be appropriate
+  }
+
   return {
     valid: errors.length === 0,
     errors,
@@ -807,19 +848,26 @@ function computeExtendedReceiptHash(body: ExtendedReceiptBody): string {
 }
 
 /**
- * Create an extended receipt for Fluid Compute v0.
- * 
+ * Create an extended receipt for Fluid Compute v0.2.
+ *
  * This includes all new fields: execution_mode, job_hash, quote_hash,
  * node_id, runtime_hash, gpu_fingerprint, outputs_hash, etc.
- * 
+ *
  * Receipt validity gates are enforced:
  * - execution_mode must be present
  * - job_hash must be present
  * - quote_hash must be present
  * - outputs_hash must be present (unless error_code set)
- * - For byo_runtime: runtime_hash must NOT be null
- * - For byo_runtime: gpu_fingerprint must NOT be null
- * 
+ * - For byo_runtime: runtime_hash and gpu_fingerprint must NOT be null
+ * - For runpod_serverless: runtime_hash and gpu_fingerprint must NOT be null
+ *   (gpu_fingerprint is GPU type only, not hardware serial)
+ *
+ * v0.2 additions:
+ * - model_revision: for auditability (commit SHA or tag)
+ * - capacity_bucket, endpoint_id: for runpod_serverless mode
+ * - billing: cost transparency (compute_seconds, gpu_type, cost_usd)
+ * - queue_time_ms, cold_start_ms: serverless metrics
+ *
  * @param input - Extended receipt input
  * @param signerType - Who is signing: 'orchestrator' | 'compute' | 'worker'
  * @param idempotencyKey - Optional key for idempotent creation
@@ -904,10 +952,18 @@ export function createExtendedReceipt(
   if (input.input_ref) body.input_ref = input.input_ref;
   if (input.error_code) body.error_code = input.error_code;
   if (input.error_message) body.error_message = input.error_message;
-  
+
+  // Add Fluid Compute v0.2 fields (RunPod Serverless support)
+  if (input.model_revision) body.model_revision = input.model_revision;
+  if (input.capacity_bucket) body.capacity_bucket = input.capacity_bucket;
+  if (input.endpoint_id) body.endpoint_id = input.endpoint_id;
+  if (input.billing) body.billing = input.billing;
+
   // Extended metrics
   if (input.total_latency_ms !== undefined) body.metrics.total_latency_ms = input.total_latency_ms;
   if (input.queue_wait_ms !== undefined) body.metrics.queue_wait_ms = input.queue_wait_ms;
+  if (input.queue_time_ms !== undefined) body.metrics.queue_time_ms = input.queue_time_ms;
+  if (input.cold_start_ms !== undefined) body.metrics.cold_start_ms = input.cold_start_ms;
   if (input.model_load_ms !== undefined) body.metrics.model_load_ms = input.model_load_ms;
   if (input.cache_hit !== undefined) body.metrics.cache_hit = input.cache_hit;
 

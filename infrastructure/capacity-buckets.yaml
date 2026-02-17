@@ -1,0 +1,157 @@
+# Lucid Capacity Buckets Configuration
+# Fluid Compute v0.2
+#
+# This file defines RunPod serverless endpoints as "capacity buckets".
+# Each bucket maps to a RunPod endpoint with specific GPU types, regions, and scaling params.
+#
+# Usage:
+#   python endpoint_manager.py sync    # Sync all buckets to RunPod
+#   python endpoint_manager.py list    # List current endpoints
+#   python endpoint_manager.py status  # Check endpoint health
+
+version: "1.0"
+
+# Default settings applied to all buckets (can be overridden per-bucket)
+defaults:
+  scaler_type: QUEUE_DELAY      # Scale based on queue delay
+  scaler_value: 4               # Scale up when delay > 4 seconds
+  idle_timeout: 300             # 5 minutes before scaling down
+  container_registry: "docker.io/lucid"
+  container_tag: "latest"
+
+# Capacity buckets
+buckets:
+  # Development / Small Models
+  - name: dev-rtx4090-us
+    display_name: "RTX 4090 US (Dev/Test)"
+    description: "Cost-effective tier for development and small models"
+    gpu_types:
+      - "NVIDIA GeForce RTX 4090"
+    regions:
+      - "US-OR-1"
+      - "US-CA-1"
+    workers_min: 0              # Scale to zero when idle
+    workers_max: 5
+    gpu_count: 1
+    container_image: "lucid/worker-runpod"
+    env:
+      MODEL_ID: "meta-llama/Llama-2-7b-chat-hf"
+      CAPACITY_BUCKET: "dev-rtx4090-us"
+      MAX_MODEL_LEN: "4096"
+    pricing:
+      gpu_rate_per_sec: 0.000122  # $0.44/hr
+
+  # Production / 7B Models
+  - name: a10g-us-west
+    display_name: "A10G US West (Production)"
+    description: "Production tier for 7B parameter models"
+    gpu_types:
+      - "NVIDIA A10G"
+    regions:
+      - "US-OR-1"
+      - "US-CA-1"
+      - "US-WA-1"
+    workers_min: 0
+    workers_max: 20
+    gpu_count: 1
+    container_image: "lucid/worker-runpod"
+    env:
+      MODEL_ID: "meta-llama/Llama-2-7b-chat-hf"
+      CAPACITY_BUCKET: "a10g-us-west"
+      MAX_MODEL_LEN: "4096"
+    pricing:
+      gpu_rate_per_sec: 0.000231  # $0.83/hr
+
+  - name: a10g-eu-west
+    display_name: "A10G EU West (Production)"
+    description: "Production tier for European users"
+    gpu_types:
+      - "NVIDIA A10G"
+    regions:
+      - "EU-RO-1"
+      - "EU-SE-1"
+    workers_min: 0
+    workers_max: 10
+    gpu_count: 1
+    container_image: "lucid/worker-runpod"
+    env:
+      MODEL_ID: "meta-llama/Llama-2-7b-chat-hf"
+      CAPACITY_BUCKET: "a10g-eu-west"
+      MAX_MODEL_LEN: "4096"
+    pricing:
+      gpu_rate_per_sec: 0.000231  # $0.83/hr
+
+  # Production / 13-30B Models
+  - name: a100-40g-us-east
+    display_name: "A100 40GB US East"
+    description: "High-memory tier for 13-30B parameter models"
+    gpu_types:
+      - "NVIDIA A100 40GB PCIe"
+      - "NVIDIA A100-SXM4-40GB"
+    regions:
+      - "US-NJ-1"
+      - "US-VA-1"
+    workers_min: 0
+    workers_max: 15
+    gpu_count: 1
+    container_image: "lucid/worker-runpod"
+    env:
+      MODEL_ID: "meta-llama/Llama-2-13b-chat-hf"
+      CAPACITY_BUCKET: "a100-40g-us-east"
+      MAX_MODEL_LEN: "8192"
+    pricing:
+      gpu_rate_per_sec: 0.000386  # $1.39/hr
+
+  # Production / 70B Models (with warm pool)
+  - name: a100-80g-us-east
+    display_name: "A100 80GB US East (Warm Pool)"
+    description: "Premium tier for 70B models with warm workers for low latency"
+    gpu_types:
+      - "NVIDIA A100 80GB PCIe"
+      - "NVIDIA A100-SXM4-80GB"
+    regions:
+      - "US-NJ-1"
+      - "US-VA-1"
+    workers_min: 2              # Keep 2 workers warm (Active Workers pricing)
+    workers_max: 50
+    gpu_count: 1
+    container_image: "lucid/worker-runpod"
+    env:
+      MODEL_ID: "meta-llama/Llama-2-70b-chat-hf"
+      CAPACITY_BUCKET: "a100-80g-us-east"
+      MAX_MODEL_LEN: "8192"
+      PRELOAD_MODEL: "true"     # Preload model for warm workers
+    pricing:
+      gpu_rate_per_sec: 0.000556  # $2.00/hr
+
+  # High Performance / Largest Models
+  - name: h100-global
+    display_name: "H100 Global (High Performance)"
+    description: "Highest performance tier for demanding workloads"
+    gpu_types:
+      - "NVIDIA H100 80GB HBM3"
+      - "NVIDIA H100 PCIe"
+    regions:
+      - "US-TX-1"
+      - "US-KS-1"
+      - "EU-SE-1"
+    workers_min: 0
+    workers_max: 100
+    gpu_count: 1
+    container_image: "lucid/worker-runpod"
+    env:
+      MODEL_ID: "meta-llama/Meta-Llama-3-70B-Instruct"
+      CAPACITY_BUCKET: "h100-global"
+      MAX_MODEL_LEN: "8192"
+    pricing:
+      gpu_rate_per_sec: 0.001389  # $5.00/hr
+
+# Monitoring settings
+monitoring:
+  health_poll_interval_sec: 30
+  metrics_enabled: true
+  alerting:
+    queue_depth_warning: 10
+    queue_depth_critical: 50
+    avg_delay_warning_ms: 5000
+    avg_delay_critical_ms: 15000

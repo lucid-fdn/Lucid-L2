@@ -29,8 +29,8 @@
     },
     "execution_mode": {
       "type": "string",
-      "enum": ["byo_runtime", "managed_endpoint"],
-      "description": "Execution mode this worker operates in. Determines attestation guarantees."
+      "enum": ["byo_runtime", "managed_endpoint", "runpod_serverless"],
+      "description": "Execution mode this worker operates in. Determines attestation guarantees. runpod_serverless = container-controlled serverless execution."
     },
     "runtime_type": {
       "type": "string",
@@ -50,6 +50,18 @@
       "type": "integer",
       "minimum": 0,
       "description": "Number of GPUs available on this worker. 0 for managed_endpoint mode."
+    },
+    "endpoint_id": {
+      "type": "string",
+      "description": "RunPod endpoint ID (runpod_serverless mode only). This is the trust boundary - your compute passport."
+    },
+    "pod_id": {
+      "type": "string",
+      "description": "Ephemeral pod ID (runpod_serverless mode only). Changes on each worker spin-up."
+    },
+    "capacity_bucket": {
+      "type": "string",
+      "description": "Capacity bucket name (runpod_serverless mode only). Maps to YAML-defined endpoint configuration."
     },
     "capabilities": {
       "type": "array",
@@ -161,6 +173,20 @@
         "properties": {
           "runtime_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
           "gpu_fingerprint": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "execution_mode": { "const": "runpod_serverless" }
+        }
+      },
+      "then": {
+        "required": ["runtime_hash", "gpu_fingerprint"],
+        "properties": {
+          "runtime_hash": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+          "gpu_fingerprint": { "type": "string", "minLength": 1, "description": "GPU type only, not serial (e.g., 'NVIDIA A10G')" }
         }
       }
     }

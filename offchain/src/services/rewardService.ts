@@ -1,42 +1,10 @@
 // Reward Service - Backend implementation of reward system
 // Now integrated with profiles + identity_links schema via sessionService
-// Using direct PostgreSQL connection
+// Using shared PostgreSQL connection pool to prevent connection exhaustion
 
-import { Pool } from 'pg';
+import { PoolClient } from 'pg';
+import pool, { getClient } from '../lib/db/pool';
 import { resolveInternalUserId, ResolvedUser } from '../lib/auth/sessionService';
-
-// Initialize PostgreSQL connection pool (direct connection)
-const getPassword = (): string => {
-  const pwd = process.env.POSTGRES_PASSWORD || process.env.SUPABASE_DB_PASSWORD;
-  if (!pwd) {
-    console.warn('⚠️  No PostgreSQL password found in environment variables');
-    return '';
-  }
-  return String(pwd);
-};
-
-const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'postgres',
-  user: process.env.POSTGRES_USER || 'postgres',
-  password: getPassword(),
-  ssl: { rejectUnauthorized: false },
-  // Serverless-optimized connection pool settings
-  max: 5,                              // Smaller pool for serverless
-  idleTimeoutMillis: 10000,           // 10 seconds instead of 30
-  connectionTimeoutMillis: 10000,
-  allowExitOnIdle: true,              // Let pool close when idle
-});
-
-// Test connection on module load
-pool.on('connect', () => {
-  console.log('✅ PostgreSQL pool connected for reward service');
-});
-
-pool.on('error', (err) => {
-  console.error('❌ PostgreSQL pool error:', err);
-});
 
 // Types
 interface QualityMetrics {
@@ -193,18 +161,17 @@ export class RewardService {
   // ============================================================================
 
   /**
-   * Get or create user using the unified profiles + identity_links schema
-   * This is the key integration point with the serverless app team's schema
+   * Get or create user using the unified profiles + identity_links schema.
+   * Accepts an optional client to reuse an existing connection (avoids pool exhaustion).
    */
-  async getOrCreateUser(privyUserId: string, walletAddress?: string): Promise<RewardUserData> {
+  async getOrCreateUser(privyUserId: string, walletAddress?: string, existingClient?: PoolClient): Promise<RewardUserData> {
     // Use the new sessionService to resolve Privy ID to internal user ID
     const resolvedUser = await resolveInternalUserId(privyUserId);
     const userId = resolvedUser.userId;
-    
-    const client = await pool.connect();
+
+    const client = existingClient || await getClient();
     try {
       // Check if user already has reward-specific data in the users table
-      // (for backward compatibility with existing reward data)
       const existingRewardUser = await client.query(
         'SELECT * FROM users WHERE privy_user_id = $1',
         [privyUserId]
@@ -213,7 +180,7 @@ export class RewardService {
       if (existingRewardUser.rows.length > 0) {
         const row = existingRewardUser.rows[0];
         return {
-          id: userId,  // Use profiles.id as the canonical ID
+          id: userId,
           privyUserId: privyUserId,
           handle: resolvedUser.profile.handle,
           email: resolvedUser.profile.email,
@@ -226,7 +193,6 @@ export class RewardService {
       }
 
       // Create reward-specific user record if it doesn't exist
-      // This maintains backward compatibility with the existing rewards schema
       const newUserResult = await client.query(
         `INSERT INTO users (privy_user_id, wallet_address, streak_days, last_active_date, total_thoughts_processed, total_shares)
          VALUES ($1, $2, 0, CURRENT_DATE, 0, 0)
@@ -246,7 +212,7 @@ export class RewardService {
       );
 
       return {
-        id: userId,  // Use profiles.id as the canonical ID
+        id: userId,
         privyUserId: privyUserId,
         handle: resolvedUser.profile.handle,
         email: resolvedUser.profile.email,
@@ -257,16 +223,19 @@ export class RewardService {
         totalShares: newUser.total_shares || 0
       };
     } finally {
-      client.release();
+      // Only release if we acquired the client ourselves
+      if (!existingClient) {
+        client.release();
+      }
     }
   }
 
   /**
-   * Get the legacy users table ID for reward operations
-   * (needed since rewards/conversations tables reference users.id, not profiles.id)
+   * Get the legacy users table ID for reward operations.
+   * Accepts an optional client to reuse an existing connection (avoids pool exhaustion).
    */
-  private async getLegacyUserId(privyUserId: string): Promise<string> {
-    const client = await pool.connect();
+  private async getLegacyUserId(privyUserId: string, existingClient?: PoolClient): Promise<string> {
+    const client = existingClient || await getClient();
     try {
       const result = await client.query(
         'SELECT id FROM users WHERE privy_user_id = $1',
@@ -277,7 +246,9 @@ export class RewardService {
       }
       return result.rows[0].id;
     } finally {
-      client.release();
+      if (!existingClient) {
+        client.release();
+      }
     }
   }
 
@@ -462,7 +433,6 @@ export class RewardService {
     const now = new Date();
     const events = [];
 
-    // Weekend bonus (Saturday = 6, Sunday = 0)
     if (now.getDay() === 0 || now.getDay() === 6) {
       events.push({
         type: 'weekend_bonus',
@@ -473,7 +443,6 @@ export class RewardService {
       });
     }
 
-    // Monthly challenge (first week of the month)
     if (now.getDate() <= 7) {
       events.push({
         type: 'monthly_challenge',
@@ -504,16 +473,23 @@ export class RewardService {
   // CONVERSATION PROCESSING
   // ============================================================================
 
+  /**
+   * Process a conversation message and award rewards.
+   * 
+   * KEY FIX: Uses a single client for the entire operation, passing it to
+   * sub-methods (getOrCreateUser, getLegacyUserId) to avoid nested pool.connect()
+   * calls that caused connection pool deadlocks.
+   */
   async processConversation(conversationData: ConversationData): Promise<any> {
-    const client = await pool.connect();
+    const client = await getClient();
     try {
       await client.query('BEGIN');
 
-      // Get or create user (this now uses profiles + identity_links)
-      const user = await this.getOrCreateUser(conversationData.userId);
+      // Get or create user — reuse the same client to avoid pool exhaustion
+      const user = await this.getOrCreateUser(conversationData.userId, undefined, client);
       
-      // Get the legacy user ID for FK relationships
-      const legacyUserId = await this.getLegacyUserId(conversationData.userId);
+      // Get the legacy user ID — reuse the same client
+      const legacyUserId = await this.getLegacyUserId(conversationData.userId, client);
 
       // Only process user messages for rewards
       if (conversationData.messageType !== 'user') {
@@ -593,7 +569,6 @@ export class RewardService {
           mGas: updatedRewards?.mgas_balance || 0,
           lucid: parseFloat(updatedRewards?.lucid_balance || '0')
         },
-        // Include unified user info
         user: {
           id: user.id,
           handle: user.handle,
@@ -712,7 +687,6 @@ export class RewardService {
       [userId]
     );
 
-    // Count batch thoughts (conversations with is_batch metadata)
     const batchThoughtsCount = conversations.filter((c: any) => {
       try {
         const metadata = typeof c.metadata === 'string' ? JSON.parse(c.metadata) : c.metadata;
@@ -722,7 +696,6 @@ export class RewardService {
       }
     }).length;
 
-    // Count referrals from user's referred_users array
     const referralsCount = user?.referred_users?.length || 0;
 
     const excellentCount = conversations.filter((c: any) => c.quality_tier === 'excellent').length;
@@ -753,11 +726,11 @@ export class RewardService {
   // ============================================================================
 
   async getUserRewards(privyUserId: string): Promise<any> {
-    const client = await pool.connect();
+    const client = await getClient();
     try {
-      // Get unified user info
-      const user = await this.getOrCreateUser(privyUserId);
-      const legacyUserId = await this.getLegacyUserId(privyUserId);
+      // Get unified user info — reuse client
+      const user = await this.getOrCreateUser(privyUserId, undefined, client);
+      const legacyUserId = await this.getLegacyUserId(privyUserId, client);
 
       const rewardsResult = await client.query('SELECT * FROM rewards WHERE user_id = $1', [legacyUserId]);
       const rewards = rewardsResult.rows[0];
@@ -765,18 +738,15 @@ export class RewardService {
       const achievementsResult = await client.query('SELECT * FROM user_achievements WHERE user_id = $1', [legacyUserId]);
       const achievements = achievementsResult.rows;
 
-      // Get legacy user data for streak/stats
       const legacyUserResult = await client.query('SELECT * FROM users WHERE id = $1', [legacyUserId]);
       const legacyUser = legacyUserResult.rows[0];
 
       return {
-        // Unified user info from profiles
         userId: user.id,
         privyUserId: privyUserId,
         handle: user.handle,
         email: user.email,
         walletAddress: user.walletAddress,
-        // Reward data
         balance: {
           mGas: rewards?.mgas_balance || 0,
           lucid: parseFloat(rewards?.lucid_balance || '0')
@@ -785,7 +755,6 @@ export class RewardService {
           mGas: rewards?.lifetime_mgas_earned || 0,
           lucid: parseFloat(rewards?.lifetime_lucid_earned || '0')
         },
-        // Stats from legacy users table
         streakDays: legacyUser?.streak_days || 0,
         totalThoughts: legacyUser?.total_thoughts_processed || 0,
         achievements: achievements,
@@ -797,10 +766,10 @@ export class RewardService {
   }
 
   async getConversationHistory(privyUserId: string, limit: number = 50): Promise<any[]> {
-    const client = await pool.connect();
+    const client = await getClient();
     try {
-      await this.getOrCreateUser(privyUserId);
-      const legacyUserId = await this.getLegacyUserId(privyUserId);
+      await this.getOrCreateUser(privyUserId, undefined, client);
+      const legacyUserId = await this.getLegacyUserId(privyUserId, client);
 
       const result = await client.query(
         'SELECT * FROM conversations WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2',
@@ -822,12 +791,12 @@ export class RewardService {
       throw new Error(`Minimum ${this.conversionRate} mGas required for conversion`);
     }
 
-    const client = await pool.connect();
+    const client = await getClient();
     try {
       await client.query('BEGIN');
 
-      await this.getOrCreateUser(privyUserId);
-      const legacyUserId = await this.getLegacyUserId(privyUserId);
+      await this.getOrCreateUser(privyUserId, undefined, client);
+      const legacyUserId = await this.getLegacyUserId(privyUserId, client);
 
       const rewardsResult = await client.query('SELECT * FROM rewards WHERE user_id = $1', [legacyUserId]);
       const currentRewards = rewardsResult.rows[0];

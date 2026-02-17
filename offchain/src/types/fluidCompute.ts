@@ -15,13 +15,13 @@
  * Execution modes define how inference is performed
  * and what attestation guarantees are available.
  */
-export type ExecutionMode = 'byo_runtime' | 'managed_endpoint';
+export type ExecutionMode = 'byo_runtime' | 'managed_endpoint' | 'runpod_serverless';
 
 /**
  * BYO Runtime: Full control over execution environment.
- * - Worker controls container/runtime
+ * - Worker controls container/runtime on dedicated hardware
  * - runtime_hash = Docker image digest
- * - gpu_fingerprint = actual GPU hardware
+ * - gpu_fingerprint = actual GPU hardware (with serial)
  * - Full attestation chain
  */
 export const BYO_RUNTIME: ExecutionMode = 'byo_runtime';
@@ -35,6 +35,19 @@ export const BYO_RUNTIME: ExecutionMode = 'byo_runtime';
  */
 export const MANAGED_ENDPOINT: ExecutionMode = 'managed_endpoint';
 
+/**
+ * RunPod Serverless: Container-controlled execution on ephemeral workers.
+ * - Scale-to-zero capability (0→N workers)
+ * - runtime_hash = Docker image digest (container you control)
+ * - gpu_fingerprint = GPU type only (e.g., "NVIDIA A10G"), not specific hardware
+ * - endpoint_id = trust boundary / compute passport
+ * - Per-second billing with no idle charges
+ *
+ * Trust model: Receipts attest to execution integrity, not hardware exclusivity.
+ * No per-GPU serial, no TEE, no hardware attestation.
+ */
+export const RUNPOD_SERVERLESS: ExecutionMode = 'runpod_serverless';
+
 // ============================================================================
 // OFFER QUOTE
 // ============================================================================
@@ -47,6 +60,8 @@ export interface Price {
   amount: number;
   /** Currency for the price */
   currency: 'lamports' | 'usd_cents' | 'credits';
+  /** GPU rate per second in USD (runpod_serverless mode) */
+  gpu_rate_per_sec?: number;
 }
 
 /**
@@ -82,6 +97,8 @@ export interface OfferQuote {
   max_output_tokens: number;
   /** Price for this execution */
   price: Price;
+  /** Capacity bucket for serverless execution (runpod_serverless mode) */
+  capacity_bucket?: string;
   /** Unix timestamp (seconds) - quote expires after this time */
   expires_at: number;
   /** Optional capacity hints */
@@ -187,9 +204,21 @@ export interface JobRequest {
 export type JobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 /**
- * Structured error codes for job failures.
+ * Simplified error codes for v0.2 MVP.
+ * These are the primary error codes exposed to clients.
  */
-export type JobErrorCode =
+export type JobErrorCodeV0 =
+  | 'INVALID_QUOTE'    // Quote expired, invalid signature, or hash mismatch
+  | 'TIMEOUT'          // Execution or queue timeout
+  | 'OOM'              // GPU out of memory
+  | 'INFERENCE_ERROR'; // All other execution errors
+
+/**
+ * Detailed error codes (internal, for v1+).
+ * These provide finer-grained error information for debugging.
+ * Map to JobErrorCodeV0 for client responses.
+ */
+export type JobErrorCodeDetailed =
   | 'QUOTE_EXPIRED'
   | 'INVALID_QUOTE_SIGNATURE'
   | 'QUOTE_HASH_MISMATCH'
@@ -199,12 +228,44 @@ export type JobErrorCode =
   | 'MODEL_LOAD_FAILED'
   | 'MODEL_NOT_FOUND'
   | 'INFERENCE_TIMEOUT'
-  | 'INFERENCE_ERROR'
+  | 'QUEUE_TIMEOUT'
   | 'OUTPUT_STORAGE_FAILED'
   | 'GPU_OOM'
   | 'GPU_UNAVAILABLE'
+  | 'WORKER_CRASHED'
   | 'INTERNAL_ERROR'
   | 'CANCELLED';
+
+/**
+ * Union type for all error codes (v0.2 simplified + detailed).
+ * Use JobErrorCodeV0 for client-facing responses.
+ */
+export type JobErrorCode = JobErrorCodeV0 | JobErrorCodeDetailed;
+
+/**
+ * Map detailed error codes to simplified v0.2 codes.
+ */
+export const mapToV0ErrorCode = (code: JobErrorCode): JobErrorCodeV0 => {
+  switch (code) {
+    case 'INVALID_QUOTE':
+    case 'QUOTE_EXPIRED':
+    case 'INVALID_QUOTE_SIGNATURE':
+    case 'QUOTE_HASH_MISMATCH':
+    case 'MODEL_MISMATCH':
+    case 'OFFER_MISMATCH':
+    case 'INPUT_EXCEEDS_QUOTE':
+      return 'INVALID_QUOTE';
+    case 'TIMEOUT':
+    case 'INFERENCE_TIMEOUT':
+    case 'QUEUE_TIMEOUT':
+      return 'TIMEOUT';
+    case 'OOM':
+    case 'GPU_OOM':
+      return 'OOM';
+    default:
+      return 'INFERENCE_ERROR';
+  }
+};
 
 /**
  * Output from model execution.
@@ -351,12 +412,36 @@ export interface WorkerIdentity {
   execution_mode: ExecutionMode;
   /** Runtime type this worker uses */
   runtime_type?: RuntimeType;
-  /** Docker image digest of the runtime container (null for managed_endpoint) */
+  /**
+   * Docker image digest of the runtime container.
+   * MUST be null for managed_endpoint mode.
+   * Available for byo_runtime and runpod_serverless.
+   */
   runtime_hash: string | null;
-  /** GPU hardware fingerprint (null for managed_endpoint) */
+  /**
+   * GPU hardware fingerprint.
+   * MUST be null for managed_endpoint mode.
+   * For byo_runtime: specific hardware ID with serial.
+   * For runpod_serverless: GPU type only (e.g., "NVIDIA A10G").
+   */
   gpu_fingerprint: string | null;
   /** Number of GPUs available */
   gpu_count?: number;
+  /**
+   * RunPod endpoint ID (runpod_serverless mode only).
+   * This is the trust boundary - your compute passport.
+   */
+  endpoint_id?: string;
+  /**
+   * Ephemeral pod ID (runpod_serverless mode only).
+   * Changes on each worker spin-up.
+   */
+  pod_id?: string;
+  /**
+   * Capacity bucket name (runpod_serverless mode only).
+   * Maps to YAML-defined endpoint configuration.
+   */
+  capacity_bucket?: string;
   /** Inference capabilities */
   capabilities?: InferenceCapability[];
   /** Maximum batch size */
@@ -402,8 +487,12 @@ export interface ReceiptMetrics {
   tokens_out: number;
   /** Total execution time in milliseconds */
   total_latency_ms?: number;
-  /** Time spent waiting in queue */
+  /** Time spent waiting in queue (legacy name, use queue_time_ms) */
   queue_wait_ms?: number;
+  /** Time spent in queue before worker picked up job (runpod_serverless) */
+  queue_time_ms?: number;
+  /** Cold start time if worker was scaled from zero (runpod_serverless) */
+  cold_start_ms?: number;
   /** Time spent loading model */
   model_load_ms?: number;
   /** Whether the model was already loaded */
@@ -425,55 +514,77 @@ export interface ReceiptAnchor {
 }
 
 /**
+ * Billing details for cost transparency (runpod_serverless mode).
+ */
+export interface ReceiptBilling {
+  /** Total compute time in seconds */
+  compute_seconds: number;
+  /** GPU type used */
+  gpu_type: string;
+  /** Total cost in USD */
+  cost_usd: number;
+}
+
+/**
  * Extended receipt body for Fluid Compute v0.
  */
 export interface ExtendedReceiptBody {
   // Schema version
   schema_version: '1.0';
-  
+
   // Core identifiers
   run_id: string;
   timestamp: number;
   trace_id?: string;
-  
+
   // Model & Compute binding
   model_passport_id: string;
   compute_passport_id: string;
   /** On-chain ComputeOfferPassport ID (Solana PDA) - links execution to specific compute offer */
   compute_offer_passport_id?: string;
-  
+  /** Model revision (commit SHA or tag) for auditability */
+  model_revision?: string;
+
   // Policy binding
   policy_hash: string;
-  
+
   // Quote binding (NEW in v0)
   job_hash?: string;
   quote_hash?: string;
-  
+
   // Worker identity (NEW in v0)
   node_id?: string;
   runtime_hash?: string | null;
   gpu_fingerprint?: string | null;
-  
+
+  // RunPod Serverless fields (NEW in v0.2)
+  /** Capacity bucket name (runpod_serverless mode) */
+  capacity_bucket?: string;
+  /** RunPod endpoint ID (runpod_serverless mode) */
+  endpoint_id?: string;
+  /** Billing details for cost transparency (runpod_serverless mode) */
+  billing?: ReceiptBilling;
+
   // Output verification (NEW in v0)
   outputs_hash?: string;
   output_ref?: string;
-  
+
   // Execution metadata (NEW in v0)
   execution_mode?: ExecutionMode;
   start_ts?: number;
   end_ts?: number;
-  
+
   // Metrics
   runtime: string;
   metrics: ReceiptMetrics;
-  
+
   // Audit trail (NEW in v0)
   input_ref?: string;
-  
+
   // Structured errors (NEW in v0)
   error_code?: string;
   error_message?: string;
-  
+
   // Legacy optional fields
   image_hash?: string;
   model_hash?: string;
@@ -666,7 +777,7 @@ export interface ExtendedRunReceiptInput {
   tokens_in: number;
   tokens_out: number;
   ttft_ms: number;
-  
+
   // Optional base fields
   run_id?: string;
   p95_ms?: number;
@@ -674,7 +785,7 @@ export interface ExtendedRunReceiptInput {
   image_hash?: string;
   model_hash?: string;
   attestation?: Record<string, unknown>;
-  
+
   // Extended fields (NEW in v0)
   execution_mode?: ExecutionMode;
   job_hash?: string;
@@ -693,6 +804,20 @@ export interface ExtendedRunReceiptInput {
   queue_wait_ms?: number;
   model_load_ms?: number;
   cache_hit?: boolean;
+
+  // RunPod Serverless fields (NEW in v0.2)
+  /** Model revision (commit SHA or tag) for auditability */
+  model_revision?: string;
+  /** Capacity bucket name */
+  capacity_bucket?: string;
+  /** RunPod endpoint ID */
+  endpoint_id?: string;
+  /** Billing details */
+  billing?: ReceiptBilling;
+  /** Time spent in queue (runpod_serverless) */
+  queue_time_ms?: number;
+  /** Cold start time (runpod_serverless) */
+  cold_start_ms?: number;
 }
 
 /**
@@ -704,6 +829,8 @@ export interface QuoteRequest {
   estimated_input_tokens?: number;
   estimated_output_tokens?: number;
   policy_hash?: string;
+  /** Preferred capacity bucket (runpod_serverless mode) */
+  capacity_bucket?: string;
 }
 
 /**
@@ -736,4 +863,113 @@ export interface HealthCheckResponse {
   queue_depth?: number;
   uptime_seconds?: number;
   version?: string;
+}
+
+// ============================================================================
+// MODEL POLICY (v0.2)
+// ============================================================================
+
+/**
+ * Model lifecycle policy mode.
+ * - allow: Any revision of this model is permitted
+ * - deny: Model is explicitly blocked
+ * - pinned: Only the specified revision is permitted
+ */
+export type ModelPolicyMode = 'allow' | 'deny' | 'pinned';
+
+/**
+ * Model lifecycle policy for enterprise/chain deployments.
+ * Defines which models are allowed and how revisions are tracked.
+ */
+export interface ModelPolicy {
+  /** Model identifier (HF model ID or passport ID) */
+  model_id: string;
+  /** Policy mode */
+  policy: ModelPolicyMode;
+  /**
+   * Pinned revision (required if policy = 'pinned').
+   * For HF models: commit SHA or revision tag.
+   */
+  revision?: string;
+  /**
+   * Model weights hash (optional, for full reproducibility).
+   * SHA256 of model safetensors/bin files.
+   */
+  weights_hash?: string;
+}
+
+// ============================================================================
+// ENDPOINT HEALTH (v0.2 - RunPod Serverless)
+// ============================================================================
+
+/**
+ * Endpoint health status (polled from RunPod API).
+ */
+export interface EndpointHealth {
+  /** Endpoint ID */
+  endpoint_id: string;
+  /** Capacity bucket name */
+  capacity_bucket: string;
+  /** Current status */
+  status: 'healthy' | 'degraded' | 'unavailable';
+  /** Worker counts */
+  workers: {
+    active: number;
+    idle: number;
+    starting: number;
+    max: number;
+  };
+  /** Queue metrics */
+  queue: {
+    depth: number;
+    avg_delay_ms: number;
+  };
+  /** Unix timestamp of last request */
+  last_request_at?: number;
+  /** Unix timestamp when polled */
+  polled_at: number;
+}
+
+// ============================================================================
+// CAPACITY BUCKET (v0.2 - RunPod Serverless)
+// ============================================================================
+
+/**
+ * Capacity bucket pricing configuration.
+ */
+export interface CapacityBucketPricing {
+  /** GPU rate per second in USD */
+  gpu_rate_per_sec: number;
+}
+
+/**
+ * Capacity bucket defines endpoint configuration (from YAML).
+ */
+export interface CapacityBucket {
+  /** Bucket name (unique identifier) */
+  name: string;
+  /** Human-readable display name */
+  display_name?: string;
+  /** GPU types in priority order */
+  gpu_types: string[];
+  /** Allowed regions */
+  regions?: string[];
+  /** Minimum workers (0 = scale-to-zero) */
+  workers_min: number;
+  /** Maximum workers */
+  workers_max: number;
+  /** GPU count per worker */
+  gpu_count?: number;
+  /** Container image for workers */
+  container_image?: string;
+  /** Environment variables for workers */
+  env?: Record<string, string>;
+  /** Pricing configuration */
+  pricing: CapacityBucketPricing;
+  /** Scaler type (QUEUE_DELAY or REQUEST_COUNT) */
+  scaler_type?: 'QUEUE_DELAY' | 'REQUEST_COUNT';
+  /** Scaler value (seconds for QUEUE_DELAY, count for REQUEST_COUNT) */
+  scaler_value?: number;
+  /** Idle timeout in seconds */
+  idle_timeout?: number;
 }
