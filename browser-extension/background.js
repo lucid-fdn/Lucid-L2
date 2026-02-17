@@ -1,230 +1,311 @@
+// Lucid AI — Background Service Worker
 // Debug: Log when background script loads
-console.log('🚀 Background script loaded, extension ID:', chrome.runtime.id);
-console.log('🚀 Extension manifest version:', chrome.runtime.getManifest().manifest_version);
+const LUCID_DEBUG = false;
+function log(...args) { if (LUCID_DEBUG) console.log('[Lucid BG]', ...args); }
+function warn(...args) { if (LUCID_DEBUG) console.warn('[Lucid BG]', ...args); }
+
+log('Background script loaded, extension ID:', chrome.runtime.id);
+
+// ============================================
+// CONFIGURATION (replaces hardcoded URL)
+// ============================================
+const LUCID_ENVIRONMENTS = {
+  localnet: { apiUrl: 'http://localhost:3001' },
+  devnet: { apiUrl: 'https://api.lucid.foundation' },
+  testnet: { apiUrl: 'https://api.lucid.foundation' }
+};
+let currentEnv = 'testnet';
+
+function getApiUrl() {
+  return LUCID_ENVIRONMENTS[currentEnv]?.apiUrl || 'https://api.lucid.foundation';
+}
+
+// Load environment from storage
+try {
+  chrome.storage.local.get(['lucid_env'], (res) => {
+    if (res.lucid_env && LUCID_ENVIRONMENTS[res.lucid_env]) {
+      currentEnv = res.lucid_env;
+    }
+  });
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.lucid_env) {
+      const newEnv = changes.lucid_env.newValue;
+      if (LUCID_ENVIRONMENTS[newEnv]) currentEnv = newEnv;
+    }
+  });
+} catch (e) {}
+
+// ============================================
+// BADGE TEXT — show mGas on toolbar icon
+// ============================================
+function updateBadge(mGas) {
+  try {
+    let badgeText = '';
+    if (mGas > 0) {
+      if (mGas >= 10000) badgeText = `${Math.floor(mGas / 1000)}k`;
+      else if (mGas >= 1000) badgeText = `${(mGas / 1000).toFixed(1)}k`;
+      else badgeText = `${mGas}`;
+    }
+    chrome.action.setBadgeText({ text: badgeText });
+    chrome.action.setBadgeBackgroundColor({ color: '#6366f1' }); // Indigo
+    chrome.action.setBadgeTextColor({ color: '#ffffff' });
+  } catch (e) {
+    // setBadgeTextColor may not be available in all Chrome versions
+  }
+}
 
 // ============================================
 // STARTUP REWARDS FETCHING
 // ============================================
+const REWARD_REFRESH_INTERVAL_MINUTES = 5;
 
-const LUCID_API_BASE = 'https://api.lucid.foundation';
-const REWARD_REFRESH_INTERVAL_MINUTES = 5; // Refresh every 5 minutes
-
-// Helper: Get userId from session (same resolution as chatgpt_message handler)
 function getUserIdFromSession(session) {
   return session?.userId || session?.solanaAddress || session?.address || session?.wallet?.address;
 }
 
-// Fetch rewards from backend
 async function loadRewardsFromBackend() {
   try {
     const result = await chrome.storage.local.get(['privy_session']);
     const session = result.privy_session;
     const userId = getUserIdFromSession(session);
-    
+
     if (!userId) {
-      console.log('[BG] No userId found in session, skipping reward fetch');
-      return;
+      log('No userId found in session, skipping reward fetch');
+      return null;
     }
-    
-    console.log('📊 [BG] Fetching rewards for user:', userId);
-    
-    const response = await fetch(`${LUCID_API_BASE}/api/rewards/balance/${userId}`);
+
+    log('Fetching rewards for user:', userId);
+
+    const response = await fetch(`${getApiUrl()}/api/rewards/balance/${userId}`);
     const data = await response.json();
-    
+
     if (data.success && data.rewards) {
-      console.log('✅ [BG] Backend rewards loaded:', data.rewards);
-      
-      // Store balance in chrome.storage.local (same storage location as popup.js expects)
+      log('Backend rewards loaded:', data.rewards);
+
       const balance = {
         mGas: data.rewards.balance?.mGas || 0,
         lucid: data.rewards.balance?.lucid || 0,
-        sol: 0 // SOL balance fetched separately if needed
+        sol: 0
       };
-      
-      await chrome.storage.local.set({ 
+
+      await chrome.storage.local.set({
         balance,
         backend_balance_timestamp: Date.now(),
         streakDays: data.rewards.streakDays || 0,
         totalThoughts: data.rewards.totalThoughts || 0
       });
-      
-      console.log('💾 [BG] Saved backend balance to storage:', balance);
-      
+
+      // Update toolbar badge with mGas count
+      updateBadge(balance.mGas);
+
       // Notify popup if it's open
       chrome.runtime.sendMessage({
         type: 'rewards_updated',
         data: balance
-      }).catch(() => {
-        // Popup not open, that's fine
-      });
-      
+      }).catch(() => {});
+
       return balance;
     } else {
-      console.log('⚠️ [BG] Backend response not successful:', data);
+      log('Backend response not successful:', data);
     }
   } catch (error) {
-    console.error('❌ [BG] Error fetching rewards from backend:', error);
+    warn('Error fetching rewards from backend:', error);
   }
   return null;
 }
 
-// Setup periodic reward refresh using chrome.alarms
 async function setupRewardRefreshAlarm() {
-  // Clear existing alarm if any
   await chrome.alarms.clear('rewardRefresh');
-  
-  // Create new alarm to refresh every 5 minutes
   chrome.alarms.create('rewardRefresh', {
     periodInMinutes: REWARD_REFRESH_INTERVAL_MINUTES
   });
-  
-  console.log(`⏰ [BG] Reward refresh alarm set for every ${REWARD_REFRESH_INTERVAL_MINUTES} minutes`);
+  log(`Reward refresh alarm set for every ${REWARD_REFRESH_INTERVAL_MINUTES} minutes`);
 }
 
-// Handle alarm events
+// ============================================
+// DAILY STREAK REMINDER
+// ============================================
+async function setupStreakReminderAlarm() {
+  await chrome.alarms.clear('streakReminder');
+  // Check once per hour if user hasn't hit daily goal
+  chrome.alarms.create('streakReminder', {
+    periodInMinutes: 60
+  });
+}
+
+async function checkAndSendStreakReminder() {
+  try {
+    const data = await chrome.storage.local.get(['privy_session', 'totalThoughts', 'streakDays', 'lastStreakReminderDate']);
+    const userId = getUserIdFromSession(data.privy_session);
+    if (!userId) return;
+
+    const today = new Date().toDateString();
+    // Only send one reminder per day
+    if (data.lastStreakReminderDate === today) return;
+
+    const totalThoughts = data.totalThoughts || 0;
+    const streakDays = data.streakDays || 0;
+
+    // If user has a streak going but hasn't reached daily goal today
+    if (streakDays > 0 && totalThoughts < 5) {
+      // Only remind in the afternoon/evening (12-21 UTC)
+      const hour = new Date().getUTCHours();
+      if (hour >= 12 && hour <= 21) {
+        await chrome.storage.local.set({ lastStreakReminderDate: today });
+        // Note: chrome.notifications requires "notifications" permission
+        // For now, update badge to indicate action needed
+        chrome.action.setBadgeText({ text: '🔥' });
+        chrome.action.setBadgeBackgroundColor({ color: '#f59e0b' });
+      }
+    }
+  } catch (e) {
+    warn('Streak reminder error:', e);
+  }
+}
+
+// ============================================
+// ALARM HANDLERS
+// ============================================
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'rewardRefresh') {
-    console.log('⏰ [BG] Reward refresh alarm triggered');
     loadRewardsFromBackend();
+  }
+  if (alarm.name === 'streakReminder') {
+    checkAndSendStreakReminder();
   }
 });
 
-// On extension startup (browser starts up)
+// ============================================
+// LIFECYCLE EVENTS
+// ============================================
 chrome.runtime.onStartup.addListener(async () => {
-  console.log('🚀 [BG] Extension startup triggered');
+  log('Extension startup triggered');
   await loadRewardsFromBackend();
   await setupRewardRefreshAlarm();
+  await setupStreakReminderAlarm();
 });
 
-// On extension installed or updated
 chrome.runtime.onInstalled.addListener(async (details) => {
-  console.log('📦 [BG] Extension installed/updated:', details.reason);
+  log('Extension installed/updated:', details.reason);
   await loadRewardsFromBackend();
   await setupRewardRefreshAlarm();
+  await setupStreakReminderAlarm();
 });
 
-// Also load rewards when background script first loads (for development/reload scenarios)
+// Initial load on script start
 setTimeout(async () => {
-  console.log('🔄 [BG] Initial rewards fetch on script load');
   await loadRewardsFromBackend();
   await setupRewardRefreshAlarm();
+  await setupStreakReminderAlarm();
 }, 1000);
 
 // ============================================
-// END STARTUP REWARDS FETCHING
+// MESSAGE HANDLERS
 // ============================================
-
-// Opens the Privy auth/logout popup windows and relays results to the active tab
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type === 'open_privy_auth') {
-    // Capture opener tab id
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const openerTabId = tabs?.[0]?.id;
       if (openerTabId) {
         chrome.storage.local.set({ opener_tab_id: openerTabId });
       }
-      
-      // Open auth page on server (https:// allows Phantom injection + SSL certificate)
       const extensionId = chrome.runtime.id;
       chrome.tabs.create({
         url: `https://www.lucid.foundation/test/auth?extension_id=${extensionId}`,
         active: true
       });
-
       sendResponse?.({ ok: true });
     });
-    return true; // keep the message channel open for async sendResponse
+    return true;
   }
+
   if (msg?.type === 'open_privy_logout') {
-    // Capture opener tab id for logout flows too
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const openerTabId = tabs?.[0]?.id;
       if (openerTabId) {
         chrome.storage.local.set({ opener_tab_id: openerTabId });
       }
-
-      // IMPORTANT (MV3 compliance): logout flow is hosted on our website to avoid any
-      // remote-code dependencies inside extension pages.
       const extensionId = chrome.runtime.id;
       chrome.tabs.create({
         url: `https://www.lucid.foundation/test/auth?extension_id=${extensionId}&logout=1`,
         active: true
       });
-
       sendResponse?.({ ok: true });
     });
     return true;
   }
+
   if (msg?.type === 'chatgpt_message') {
-    // NEW: Process ChatGPT messages through reward system
-    console.log('[BG] chatgpt_message received:', msg.data?.messageType);
-    
+    log('chatgpt_message received:', msg.data?.messageType, 'platform:', msg.data?.platform);
+
     chrome.storage.local.get(['privy_session'], async (result) => {
-      // FIX: privy_session stores wallet address, not userId
-      // Use solanaAddress, address, or wallet.address as the userId
       const session = result.privy_session;
-      const userId = session?.userId || session?.solanaAddress || session?.address || session?.wallet?.address;
-      
-      console.log('[BG] privy_session:', JSON.stringify(session, null, 2));
-      console.log('[BG] Resolved userId:', userId);
-      
+      const userId = getUserIdFromSession(session);
+
       if (!userId) {
-        console.log('[BG] No userId found, skipping reward processing');
+        log('No userId found, skipping reward processing');
         sendResponse?.({ ok: false, error: 'Not authenticated' });
         return;
       }
-      
-      const LUCID_API_BASE = 'https://api.lucid.foundation';
-      
+
       try {
-        const response = await fetch(`${LUCID_API_BASE}/api/rewards/process-conversation`, {
+        const response = await fetch(`${getApiUrl()}/api/rewards/process-conversation`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userId,
             messageType: msg.data?.messageType || 'user',
             content: msg.data?.content || '',
+            platform: msg.data?.platform || 'ChatGPT',
             inputTokens: msg.data?.inputTokens,
             outputTokens: msg.data?.outputTokens
           })
         });
-        
+
         const data = await response.json();
-        console.log('[BG] Reward processing result:', data);
-        
+        log('Reward processing result:', data);
+
         if (data.success) {
-          // CRITICAL FIX: Store the balance in chrome.storage.local
-          // This was missing - balance was never being persisted!
           if (data.balance) {
             chrome.storage.local.set({ balance: data.balance }, () => {
-              console.log('[BG] ✅ Balance stored:', data.balance);
+              log('Balance stored:', data.balance);
             });
+            // Update badge
+            updateBadge(data.balance.mGas || 0);
           }
-          
+
           if (data.earned > 0) {
-            // Notify popup to refresh
+            // Notify popup
             chrome.runtime.sendMessage({
               type: 'rewards_updated',
               data: data.balance
-            }).catch(err => console.log('[BG] Popup not open:', err));
+            }).catch(() => {});
+
+            // Send earning toast to the content script tab
+            if (sender?.tab?.id) {
+              chrome.tabs.sendMessage(sender.tab.id, {
+                type: 'show_earning_toast',
+                mGasEarned: data.earned,
+                platform: msg.data?.platform || 'ChatGPT'
+              }).catch(() => {});
+            }
           }
         }
-        
+
         sendResponse?.({ ok: true, data });
       } catch (err) {
-        console.error('[BG] Error processing conversation:', err);
+        warn('Error processing conversation:', err);
         sendResponse?.({ ok: false, error: err.message });
       }
     });
-    
-    return true; // Keep channel open for async response
+
+    return true;
   }
+
   if (msg?.type === 'lucid_run') {
-    // Perform backend fetch from the service worker to avoid mixed-content/CORS issues
-    const LUCID_API_BASE = 'https://api.lucid.foundation';
     try {
-      console.log('[BG] lucid_run received. text length:', (msg.payload?.text || '').length);
-      fetch(`${LUCID_API_BASE}/api/run`, {
+      log('lucid_run received. text length:', (msg.payload?.text || '').length);
+      fetch(`${getApiUrl()}/api/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -234,89 +315,55 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })
         .then(async (r) => {
           const data = await r.json().catch(() => null);
-          console.log('[BG] lucid_run response status:', r.status, 'ok:', r.ok);
-          // Return a normalized response to the content script
           sendResponse?.({ ok: r.ok, status: r.status, data });
         })
         .catch((err) => {
-          console.error('[BG] lucid_run fetch error:', err);
+          warn('lucid_run fetch error:', err);
           sendResponse?.({ ok: false, error: err?.message || String(err) });
         });
     } catch (e) {
-      console.error('[BG] lucid_run exception:', e);
+      warn('lucid_run exception:', e);
       sendResponse?.({ ok: false, error: e?.message || String(e) });
     }
-    return true; // keep channel open for async sendResponse
+    return true;
   }
 });
 
-// Relay messages from auth page - broadcast to runtime (reaches popup)
+// ============================================
+// EXTERNAL MESSAGE HANDLER (from auth page)
+// ============================================
 chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
-  console.log('📨 EXTERNAL MESSAGE RECEIVED!');
-  console.log('📨 Message:', JSON.stringify(msg, null, 2));
-  console.log('📨 Sender:', sender);
-  console.log('📨 Sender URL:', sender?.url);
-  console.log('📨 Sender ID:', sender?.id);
-  console.log('📨 Sender tab:', sender?.tab);
-  
+  log('External message received:', msg?.type, 'from:', sender?.url);
+
   if (msg?.type === 'privy_authenticated' || msg?.type === 'privy_logged_out') {
-    console.log('✅ Privy message type matched:', msg.type);
-    console.log('🔄 Broadcasting message:', msg.type);
-    
-    // Store in chrome.storage for popup to access
     if (msg.type === 'privy_authenticated') {
-      console.log('💾 Storing privy session:', JSON.stringify(msg.payload, null, 2));
       chrome.storage.local.set({ privy_session: msg.payload }, async () => {
-        console.log('✅ Privy session stored in background');
-        
-        // Verify it was stored
-        chrome.storage.local.get(['privy_session'], (result) => {
-          console.log('🔍 Verified storage after save:', JSON.stringify(result, null, 2));
-        });
-        
-        // IMPORTANT: Immediately fetch rewards after authentication
-        console.log('🔄 [BG] Fetching rewards immediately after authentication...');
+        log('Privy session stored');
         await loadRewardsFromBackend();
       });
     } else if (msg.type === 'privy_logged_out') {
-      console.log('🗑️ Removing privy session from storage');
       chrome.storage.local.remove('privy_session', () => {
-        console.log('✅ Privy session cleared in background');
-        
-        // Verify it was removed
-        chrome.storage.local.get(['privy_session'], (result) => {
-          console.log('🔍 Verified storage after removal:', JSON.stringify(result, null, 2));
-        });
+        log('Privy session cleared');
+        updateBadge(0);
       });
     }
-    
-    // Send response back to sender
-    if (sendResponse) {
-      sendResponse({ success: true, received: true });
-    }
-    
-    // CRITICAL FIX: Broadcast internally so popup receives the message
-    // External messages (onMessageExternal) don't automatically reach internal listeners (onMessage)
-    chrome.runtime.sendMessage(msg).catch(err => {
-      console.log('[BG] No popup listening for internal broadcast (normal if popup is closed):', err.message);
-    });
-    
+
+    if (sendResponse) sendResponse({ success: true, received: true });
+
+    // Broadcast internally so popup receives the message
+    chrome.runtime.sendMessage(msg).catch(() => {});
+
     return true;
-  } else {
-    console.log('❌ Message type did not match expected types');
-    console.log('❌ Expected: privy_authenticated or privy_logged_out');
-    console.log('❌ Received type:', msg?.type);
-    return false;
   }
+  return false;
 });
 
-// Also log all storage changes for debugging
+// Listen for balance changes to update badge
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  console.log('💾 Storage changed in', areaName);
-  for (let key in changes) {
-    console.log(`💾 ${key}:`, {
-      oldValue: changes[key].oldValue,
-      newValue: changes[key].newValue
-    });
+  if (areaName === 'local' && changes.balance) {
+    const newBalance = changes.balance.newValue;
+    if (newBalance?.mGas !== undefined) {
+      updateBadge(newBalance.mGas);
+    }
   }
 });

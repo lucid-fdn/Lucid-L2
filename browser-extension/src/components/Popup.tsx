@@ -19,7 +19,7 @@ export function Popup() {
     
     // Listen for auth changes + theme changes
     const handleStorageChange = (changes: any, area: string) => {
-      if (area === 'local' && changes.privy_session) {
+      if (area === 'local' && (changes.privy_session || changes.guest_mode)) {
         checkAuthentication()
       }
 
@@ -66,8 +66,8 @@ export function Popup() {
 
   const checkAuthentication = async () => {
     try {
-      const data = await chrome.storage.local.get(['privy_session'])
-      setIsAuthenticated(!!data.privy_session)
+      const data = await chrome.storage.local.get(['privy_session', 'guest_mode'])
+      setIsAuthenticated(!!data.privy_session || !!data.guest_mode)
     } catch (error) {
       console.error('Error checking authentication:', error)
       setIsAuthenticated(false)

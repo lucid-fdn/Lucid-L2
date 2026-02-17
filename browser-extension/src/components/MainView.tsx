@@ -5,6 +5,11 @@ import {
   Activity,
   Home,
   Copy,
+  Share2,
+  Gift,
+  Wallet,
+  Globe,
+  Check,
 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
@@ -46,6 +51,9 @@ export function MainView({ mode, onClose, onUnpin, onPin, themePreference }: Mai
   })
   const [recentCaptures, setRecentCaptures] = useState<ConversationItem[]>([])
   const [walletAddress, setWalletAddress] = useState('')
+  const [isGuest, setIsGuest] = useState(false)
+  const [activePlatform, setActivePlatform] = useState<string | null>(null)
+  const [referralCopied, setReferralCopied] = useState(false)
 
   const isSidebar = mode === 'sidebar'
   const width = isSidebar ? 'w-[350px]' : 'w-[420px]'
@@ -62,7 +70,7 @@ export function MainView({ mode, onClose, onUnpin, onPin, themePreference }: Mai
     // Listen for storage changes
     const handleStorageChange = (changes: any, area: string) => {
       if (area === 'local') {
-        if (changes.chatgpt_session_stats || changes.conversationHistory || changes.balance || changes.privy_session) {
+        if (changes.chatgpt_session_stats || changes.conversationHistory || changes.balance || changes.privy_session || changes.guest_mode || changes.active_platform) {
           loadData()
         }
       }
@@ -89,15 +97,27 @@ export function MainView({ mode, onClose, onUnpin, onPin, themePreference }: Mai
     try {
       const data = await chrome.storage.local.get([
         'privy_session',
+        'guest_mode',
         'chatgpt_session_stats',
         'conversationHistory',
-        'balance'
+        'balance',
+        'active_platform'
       ])
 
-      // Update wallet connection
+      // Update wallet connection & guest mode
       if (data.privy_session) {
         setWalletConnected(true)
         setWalletAddress(data.privy_session.wallet?.address || '')
+        setIsGuest(false)
+      } else if (data.guest_mode) {
+        setIsGuest(true)
+        setWalletConnected(false)
+        setWalletAddress('')
+      }
+
+      // Update active platform
+      if (data.active_platform) {
+        setActivePlatform(data.active_platform)
       }
 
       // Update session stats
@@ -132,6 +152,7 @@ export function MainView({ mode, onClose, onUnpin, onPin, themePreference }: Mai
       // Clear all auth-related data
       await chrome.storage.local.remove([
         'privy_session',
+        'guest_mode',
         'chatgpt_session_stats',
         'conversationHistory',
         'balance'
@@ -258,8 +279,42 @@ export function MainView({ mode, onClose, onUnpin, onPin, themePreference }: Mai
 
         {/* Dashboard Tab */}
         <TabsContent value="dashboard" className="flex-1 overflow-y-auto scrollbar-hide p-4 pb-20 space-y-4">
-          {/* Start Session CTA - Show only when no session active */}
-      {/* Quick Stats Banner - Sticky below header */}
+          {/* Guest Mode Banner */}
+          {isGuest && (
+            <Card className="shadow-xs ring-1 bg-gradient-to-r from-amber-500/10 to-orange-500/10 ring-amber-500/30">
+              <CardContent className="pt-4 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                    <Wallet className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-amber-300">Guest Mode</p>
+                    <p className="text-[10px] text-amber-400/70">Connect a wallet to secure your earnings on-chain</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="h-7 text-[10px] bg-amber-500 hover:bg-amber-400 text-black font-semibold flex-shrink-0"
+                    onClick={handleWalletConnect}
+                  >
+                    Connect
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Active Platform Indicator */}
+          {activePlatform && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+              <Globe className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="text-[11px] text-emerald-300 font-medium">
+                Mining on <span className="capitalize">{activePlatform}</span>
+              </span>
+              <span className="ml-auto w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            </div>
+          )}
+
+          {/* Quick Stats Banner */}
           <div className={cn(
             "grid gap-2",
             isSidebar ? "grid-cols-1" : "grid-cols-2"
@@ -429,6 +484,74 @@ export function MainView({ mode, onClose, onUnpin, onPin, themePreference }: Mai
             </CardContent>
           </Card> */}
 
+          {/* Share & Earn Referral Card */}
+          <Card className="shadow-xs ring-1 bg-gradient-to-br from-indigo-500/10 via-purple-500/10 to-pink-500/10 ring-purple-500/20 relative overflow-hidden">
+            <BorderBeam size={80} duration={10} colorFrom="#6366f1" colorTo="#ec4899" />
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Gift className="w-4 h-4 text-pink-400" />
+                Share & Earn
+              </CardTitle>
+              <CardDescription className="text-[11px]">
+                Invite friends and earn 50 bonus mGas per referral
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 p-2 bg-background/50 rounded-md border border-border text-[11px] text-muted-foreground truncate">
+                  {walletAddress
+                    ? `https://lucid.app/join?ref=${walletAddress.slice(0, 8)}`
+                    : 'https://lucid.app/join?ref=guest'}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 w-8 p-0 flex-shrink-0"
+                  onClick={() => {
+                    const link = walletAddress
+                      ? `https://lucid.app/join?ref=${walletAddress.slice(0, 8)}`
+                      : 'https://lucid.app/join?ref=guest'
+                    navigator.clipboard.writeText(link)
+                    setReferralCopied(true)
+                    setTimeout(() => setReferralCopied(false), 2000)
+                  }}
+                >
+                  {referralCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 h-8 text-[11px] gap-1.5"
+                  onClick={() => {
+                    const link = walletAddress
+                      ? `https://lucid.app/join?ref=${walletAddress.slice(0, 8)}`
+                      : 'https://lucid.app/join?ref=guest'
+                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent('I\'m earning crypto from my AI conversations with @LucidAI 🧠⛏️\n\nJoin me: ' + link)}`, '_blank')
+                  }}
+                >
+                  <Share2 className="w-3 h-3" />
+                  Tweet
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 h-8 text-[11px] gap-1.5"
+                  onClick={() => {
+                    const link = walletAddress
+                      ? `https://lucid.app/join?ref=${walletAddress.slice(0, 8)}`
+                      : 'https://lucid.app/join?ref=guest'
+                    window.open(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('Earn crypto from your AI conversations with Lucid AI 🧠⛏️')}`, '_blank')
+                  }}
+                >
+                  <Share2 className="w-3 h-3" />
+                  Telegram
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Quick Actions - Only show in popup mode for space */}
           {!isSidebar && (
             <div className="grid grid-cols-3 gap-2">
@@ -526,7 +649,7 @@ export function MainView({ mode, onClose, onUnpin, onPin, themePreference }: Mai
               
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold text-foreground">Version</h3>
-                <p className="text-xs text-muted-foreground">v1.2.1</p>
+                <p className="text-xs text-muted-foreground">v1.3.0</p>
               </div>
             </CardContent>
           </Card>

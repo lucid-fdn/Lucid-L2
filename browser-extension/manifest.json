@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Lucid AI",
-  "version": "1.2.1",
-  "description": "Earn crypto rewards by staking your ChatGPT conversations to Lucid L2 blockchain. Secure wallet connection via Privy.",
+  "version": "1.3.0",
+  "description": "Earn crypto rewards by staking your AI conversations to Lucid L2 blockchain. Supports ChatGPT, Claude, Gemini, Perplexity, Grok, and Copilot.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -17,6 +17,14 @@
     "https://auth-api.privy.io/*",
     "https://chatgpt.com/*", 
     "https://chat.openai.com/*",
+    "https://claude.ai/*",
+    "https://gemini.google.com/*",
+    "https://www.perplexity.ai/*",
+    "https://perplexity.ai/*",
+    "https://x.com/*",
+    "https://twitter.com/*",
+    "https://copilot.microsoft.com/*",
+    "https://www.bing.com/*",
     "https://www.lucid.foundation/*",
     "https://api.lucid.foundation/*",
     "https://api.lucid-l2.com/*",
@@ -37,7 +45,16 @@
     {
       "matches": [
         "https://chatgpt.com/*",
-        "https://chat.openai.com/*"
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://www.perplexity.ai/*",
+        "https://perplexity.ai/*",
+        "https://x.com/i/grok*",
+        "https://twitter.com/i/grok*",
+        "https://copilot.microsoft.com/*",
+        "https://www.bing.com/chat*",
+        "https://www.bing.com/copilot*"
       ],
       "js": ["content.js"]
     }
@@ -50,7 +67,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Lucid AI Memory - Earn Crypto Rewards"
+    "default_title": "Lucid AI — Earn Crypto from AI Conversations"
   },
   "homepage_url": "https://www.lucid.foundation/privacy",
   "content_security_policy": {
