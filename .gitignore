@@ -43,7 +43,10 @@ test-ledger/
 
 # Keypairs (security)
 *-keypair.json
+
+# Runtime state
 memory-wallet.json
+.mmr-storage/
 
 # HF Sync state files
 sync-state.json
