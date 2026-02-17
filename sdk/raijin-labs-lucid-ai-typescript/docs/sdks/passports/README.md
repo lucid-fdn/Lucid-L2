@@ -13,7 +13,9 @@
 * [listPendingSync](#listpendingsync) - Get passports pending sync
 * [getStats](#getstats) - Passport statistics
 * [searchModels](#searchmodels) - Search model passports
-* [searchCompute](#searchcompute) - Search compute passports
+* [lucidListTools](#lucidlisttools) - List tool passports
+* [lucidListDatasets](#lucidlistdatasets) - List dataset passports
+* [lucidListAgentPassports](#lucidlistagentpassports) - List agent passports
 
 ## create
 
@@ -593,9 +595,9 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.passports.searchModels();
+  const result = await raijinLabsLucidAi.passports.searchModels();
 
-
+  console.log(result);
 }
 
 run();
@@ -617,7 +619,7 @@ async function run() {
   const res = await passportsSearchModels(raijinLabsLucidAi);
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("passportsSearchModels failed:", res.error);
   }
@@ -637,7 +639,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidSearchModelsResponse](../../models/operations/lucidsearchmodelsresponse.md)\>**
 
 ### Errors
 
@@ -646,22 +648,22 @@ run();
 | errors.ErrorResponse                 | 500                                  | application/json                     |
 | errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
 
-## searchCompute
+## lucidListTools
 
-Search compute passports
+List tool passports
 
 ### Example Usage
 
-<!-- UsageSnippet language="typescript" operationID="lucid_search_compute" method="get" path="/v1/compute" -->
+<!-- UsageSnippet language="typescript" operationID="lucid_list_tools" method="get" path="/v1/tools" -->
 ```typescript
 import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.passports.searchCompute();
+  const result = await raijinLabsLucidAi.passports.lucidListTools();
 
-
+  console.log(result);
 }
 
 run();
@@ -673,19 +675,19 @@ The standalone function version of this method:
 
 ```typescript
 import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { passportsSearchCompute } from "raijin-labs-lucid-ai/funcs/passportsSearchCompute.js";
+import { passportsLucidListTools } from "raijin-labs-lucid-ai/funcs/passportsLucidListTools.js";
 
 // Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
 const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
 
 async function run() {
-  const res = await passportsSearchCompute(raijinLabsLucidAi);
+  const res = await passportsLucidListTools(raijinLabsLucidAi);
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
-    console.log("passportsSearchCompute failed:", res.error);
+    console.log("passportsLucidListTools failed:", res.error);
   }
 }
 
@@ -696,14 +698,146 @@ run();
 
 | Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `request`                                                                                                                                                                      | [operations.LucidSearchComputeRequest](../../models/operations/lucidsearchcomputerequest.md)                                                                                   | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
+| `request`                                                                                                                                                                      | [operations.LucidListToolsRequest](../../models/operations/lucidlisttoolsrequest.md)                                                                                           | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
 | `options`                                                                                                                                                                      | RequestOptions                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                             | Used to set various options for making HTTP requests.                                                                                                                          |
 | `options.fetchOptions`                                                                                                                                                         | [RequestInit](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options)                                                                                        | :heavy_minus_sign:                                                                                                                                                             | Options that are passed to the underlying HTTP request. This can be used to inject extra headers for examples. All `Request` options, except `method` and `body`, are allowed. |
 | `options.retries`                                                                                                                                                              | [RetryConfig](../../lib/utils/retryconfig.md)                                                                                                                                  | :heavy_minus_sign:                                                                                                                                                             | Enables retrying HTTP requests under certain failure conditions.                                                                                                               |
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidListToolsResponse](../../models/operations/lucidlisttoolsresponse.md)\>**
+
+### Errors
+
+| Error Type                           | Status Code                          | Content Type                         |
+| ------------------------------------ | ------------------------------------ | ------------------------------------ |
+| errors.ErrorResponse                 | 500                                  | application/json                     |
+| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+
+## lucidListDatasets
+
+List dataset passports
+
+### Example Usage
+
+<!-- UsageSnippet language="typescript" operationID="lucid_list_datasets" method="get" path="/v1/datasets" -->
+```typescript
+import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+
+const raijinLabsLucidAi = new RaijinLabsLucidAi();
+
+async function run() {
+  const result = await raijinLabsLucidAi.passports.lucidListDatasets();
+
+  console.log(result);
+}
+
+run();
+```
+
+### Standalone function
+
+The standalone function version of this method:
+
+```typescript
+import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
+import { passportsLucidListDatasets } from "raijin-labs-lucid-ai/funcs/passportsLucidListDatasets.js";
+
+// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// You can create one instance of it to use across an application.
+const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+
+async function run() {
+  const res = await passportsLucidListDatasets(raijinLabsLucidAi);
+  if (res.ok) {
+    const { value: result } = res;
+    console.log(result);
+  } else {
+    console.log("passportsLucidListDatasets failed:", res.error);
+  }
+}
+
+run();
+```
+
+### Parameters
+
+| Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `request`                                                                                                                                                                      | [operations.LucidListDatasetsRequest](../../models/operations/lucidlistdatasetsrequest.md)                                                                                     | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
+| `options`                                                                                                                                                                      | RequestOptions                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                             | Used to set various options for making HTTP requests.                                                                                                                          |
+| `options.fetchOptions`                                                                                                                                                         | [RequestInit](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options)                                                                                        | :heavy_minus_sign:                                                                                                                                                             | Options that are passed to the underlying HTTP request. This can be used to inject extra headers for examples. All `Request` options, except `method` and `body`, are allowed. |
+| `options.retries`                                                                                                                                                              | [RetryConfig](../../lib/utils/retryconfig.md)                                                                                                                                  | :heavy_minus_sign:                                                                                                                                                             | Enables retrying HTTP requests under certain failure conditions.                                                                                                               |
+
+### Response
+
+**Promise\<[operations.LucidListDatasetsResponse](../../models/operations/lucidlistdatasetsresponse.md)\>**
+
+### Errors
+
+| Error Type                           | Status Code                          | Content Type                         |
+| ------------------------------------ | ------------------------------------ | ------------------------------------ |
+| errors.ErrorResponse                 | 500                                  | application/json                     |
+| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+
+## lucidListAgentPassports
+
+List agent passports
+
+### Example Usage
+
+<!-- UsageSnippet language="typescript" operationID="lucid_list_agent_passports" method="get" path="/v1/agents" -->
+```typescript
+import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+
+const raijinLabsLucidAi = new RaijinLabsLucidAi();
+
+async function run() {
+  const result = await raijinLabsLucidAi.passports.lucidListAgentPassports();
+
+  console.log(result);
+}
+
+run();
+```
+
+### Standalone function
+
+The standalone function version of this method:
+
+```typescript
+import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
+import { passportsLucidListAgentPassports } from "raijin-labs-lucid-ai/funcs/passportsLucidListAgentPassports.js";
+
+// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// You can create one instance of it to use across an application.
+const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+
+async function run() {
+  const res = await passportsLucidListAgentPassports(raijinLabsLucidAi);
+  if (res.ok) {
+    const { value: result } = res;
+    console.log(result);
+  } else {
+    console.log("passportsLucidListAgentPassports failed:", res.error);
+  }
+}
+
+run();
+```
+
+### Parameters
+
+| Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `request`                                                                                                                                                                      | [operations.LucidListAgentPassportsRequest](../../models/operations/lucidlistagentpassportsrequest.md)                                                                         | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
+| `options`                                                                                                                                                                      | RequestOptions                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                             | Used to set various options for making HTTP requests.                                                                                                                          |
+| `options.fetchOptions`                                                                                                                                                         | [RequestInit](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options)                                                                                        | :heavy_minus_sign:                                                                                                                                                             | Options that are passed to the underlying HTTP request. This can be used to inject extra headers for examples. All `Request` options, except `method` and `body`, are allowed. |
+| `options.retries`                                                                                                                                                              | [RetryConfig](../../lib/utils/retryconfig.md)                                                                                                                                  | :heavy_minus_sign:                                                                                                                                                             | Enables retrying HTTP requests under certain failure conditions.                                                                                                               |
+
+### Response
+
+**Promise\<[operations.LucidListAgentPassportsResponse](../../models/operations/lucidlistagentpassportsresponse.md)\>**
 
 ### Errors
 

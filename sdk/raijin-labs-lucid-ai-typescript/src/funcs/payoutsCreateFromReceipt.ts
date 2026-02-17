@@ -22,6 +22,7 @@ import { RaijinLabsLucidAiError } from "../models/errors/raijinlabslucidaierror.
 import { ResponseValidationError } from "../models/errors/responsevalidationerror.js";
 import { SDKValidationError } from "../models/errors/sdkvalidationerror.js";
 import * as models from "../models/index.js";
+import * as operations from "../models/operations/index.js";
 import { APICall, APIPromise } from "../types/async.js";
 import { Result } from "../types/fp.js";
 
@@ -34,7 +35,7 @@ export function payoutsCreateFromReceipt(
   options?: RequestOptions,
 ): APIPromise<
   Result<
-    void,
+    operations.LucidPayoutFromReceiptResponse,
     | errors.ErrorResponse
     | RaijinLabsLucidAiError
     | ResponseValidationError
@@ -60,7 +61,7 @@ async function $do(
 ): Promise<
   [
     Result<
-      void,
+      operations.LucidPayoutFromReceiptResponse,
       | errors.ErrorResponse
       | RaijinLabsLucidAiError
       | ResponseValidationError
@@ -137,7 +138,7 @@ async function $do(
   };
 
   const [result] = await M.match<
-    void,
+    operations.LucidPayoutFromReceiptResponse,
     | errors.ErrorResponse
     | RaijinLabsLucidAiError
     | ResponseValidationError
@@ -148,7 +149,7 @@ async function $do(
     | UnexpectedClientError
     | SDKValidationError
   >(
-    M.nil(200, z.void()),
+    M.json(200, operations.LucidPayoutFromReceiptResponse$inboundSchema),
     M.jsonErr(400, errors.ErrorResponse$inboundSchema),
     M.jsonErr(500, errors.ErrorResponse$inboundSchema),
     M.fail("4XX"),

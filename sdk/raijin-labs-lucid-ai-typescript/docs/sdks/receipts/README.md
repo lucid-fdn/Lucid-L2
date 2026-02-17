@@ -8,6 +8,7 @@
 * [get](#get) - Get a receipt
 * [verify](#verify) - Verify a receipt (hash + signature + inclusion)
 * [getProof](#getproof) - Get inclusion proof for receipt
+* [lucidVerifyReceiptByHash](#lucidverifyreceiptbyhash) - Verify receipt by hash with inclusion proof and epoch info
 * [getMmrRoot](#getmmrroot) - Get current MMR root
 * [getSignerPubKey](#getsignerpubkey) - Get orchestrator signing public key
 
@@ -25,7 +26,6 @@ const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
   const result = await raijinLabsLucidAi.receipts.create({
-    runId: "<id>",
     modelPassportId: "<id>",
     computePassportId: "<id>",
     policyHash: "<value>",
@@ -33,9 +33,6 @@ async function run() {
     tokensIn: 184620,
     tokensOut: 329999,
     ttftMs: 417264,
-    timestamp: 770594,
-    receiptHash: "<value>",
-    signature: "<value>",
   });
 
   console.log(result);
@@ -58,7 +55,6 @@ const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
 
 async function run() {
   const res = await receiptsCreate(raijinLabsLucidAi, {
-    runId: "<id>",
     modelPassportId: "<id>",
     computePassportId: "<id>",
     policyHash: "<value>",
@@ -66,9 +62,6 @@ async function run() {
     tokensIn: 184620,
     tokensOut: 329999,
     ttftMs: 417264,
-    timestamp: 770594,
-    receiptHash: "<value>",
-    signature: "<value>",
   });
   if (res.ok) {
     const { value: result } = res;
@@ -85,7 +78,7 @@ run();
 
 | Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `request`                                                                                                                                                                      | [models.Receipt](../../models/receipt.md)                                                                                                                                      | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
+| `request`                                                                                                                                                                      | [models.CreateReceiptRequest](../../models/createreceiptrequest.md)                                                                                                            | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
 | `options`                                                                                                                                                                      | RequestOptions                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                             | Used to set various options for making HTTP requests.                                                                                                                          |
 | `options.fetchOptions`                                                                                                                                                         | [RequestInit](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options)                                                                                        | :heavy_minus_sign:                                                                                                                                                             | Options that are passed to the underlying HTTP request. This can be used to inject extra headers for examples. All `Request` options, except `method` and `body`, are allowed. |
 | `options.retries`                                                                                                                                                              | [RetryConfig](../../lib/utils/retryconfig.md)                                                                                                                                  | :heavy_minus_sign:                                                                                                                                                             | Enables retrying HTTP requests under certain failure conditions.                                                                                                               |
@@ -312,6 +305,77 @@ run();
 | Error Type                           | Status Code                          | Content Type                         |
 | ------------------------------------ | ------------------------------------ | ------------------------------------ |
 | errors.ErrorResponse                 | 404                                  | application/json                     |
+| errors.ErrorResponse                 | 500                                  | application/json                     |
+| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+
+## lucidVerifyReceiptByHash
+
+Verify receipt by hash with inclusion proof and epoch info
+
+### Example Usage
+
+<!-- UsageSnippet language="typescript" operationID="lucid_verify_receipt_by_hash" method="get" path="/v1/verify/{receipt_hash}" -->
+```typescript
+import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+
+const raijinLabsLucidAi = new RaijinLabsLucidAi();
+
+async function run() {
+  const result = await raijinLabsLucidAi.receipts.lucidVerifyReceiptByHash({
+    receiptHash: "<value>",
+  });
+
+  console.log(result);
+}
+
+run();
+```
+
+### Standalone function
+
+The standalone function version of this method:
+
+```typescript
+import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
+import { receiptsLucidVerifyReceiptByHash } from "raijin-labs-lucid-ai/funcs/receiptsLucidVerifyReceiptByHash.js";
+
+// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// You can create one instance of it to use across an application.
+const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+
+async function run() {
+  const res = await receiptsLucidVerifyReceiptByHash(raijinLabsLucidAi, {
+    receiptHash: "<value>",
+  });
+  if (res.ok) {
+    const { value: result } = res;
+    console.log(result);
+  } else {
+    console.log("receiptsLucidVerifyReceiptByHash failed:", res.error);
+  }
+}
+
+run();
+```
+
+### Parameters
+
+| Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `request`                                                                                                                                                                      | [operations.LucidVerifyReceiptByHashRequest](../../models/operations/lucidverifyreceiptbyhashrequest.md)                                                                       | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
+| `options`                                                                                                                                                                      | RequestOptions                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                             | Used to set various options for making HTTP requests.                                                                                                                          |
+| `options.fetchOptions`                                                                                                                                                         | [RequestInit](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options)                                                                                        | :heavy_minus_sign:                                                                                                                                                             | Options that are passed to the underlying HTTP request. This can be used to inject extra headers for examples. All `Request` options, except `method` and `body`, are allowed. |
+| `options.retries`                                                                                                                                                              | [RetryConfig](../../lib/utils/retryconfig.md)                                                                                                                                  | :heavy_minus_sign:                                                                                                                                                             | Enables retrying HTTP requests under certain failure conditions.                                                                                                               |
+
+### Response
+
+**Promise\<[models.ReceiptHashVerification](../../models/receipthashverification.md)\>**
+
+### Errors
+
+| Error Type                           | Status Code                          | Content Type                         |
+| ------------------------------------ | ------------------------------------ | ------------------------------------ |
+| errors.ErrorResponse                 | 400, 404                             | application/json                     |
 | errors.ErrorResponse                 | 500                                  | application/json                     |
 | errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
 

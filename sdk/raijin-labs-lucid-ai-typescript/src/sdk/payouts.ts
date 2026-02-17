@@ -18,7 +18,7 @@ export class Payouts extends ClientSDK {
   async calculate(
     request: models.PayoutCalculateRequest,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidCalculatePayoutResponse> {
     return unwrapAsync(payoutsCalculate(
       this,
       request,
@@ -32,7 +32,7 @@ export class Payouts extends ClientSDK {
   async createFromReceipt(
     request: models.PayoutFromReceiptRequest,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidPayoutFromReceiptResponse> {
     return unwrapAsync(payoutsCreateFromReceipt(
       this,
       request,
@@ -46,7 +46,7 @@ export class Payouts extends ClientSDK {
   async get(
     request: operations.LucidGetPayoutRequest,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidGetPayoutResponse> {
     return unwrapAsync(payoutsGet(
       this,
       request,
@@ -60,7 +60,7 @@ export class Payouts extends ClientSDK {
   async verify(
     request: operations.LucidVerifyPayoutRequest,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidVerifyPayoutResponse> {
     return unwrapAsync(payoutsVerify(
       this,
       request,

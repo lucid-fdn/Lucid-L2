@@ -4,9 +4,24 @@
 
 import * as z from "zod/v4-mini";
 import { remap as remap$ } from "../../lib/primitives.js";
+import { safeParse } from "../../lib/schemas.js";
+import { Result as SafeParseResult } from "../../types/fp.js";
+import * as types from "../../types/primitives.js";
+import { SDKValidationError } from "../errors/sdkvalidationerror.js";
 
 export type LucidVerifyPayoutRequest = {
   runId: string;
+};
+
+/**
+ * OK
+ */
+export type LucidVerifyPayoutResponse = {
+  success: boolean;
+  valid: boolean;
+  totalMatches?: boolean | undefined;
+  recipientsValid?: boolean | undefined;
+  hashValid?: boolean | undefined;
 };
 
 /** @internal */
@@ -34,5 +49,36 @@ export function lucidVerifyPayoutRequestToJSON(
 ): string {
   return JSON.stringify(
     LucidVerifyPayoutRequest$outboundSchema.parse(lucidVerifyPayoutRequest),
+  );
+}
+
+/** @internal */
+export const LucidVerifyPayoutResponse$inboundSchema: z.ZodMiniType<
+  LucidVerifyPayoutResponse,
+  unknown
+> = z.pipe(
+  z.object({
+    success: types.boolean(),
+    valid: types.boolean(),
+    total_matches: types.optional(types.boolean()),
+    recipients_valid: types.optional(types.boolean()),
+    hash_valid: types.optional(types.boolean()),
+  }),
+  z.transform((v) => {
+    return remap$(v, {
+      "total_matches": "totalMatches",
+      "recipients_valid": "recipientsValid",
+      "hash_valid": "hashValid",
+    });
+  }),
+);
+
+export function lucidVerifyPayoutResponseFromJSON(
+  jsonString: string,
+): SafeParseResult<LucidVerifyPayoutResponse, SDKValidationError> {
+  return safeParse(
+    jsonString,
+    (x) => LucidVerifyPayoutResponse$inboundSchema.parse(JSON.parse(x)),
+    `Failed to parse 'LucidVerifyPayoutResponse' from JSON`,
   );
 }

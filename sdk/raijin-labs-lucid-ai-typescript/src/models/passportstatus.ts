@@ -10,7 +10,6 @@ export const PassportStatus = {
   Active: "active",
   Deprecated: "deprecated",
   Revoked: "revoked",
-  Superseded: "superseded",
 } as const;
 export type PassportStatus = OpenEnum<typeof PassportStatus>;
 

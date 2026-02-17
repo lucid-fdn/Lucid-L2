@@ -4,11 +4,26 @@
 
 import * as z from "zod/v4-mini";
 import { remap as remap$ } from "../../lib/primitives.js";
+import { safeParse } from "../../lib/schemas.js";
+import { Result as SafeParseResult } from "../../types/fp.js";
+import * as types from "../../types/primitives.js";
+import { SDKValidationError } from "../errors/sdkvalidationerror.js";
 
 export type LucidCommitEpochRootRequest = {
   projectId?: string | undefined;
   epochId?: string | undefined;
   force?: boolean | undefined;
+};
+
+/**
+ * Accepted
+ */
+export type LucidCommitEpochRootResponse = {
+  success: boolean;
+  epochId: string;
+  root: string;
+  tx: string;
+  leafCount?: number | undefined;
 };
 
 /** @internal */
@@ -43,5 +58,35 @@ export function lucidCommitEpochRootRequestToJSON(
     LucidCommitEpochRootRequest$outboundSchema.parse(
       lucidCommitEpochRootRequest,
     ),
+  );
+}
+
+/** @internal */
+export const LucidCommitEpochRootResponse$inboundSchema: z.ZodMiniType<
+  LucidCommitEpochRootResponse,
+  unknown
+> = z.pipe(
+  z.object({
+    success: types.boolean(),
+    epoch_id: types.string(),
+    root: types.string(),
+    tx: types.string(),
+    leaf_count: types.optional(types.number()),
+  }),
+  z.transform((v) => {
+    return remap$(v, {
+      "epoch_id": "epochId",
+      "leaf_count": "leafCount",
+    });
+  }),
+);
+
+export function lucidCommitEpochRootResponseFromJSON(
+  jsonString: string,
+): SafeParseResult<LucidCommitEpochRootResponse, SDKValidationError> {
+  return safeParse(
+    jsonString,
+    (x) => LucidCommitEpochRootResponse$inboundSchema.parse(JSON.parse(x)),
+    `Failed to parse 'LucidCommitEpochRootResponse' from JSON`,
   );
 }

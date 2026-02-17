@@ -10,12 +10,8 @@ let value: Passport = {
   type: "tool",
   owner: "<value>",
   status: "active",
-  metadata: {
-    "key": "<value>",
-  },
-  metadataHash: "<value>",
-  createdAt: 207714,
-  updatedAt: 688480,
+  createdAt: 335084,
+  updatedAt: 207714,
 };
 ```
 
@@ -31,8 +27,8 @@ let value: Passport = {
 | `version`                                            | *string*                                             | :heavy_minus_sign:                                   | N/A                                                  |
 | `tags`                                               | *string*[]                                           | :heavy_minus_sign:                                   | N/A                                                  |
 | `status`                                             | [models.PassportStatus](../models/passportstatus.md) | :heavy_check_mark:                                   | N/A                                                  |
-| `metadata`                                           | Record<string, *any*>                                | :heavy_check_mark:                                   | N/A                                                  |
-| `metadataHash`                                       | *string*                                             | :heavy_check_mark:                                   | N/A                                                  |
+| `metadata`                                           | Record<string, *any*>                                | :heavy_minus_sign:                                   | N/A                                                  |
+| `metadataHash`                                       | *string*                                             | :heavy_minus_sign:                                   | N/A                                                  |
 | `createdAt`                                          | *number*                                             | :heavy_check_mark:                                   | N/A                                                  |
 | `updatedAt`                                          | *number*                                             | :heavy_check_mark:                                   | N/A                                                  |
 | `onChain`                                            | [models.OnChain](../models/onchain.md)               | :heavy_minus_sign:                                   | N/A                                                  |

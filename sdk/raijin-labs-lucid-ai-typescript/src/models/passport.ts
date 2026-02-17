@@ -29,8 +29,8 @@ export type Passport = {
   version?: string | null | undefined;
   tags?: Array<string> | null | undefined;
   status: PassportStatus;
-  metadata: { [k: string]: any };
-  metadataHash: string;
+  metadata?: { [k: string]: any } | null | undefined;
+  metadataHash?: string | null | undefined;
   createdAt: number;
   updatedAt: number;
   onChain?: OnChain | null | undefined;
@@ -71,8 +71,8 @@ export const Passport$inboundSchema: z.ZodMiniType<Passport, unknown> = z.pipe(
     version: z.optional(z.nullable(types.string())),
     tags: z.optional(z.nullable(z.array(types.string()))),
     status: PassportStatus$inboundSchema,
-    metadata: z.record(z.string(), z.any()),
-    metadata_hash: types.string(),
+    metadata: z.optional(z.nullable(z.record(z.string(), z.any()))),
+    metadata_hash: z.optional(z.nullable(types.string())),
     created_at: types.number(),
     updated_at: types.number(),
     on_chain: z.optional(z.nullable(z.lazy(() => OnChain$inboundSchema))),

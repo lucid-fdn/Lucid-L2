@@ -4,9 +4,22 @@
 
 import * as z from "zod/v4-mini";
 import { remap as remap$ } from "../../lib/primitives.js";
+import { safeParse } from "../../lib/schemas.js";
+import { Result as SafeParseResult } from "../../types/fp.js";
+import * as types from "../../types/primitives.js";
+import { SDKValidationError } from "../errors/sdkvalidationerror.js";
+import * as models from "../index.js";
 
 export type LucidCreateEpochRequest = {
   projectId?: string | undefined;
+};
+
+/**
+ * Created
+ */
+export type LucidCreateEpochResponse = {
+  success: boolean;
+  epoch: models.Epoch;
 };
 
 /** @internal */
@@ -34,5 +47,24 @@ export function lucidCreateEpochRequestToJSON(
 ): string {
   return JSON.stringify(
     LucidCreateEpochRequest$outboundSchema.parse(lucidCreateEpochRequest),
+  );
+}
+
+/** @internal */
+export const LucidCreateEpochResponse$inboundSchema: z.ZodMiniType<
+  LucidCreateEpochResponse,
+  unknown
+> = z.object({
+  success: types.boolean(),
+  epoch: models.Epoch$inboundSchema,
+});
+
+export function lucidCreateEpochResponseFromJSON(
+  jsonString: string,
+): SafeParseResult<LucidCreateEpochResponse, SDKValidationError> {
+  return safeParse(
+    jsonString,
+    (x) => LucidCreateEpochResponse$inboundSchema.parse(JSON.parse(x)),
+    `Failed to parse 'LucidCreateEpochResponse' from JSON`,
   );
 }

@@ -27,7 +27,7 @@ export type ReceiptProof = {
   proof: Array<string>;
   root: string;
   /**
-   * Direction of each sibling (L = sibling is on left, R = on right). Used for verification.
+   * Direction of each sibling (L = sibling is on left, R = on right).
    */
   directions?: Array<Direction> | undefined;
 };

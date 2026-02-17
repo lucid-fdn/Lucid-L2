@@ -22,13 +22,13 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.payouts.calculate({
+  const result = await raijinLabsLucidAi.payouts.calculate({
     runId: "<id>",
     totalAmountLamports: 721074,
     computeWallet: "<value>",
   });
 
-
+  console.log(result);
 }
 
 run();
@@ -54,7 +54,7 @@ async function run() {
   });
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("payoutsCalculate failed:", res.error);
   }
@@ -74,7 +74,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidCalculatePayoutResponse](../../models/operations/lucidcalculatepayoutresponse.md)\>**
 
 ### Errors
 
@@ -97,7 +97,7 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.payouts.createFromReceipt({
+  const result = await raijinLabsLucidAi.payouts.createFromReceipt({
     runId: "<id>",
     tokensIn: 844317,
     tokensOut: 600261,
@@ -105,7 +105,7 @@ async function run() {
     computeWallet: "<value>",
   });
 
-
+  console.log(result);
 }
 
 run();
@@ -133,7 +133,7 @@ async function run() {
   });
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("payoutsCreateFromReceipt failed:", res.error);
   }
@@ -153,7 +153,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidPayoutFromReceiptResponse](../../models/operations/lucidpayoutfromreceiptresponse.md)\>**
 
 ### Errors
 
@@ -176,11 +176,11 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.payouts.get({
+  const result = await raijinLabsLucidAi.payouts.get({
     runId: "<id>",
   });
 
-
+  console.log(result);
 }
 
 run();
@@ -204,7 +204,7 @@ async function run() {
   });
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("payoutsGet failed:", res.error);
   }
@@ -224,7 +224,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidGetPayoutResponse](../../models/operations/lucidgetpayoutresponse.md)\>**
 
 ### Errors
 
@@ -247,11 +247,11 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.payouts.verify({
+  const result = await raijinLabsLucidAi.payouts.verify({
     runId: "<id>",
   });
 
-
+  console.log(result);
 }
 
 run();
@@ -275,7 +275,7 @@ async function run() {
   });
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("payoutsVerify failed:", res.error);
   }
@@ -295,7 +295,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidVerifyPayoutResponse](../../models/operations/lucidverifypayoutresponse.md)\>**
 
 ### Errors
 

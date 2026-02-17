@@ -15,7 +15,13 @@ Developer-friendly & type-safe Typescript SDK specifically catered to leverage *
 
 LucidLayer API: LucidLayer Offchain API.
 
-This OpenAPI spec is used to generate SDK clients.
+This OpenAPI spec is the source of truth for the actual backend routes.
+It is used to generate SDK clients via Speakeasy.
+
+Route groups:
+- `/v1/*` — Passports, Match, Run, Receipts, Epochs, Payouts, Compute
+- `/health/*` — System health and dependency checks
+- `/api/agents/*` — AI Agent MMR, Planner, and Orchestrator
 <!-- End Summary [summary] -->
 
 <!-- Start Table of Contents [toc] -->
@@ -116,8 +122,31 @@ run();
 <details open>
 <summary>Available methods</summary>
 
+### [Agents](docs/sdks/agents/README.md)
+
+* [initAgent](docs/sdks/agents/README.md#initagent) - Initialize an AI agent
+* [processAgentEpoch](docs/sdks/agents/README.md#processagentepoch) - Process an epoch for an agent
+* [processAgentBatchEpochs](docs/sdks/agents/README.md#processagentbatchepochs) - Process multiple epochs in batch
+* [generateAgentProof](docs/sdks/agents/README.md#generateagentproof) - Generate proof of contribution
+* [getAgentStats](docs/sdks/agents/README.md#getagentstats) - Get agent statistics
+* [getAgentHistory](docs/sdks/agents/README.md#getagenthistory) - Get agent MMR root history
+* [getAgentRoot](docs/sdks/agents/README.md#getagentroot) - Get current MMR root for agent
+* [verifyAgentMmr](docs/sdks/agents/README.md#verifyagentmmr) - Verify MMR integrity for agent
+* [listAgents](docs/sdks/agents/README.md#listagents) - List all registered agents
+* [planAgentWorkflow](docs/sdks/agents/README.md#planagentworkflow) - Plan a workflow from a goal
+* [accomplishAgentGoal](docs/sdks/agents/README.md#accomplishagentgoal) - Plan and execute a workflow in one call
+* [previewAgentWorkflow](docs/sdks/agents/README.md#previewagentworkflow) - Preview a workflow without executing
+* [getAgentOrchestratorHistory](docs/sdks/agents/README.md#getagentorchestratorhistory) - Get agent execution history for a tenant
+* [checkAgentOrchestratorHealth](docs/sdks/agents/README.md#checkagentorchestratorhealth) - Agent orchestrator health check
+* [executeAgentFlowspec](docs/sdks/agents/README.md#executeagentflowspec) - Execute a FlowSpec
+* [validateFlowspec](docs/sdks/agents/README.md#validateflowspec) - Validate a FlowSpec structure
+* [getPlannerInfo](docs/sdks/agents/README.md#getplannerinfo) - Get planner service info
+* [checkExecutorHealth](docs/sdks/agents/README.md#checkexecutorhealth) - Check executor health
+* [getExecutorDecision](docs/sdks/agents/README.md#getexecutordecision) - Get executor decision for a FlowSpec
+
 ### [Compute](docs/sdks/compute/README.md)
 
+* [searchCompute](docs/sdks/compute/README.md#searchcompute) - Search compute passports
 * [heartbeat](docs/sdks/compute/README.md#heartbeat) - Submit compute node heartbeat
 * [getNodeHealth](docs/sdks/compute/README.md#getnodehealth) - Get compute node health
 
@@ -136,6 +165,16 @@ run();
 * [listReady](docs/sdks/epochs/README.md#listready) - Get epochs ready for finalization
 * [getStats](docs/sdks/epochs/README.md#getstats) - Epoch statistics
 
+### [Health](docs/sdks/health/README.md)
+
+* [checkSystemHealth](docs/sdks/health/README.md#checksystemhealth) - Overall system health
+* [checkLiveness](docs/sdks/health/README.md#checkliveness) - Liveness probe
+* [checkReadiness](docs/sdks/health/README.md#checkreadiness) - Readiness probe
+* [checkDatabaseHealth](docs/sdks/health/README.md#checkdatabasehealth) - Database health check
+* [checkRedisHealth](docs/sdks/health/README.md#checkredishealth) - Redis health check
+* [checkNangoHealth](docs/sdks/health/README.md#checknangohealth) - Nango service health check
+* [getDetailedHealth](docs/sdks/health/README.md#getdetailedhealth) - Detailed health with statistics
+
 ### [Match](docs/sdks/match/README.md)
 
 * [explain](docs/sdks/match/README.md#explain) - Evaluate policy against compute/model meta
@@ -153,7 +192,9 @@ run();
 * [listPendingSync](docs/sdks/passports/README.md#listpendingsync) - Get passports pending sync
 * [getStats](docs/sdks/passports/README.md#getstats) - Passport statistics
 * [searchModels](docs/sdks/passports/README.md#searchmodels) - Search model passports
-* [searchCompute](docs/sdks/passports/README.md#searchcompute) - Search compute passports
+* [lucidListTools](docs/sdks/passports/README.md#lucidlisttools) - List tool passports
+* [lucidListDatasets](docs/sdks/passports/README.md#lucidlistdatasets) - List dataset passports
+* [lucidListAgentPassports](docs/sdks/passports/README.md#lucidlistagentpassports) - List agent passports
 
 ### [Payouts](docs/sdks/payouts/README.md)
 
@@ -168,6 +209,7 @@ run();
 * [get](docs/sdks/receipts/README.md#get) - Get a receipt
 * [verify](docs/sdks/receipts/README.md#verify) - Verify a receipt (hash + signature + inclusion)
 * [getProof](docs/sdks/receipts/README.md#getproof) - Get inclusion proof for receipt
+* [lucidVerifyReceiptByHash](docs/sdks/receipts/README.md#lucidverifyreceiptbyhash) - Verify receipt by hash with inclusion proof and epoch info
 * [getMmrRoot](docs/sdks/receipts/README.md#getmmrroot) - Get current MMR root
 * [getSignerPubKey](docs/sdks/receipts/README.md#getsignerpubkey) - Get orchestrator signing public key
 
@@ -194,8 +236,28 @@ To read more about standalone functions, check [FUNCTIONS.md](./FUNCTIONS.md).
 
 <summary>Available standalone functions</summary>
 
+- [`agentsAccomplishAgentGoal`](docs/sdks/agents/README.md#accomplishagentgoal) - Plan and execute a workflow in one call
+- [`agentsCheckAgentOrchestratorHealth`](docs/sdks/agents/README.md#checkagentorchestratorhealth) - Agent orchestrator health check
+- [`agentsCheckExecutorHealth`](docs/sdks/agents/README.md#checkexecutorhealth) - Check executor health
+- [`agentsExecuteAgentFlowspec`](docs/sdks/agents/README.md#executeagentflowspec) - Execute a FlowSpec
+- [`agentsGenerateAgentProof`](docs/sdks/agents/README.md#generateagentproof) - Generate proof of contribution
+- [`agentsGetAgentHistory`](docs/sdks/agents/README.md#getagenthistory) - Get agent MMR root history
+- [`agentsGetAgentOrchestratorHistory`](docs/sdks/agents/README.md#getagentorchestratorhistory) - Get agent execution history for a tenant
+- [`agentsGetAgentRoot`](docs/sdks/agents/README.md#getagentroot) - Get current MMR root for agent
+- [`agentsGetAgentStats`](docs/sdks/agents/README.md#getagentstats) - Get agent statistics
+- [`agentsGetExecutorDecision`](docs/sdks/agents/README.md#getexecutordecision) - Get executor decision for a FlowSpec
+- [`agentsGetPlannerInfo`](docs/sdks/agents/README.md#getplannerinfo) - Get planner service info
+- [`agentsInitAgent`](docs/sdks/agents/README.md#initagent) - Initialize an AI agent
+- [`agentsListAgents`](docs/sdks/agents/README.md#listagents) - List all registered agents
+- [`agentsPlanAgentWorkflow`](docs/sdks/agents/README.md#planagentworkflow) - Plan a workflow from a goal
+- [`agentsPreviewAgentWorkflow`](docs/sdks/agents/README.md#previewagentworkflow) - Preview a workflow without executing
+- [`agentsProcessAgentBatchEpochs`](docs/sdks/agents/README.md#processagentbatchepochs) - Process multiple epochs in batch
+- [`agentsProcessAgentEpoch`](docs/sdks/agents/README.md#processagentepoch) - Process an epoch for an agent
+- [`agentsValidateFlowspec`](docs/sdks/agents/README.md#validateflowspec) - Validate a FlowSpec structure
+- [`agentsVerifyAgentMmr`](docs/sdks/agents/README.md#verifyagentmmr) - Verify MMR integrity for agent
 - [`computeGetNodeHealth`](docs/sdks/compute/README.md#getnodehealth) - Get compute node health
 - [`computeHeartbeat`](docs/sdks/compute/README.md#heartbeat) - Submit compute node heartbeat
+- [`computeSearchCompute`](docs/sdks/compute/README.md#searchcompute) - Search compute passports
 - [`epochsCommitRoot`](docs/sdks/epochs/README.md#commitroot) - Commit epoch root
 - [`epochsCommitRootsBatch`](docs/sdks/epochs/README.md#commitrootsbatch) - Commit multiple epoch roots
 - [`epochsCreate`](docs/sdks/epochs/README.md#create) - Create epoch
@@ -208,6 +270,13 @@ To read more about standalone functions, check [FUNCTIONS.md](./FUNCTIONS.md).
 - [`epochsListReady`](docs/sdks/epochs/README.md#listready) - Get epochs ready for finalization
 - [`epochsRetry`](docs/sdks/epochs/README.md#retry) - Retry failed epoch
 - [`epochsVerify`](docs/sdks/epochs/README.md#verify) - Verify epoch anchor
+- [`healthCheckDatabaseHealth`](docs/sdks/health/README.md#checkdatabasehealth) - Database health check
+- [`healthCheckLiveness`](docs/sdks/health/README.md#checkliveness) - Liveness probe
+- [`healthCheckNangoHealth`](docs/sdks/health/README.md#checknangohealth) - Nango service health check
+- [`healthCheckReadiness`](docs/sdks/health/README.md#checkreadiness) - Readiness probe
+- [`healthCheckRedisHealth`](docs/sdks/health/README.md#checkredishealth) - Redis health check
+- [`healthCheckSystemHealth`](docs/sdks/health/README.md#checksystemhealth) - Overall system health
+- [`healthGetDetailedHealth`](docs/sdks/health/README.md#getdetailedhealth) - Detailed health with statistics
 - [`matchCompute`](docs/sdks/match/README.md#compute) - Match compute for model
 - [`matchExplain`](docs/sdks/match/README.md#explain) - Evaluate policy against compute/model meta
 - [`matchPlanRoute`](docs/sdks/match/README.md#planroute) - Plan a route (match + resolve endpoint)
@@ -217,7 +286,9 @@ To read more about standalone functions, check [FUNCTIONS.md](./FUNCTIONS.md).
 - [`passportsGetStats`](docs/sdks/passports/README.md#getstats) - Passport statistics
 - [`passportsList`](docs/sdks/passports/README.md#list) - List passports
 - [`passportsListPendingSync`](docs/sdks/passports/README.md#listpendingsync) - Get passports pending sync
-- [`passportsSearchCompute`](docs/sdks/passports/README.md#searchcompute) - Search compute passports
+- [`passportsLucidListAgentPassports`](docs/sdks/passports/README.md#lucidlistagentpassports) - List agent passports
+- [`passportsLucidListDatasets`](docs/sdks/passports/README.md#lucidlistdatasets) - List dataset passports
+- [`passportsLucidListTools`](docs/sdks/passports/README.md#lucidlisttools) - List tool passports
 - [`passportsSearchModels`](docs/sdks/passports/README.md#searchmodels) - Search model passports
 - [`passportsSync`](docs/sdks/passports/README.md#sync) - Trigger on-chain sync for a passport
 - [`passportsUpdate`](docs/sdks/passports/README.md#update) - Update a passport
@@ -230,6 +301,7 @@ To read more about standalone functions, check [FUNCTIONS.md](./FUNCTIONS.md).
 - [`receiptsGetMmrRoot`](docs/sdks/receipts/README.md#getmmrroot) - Get current MMR root
 - [`receiptsGetProof`](docs/sdks/receipts/README.md#getproof) - Get inclusion proof for receipt
 - [`receiptsGetSignerPubKey`](docs/sdks/receipts/README.md#getsignerpubkey) - Get orchestrator signing public key
+- [`receiptsLucidVerifyReceiptByHash`](docs/sdks/receipts/README.md#lucidverifyreceiptbyhash) - Verify receipt by hash with inclusion proof and epoch info
 - [`receiptsVerify`](docs/sdks/receipts/README.md#verify) - Verify a receipt (hash + signature + inclusion)
 - [`runChatCompletions`](docs/sdks/run/README.md#chatcompletions) - OpenAI-compatible chat completions
 - [`runInference`](docs/sdks/run/README.md#inference) - Run inference (optionally streaming via SSE)
@@ -374,9 +446,9 @@ run();
 ### Error Classes
 **Primary errors:**
 * [`RaijinLabsLucidAiError`](./src/models/errors/raijinlabslucidaierror.ts): The base class for HTTP error responses.
-  * [`ErrorResponse`](./src/models/errors/errorresponse.ts): Bad Request.
+  * [`ErrorResponse`](./src/models/errors/errorresponse.ts): Bad Request. *
 
-<details><summary>Less common errors (6)</summary>
+<details><summary>Less common errors (9)</summary>
 
 <br />
 
@@ -389,9 +461,14 @@ run();
 
 
 **Inherit from [`RaijinLabsLucidAiError`](./src/models/errors/raijinlabslucidaierror.ts)**:
+* [`HealthCheckResultError`](./src/models/errors/healthcheckresulterror.ts): Healthy. Status code `503`. Applicable to 3 of 69 methods.*
+* [`SystemHealthError`](./src/models/errors/systemhealtherror.ts): Healthy. Status code `503`. Applicable to 1 of 69 methods.*
+* [`ServiceUnavailableError`](./src/models/errors/serviceunavailableerror.ts): Not ready. Status code `503`. Applicable to 1 of 69 methods.*
 * [`ResponseValidationError`](./src/models/errors/responsevalidationerror.ts): Type mismatch between the data returned from the server and the structure expected by the SDK. See `error.rawValue` for the raw value and `error.pretty()` for a nicely formatted multi-line string.
 
 </details>
+
+\* Check [the method documentation](#available-resources-and-operations) to see if the error is applicable.
 <!-- End Error Handling [errors] -->
 
 <!-- Start Server Selection [server] -->

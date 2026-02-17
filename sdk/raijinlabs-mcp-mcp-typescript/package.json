@@ -1,6 +1,6 @@
 {
   "name": "raijinlabs-mcp",
-  "version": "0.0.1",
+  "version": "0.2.2",
   "author": "Speakeasy",
   "type": "module",
   "sideEffects": false,

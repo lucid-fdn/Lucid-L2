@@ -34,7 +34,7 @@ export function epochsRetry(
   options?: RequestOptions,
 ): APIPromise<
   Result<
-    void,
+    operations.LucidRetryEpochResponse,
     | errors.ErrorResponse
     | RaijinLabsLucidAiError
     | ResponseValidationError
@@ -60,7 +60,7 @@ async function $do(
 ): Promise<
   [
     Result<
-      void,
+      operations.LucidRetryEpochResponse,
       | errors.ErrorResponse
       | RaijinLabsLucidAiError
       | ResponseValidationError
@@ -129,7 +129,7 @@ async function $do(
 
   const doResult = await client._do(req, {
     context,
-    errorCodes: ["4XX", "500", "5XX"],
+    errorCodes: ["400", "4XX", "500", "5XX"],
     retryConfig: context.retryConfig,
     retryCodes: context.retryCodes,
   });
@@ -143,7 +143,7 @@ async function $do(
   };
 
   const [result] = await M.match<
-    void,
+    operations.LucidRetryEpochResponse,
     | errors.ErrorResponse
     | RaijinLabsLucidAiError
     | ResponseValidationError
@@ -154,7 +154,8 @@ async function $do(
     | UnexpectedClientError
     | SDKValidationError
   >(
-    M.nil(200, z.void()),
+    M.json(200, operations.LucidRetryEpochResponse$inboundSchema),
+    M.jsonErr(400, errors.ErrorResponse$inboundSchema),
     M.jsonErr(500, errors.ErrorResponse$inboundSchema),
     M.fail("4XX"),
     M.fail("5XX"),

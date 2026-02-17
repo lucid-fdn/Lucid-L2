@@ -10,7 +10,9 @@ import * as models from "../index.js";
 
 export type Type = models.PassportType | Array<models.PassportType>;
 
-export type Status = models.PassportStatus | Array<models.PassportStatus>;
+export type LucidListPassportsStatus =
+  | models.PassportStatus
+  | Array<models.PassportStatus>;
 
 export const TagMatch = {
   All: "all",
@@ -62,17 +64,23 @@ export function typeToJSON(type: Type): string {
 }
 
 /** @internal */
-export type Status$Outbound = string | Array<string>;
+export type LucidListPassportsStatus$Outbound = string | Array<string>;
 
 /** @internal */
-export const Status$outboundSchema: z.ZodMiniType<Status$Outbound, Status> =
-  smartUnion([
-    models.PassportStatus$outboundSchema,
-    z.array(models.PassportStatus$outboundSchema),
-  ]);
+export const LucidListPassportsStatus$outboundSchema: z.ZodMiniType<
+  LucidListPassportsStatus$Outbound,
+  LucidListPassportsStatus
+> = smartUnion([
+  models.PassportStatus$outboundSchema,
+  z.array(models.PassportStatus$outboundSchema),
+]);
 
-export function statusToJSON(status: Status): string {
-  return JSON.stringify(Status$outboundSchema.parse(status));
+export function lucidListPassportsStatusToJSON(
+  lucidListPassportsStatus: LucidListPassportsStatus,
+): string {
+  return JSON.stringify(
+    LucidListPassportsStatus$outboundSchema.parse(lucidListPassportsStatus),
+  );
 }
 
 /** @internal */

@@ -1,25 +1,29 @@
 openapi: 3.0.3
 info:
   title: LucidLayer API
-  version: 0.1.0
+  version: 0.2.0
   description: |
     LucidLayer Offchain API.
 
-    This OpenAPI spec is used to generate SDK clients.
+    This OpenAPI spec is the source of truth for the actual backend routes.
+    It is used to generate SDK clients via Speakeasy.
+
+    Route groups:
+    - `/v1/*` — Passports, Match, Run, Receipts, Epochs, Payouts, Compute
+    - `/health/*` — System health and dependency checks
+    - `/api/agents/*` — AI Agent MMR, Planner, and Orchestrator
 servers:
   - url: https://api.lucid.foundation
     description: Production server
 
 # Speakeasy MCP tool generation configuration
-# - Scopes enable runtime filtering (e.g. start --scope read)
-# - We default based on operationId naming conventions
 x-speakeasy-mcp:
   scope-mapping:
-    - pattern: "^(get|list)"
+    - pattern: "^(get|list|search)"
       scopes: [read]
-    - pattern: "^(search)"
+    - pattern: "^(verify|check)"
       scopes: [read]
-    - pattern: "^(create|update|trigger|submit|commit|retry|run|calculate)"
+    - pattern: "^(create|update|trigger|submit|commit|retry|run|calculate|init|process|plan|accomplish|execute|validate)"
       scopes: [write]
     - pattern: "^(delete)"
       scopes: [write, destructive]
@@ -32,8 +36,13 @@ tags:
   - name: Epochs
   - name: Payouts
   - name: Compute
+  - name: Health
+  - name: Agents
 
 paths:
+  # ===========================================================================
+  # Passports
+  # ===========================================================================
   /v1/passports:
     post:
       tags: [Passports]
@@ -305,11 +314,22 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, models, pagination]
+                properties:
+                  success: { type: boolean }
+                  models:
+                    type: array
+                    items: { $ref: '#/components/schemas/Passport' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
   /v1/compute:
     get:
-      tags: [Passports]
+      tags: [Compute]
       operationId: lucid_search_compute
       summary: Search compute passports
       x-speakeasy-mcp:
@@ -349,8 +369,145 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, compute, pagination]
+                properties:
+                  success: { type: boolean }
+                  compute:
+                    type: array
+                    items: { $ref: '#/components/schemas/Passport' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
+  /v1/tools:
+    get:
+      tags: [Passports]
+      operationId: lucid_list_tools
+      summary: List tool passports
+      x-speakeasy-mcp:
+        name: lucid_list_tools
+        description: List active tool passports with optional filtering.
+      parameters:
+        - in: query
+          name: owner
+          schema: { type: string }
+        - in: query
+          name: tags
+          description: Comma-separated
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: per_page
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, tools, pagination]
+                properties:
+                  success: { type: boolean }
+                  tools:
+                    type: array
+                    items: { $ref: '#/components/schemas/Passport' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/datasets:
+    get:
+      tags: [Passports]
+      operationId: lucid_list_datasets
+      summary: List dataset passports
+      x-speakeasy-mcp:
+        name: lucid_list_datasets
+        description: List active dataset passports with optional filtering.
+      parameters:
+        - in: query
+          name: owner
+          schema: { type: string }
+        - in: query
+          name: tags
+          description: Comma-separated
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: per_page
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, datasets, pagination]
+                properties:
+                  success: { type: boolean }
+                  datasets:
+                    type: array
+                    items: { $ref: '#/components/schemas/Passport' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/agents:
+    get:
+      tags: [Passports]
+      operationId: lucid_list_agent_passports
+      summary: List agent passports
+      x-speakeasy-mcp:
+        name: lucid_list_agent_passports
+        description: List active agent passports with optional filtering.
+      parameters:
+        - in: query
+          name: owner
+          schema: { type: string }
+        - in: query
+          name: tags
+          description: Comma-separated
+          schema: { type: string }
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1 }
+        - in: query
+          name: per_page
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, agents, pagination]
+                properties:
+                  success: { type: boolean }
+                  agents:
+                    type: array
+                    items: { $ref: '#/components/schemas/Passport' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  # ===========================================================================
+  # Match
+  # ===========================================================================
   /v1/match/explain:
     post:
       tags: [Match]
@@ -372,6 +529,18 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, allowed, reasons, policy_hash]
+                properties:
+                  success: { type: boolean }
+                  allowed: { type: boolean }
+                  reasons:
+                    type: array
+                    items: { type: string }
+                  policy_hash: { type: string }
         '400': { $ref: '#/components/responses/BadRequest' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
@@ -399,6 +568,15 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, match, explain]
+                properties:
+                  success: { type: boolean }
+                  match: { type: object, additionalProperties: true }
+                  explain: { type: object, additionalProperties: true }
         '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
@@ -427,9 +605,32 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, route, explain]
+                properties:
+                  success: { type: boolean }
+                  request_id: { type: string }
+                  route:
+                    type: object
+                    properties:
+                      compute_passport_id: { type: string }
+                      model_passport_id: { type: string }
+                      endpoint: { type: string }
+                      runtime: { type: string }
+                      policy_hash: { type: string }
+                      fallbacks:
+                        type: array
+                        items: { type: object, additionalProperties: true }
+                  explain: { type: object, additionalProperties: true }
         '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
+  # ===========================================================================
+  # Run / Inference
+  # ===========================================================================
   /v1/run/inference:
     post:
       tags: [Run]
@@ -481,9 +682,9 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   # Compute live-state
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   /v1/compute/nodes/heartbeat:
     post:
       tags: [Compute]
@@ -537,9 +738,9 @@ paths:
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   # Receipts
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   /v1/receipts:
     post:
       tags: [Receipts]
@@ -553,7 +754,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Receipt'
+              $ref: '#/components/schemas/CreateReceiptRequest'
       responses:
         '200':
           description: OK
@@ -645,6 +846,33 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
+  /v1/verify/{receipt_hash}:
+    get:
+      tags: [Receipts]
+      operationId: lucid_verify_receipt_by_hash
+      summary: Verify receipt by hash with inclusion proof and epoch info
+      x-speakeasy-mcp:
+        name: lucid_verify_receipt_by_hash
+        description: >
+          Verify a receipt by its hash. Returns inclusion proof and on-chain
+          anchoring status. Critical P0.9 endpoint for Fluid Compute.
+      parameters:
+        - in: path
+          name: receipt_hash
+          required: true
+          schema: { type: string, minLength: 64, maxLength: 64 }
+          description: 64 hex character receipt hash
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReceiptHashVerification'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
   /v1/mmr/root:
     get:
       tags: [Receipts]
@@ -689,9 +917,9 @@ paths:
                   pubkey: { type: string }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   # Epochs / anchoring
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   /v1/epochs/current:
     get:
       tags: [Epochs]
@@ -725,7 +953,7 @@ paths:
       summary: List epochs
       x-speakeasy-mcp:
         name: lucid_list_epochs
-        description: List epochs.
+        description: List epochs with optional filtering and pagination.
       parameters:
         - in: query
           name: project_id
@@ -742,6 +970,17 @@ paths:
       responses:
         '200':
           description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, epochs, pagination]
+                properties:
+                  success: { type: boolean }
+                  epochs:
+                    type: array
+                    items: { $ref: '#/components/schemas/Epoch' }
+                  pagination: { $ref: '#/components/schemas/Pagination' }
         '500': { $ref: '#/components/responses/InternalServerError' }
     post:
       tags: [Epochs]
@@ -761,6 +1000,14 @@ paths:
       responses:
         '201':
           description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, epoch]
+                properties:
+                  success: { type: boolean }
+                  epoch: { $ref: '#/components/schemas/Epoch' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
   /v1/epochs/{epoch_id}:
@@ -777,7 +1024,16 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, epoch]
+                properties:
+                  success: { type: boolean }
+                  epoch: { $ref: '#/components/schemas/Epoch' }
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
@@ -795,7 +1051,22 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, epoch]
+                properties:
+                  success: { type: boolean }
+                  epoch:
+                    type: object
+                    required: [epoch_id, status]
+                    properties:
+                      epoch_id: { type: string }
+                      status: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
   /v1/epochs/{epoch_id}/verify:
@@ -805,14 +1076,27 @@ paths:
       summary: Verify epoch anchor
       x-speakeasy-mcp:
         name: lucid_verify_epoch
-        description: Verify an epoch anchor.
+        description: Verify an epoch anchor on-chain.
       parameters:
         - in: path
           name: epoch_id
           required: true
           schema: { type: string }
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, valid]
+                properties:
+                  success: { type: boolean }
+                  valid: { type: boolean }
+                  on_chain_root: { type: string, nullable: true }
+                  expected_root: { type: string, nullable: true }
+                  tx_signature: { type: string, nullable: true }
+                  error: { type: string, nullable: true }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
   /v1/epochs/{epoch_id}/transaction:
@@ -822,14 +1106,25 @@ paths:
       summary: Get epoch anchoring transaction
       x-speakeasy-mcp:
         name: lucid_get_epoch_transaction
-        description: Get epoch anchoring transaction.
+        description: Get epoch anchoring transaction details.
       parameters:
         - in: path
           name: epoch_id
           required: true
           schema: { type: string }
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, tx_signature]
+                properties:
+                  success: { type: boolean }
+                  tx_signature: { type: string }
+                  slot: { type: integer }
+                  block_time: { type: integer }
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
@@ -852,7 +1147,19 @@ paths:
                 epoch_id: { type: string }
                 force: { type: boolean }
       responses:
-        '202': { description: Accepted }
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, epoch_id, root, tx]
+                properties:
+                  success: { type: boolean }
+                  epoch_id: { type: string }
+                  root: { type: string }
+                  tx: { type: string }
+                  leaf_count: { type: integer }
         '400': { $ref: '#/components/responses/BadRequest' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
         '500': { $ref: '#/components/responses/InternalServerError' }
@@ -877,7 +1184,28 @@ paths:
                   type: array
                   items: { type: string }
       responses:
-        '202': { description: Accepted }
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, total, successful_count, failed_count, results]
+                properties:
+                  success: { type: boolean }
+                  total: { type: integer }
+                  successful_count: { type: integer }
+                  failed_count: { type: integer }
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        success: { type: boolean }
+                        epoch_id: { type: string }
+                        root: { type: string }
+                        signature: { type: string }
+                        error: { type: string }
         '400': { $ref: '#/components/responses/BadRequest' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
@@ -890,7 +1218,20 @@ paths:
         name: lucid_get_anchoring_health
         description: Health check for anchoring service.
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, connected]
+                properties:
+                  success: { type: boolean }
+                  connected: { type: boolean }
+                  network: { type: string }
+                  authority: { type: string }
+                  mock_mode: { type: boolean }
+                  error: { type: string }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
@@ -928,9 +1269,9 @@ paths:
                 $ref: '#/components/schemas/EpochStatsResponse'
         '500': { $ref: '#/components/responses/InternalServerError' }
 
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   # Payouts
-  # ---------------------------------------------------------------------------
+  # ===========================================================================
   /v1/payouts/calculate:
     post:
       tags: [Payouts]
@@ -946,7 +1287,16 @@ paths:
             schema:
               $ref: '#/components/schemas/PayoutCalculateRequest'
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, payout]
+                properties:
+                  success: { type: boolean }
+                  payout: { $ref: '#/components/schemas/Payout' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
@@ -965,7 +1315,16 @@ paths:
             schema:
               $ref: '#/components/schemas/PayoutFromReceiptRequest'
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, payout]
+                properties:
+                  success: { type: boolean }
+                  payout: { $ref: '#/components/schemas/Payout' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
@@ -983,7 +1342,16 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, payout]
+                properties:
+                  success: { type: boolean }
+                  payout: { $ref: '#/components/schemas/Payout' }
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
@@ -1001,10 +1369,812 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        '200': { description: OK }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, valid]
+                properties:
+                  success: { type: boolean }
+                  valid: { type: boolean }
+                  total_matches: { type: boolean }
+                  recipients_valid: { type: boolean }
+                  hash_valid: { type: boolean }
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
+  # ===========================================================================
+  # Health
+  # ===========================================================================
+  /health:
+    get:
+      tags: [Health]
+      operationId: check_system_health
+      summary: Overall system health
+      x-speakeasy-mcp:
+        name: check_system_health
+        description: Check overall system health including all dependencies.
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemHealth'
+        '503':
+          description: Degraded or down
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemHealth'
+
+  /health/live:
+    get:
+      tags: [Health]
+      operationId: check_liveness
+      summary: Liveness probe
+      x-speakeasy-mcp:
+        name: check_liveness
+        description: Liveness probe - is the application alive?
+      responses:
+        '200':
+          description: Alive
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, timestamp, uptime]
+                properties:
+                  status: { type: string, example: alive }
+                  timestamp: { type: string, format: date-time }
+                  uptime: { type: number }
+
+  /health/ready:
+    get:
+      tags: [Health]
+      operationId: check_readiness
+      summary: Readiness probe
+      x-speakeasy-mcp:
+        name: check_readiness
+        description: Readiness probe - is the application ready to serve traffic?
+      responses:
+        '200':
+          description: Ready
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string }
+                  timestamp: { type: string, format: date-time }
+                  dependencies:
+                    type: object
+                    additionalProperties:
+                      $ref: '#/components/schemas/HealthCheckResult'
+        '503':
+          description: Not ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  timestamp: { type: string, format: date-time }
+                  error: { type: string }
+                  dependencies:
+                    type: object
+                    additionalProperties:
+                      $ref: '#/components/schemas/HealthCheckResult'
+
+  /health/database:
+    get:
+      tags: [Health]
+      operationId: check_database_health
+      summary: Database health check
+      x-speakeasy-mcp:
+        name: check_database_health
+        description: Check database connectivity and latency.
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResult'
+        '503':
+          description: Unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResult'
+
+  /health/redis:
+    get:
+      tags: [Health]
+      operationId: check_redis_health
+      summary: Redis health check
+      x-speakeasy-mcp:
+        name: check_redis_health
+        description: Check Redis connectivity and latency.
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResult'
+        '503':
+          description: Unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResult'
+
+  /health/nango:
+    get:
+      tags: [Health]
+      operationId: check_nango_health
+      summary: Nango service health check
+      x-speakeasy-mcp:
+        name: check_nango_health
+        description: Check Nango service connectivity and latency.
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResult'
+        '503':
+          description: Unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResult'
+
+  /health/detailed:
+    get:
+      tags: [Health]
+      operationId: get_detailed_health
+      summary: Detailed health with statistics
+      x-speakeasy-mcp:
+        name: get_detailed_health
+        description: Detailed health check including system resources and statistics.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, timestamp, uptime, version, environment, dependencies]
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, down]
+                  timestamp: { type: string, format: date-time }
+                  uptime: { type: number }
+                  version: { type: string }
+                  environment: { type: string }
+                  dependencies:
+                    type: object
+                    additionalProperties:
+                      $ref: '#/components/schemas/HealthCheckResult'
+                  statistics: { type: object, additionalProperties: true, nullable: true }
+                  resources:
+                    type: object
+                    properties:
+                      memory: { type: object, additionalProperties: true }
+                      cpu: { type: object, additionalProperties: true }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  # ===========================================================================
+  # Agents — Core MMR
+  # ===========================================================================
+  /api/agents/init:
+    post:
+      tags: [Agents]
+      operationId: init_agent
+      summary: Initialize an AI agent
+      x-speakeasy-mcp:
+        name: init_agent
+        description: Initialize or load an AI agent for MMR-based proof-of-contribution.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentInitRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, agentId, initialized]
+                properties:
+                  success: { type: boolean }
+                  agentId: { type: string }
+                  initialized: { type: boolean }
+                  stats: { $ref: '#/components/schemas/AgentStats' }
+                  message: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/epoch:
+    post:
+      tags: [Agents]
+      operationId: process_agent_epoch
+      summary: Process an epoch for an agent
+      x-speakeasy-mcp:
+        name: process_agent_epoch
+        description: Process an epoch of vectors for an AI agent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentEpochRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, agentId, epochNumber, vectorCount, mmrRoot]
+                properties:
+                  success: { type: boolean }
+                  agentId: { type: string }
+                  epochNumber: { type: integer }
+                  vectorCount: { type: integer }
+                  mmrRoot: { type: string }
+                  ipfsCid: { type: string }
+                  transactionSignature: { type: string }
+                  gasCost: { $ref: '#/components/schemas/GasCost' }
+                  message: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/batch-epochs:
+    post:
+      tags: [Agents]
+      operationId: process_agent_batch_epochs
+      summary: Process multiple epochs in batch
+      x-speakeasy-mcp:
+        name: process_agent_batch_epochs
+        description: Process multiple epochs in batch for one or more agents.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentBatchEpochsRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, processedEpochs, results, totalGasCost]
+                properties:
+                  success: { type: boolean }
+                  processedEpochs: { type: integer }
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        agentId: { type: string }
+                        epochNumber: { type: integer }
+                        mmrRoot: { type: string }
+                        ipfsCid: { type: string }
+                        transactionSignature: { type: string }
+                        gasCost: { $ref: '#/components/schemas/GasCost' }
+                  totalGasCost: { $ref: '#/components/schemas/GasCost' }
+                  message: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/proof:
+    post:
+      tags: [Agents]
+      operationId: generate_agent_proof
+      summary: Generate proof of contribution
+      x-speakeasy-mcp:
+        name: generate_agent_proof
+        description: Generate cryptographic proof of contribution for a specific vector.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentProofRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, agentId, vectorText, epochNumber, proof, verified]
+                properties:
+                  success: { type: boolean }
+                  agentId: { type: string }
+                  vectorText: { type: string }
+                  epochNumber: { type: integer }
+                  proof: { type: object, additionalProperties: true }
+                  verified: { type: boolean }
+                  message: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/{agentId}/stats:
+    get:
+      tags: [Agents]
+      operationId: get_agent_stats
+      summary: Get agent statistics
+      x-speakeasy-mcp:
+        name: get_agent_stats
+        description: Get statistics and current status for an AI agent.
+      parameters:
+        - in: path
+          name: agentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, stats]
+                properties:
+                  success: { type: boolean }
+                  stats: { $ref: '#/components/schemas/AgentStats' }
+                  message: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/{agentId}/history:
+    get:
+      tags: [Agents]
+      operationId: get_agent_history
+      summary: Get agent MMR root history
+      x-speakeasy-mcp:
+        name: get_agent_history
+        description: Get an agent's MMR root history across epochs.
+      parameters:
+        - in: path
+          name: agentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, agentId, history, totalEpochs]
+                properties:
+                  success: { type: boolean }
+                  agentId: { type: string }
+                  history:
+                    type: array
+                    items: { $ref: '#/components/schemas/AgentHistoryEntry' }
+                  totalEpochs: { type: integer }
+                  message: { type: string }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/{agentId}/root:
+    get:
+      tags: [Agents]
+      operationId: get_agent_root
+      summary: Get current MMR root for agent
+      x-speakeasy-mcp:
+        name: get_agent_root
+        description: Get the current MMR root for an AI agent.
+      parameters:
+        - in: path
+          name: agentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, agentId, currentRoot]
+                properties:
+                  success: { type: boolean }
+                  agentId: { type: string }
+                  currentRoot: { type: string }
+                  message: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/{agentId}/verify:
+    get:
+      tags: [Agents]
+      operationId: verify_agent_mmr
+      summary: Verify MMR integrity for agent
+      x-speakeasy-mcp:
+        name: verify_agent_mmr
+        description: Verify MMR integrity for an AI agent.
+      parameters:
+        - in: path
+          name: agentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, agentId, verification]
+                properties:
+                  success: { type: boolean }
+                  agentId: { type: string }
+                  verification: { type: object, additionalProperties: true }
+                  message: { type: string }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents:
+    get:
+      tags: [Agents]
+      operationId: list_agents
+      summary: List all registered agents
+      x-speakeasy-mcp:
+        name: list_agents
+        description: List all registered AI agents with their stats.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, totalAgents, agents]
+                properties:
+                  success: { type: boolean }
+                  totalAgents: { type: integer }
+                  agents:
+                    type: array
+                    items: { $ref: '#/components/schemas/AgentStats' }
+                  message: { type: string }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  # ===========================================================================
+  # Agents — Planner (Phase 3)
+  # ===========================================================================
+  /api/agents/plan:
+    post:
+      tags: [Agents]
+      operationId: plan_agent_workflow
+      summary: Plan a workflow from a goal
+      x-speakeasy-mcp:
+        name: plan_agent_workflow
+        description: Plan a workflow from a natural language goal using CrewAI.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentPlanRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, goal, flowspec, reasoning]
+                properties:
+                  success: { type: boolean }
+                  goal: { type: string }
+                  flowspec: { type: object, additionalProperties: true }
+                  reasoning: { type: string }
+                  complexity: { type: string }
+                  workflowId: { type: string }
+                  execution: { type: object, additionalProperties: true }
+                  executionError: { type: string }
+                  message: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/accomplish:
+    post:
+      tags: [Agents]
+      operationId: accomplish_agent_goal
+      summary: Plan and execute a workflow in one call
+      x-speakeasy-mcp:
+        name: accomplish_agent_goal
+        description: Plan and execute a workflow in one call via the Agent Orchestrator.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AgentAccomplishRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, goal]
+                properties:
+                  success: { type: boolean }
+                  goal: { type: string }
+                  result: { type: object, additionalProperties: true }
+                  execution: { type: object, additionalProperties: true }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/accomplish/preview:
+    post:
+      tags: [Agents]
+      operationId: preview_agent_workflow
+      summary: Preview a workflow without executing
+      x-speakeasy-mcp:
+        name: preview_agent_workflow
+        description: Preview a planned workflow (dry run) without executing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [goal]
+              properties:
+                goal: { type: string }
+                context: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, preview, flowspec]
+                properties:
+                  success: { type: boolean }
+                  preview: { type: object, additionalProperties: true }
+                  flowspec: { type: object, additionalProperties: true }
+                  reasoning: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/history/{tenantId}:
+    get:
+      tags: [Agents]
+      operationId: get_agent_orchestrator_history
+      summary: Get agent execution history for a tenant
+      x-speakeasy-mcp:
+        name: get_agent_orchestrator_history
+        description: Get agent execution history for a specific tenant.
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, tenantId, history]
+                properties:
+                  success: { type: boolean }
+                  tenantId: { type: string }
+                  history:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+                  stats: { type: object, additionalProperties: true }
+                  message: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/orchestrator/health:
+    get:
+      tags: [Agents]
+      operationId: check_agent_orchestrator_health
+      summary: Agent orchestrator health check
+      x-speakeasy-mcp:
+        name: check_agent_orchestrator_health
+        description: Check health of all agent orchestrator services.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, health]
+                properties:
+                  success: { type: boolean }
+                  health: { type: object, additionalProperties: true }
+                  message: { type: string }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/execute:
+    post:
+      tags: [Agents]
+      operationId: execute_agent_flowspec
+      summary: Execute a FlowSpec
+      x-speakeasy-mcp:
+        name: execute_agent_flowspec
+        description: Execute a FlowSpec with automatic executor selection.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [flowspec, context]
+              properties:
+                flowspec: { type: object, additionalProperties: true }
+                context:
+                  type: object
+                  required: [tenantId]
+                  properties:
+                    tenantId: { type: string }
+                    variables: { type: object, additionalProperties: true }
+                executor:
+                  type: string
+                  enum: [n8n, langgraph]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean }
+                  result: { type: object, additionalProperties: true }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/validate:
+    post:
+      tags: [Agents]
+      operationId: validate_flowspec
+      summary: Validate a FlowSpec structure
+      x-speakeasy-mcp:
+        name: validate_flowspec
+        description: Validate a FlowSpec structure without executing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              description: FlowSpec object to validate
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, validation]
+                properties:
+                  success: { type: boolean }
+                  validation: { type: object, additionalProperties: true }
+                  message: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/planner/info:
+    get:
+      tags: [Agents]
+      operationId: get_planner_info
+      summary: Get planner service info
+      x-speakeasy-mcp:
+        name: get_planner_info
+        description: Get agent planner service information and status.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, status]
+                properties:
+                  success: { type: boolean }
+                  status: { type: string }
+                  info: { type: object, additionalProperties: true }
+                  message: { type: string }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/executor/health:
+    get:
+      tags: [Agents]
+      operationId: check_executor_health
+      summary: Check executor health
+      x-speakeasy-mcp:
+        name: check_executor_health
+        description: Check health of executor backends (n8n, LangGraph).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, executors]
+                properties:
+                  success: { type: boolean }
+                  executors:
+                    type: object
+                    properties:
+                      n8n: { type: boolean }
+                      langgraph: { type: boolean }
+                  message: { type: string }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /api/agents/executor/decision:
+    post:
+      tags: [Agents]
+      operationId: get_executor_decision
+      summary: Get executor decision for a FlowSpec
+      x-speakeasy-mcp:
+        name: get_executor_decision
+        description: Get recommended executor for a FlowSpec without executing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [flowspec]
+              properties:
+                flowspec: { type: object, additionalProperties: true }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, decision]
+                properties:
+                  success: { type: boolean }
+                  decision:
+                    type: object
+                    properties:
+                      executor: { type: string }
+                      reason: { type: string }
+                  message: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+# =============================================================================
+# Components
+# =============================================================================
 components:
   responses:
     BadRequest:
@@ -1039,16 +2209,19 @@ components:
           schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   schemas:
+    # =========================================================================
+    # Passport schemas
+    # =========================================================================
     PassportType:
       type: string
       enum: [model, compute, tool, dataset, agent, voice, other]
     PassportStatus:
       type: string
-      enum: [active, deprecated, revoked, superseded]
+      enum: [active, deprecated, revoked]
 
     Passport:
       type: object
-      required: [passport_id, type, owner, status, metadata, metadata_hash, created_at, updated_at]
+      required: [passport_id, type, owner, status, created_at, updated_at]
       properties:
         passport_id: { type: string }
         type: { $ref: '#/components/schemas/PassportType' }
@@ -1064,7 +2237,8 @@ components:
         metadata:
           type: object
           additionalProperties: true
-        metadata_hash: { type: string }
+          nullable: true
+        metadata_hash: { type: string, nullable: true }
         created_at: { type: integer }
         updated_at: { type: integer }
         on_chain:
@@ -1128,15 +2302,20 @@ components:
         passports:
           type: array
           items: { $ref: '#/components/schemas/Passport' }
-        pagination:
-          type: object
-          required: [total, page, per_page, total_pages]
-          properties:
-            total: { type: integer }
-            page: { type: integer }
-            per_page: { type: integer }
-            total_pages: { type: integer }
+        pagination: { $ref: '#/components/schemas/Pagination' }
 
+    Pagination:
+      type: object
+      required: [total, page, per_page, total_pages]
+      properties:
+        total: { type: integer }
+        page: { type: integer }
+        per_page: { type: integer }
+        total_pages: { type: integer }
+
+    # =========================================================================
+    # Policy
+    # =========================================================================
     Policy:
       type: object
       required: [policy_version]
@@ -1173,6 +2352,9 @@ components:
             store_inputs: { type: boolean }
             redact_pii: { type: boolean }
 
+    # =========================================================================
+    # Chat / Inference schemas
+    # =========================================================================
     ChatMessage:
       type: object
       required: [role, content]
@@ -1278,6 +2460,9 @@ components:
             completion_tokens: { type: integer }
             total_tokens: { type: integer }
 
+    # =========================================================================
+    # Error
+    # =========================================================================
     ErrorResponse:
       type: object
       properties:
@@ -1287,9 +2472,9 @@ components:
         error_code: { type: string }
         details: {}
 
-    # -------------------------------------------------------------------------
-    # Additional schemas for full API coverage
-    # -------------------------------------------------------------------------
+    # =========================================================================
+    # Compute
+    # =========================================================================
     ComputeHeartbeat:
       type: object
       required: [compute_passport_id, status]
@@ -1302,11 +2487,72 @@ components:
         price_per_1k_tokens_estimate: { type: number }
         p95_ms_estimate: { type: number }
 
+    # =========================================================================
+    # Receipt schemas
+    # =========================================================================
     Receipt:
       type: object
-      required: [run_id, model_passport_id, compute_passport_id, policy_hash, runtime, tokens_in, tokens_out, ttft_ms, timestamp, receipt_hash, signature]
+      required: [run_id, model_passport_id, compute_passport_id, policy_hash, runtime, timestamp, receipt_hash, receipt_signature, signer_pubkey, signer_type, metrics]
       properties:
+        schema_version: { type: string }
         run_id: { type: string }
+        model_passport_id: { type: string }
+        compute_passport_id: { type: string }
+        policy_hash: { type: string }
+        runtime: { type: string }
+        timestamp: { type: integer }
+        trace_id: { type: string }
+        image_hash: { type: string }
+        model_hash: { type: string }
+        attestation: { type: object, additionalProperties: true }
+        execution_mode: { type: string }
+        job_hash: { type: string }
+        quote_hash: { type: string }
+        node_id: { type: string }
+        runtime_hash: { type: string, nullable: true }
+        gpu_fingerprint: { type: string, nullable: true }
+        outputs_hash: { type: string }
+        output_ref: { type: string }
+        start_ts: { type: integer }
+        end_ts: { type: integer }
+        input_ref: { type: string }
+        error_code: { type: string }
+        error_message: { type: string }
+        metrics:
+          type: object
+          required: [ttft_ms, tokens_in, tokens_out]
+          properties:
+            ttft_ms: { type: integer }
+            tokens_in: { type: integer }
+            tokens_out: { type: integer }
+            p95_ms: { type: integer }
+            total_latency_ms: { type: integer }
+            queue_wait_ms: { type: integer }
+            queue_time_ms: { type: integer }
+            cold_start_ms: { type: integer }
+            model_load_ms: { type: integer }
+            cache_hit: { type: boolean }
+        receipt_hash: { type: string }
+        receipt_signature: { type: string }
+        signer_pubkey: { type: string }
+        signer_type:
+          type: string
+          enum: [orchestrator, compute, worker]
+        _mmr_leaf_index: { type: integer }
+        anchor:
+          type: object
+          nullable: true
+          properties:
+            chain: { type: string }
+            tx: { type: string }
+            root: { type: string }
+            epoch_id: { type: string }
+
+    CreateReceiptRequest:
+      type: object
+      description: Input fields for creating a receipt. The backend computes the hash, signature, and wraps metrics.
+      required: [model_passport_id, compute_passport_id, policy_hash, runtime, tokens_in, tokens_out, ttft_ms]
+      properties:
         model_passport_id: { type: string }
         compute_passport_id: { type: string }
         policy_hash: { type: string }
@@ -1316,16 +2562,15 @@ components:
         ttft_ms: { type: integer }
         total_latency_ms: { type: integer }
         timestamp: { type: integer }
-        receipt_hash: { type: string }
-        signature: { type: string }
-        merkle_leaf_index: { type: integer }
-        anchor:
-          type: object
-          properties:
-            chain: { type: string }
-            tx: { type: string }
-            root: { type: string }
-            epoch_id: { type: string }
+        trace_id: { type: string }
+        run_id: { type: string }
+        image_hash: { type: string }
+        model_hash: { type: string }
+        attestation: { type: object, additionalProperties: true }
+        execution_mode: { type: string }
+        node_id: { type: string }
+        runtime_hash: { type: string }
+        gpu_fingerprint: { type: string }
 
     ReceiptProof:
       type: object
@@ -1344,7 +2589,7 @@ components:
           items:
             type: string
             enum: ['L', 'R']
-          description: Direction of each sibling (L = sibling is on left, R = on right). Used for verification.
+          description: Direction of each sibling (L = sibling is on left, R = on right).
 
     ReceiptVerification:
       type: object
@@ -1358,6 +2603,48 @@ components:
         computed_hash: { type: string }
         merkle_root: { type: string }
 
+    ReceiptHashVerification:
+      type: object
+      required: [success, verified, receipt_hash]
+      properties:
+        success: { type: boolean }
+        verified: { type: boolean }
+        receipt_hash: { type: string }
+        run_id: { type: string }
+        hash_valid: { type: boolean }
+        signature_valid: { type: boolean }
+        signer_pubkey: { type: string }
+        signer_type: { type: string }
+        execution_mode: { type: string }
+        runtime_hash: { type: string }
+        gpu_fingerprint: { type: string }
+        inclusion_proof:
+          type: object
+          nullable: true
+          properties:
+            leaf_index: { type: integer }
+            proof:
+              type: array
+              items: { type: string }
+            root: { type: string }
+            directions:
+              type: array
+              items: { type: string }
+        inclusion_valid: { type: boolean }
+        epoch:
+          type: object
+          nullable: true
+          properties:
+            epoch_id: { type: string }
+            mmr_root: { type: string }
+            chain_tx: { type: string }
+            finalized_at: { type: integer }
+        on_chain_verified: { type: boolean }
+        tx_signature: { type: string, nullable: true }
+
+    # =========================================================================
+    # Epoch schemas
+    # =========================================================================
     Epoch:
       type: object
       required: [epoch_id, mmr_root, leaf_count, created_at, status]
@@ -1376,6 +2663,46 @@ components:
         start_leaf_index: { type: integer }
         end_leaf_index: { type: integer }
 
+    EpochStatsResponse:
+      type: object
+      required: [success, stats]
+      properties:
+        success: { type: boolean }
+        stats:
+          type: object
+          properties:
+            total_epochs: { type: integer }
+            total_receipts: { type: integer }
+            by_status:
+              type: object
+              properties:
+                open: { type: integer }
+                anchoring: { type: integer }
+                anchored: { type: integer }
+                failed: { type: integer }
+            avg_receipts_per_epoch: { type: number }
+            last_anchor_time: { type: integer }
+
+    EpochsReadyResponse:
+      type: object
+      required: [success, count, epochs]
+      properties:
+        success: { type: boolean }
+        count: { type: integer }
+        epochs:
+          type: array
+          items:
+            type: object
+            properties:
+              epoch_id: { type: string }
+              project_id: { type: string }
+              leaf_count: { type: integer }
+              created_at: { type: integer }
+              mmr_root: { type: string }
+
+    # =========================================================================
+    # Payout schemas
+    # =========================================================================
     PayoutCalculateRequest:
       type: object
       required: [run_id, total_amount_lamports, compute_wallet]
@@ -1428,6 +2755,27 @@ components:
           minimum: 0
           maximum: 10000
 
+    Payout:
+      type: object
+      required: [run_id, total_amount_lamports, recipients, payout_hash, timestamp]
+      properties:
+        run_id: { type: string }
+        total_amount_lamports: { type: string, description: BigInt serialized as string }
+        recipients:
+          type: array
+          items: { $ref: '#/components/schemas/PayoutRecipient' }
+        payout_hash: { type: string }
+        timestamp: { type: integer }
+
+    PayoutRecipient:
+      type: object
+      required: [role, wallet, bp, amount_lamports]
+      properties:
+        role: { type: string }
+        wallet: { type: string }
+        bp: { type: integer }
+        amount_lamports: { type: string, description: BigInt serialized as string }
+
     PassportStatsResponse:
       type: object
       required: [success, stats]
@@ -1453,48 +2801,125 @@ components:
                 deprecated: { type: integer }
                 revoked: { type: integer }
 
-    EpochStatsResponse:
+    # =========================================================================
+    # Health schemas
+    # =========================================================================
+    HealthCheckResult:
       type: object
-      required: [success, stats]
+      required: [status]
       properties:
-        success: { type: boolean }
-        stats:
-          type: object
-          properties:
-            total_epochs: { type: integer }
-            total_receipts: { type: integer }
-            by_status:
-              type: object
-              properties:
-                open: { type: integer }
-                anchoring: { type: integer }
-                anchored: { type: integer }
-                failed: { type: integer }
-            avg_receipts_per_epoch: { type: number }
-            last_anchor_time: { type: integer }
+        status:
+          type: string
+          enum: [healthy, degraded, down]
+        latency: { type: number }
+        error: { type: string }
+        details: { type: object, additionalProperties: true }
 
-    EpochsReadyResponse:
+    SystemHealth:
       type: object
-      required: [success, count, epochs]
+      required: [status, timestamp, uptime, version, dependencies]
       properties:
-        success: { type: boolean }
-        count: { type: integer }
+        status:
+          type: string
+          enum: [healthy, degraded, down]
+        timestamp: { type: string, format: date-time }
+        uptime: { type: number }
+        version: { type: string }
+        dependencies:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/HealthCheckResult'
+
+    # =========================================================================
+    # Agent schemas
+    # =========================================================================
+    AgentInitRequest:
+      type: object
+      required: [agentId]
+      properties:
+        agentId: { type: string }
+        ipfsCid: { type: string }
+
+    AgentEpochRequest:
+      type: object
+      required: [agentId, vectors]
+      properties:
+        agentId: { type: string }
+        vectors:
+          type: array
+          items: { type: string }
+          minItems: 1
+        epochNumber: { type: integer }
+
+    AgentBatchEpochsRequest:
+      type: object
+      required: [epochs]
+      properties:
         epochs:
           type: array
           items:
             type: object
+            required: [agentId, vectors]
             properties:
-              epoch_id: { type: string }
-              project_id: { type: string }
-              leaf_count: { type: integer }
-              created_at: { type: integer }
-              mmr_root: { type: string }
+              agentId: { type: string }
+              vectors:
+                type: array
+                items: { type: string }
+                minItems: 1
+              epochNumber: { type: integer }
 
-    EpochReadySummary:
+    AgentProofRequest:
+      type: object
+      required: [agentId, vectorText, epochNumber]
+      properties:
+        agentId: { type: string }
+        vectorText: { type: string }
+        epochNumber: { type: integer }
+
+    AgentStats:
       type: object
       properties:
-        epoch_id: { type: string }
-        project_id: { type: string }
-        leaf_count: { type: integer }
-        created_at: { type: integer }
-        mmr_root: { type: string }
+        agentId: { type: string }
+        totalEpochs: { type: integer }
+        totalVectors: { type: integer }
+        currentRoot: { type: string }
+        lastEpoch: { type: integer }
+        createdAt: { type: string, format: date-time }
+
+    AgentHistoryEntry:
+      type: object
+      properties:
+        epoch: { type: integer }
+        root: { type: string }
+        timestamp: { type: integer }
+        date: { type: string, format: date-time }
+
+    GasCost:
+      type: object
+      required: [iGas, mGas, total]
+      properties:
+        iGas: { type: integer }
+        mGas: { type: integer }
+        total: { type: integer }
+
+    AgentPlanRequest:
+      type: object
+      required: [goal]
+      properties:
+        goal: { type: string }
+        context: { type: object, additionalProperties: true }
+        constraints:
+          type: array
+          items: { type: string }
+        autoExecute: { type: boolean }
+
+    AgentAccomplishRequest:
+      type: object
+      required: [goal]
+      properties:
+        goal: { type: string }
+        context: { type: object, additionalProperties: true }
+        preferredExecutor:
+          type: string
+          enum: [n8n, langgraph]
+        dryRun: { type: boolean }

@@ -4,7 +4,7 @@
 
 import * as z from "zod/v4-mini";
 import { RaijinLabsLucidAiCore } from "../core.js";
-import { encodeFormQuery } from "../lib/encodings.js";
+import { encodeJSON } from "../lib/encodings.js";
 import * as M from "../lib/matchers.js";
 import { compactMap } from "../lib/primitives.js";
 import { safeParse } from "../lib/schemas.js";
@@ -21,20 +21,21 @@ import * as errors from "../models/errors/index.js";
 import { RaijinLabsLucidAiError } from "../models/errors/raijinlabslucidaierror.js";
 import { ResponseValidationError } from "../models/errors/responsevalidationerror.js";
 import { SDKValidationError } from "../models/errors/sdkvalidationerror.js";
+import * as models from "../models/index.js";
 import * as operations from "../models/operations/index.js";
 import { APICall, APIPromise } from "../types/async.js";
 import { Result } from "../types/fp.js";
 
 /**
- * Search compute passports
+ * Process an epoch for an agent
  */
-export function passportsSearchCompute(
+export function agentsProcessAgentEpoch(
   client: RaijinLabsLucidAiCore,
-  request?: operations.LucidSearchComputeRequest | undefined,
+  request: models.AgentEpochRequest,
   options?: RequestOptions,
 ): APIPromise<
   Result<
-    void,
+    operations.ProcessAgentEpochResponse,
     | errors.ErrorResponse
     | RaijinLabsLucidAiError
     | ResponseValidationError
@@ -55,12 +56,12 @@ export function passportsSearchCompute(
 
 async function $do(
   client: RaijinLabsLucidAiCore,
-  request?: operations.LucidSearchComputeRequest | undefined,
+  request: models.AgentEpochRequest,
   options?: RequestOptions,
 ): Promise<
   [
     Result<
-      void,
+      operations.ProcessAgentEpochResponse,
       | errors.ErrorResponse
       | RaijinLabsLucidAiError
       | ResponseValidationError
@@ -76,42 +77,26 @@ async function $do(
 > {
   const parsed = safeParse(
     request,
-    (value) =>
-      z.parse(
-        z.optional(operations.LucidSearchComputeRequest$outboundSchema),
-        value,
-      ),
+    (value) => z.parse(models.AgentEpochRequest$outboundSchema, value),
     "Input validation failed",
   );
   if (!parsed.ok) {
     return [parsed, { status: "invalid" }];
   }
   const payload = parsed.value;
-  const body = null;
+  const body = encodeJSON("body", payload, { explode: true });
 
-  const path = pathToFunc("/v1/compute")();
-
-  const query = encodeFormQuery({
-    "gpu": payload?.gpu,
-    "min_vram": payload?.min_vram,
-    "owner": payload?.owner,
-    "page": payload?.page,
-    "per_page": payload?.per_page,
-    "provider_type": payload?.provider_type,
-    "regions": payload?.regions,
-    "runtimes": payload?.runtimes,
-    "search": payload?.search,
-    "tags": payload?.tags,
-  });
+  const path = pathToFunc("/api/agents/epoch")();
 
   const headers = new Headers(compactMap({
+    "Content-Type": "application/json",
     Accept: "application/json",
   }));
 
   const context = {
     options: client._options,
     baseURL: options?.serverURL ?? client._baseURL ?? "",
-    operationID: "lucid_search_compute",
+    operationID: "process_agent_epoch",
     oAuth2Scopes: null,
 
     resolvedSecurity: null,
@@ -124,11 +109,10 @@ async function $do(
   };
 
   const requestRes = client._createRequest(context, {
-    method: "GET",
+    method: "POST",
     baseURL: options?.serverURL,
     path: path,
     headers: headers,
-    query: query,
     body: body,
     userAgent: client._options.userAgent,
     timeoutMs: options?.timeoutMs || client._options.timeoutMs || -1,
@@ -140,7 +124,7 @@ async function $do(
 
   const doResult = await client._do(req, {
     context,
-    errorCodes: ["4XX", "500", "5XX"],
+    errorCodes: ["400", "4XX", "500", "5XX"],
     retryConfig: context.retryConfig,
     retryCodes: context.retryCodes,
   });
@@ -154,7 +138,7 @@ async function $do(
   };
 
   const [result] = await M.match<
-    void,
+    operations.ProcessAgentEpochResponse,
     | errors.ErrorResponse
     | RaijinLabsLucidAiError
     | ResponseValidationError
@@ -165,7 +149,8 @@ async function $do(
     | UnexpectedClientError
     | SDKValidationError
   >(
-    M.nil(200, z.void()),
+    M.json(200, operations.ProcessAgentEpochResponse$inboundSchema),
+    M.jsonErr(400, errors.ErrorResponse$inboundSchema),
     M.jsonErr(500, errors.ErrorResponse$inboundSchema),
     M.fail("4XX"),
     M.fail("5XX"),

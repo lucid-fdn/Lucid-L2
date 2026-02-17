@@ -5,9 +5,31 @@
 import * as z from "zod/v4-mini";
 import { remap as remap$ } from "../lib/primitives.js";
 import { safeParse } from "../lib/schemas.js";
+import * as openEnums from "../types/enums.js";
+import { OpenEnum } from "../types/enums.js";
 import { Result as SafeParseResult } from "../types/fp.js";
 import * as types from "../types/primitives.js";
 import { SDKValidationError } from "./errors/sdkvalidationerror.js";
+
+export type Metrics = {
+  ttftMs: number;
+  tokensIn: number;
+  tokensOut: number;
+  p95Ms?: number | undefined;
+  totalLatencyMs?: number | undefined;
+  queueWaitMs?: number | undefined;
+  queueTimeMs?: number | undefined;
+  coldStartMs?: number | undefined;
+  modelLoadMs?: number | undefined;
+  cacheHit?: boolean | undefined;
+};
+
+export const SignerType = {
+  Orchestrator: "orchestrator",
+  Compute: "compute",
+  Worker: "worker",
+} as const;
+export type SignerType = OpenEnum<typeof SignerType>;
 
 export type Anchor = {
   chain?: string | undefined;
@@ -17,21 +39,82 @@ export type Anchor = {
 };
 
 export type Receipt = {
+  schemaVersion?: string | undefined;
   runId: string;
   modelPassportId: string;
   computePassportId: string;
   policyHash: string;
   runtime: string;
-  tokensIn: number;
-  tokensOut: number;
-  ttftMs: number;
-  totalLatencyMs?: number | undefined;
   timestamp: number;
+  traceId?: string | undefined;
+  imageHash?: string | undefined;
+  modelHash?: string | undefined;
+  attestation?: { [k: string]: any } | undefined;
+  executionMode?: string | undefined;
+  jobHash?: string | undefined;
+  quoteHash?: string | undefined;
+  nodeId?: string | undefined;
+  runtimeHash?: string | null | undefined;
+  gpuFingerprint?: string | null | undefined;
+  outputsHash?: string | undefined;
+  outputRef?: string | undefined;
+  startTs?: number | undefined;
+  endTs?: number | undefined;
+  inputRef?: string | undefined;
+  errorCode?: string | undefined;
+  errorMessage?: string | undefined;
+  metrics: Metrics;
   receiptHash: string;
-  signature: string;
-  merkleLeafIndex?: number | undefined;
-  anchor?: Anchor | undefined;
+  receiptSignature: string;
+  signerPubkey: string;
+  signerType: SignerType;
+  mmrLeafIndex?: number | undefined;
+  anchor?: Anchor | null | undefined;
 };
+
+/** @internal */
+export const Metrics$inboundSchema: z.ZodMiniType<Metrics, unknown> = z.pipe(
+  z.object({
+    ttft_ms: types.number(),
+    tokens_in: types.number(),
+    tokens_out: types.number(),
+    p95_ms: types.optional(types.number()),
+    total_latency_ms: types.optional(types.number()),
+    queue_wait_ms: types.optional(types.number()),
+    queue_time_ms: types.optional(types.number()),
+    cold_start_ms: types.optional(types.number()),
+    model_load_ms: types.optional(types.number()),
+    cache_hit: types.optional(types.boolean()),
+  }),
+  z.transform((v) => {
+    return remap$(v, {
+      "ttft_ms": "ttftMs",
+      "tokens_in": "tokensIn",
+      "tokens_out": "tokensOut",
+      "p95_ms": "p95Ms",
+      "total_latency_ms": "totalLatencyMs",
+      "queue_wait_ms": "queueWaitMs",
+      "queue_time_ms": "queueTimeMs",
+      "cold_start_ms": "coldStartMs",
+      "model_load_ms": "modelLoadMs",
+      "cache_hit": "cacheHit",
+    });
+  }),
+);
+
+export function metricsFromJSON(
+  jsonString: string,
+): SafeParseResult<Metrics, SDKValidationError> {
+  return safeParse(
+    jsonString,
+    (x) => Metrics$inboundSchema.parse(JSON.parse(x)),
+    `Failed to parse 'Metrics' from JSON`,
+  );
+}
+
+/** @internal */
+export const SignerType$inboundSchema: z.ZodMiniType<SignerType, unknown> =
+  openEnums.inboundSchema(SignerType);
 
 /** @internal */
 export const Anchor$inboundSchema: z.ZodMiniType<Anchor, unknown> = z.pipe(
@@ -47,33 +130,7 @@ export const Anchor$inboundSchema: z.ZodMiniType<Anchor, unknown> = z.pipe(
     });
   }),
 );
-/** @internal */
-export type Anchor$Outbound = {
-  chain?: string | undefined;
-  tx?: string | undefined;
-  root?: string | undefined;
-  epoch_id?: string | undefined;
-};
 
-/** @internal */
-export const Anchor$outboundSchema: z.ZodMiniType<Anchor$Outbound, Anchor> = z
-  .pipe(
-    z.object({
-      chain: z.optional(z.string()),
-      tx: z.optional(z.string()),
-      root: z.optional(z.string()),
-      epochId: z.optional(z.string()),
-    }),
-    z.transform((v) => {
-      return remap$(v, {
-        epochId: "epoch_id",
-      });
-    }),
-  );
-
-export function anchorToJSON(anchor: Anchor): string {
-  return JSON.stringify(Anchor$outboundSchema.parse(anchor));
-}
 export function anchorFromJSON(
   jsonString: string,
 ): SafeParseResult<Anchor, SDKValidationError> {
@@ -87,92 +144,70 @@ export function anchorFromJSON(
 /** @internal */
 export const Receipt$inboundSchema: z.ZodMiniType<Receipt, unknown> = z.pipe(
   z.object({
+    schema_version: types.optional(types.string()),
     run_id: types.string(),
     model_passport_id: types.string(),
     compute_passport_id: types.string(),
     policy_hash: types.string(),
     runtime: types.string(),
-    tokens_in: types.number(),
-    tokens_out: types.number(),
-    ttft_ms: types.number(),
-    total_latency_ms: types.optional(types.number()),
     timestamp: types.number(),
+    trace_id: types.optional(types.string()),
+    image_hash: types.optional(types.string()),
+    model_hash: types.optional(types.string()),
+    attestation: types.optional(z.record(z.string(), z.any())),
+    execution_mode: types.optional(types.string()),
+    job_hash: types.optional(types.string()),
+    quote_hash: types.optional(types.string()),
+    node_id: types.optional(types.string()),
+    runtime_hash: z.optional(z.nullable(types.string())),
+    gpu_fingerprint: z.optional(z.nullable(types.string())),
+    outputs_hash: types.optional(types.string()),
+    output_ref: types.optional(types.string()),
+    start_ts: types.optional(types.number()),
+    end_ts: types.optional(types.number()),
+    input_ref: types.optional(types.string()),
+    error_code: types.optional(types.string()),
+    error_message: types.optional(types.string()),
+    metrics: z.lazy(() => Metrics$inboundSchema),
     receipt_hash: types.string(),
-    signature: types.string(),
-    merkle_leaf_index: types.optional(types.number()),
-    anchor: types.optional(z.lazy(() => Anchor$inboundSchema)),
+    receipt_signature: types.string(),
+    signer_pubkey: types.string(),
+    signer_type: SignerType$inboundSchema,
+    _mmr_leaf_index: types.optional(types.number()),
+    anchor: z.optional(z.nullable(z.lazy(() => Anchor$inboundSchema))),
   }),
   z.transform((v) => {
     return remap$(v, {
+      "schema_version": "schemaVersion",
       "run_id": "runId",
       "model_passport_id": "modelPassportId",
       "compute_passport_id": "computePassportId",
       "policy_hash": "policyHash",
-      "tokens_in": "tokensIn",
-      "tokens_out": "tokensOut",
-      "ttft_ms": "ttftMs",
-      "total_latency_ms": "totalLatencyMs",
+      "trace_id": "traceId",
+      "image_hash": "imageHash",
+      "model_hash": "modelHash",
+      "execution_mode": "executionMode",
+      "job_hash": "jobHash",
+      "quote_hash": "quoteHash",
+      "node_id": "nodeId",
+      "runtime_hash": "runtimeHash",
+      "gpu_fingerprint": "gpuFingerprint",
+      "outputs_hash": "outputsHash",
+      "output_ref": "outputRef",
+      "start_ts": "startTs",
+      "end_ts": "endTs",
+      "input_ref": "inputRef",
+      "error_code": "errorCode",
+      "error_message": "errorMessage",
       "receipt_hash": "receiptHash",
-      "merkle_leaf_index": "merkleLeafIndex",
+      "receipt_signature": "receiptSignature",
+      "signer_pubkey": "signerPubkey",
+      "signer_type": "signerType",
+      "_mmr_leaf_index": "mmrLeafIndex",
     });
   }),
 );
-/** @internal */
-export type Receipt$Outbound = {
-  run_id: string;
-  model_passport_id: string;
-  compute_passport_id: string;
-  policy_hash: string;
-  runtime: string;
-  tokens_in: number;
-  tokens_out: number;
-  ttft_ms: number;
-  total_latency_ms?: number | undefined;
-  timestamp: number;
-  receipt_hash: string;
-  signature: string;
-  merkle_leaf_index?: number | undefined;
-  anchor?: Anchor$Outbound | undefined;
-};
 
-/** @internal */
-export const Receipt$outboundSchema: z.ZodMiniType<Receipt$Outbound, Receipt> =
-  z.pipe(
-    z.object({
-      runId: z.string(),
-      modelPassportId: z.string(),
-      computePassportId: z.string(),
-      policyHash: z.string(),
-      runtime: z.string(),
-      tokensIn: z.int(),
-      tokensOut: z.int(),
-      ttftMs: z.int(),
-      totalLatencyMs: z.optional(z.int()),
-      timestamp: z.int(),
-      receiptHash: z.string(),
-      signature: z.string(),
-      merkleLeafIndex: z.optional(z.int()),
-      anchor: z.optional(z.lazy(() => Anchor$outboundSchema)),
-    }),
-    z.transform((v) => {
-      return remap$(v, {
-        runId: "run_id",
-        modelPassportId: "model_passport_id",
-        computePassportId: "compute_passport_id",
-        policyHash: "policy_hash",
-        tokensIn: "tokens_in",
-        tokensOut: "tokens_out",
-        ttftMs: "ttft_ms",
-        totalLatencyMs: "total_latency_ms",
-        receiptHash: "receipt_hash",
-        merkleLeafIndex: "merkle_leaf_index",
-      });
-    }),
-  );
-
-export function receiptToJSON(receipt: Receipt): string {
-  return JSON.stringify(Receipt$outboundSchema.parse(receipt));
-}
 export function receiptFromJSON(
   jsonString: string,
 ): SafeParseResult<Receipt, SDKValidationError> {

@@ -22,7 +22,7 @@ import {
   LucidCreateReceiptResponse,
   LucidCreateReceiptResponse$zodSchema,
 } from "../models/lucidcreatereceiptop.js";
-import { Receipt, Receipt$zodSchema } from "../models/receipt.js";
+import { CreateReceiptRequest, CreateReceiptRequest$zodSchema } from "../models/receipt.js";
 import { APICall, APIPromise } from "../types/async.js";
 import { Result } from "../types/fp.js";
 
@@ -31,7 +31,7 @@ import { Result } from "../types/fp.js";
  */
 export function receiptsLucidCreateReceipt(
   client$: RaijinlabsMcpCore,
-  request: Receipt,
+  request: CreateReceiptRequest,
   options?: RequestOptions,
 ): APIPromise<
   Result<
@@ -54,7 +54,7 @@ export function receiptsLucidCreateReceipt(
 
 async function $do(
   client$: RaijinlabsMcpCore,
-  request: Receipt,
+  request: CreateReceiptRequest,
   options?: RequestOptions,
 ): Promise<
   [
@@ -73,7 +73,7 @@ async function $do(
 > {
   const parsed$ = safeParse(
     request,
-    (value$) => Receipt$zodSchema.parse(value$),
+    (value$) => CreateReceiptRequest$zodSchema.parse(value$),
     "Input validation failed",
   );
   if (!parsed$.ok) {

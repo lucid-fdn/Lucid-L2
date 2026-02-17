@@ -7,6 +7,7 @@ import { receiptsGet } from "../funcs/receiptsGet.js";
 import { receiptsGetMmrRoot } from "../funcs/receiptsGetMmrRoot.js";
 import { receiptsGetProof } from "../funcs/receiptsGetProof.js";
 import { receiptsGetSignerPubKey } from "../funcs/receiptsGetSignerPubKey.js";
+import { receiptsLucidVerifyReceiptByHash } from "../funcs/receiptsLucidVerifyReceiptByHash.js";
 import { receiptsVerify } from "../funcs/receiptsVerify.js";
 import { ClientSDK, RequestOptions } from "../lib/sdks.js";
 import * as models from "../models/index.js";
@@ -18,7 +19,7 @@ export class Receipts extends ClientSDK {
    * Create a receipt
    */
   async create(
-    request: models.Receipt,
+    request: models.CreateReceiptRequest,
     options?: RequestOptions,
   ): Promise<operations.LucidCreateReceiptResponse> {
     return unwrapAsync(receiptsCreate(
@@ -64,6 +65,20 @@ export class Receipts extends ClientSDK {
     options?: RequestOptions,
   ): Promise<operations.LucidGetReceiptProofResponse> {
     return unwrapAsync(receiptsGetProof(
+      this,
+      request,
+      options,
+    ));
+  }
+
+  /**
+   * Verify receipt by hash with inclusion proof and epoch info
+   */
+  async lucidVerifyReceiptByHash(
+    request: operations.LucidVerifyReceiptByHashRequest,
+    options?: RequestOptions,
+  ): Promise<models.ReceiptHashVerification> {
+    return unwrapAsync(receiptsLucidVerifyReceiptByHash(
       this,
       request,
       options,

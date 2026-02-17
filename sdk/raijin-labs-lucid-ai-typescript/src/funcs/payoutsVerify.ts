@@ -34,7 +34,7 @@ export function payoutsVerify(
   options?: RequestOptions,
 ): APIPromise<
   Result<
-    void,
+    operations.LucidVerifyPayoutResponse,
     | errors.ErrorResponse
     | RaijinLabsLucidAiError
     | ResponseValidationError
@@ -60,7 +60,7 @@ async function $do(
 ): Promise<
   [
     Result<
-      void,
+      operations.LucidVerifyPayoutResponse,
       | errors.ErrorResponse
       | RaijinLabsLucidAiError
       | ResponseValidationError
@@ -144,7 +144,7 @@ async function $do(
   };
 
   const [result] = await M.match<
-    void,
+    operations.LucidVerifyPayoutResponse,
     | errors.ErrorResponse
     | RaijinLabsLucidAiError
     | ResponseValidationError
@@ -155,7 +155,7 @@ async function $do(
     | UnexpectedClientError
     | SDKValidationError
   >(
-    M.nil(200, z.void()),
+    M.json(200, operations.LucidVerifyPayoutResponse$inboundSchema),
     M.jsonErr(404, errors.ErrorResponse$inboundSchema),
     M.jsonErr(500, errors.ErrorResponse$inboundSchema),
     M.fail("4XX"),

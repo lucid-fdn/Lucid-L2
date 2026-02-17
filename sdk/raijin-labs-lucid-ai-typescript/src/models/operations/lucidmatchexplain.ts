@@ -4,12 +4,26 @@
 
 import * as z from "zod/v4-mini";
 import { remap as remap$ } from "../../lib/primitives.js";
+import { safeParse } from "../../lib/schemas.js";
+import { Result as SafeParseResult } from "../../types/fp.js";
+import * as types from "../../types/primitives.js";
+import { SDKValidationError } from "../errors/sdkvalidationerror.js";
 import * as models from "../index.js";
 
 export type LucidMatchExplainRequest = {
   policy?: models.Policy | undefined;
   computeMeta?: { [k: string]: any } | undefined;
   modelMeta?: { [k: string]: any } | undefined;
+};
+
+/**
+ * OK
+ */
+export type LucidMatchExplainResponse = {
+  success: boolean;
+  allowed: boolean;
+  reasons: Array<string>;
+  policyHash: string;
 };
 
 /** @internal */
@@ -42,5 +56,33 @@ export function lucidMatchExplainRequestToJSON(
 ): string {
   return JSON.stringify(
     LucidMatchExplainRequest$outboundSchema.parse(lucidMatchExplainRequest),
+  );
+}
+
+/** @internal */
+export const LucidMatchExplainResponse$inboundSchema: z.ZodMiniType<
+  LucidMatchExplainResponse,
+  unknown
+> = z.pipe(
+  z.object({
+    success: types.boolean(),
+    allowed: types.boolean(),
+    reasons: z.array(types.string()),
+    policy_hash: types.string(),
+  }),
+  z.transform((v) => {
+    return remap$(v, {
+      "policy_hash": "policyHash",
+    });
+  }),
+);
+
+export function lucidMatchExplainResponseFromJSON(
+  jsonString: string,
+): SafeParseResult<LucidMatchExplainResponse, SDKValidationError> {
+  return safeParse(
+    jsonString,
+    (x) => LucidMatchExplainResponse$inboundSchema.parse(JSON.parse(x)),
+    `Failed to parse 'LucidMatchExplainResponse' from JSON`,
   );
 }

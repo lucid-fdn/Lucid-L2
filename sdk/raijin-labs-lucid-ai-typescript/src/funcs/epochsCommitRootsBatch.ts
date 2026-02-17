@@ -34,7 +34,7 @@ export function epochsCommitRootsBatch(
   options?: RequestOptions,
 ): APIPromise<
   Result<
-    void,
+    operations.LucidCommitEpochRootsBatchResponse,
     | errors.ErrorResponse
     | RaijinLabsLucidAiError
     | ResponseValidationError
@@ -60,7 +60,7 @@ async function $do(
 ): Promise<
   [
     Result<
-      void,
+      operations.LucidCommitEpochRootsBatchResponse,
       | errors.ErrorResponse
       | RaijinLabsLucidAiError
       | ResponseValidationError
@@ -141,7 +141,7 @@ async function $do(
   };
 
   const [result] = await M.match<
-    void,
+    operations.LucidCommitEpochRootsBatchResponse,
     | errors.ErrorResponse
     | RaijinLabsLucidAiError
     | ResponseValidationError
@@ -152,7 +152,7 @@ async function $do(
     | UnexpectedClientError
     | SDKValidationError
   >(
-    M.nil(202, z.void()),
+    M.json(202, operations.LucidCommitEpochRootsBatchResponse$inboundSchema),
     M.jsonErr(400, errors.ErrorResponse$inboundSchema),
     M.jsonErr(500, errors.ErrorResponse$inboundSchema),
     M.fail("4XX"),

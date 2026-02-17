@@ -27,8 +27,8 @@ export type Passport = {
   version?: string | null | undefined;
   tags?: Array<string> | null | undefined;
   status: PassportStatus;
-  metadata: { [k: string]: any };
-  metadata_hash: string;
+  metadata?: { [k: string]: any } | null | undefined;
+  metadata_hash?: string | null | undefined;
   created_at: number;
   updated_at: number;
   on_chain?: OnChain | null | undefined;
@@ -37,8 +37,8 @@ export type Passport = {
 export const Passport$zodSchema: z.ZodType<Passport> = z.object({
   created_at: z.int(),
   description: z.string().nullable().optional(),
-  metadata: z.record(z.string(), z.any()),
-  metadata_hash: z.string(),
+  metadata: z.record(z.string(), z.any()).nullable().optional(),
+  metadata_hash: z.string().nullable().optional(),
   name: z.string().nullable().optional(),
   on_chain: z.lazy(() => OnChain$zodSchema).nullable().optional(),
   owner: z.string(),

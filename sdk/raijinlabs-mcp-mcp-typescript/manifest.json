@@ -183,6 +183,126 @@
     {
       "name": "lucid_verify_payout",
       "description": "Verify payout split integrity."
+    },
+    {
+      "name": "lucid_list_tools",
+      "description": "List active tool passports with optional filtering."
+    },
+    {
+      "name": "lucid_list_datasets",
+      "description": "List active dataset passports with optional filtering."
+    },
+    {
+      "name": "lucid_list_agent_passports",
+      "description": "List active agent passports with optional filtering."
+    },
+    {
+      "name": "lucid_verify_receipt_by_hash",
+      "description": "Verify a receipt by its hash. Returns inclusion proof and on-chain anchoring status."
+    },
+    {
+      "name": "check_system_health",
+      "description": "Check overall system health including all dependencies."
+    },
+    {
+      "name": "check_liveness",
+      "description": "Liveness probe - is the application alive?"
+    },
+    {
+      "name": "check_readiness",
+      "description": "Readiness probe - is the application ready to serve traffic?"
+    },
+    {
+      "name": "check_database_health",
+      "description": "Check database connectivity and latency."
+    },
+    {
+      "name": "check_redis_health",
+      "description": "Check Redis connectivity and latency."
+    },
+    {
+      "name": "check_nango_health",
+      "description": "Check Nango service connectivity and latency."
+    },
+    {
+      "name": "get_detailed_health",
+      "description": "Detailed health check including system resources and statistics."
+    },
+    {
+      "name": "init_agent",
+      "description": "Initialize or load an AI agent for MMR-based proof-of-contribution."
+    },
+    {
+      "name": "process_agent_epoch",
+      "description": "Process an epoch of vectors for an AI agent."
+    },
+    {
+      "name": "process_agent_batch_epochs",
+      "description": "Process multiple epochs in batch for one or more agents."
+    },
+    {
+      "name": "generate_agent_proof",
+      "description": "Generate cryptographic proof of contribution for a specific vector."
+    },
+    {
+      "name": "get_agent_stats",
+      "description": "Get statistics and current status for an AI agent."
+    },
+    {
+      "name": "get_agent_history",
+      "description": "Get an agent's MMR root history across epochs."
+    },
+    {
+      "name": "get_agent_root",
+      "description": "Get the current MMR root for an AI agent."
+    },
+    {
+      "name": "verify_agent_mmr",
+      "description": "Verify MMR integrity for an AI agent."
+    },
+    {
+      "name": "list_agents",
+      "description": "List all registered AI agents with their stats."
+    },
+    {
+      "name": "plan_agent_workflow",
+      "description": "Plan a workflow from a natural language goal using CrewAI."
+    },
+    {
+      "name": "accomplish_agent_goal",
+      "description": "Plan and execute a workflow in one call via the Agent Orchestrator."
+    },
+    {
+      "name": "preview_agent_workflow",
+      "description": "Preview a planned workflow (dry run) without executing."
+    },
+    {
+      "name": "get_agent_orchestrator_history",
+      "description": "Get agent execution history for a specific tenant."
+    },
+    {
+      "name": "check_agent_orchestrator_health",
+      "description": "Check health of all agent orchestrator services."
+    },
+    {
+      "name": "execute_agent_flowspec",
+      "description": "Execute a FlowSpec with automatic executor selection."
+    },
+    {
+      "name": "validate_flowspec",
+      "description": "Validate a FlowSpec structure without executing."
+    },
+    {
+      "name": "get_planner_info",
+      "description": "Get agent planner service information and status."
+    },
+    {
+      "name": "check_executor_health",
+      "description": "Check health of executor backends (n8n, LangGraph)."
+    },
+    {
+      "name": "get_executor_decision",
+      "description": "Get recommended executor for a FlowSpec without executing."
     }
   ]
 }

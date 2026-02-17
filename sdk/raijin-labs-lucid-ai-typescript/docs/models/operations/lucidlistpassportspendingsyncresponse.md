@@ -15,15 +15,9 @@ let value: LucidListPassportsPendingSyncResponse = {
       passportId: "<id>",
       type: "compute",
       owner: "<value>",
-      status: "deprecated",
-      metadata: {
-        "key": "<value>",
-        "key1": "<value>",
-        "key2": "<value>",
-      },
-      metadataHash: "<value>",
-      createdAt: 942792,
-      updatedAt: 140064,
+      status: "active",
+      createdAt: 820087,
+      updatedAt: 942792,
     },
   ],
 };

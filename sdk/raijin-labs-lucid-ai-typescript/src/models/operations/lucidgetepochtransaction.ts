@@ -4,9 +4,23 @@
 
 import * as z from "zod/v4-mini";
 import { remap as remap$ } from "../../lib/primitives.js";
+import { safeParse } from "../../lib/schemas.js";
+import { Result as SafeParseResult } from "../../types/fp.js";
+import * as types from "../../types/primitives.js";
+import { SDKValidationError } from "../errors/sdkvalidationerror.js";
 
 export type LucidGetEpochTransactionRequest = {
   epochId: string;
+};
+
+/**
+ * OK
+ */
+export type LucidGetEpochTransactionResponse = {
+  success: boolean;
+  txSignature: string;
+  slot?: number | undefined;
+  blockTime?: number | undefined;
 };
 
 /** @internal */
@@ -36,5 +50,34 @@ export function lucidGetEpochTransactionRequestToJSON(
     LucidGetEpochTransactionRequest$outboundSchema.parse(
       lucidGetEpochTransactionRequest,
     ),
+  );
+}
+
+/** @internal */
+export const LucidGetEpochTransactionResponse$inboundSchema: z.ZodMiniType<
+  LucidGetEpochTransactionResponse,
+  unknown
+> = z.pipe(
+  z.object({
+    success: types.boolean(),
+    tx_signature: types.string(),
+    slot: types.optional(types.number()),
+    block_time: types.optional(types.number()),
+  }),
+  z.transform((v) => {
+    return remap$(v, {
+      "tx_signature": "txSignature",
+      "block_time": "blockTime",
+    });
+  }),
+);
+
+export function lucidGetEpochTransactionResponseFromJSON(
+  jsonString: string,
+): SafeParseResult<LucidGetEpochTransactionResponse, SDKValidationError> {
+  return safeParse(
+    jsonString,
+    (x) => LucidGetEpochTransactionResponse$inboundSchema.parse(JSON.parse(x)),
+    `Failed to parse 'LucidGetEpochTransactionResponse' from JSON`,
   );
 }

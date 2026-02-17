@@ -4,12 +4,27 @@
 
 import { computeGetNodeHealth } from "../funcs/computeGetNodeHealth.js";
 import { computeHeartbeat } from "../funcs/computeHeartbeat.js";
+import { computeSearchCompute } from "../funcs/computeSearchCompute.js";
 import { ClientSDK, RequestOptions } from "../lib/sdks.js";
 import * as models from "../models/index.js";
 import * as operations from "../models/operations/index.js";
 import { unwrapAsync } from "../types/fp.js";
 
 export class Compute extends ClientSDK {
+  /**
+   * Search compute passports
+   */
+  async searchCompute(
+    request?: operations.LucidSearchComputeRequest | undefined,
+    options?: RequestOptions,
+  ): Promise<operations.LucidSearchComputeResponse> {
+    return unwrapAsync(computeSearchCompute(
+      this,
+      request,
+      options,
+    ));
+  }
+
   /**
    * Submit compute node heartbeat
    */

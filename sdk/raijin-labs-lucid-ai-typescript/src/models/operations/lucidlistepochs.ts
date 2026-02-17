@@ -4,12 +4,26 @@
 
 import * as z from "zod/v4-mini";
 import { remap as remap$ } from "../../lib/primitives.js";
+import { safeParse } from "../../lib/schemas.js";
+import { Result as SafeParseResult } from "../../types/fp.js";
+import * as types from "../../types/primitives.js";
+import { SDKValidationError } from "../errors/sdkvalidationerror.js";
+import * as models from "../index.js";
 
 export type LucidListEpochsRequest = {
   projectId?: string | undefined;
   status?: string | undefined;
   page?: number | undefined;
   perPage?: number | undefined;
+};
+
+/**
+ * OK
+ */
+export type LucidListEpochsResponse = {
+  success: boolean;
+  epochs: Array<models.Epoch>;
+  pagination: models.Pagination;
 };
 
 /** @internal */
@@ -44,5 +58,25 @@ export function lucidListEpochsRequestToJSON(
 ): string {
   return JSON.stringify(
     LucidListEpochsRequest$outboundSchema.parse(lucidListEpochsRequest),
+  );
+}
+
+/** @internal */
+export const LucidListEpochsResponse$inboundSchema: z.ZodMiniType<
+  LucidListEpochsResponse,
+  unknown
+> = z.object({
+  success: types.boolean(),
+  epochs: z.array(models.Epoch$inboundSchema),
+  pagination: models.Pagination$inboundSchema,
+});
+
+export function lucidListEpochsResponseFromJSON(
+  jsonString: string,
+): SafeParseResult<LucidListEpochsResponse, SDKValidationError> {
+  return safeParse(
+    jsonString,
+    (x) => LucidListEpochsResponse$inboundSchema.parse(JSON.parse(x)),
+    `Failed to parse 'LucidListEpochsResponse' from JSON`,
   );
 }

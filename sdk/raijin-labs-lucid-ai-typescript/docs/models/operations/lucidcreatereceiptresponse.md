@@ -15,12 +15,16 @@ let value: LucidCreateReceiptResponse = {
     computePassportId: "<id>",
     policyHash: "<value>",
     runtime: "<value>",
-    tokensIn: 171739,
-    tokensOut: 353552,
-    ttftMs: 548725,
-    timestamp: 353201,
+    timestamp: 171739,
+    metrics: {
+      ttftMs: 96137,
+      tokensIn: 67093,
+      tokensOut: 269858,
+    },
     receiptHash: "<value>",
-    signature: "<value>",
+    receiptSignature: "<value>",
+    signerPubkey: "<value>",
+    signerType: "compute",
   },
 };
 ```

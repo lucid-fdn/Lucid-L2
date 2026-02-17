@@ -34,7 +34,7 @@ export function epochsCreate(
   options?: RequestOptions,
 ): APIPromise<
   Result<
-    void,
+    operations.LucidCreateEpochResponse,
     | errors.ErrorResponse
     | RaijinLabsLucidAiError
     | ResponseValidationError
@@ -60,7 +60,7 @@ async function $do(
 ): Promise<
   [
     Result<
-      void,
+      operations.LucidCreateEpochResponse,
       | errors.ErrorResponse
       | RaijinLabsLucidAiError
       | ResponseValidationError
@@ -138,7 +138,7 @@ async function $do(
   };
 
   const [result] = await M.match<
-    void,
+    operations.LucidCreateEpochResponse,
     | errors.ErrorResponse
     | RaijinLabsLucidAiError
     | ResponseValidationError
@@ -149,7 +149,7 @@ async function $do(
     | UnexpectedClientError
     | SDKValidationError
   >(
-    M.nil(201, z.void()),
+    M.json(201, operations.LucidCreateEpochResponse$inboundSchema),
     M.jsonErr(500, errors.ErrorResponse$inboundSchema),
     M.fail("4XX"),
     M.fail("5XX"),

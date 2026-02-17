@@ -3,11 +3,11 @@
  */
 
 import { receiptsLucidCreateReceipt } from "../../funcs/receiptsLucidCreateReceipt.js";
-import { Receipt$zodSchema } from "../../models/receipt.js";
+import { CreateReceiptRequest$zodSchema } from "../../models/receipt.js";
 import { formatResult, ToolDefinition } from "../tools.js";
 
 const args = {
-  request: Receipt$zodSchema,
+  request: CreateReceiptRequest$zodSchema,
 };
 
 export const tool$receiptsLucidCreateReceipt: ToolDefinition<typeof args> = {

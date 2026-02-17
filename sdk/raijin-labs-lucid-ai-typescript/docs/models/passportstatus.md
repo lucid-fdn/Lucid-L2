@@ -13,5 +13,5 @@ let value: PassportStatus = "active";
 This is an open enum. Unrecognized values will be captured as the `Unrecognized<string>` branded type.
 
 ```typescript
-"active" | "deprecated" | "revoked" | "superseded" | Unrecognized<string>
+"active" | "deprecated" | "revoked" | Unrecognized<string>
 ```

@@ -3,8 +3,10 @@
  */
 
 import { ClientSDK } from "../lib/sdks.js";
+import { Agents } from "./agents.js";
 import { Compute } from "./compute.js";
 import { Epochs } from "./epochs.js";
+import { Health } from "./health.js";
 import { Match } from "./match.js";
 import { Passports } from "./passports.js";
 import { Payouts } from "./payouts.js";
@@ -17,6 +19,11 @@ export class RaijinLabsLucidAi extends ClientSDK {
     return (this._passports ??= new Passports(this._options));
   }
 
+  private _compute?: Compute;
+  get compute(): Compute {
+    return (this._compute ??= new Compute(this._options));
+  }
+
   private _match?: Match;
   get match(): Match {
     return (this._match ??= new Match(this._options));
@@ -25,11 +32,6 @@ export class RaijinLabsLucidAi extends ClientSDK {
   private _run?: Run;
   get run(): Run {
     return (this._run ??= new Run(this._options));
-  }
-
-  private _compute?: Compute;
-  get compute(): Compute {
-    return (this._compute ??= new Compute(this._options));
   }
 
   private _receipts?: Receipts;
@@ -45,5 +47,15 @@ export class RaijinLabsLucidAi extends ClientSDK {
   private _payouts?: Payouts;
   get payouts(): Payouts {
     return (this._payouts ??= new Payouts(this._options));
+  }
+
+  private _health?: Health;
+  get health(): Health {
+    return (this._health ??= new Health(this._options));
+  }
+
+  private _agents?: Agents;
+  get agents(): Agents {
+    return (this._agents ??= new Agents(this._options));
   }
 }

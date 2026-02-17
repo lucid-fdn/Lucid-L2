@@ -4,9 +4,22 @@
 
 import * as z from "zod/v4-mini";
 import { remap as remap$ } from "../../lib/primitives.js";
+import { safeParse } from "../../lib/schemas.js";
+import { Result as SafeParseResult } from "../../types/fp.js";
+import * as types from "../../types/primitives.js";
+import { SDKValidationError } from "../errors/sdkvalidationerror.js";
+import * as models from "../index.js";
 
 export type LucidGetPayoutRequest = {
   runId: string;
+};
+
+/**
+ * OK
+ */
+export type LucidGetPayoutResponse = {
+  success: boolean;
+  payout: models.Payout;
 };
 
 /** @internal */
@@ -34,5 +47,24 @@ export function lucidGetPayoutRequestToJSON(
 ): string {
   return JSON.stringify(
     LucidGetPayoutRequest$outboundSchema.parse(lucidGetPayoutRequest),
+  );
+}
+
+/** @internal */
+export const LucidGetPayoutResponse$inboundSchema: z.ZodMiniType<
+  LucidGetPayoutResponse,
+  unknown
+> = z.object({
+  success: types.boolean(),
+  payout: models.Payout$inboundSchema,
+});
+
+export function lucidGetPayoutResponseFromJSON(
+  jsonString: string,
+): SafeParseResult<LucidGetPayoutResponse, SDKValidationError> {
+  return safeParse(
+    jsonString,
+    (x) => LucidGetPayoutResponse$inboundSchema.parse(JSON.parse(x)),
+    `Failed to parse 'LucidGetPayoutResponse' from JSON`,
   );
 }

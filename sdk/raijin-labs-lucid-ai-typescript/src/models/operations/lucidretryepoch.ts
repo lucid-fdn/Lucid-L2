@@ -4,9 +4,26 @@
 
 import * as z from "zod/v4-mini";
 import { remap as remap$ } from "../../lib/primitives.js";
+import { safeParse } from "../../lib/schemas.js";
+import { Result as SafeParseResult } from "../../types/fp.js";
+import * as types from "../../types/primitives.js";
+import { SDKValidationError } from "../errors/sdkvalidationerror.js";
 
 export type LucidRetryEpochRequest = {
   epochId: string;
+};
+
+export type Epoch = {
+  epochId: string;
+  status: string;
+};
+
+/**
+ * OK
+ */
+export type LucidRetryEpochResponse = {
+  success: boolean;
+  epoch: Epoch;
 };
 
 /** @internal */
@@ -34,5 +51,47 @@ export function lucidRetryEpochRequestToJSON(
 ): string {
   return JSON.stringify(
     LucidRetryEpochRequest$outboundSchema.parse(lucidRetryEpochRequest),
+  );
+}
+
+/** @internal */
+export const Epoch$inboundSchema: z.ZodMiniType<Epoch, unknown> = z.pipe(
+  z.object({
+    epoch_id: types.string(),
+    status: types.string(),
+  }),
+  z.transform((v) => {
+    return remap$(v, {
+      "epoch_id": "epochId",
+    });
+  }),
+);
+
+export function epochFromJSON(
+  jsonString: string,
+): SafeParseResult<Epoch, SDKValidationError> {
+  return safeParse(
+    jsonString,
+    (x) => Epoch$inboundSchema.parse(JSON.parse(x)),
+    `Failed to parse 'Epoch' from JSON`,
+  );
+}
+
+/** @internal */
+export const LucidRetryEpochResponse$inboundSchema: z.ZodMiniType<
+  LucidRetryEpochResponse,
+  unknown
+> = z.object({
+  success: types.boolean(),
+  epoch: z.lazy(() => Epoch$inboundSchema),
+});
+
+export function lucidRetryEpochResponseFromJSON(
+  jsonString: string,
+): SafeParseResult<LucidRetryEpochResponse, SDKValidationError> {
+  return safeParse(
+    jsonString,
+    (x) => LucidRetryEpochResponse$inboundSchema.parse(JSON.parse(x)),
+    `Failed to parse 'LucidRetryEpochResponse' from JSON`,
   );
 }

@@ -4,9 +4,32 @@
 
 import * as z from "zod/v4-mini";
 import { remap as remap$ } from "../../lib/primitives.js";
+import { safeParse } from "../../lib/schemas.js";
+import { Result as SafeParseResult } from "../../types/fp.js";
+import * as types from "../../types/primitives.js";
+import { SDKValidationError } from "../errors/sdkvalidationerror.js";
 
 export type LucidCommitEpochRootsBatchRequest = {
   epochIds: Array<string>;
+};
+
+export type LucidCommitEpochRootsBatchResult = {
+  success?: boolean | undefined;
+  epochId?: string | undefined;
+  root?: string | undefined;
+  signature?: string | undefined;
+  error?: string | undefined;
+};
+
+/**
+ * Accepted
+ */
+export type LucidCommitEpochRootsBatchResponse = {
+  success: boolean;
+  total: number;
+  successfulCount: number;
+  failedCount: number;
+  results: Array<LucidCommitEpochRootsBatchResult>;
 };
 
 /** @internal */
@@ -36,5 +59,67 @@ export function lucidCommitEpochRootsBatchRequestToJSON(
     LucidCommitEpochRootsBatchRequest$outboundSchema.parse(
       lucidCommitEpochRootsBatchRequest,
     ),
+  );
+}
+
+/** @internal */
+export const LucidCommitEpochRootsBatchResult$inboundSchema: z.ZodMiniType<
+  LucidCommitEpochRootsBatchResult,
+  unknown
+> = z.pipe(
+  z.object({
+    success: types.optional(types.boolean()),
+    epoch_id: types.optional(types.string()),
+    root: types.optional(types.string()),
+    signature: types.optional(types.string()),
+    error: types.optional(types.string()),
+  }),
+  z.transform((v) => {
+    return remap$(v, {
+      "epoch_id": "epochId",
+    });
+  }),
+);
+
+export function lucidCommitEpochRootsBatchResultFromJSON(
+  jsonString: string,
+): SafeParseResult<LucidCommitEpochRootsBatchResult, SDKValidationError> {
+  return safeParse(
+    jsonString,
+    (x) => LucidCommitEpochRootsBatchResult$inboundSchema.parse(JSON.parse(x)),
+    `Failed to parse 'LucidCommitEpochRootsBatchResult' from JSON`,
+  );
+}
+
+/** @internal */
+export const LucidCommitEpochRootsBatchResponse$inboundSchema: z.ZodMiniType<
+  LucidCommitEpochRootsBatchResponse,
+  unknown
+> = z.pipe(
+  z.object({
+    success: types.boolean(),
+    total: types.number(),
+    successful_count: types.number(),
+    failed_count: types.number(),
+    results: z.array(
+      z.lazy(() => LucidCommitEpochRootsBatchResult$inboundSchema),
+    ),
+  }),
+  z.transform((v) => {
+    return remap$(v, {
+      "successful_count": "successfulCount",
+      "failed_count": "failedCount",
+    });
+  }),
+);
+
+export function lucidCommitEpochRootsBatchResponseFromJSON(
+  jsonString: string,
+): SafeParseResult<LucidCommitEpochRootsBatchResponse, SDKValidationError> {
+  return safeParse(
+    jsonString,
+    (x) =>
+      LucidCommitEpochRootsBatchResponse$inboundSchema.parse(JSON.parse(x)),
+    `Failed to parse 'LucidCommitEpochRootsBatchResponse' from JSON`,
   );
 }

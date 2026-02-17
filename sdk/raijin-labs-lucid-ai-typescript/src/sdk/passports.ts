@@ -8,7 +8,9 @@ import { passportsGet } from "../funcs/passportsGet.js";
 import { passportsGetStats } from "../funcs/passportsGetStats.js";
 import { passportsList } from "../funcs/passportsList.js";
 import { passportsListPendingSync } from "../funcs/passportsListPendingSync.js";
-import { passportsSearchCompute } from "../funcs/passportsSearchCompute.js";
+import { passportsLucidListAgentPassports } from "../funcs/passportsLucidListAgentPassports.js";
+import { passportsLucidListDatasets } from "../funcs/passportsLucidListDatasets.js";
+import { passportsLucidListTools } from "../funcs/passportsLucidListTools.js";
 import { passportsSearchModels } from "../funcs/passportsSearchModels.js";
 import { passportsSync } from "../funcs/passportsSync.js";
 import { passportsUpdate } from "../funcs/passportsUpdate.js";
@@ -132,7 +134,7 @@ export class Passports extends ClientSDK {
   async searchModels(
     request?: operations.LucidSearchModelsRequest | undefined,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidSearchModelsResponse> {
     return unwrapAsync(passportsSearchModels(
       this,
       request,
@@ -141,13 +143,41 @@ export class Passports extends ClientSDK {
   }
 
   /**
-   * Search compute passports
+   * List tool passports
    */
-  async searchCompute(
-    request?: operations.LucidSearchComputeRequest | undefined,
+  async lucidListTools(
+    request?: operations.LucidListToolsRequest | undefined,
     options?: RequestOptions,
-  ): Promise<void> {
-    return unwrapAsync(passportsSearchCompute(
+  ): Promise<operations.LucidListToolsResponse> {
+    return unwrapAsync(passportsLucidListTools(
+      this,
+      request,
+      options,
+    ));
+  }
+
+  /**
+   * List dataset passports
+   */
+  async lucidListDatasets(
+    request?: operations.LucidListDatasetsRequest | undefined,
+    options?: RequestOptions,
+  ): Promise<operations.LucidListDatasetsResponse> {
+    return unwrapAsync(passportsLucidListDatasets(
+      this,
+      request,
+      options,
+    ));
+  }
+
+  /**
+   * List agent passports
+   */
+  async lucidListAgentPassports(
+    request?: operations.LucidListAgentPassportsRequest | undefined,
+    options?: RequestOptions,
+  ): Promise<operations.LucidListAgentPassportsResponse> {
+    return unwrapAsync(passportsLucidListAgentPassports(
       this,
       request,
       options,

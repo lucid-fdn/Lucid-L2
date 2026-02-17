@@ -11,11 +11,9 @@ let value: GetPassportResponse = {
     passportId: "<id>",
     type: "model",
     owner: "<value>",
-    status: "revoked",
-    metadata: {},
-    metadataHash: "<value>",
-    createdAt: 596104,
-    updatedAt: 17184,
+    status: "deprecated",
+    createdAt: 59407,
+    updatedAt: 596104,
   },
 };
 ```

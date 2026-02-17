@@ -40,7 +40,7 @@ export class Epochs extends ClientSDK {
   async list(
     request?: operations.LucidListEpochsRequest | undefined,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidListEpochsResponse> {
     return unwrapAsync(epochsList(
       this,
       request,
@@ -54,7 +54,7 @@ export class Epochs extends ClientSDK {
   async create(
     request: operations.LucidCreateEpochRequest,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidCreateEpochResponse> {
     return unwrapAsync(epochsCreate(
       this,
       request,
@@ -68,7 +68,7 @@ export class Epochs extends ClientSDK {
   async get(
     request: operations.LucidGetEpochRequest,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidGetEpochResponse> {
     return unwrapAsync(epochsGet(
       this,
       request,
@@ -82,7 +82,7 @@ export class Epochs extends ClientSDK {
   async retry(
     request: operations.LucidRetryEpochRequest,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidRetryEpochResponse> {
     return unwrapAsync(epochsRetry(
       this,
       request,
@@ -96,7 +96,7 @@ export class Epochs extends ClientSDK {
   async verify(
     request: operations.LucidVerifyEpochRequest,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidVerifyEpochResponse> {
     return unwrapAsync(epochsVerify(
       this,
       request,
@@ -110,7 +110,7 @@ export class Epochs extends ClientSDK {
   async getTransaction(
     request: operations.LucidGetEpochTransactionRequest,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidGetEpochTransactionResponse> {
     return unwrapAsync(epochsGetTransaction(
       this,
       request,
@@ -124,7 +124,7 @@ export class Epochs extends ClientSDK {
   async commitRoot(
     request: operations.LucidCommitEpochRootRequest,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidCommitEpochRootResponse> {
     return unwrapAsync(epochsCommitRoot(
       this,
       request,
@@ -138,7 +138,7 @@ export class Epochs extends ClientSDK {
   async commitRootsBatch(
     request: operations.LucidCommitEpochRootsBatchRequest,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidCommitEpochRootsBatchResponse> {
     return unwrapAsync(epochsCommitRootsBatch(
       this,
       request,
@@ -151,7 +151,7 @@ export class Epochs extends ClientSDK {
    */
   async getAnchoringHealth(
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidGetAnchoringHealthResponse> {
     return unwrapAsync(epochsGetAnchoringHealth(
       this,
       options,

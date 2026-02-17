@@ -4,6 +4,10 @@
 
 import * as z from "zod/v4-mini";
 import { remap as remap$ } from "../../lib/primitives.js";
+import { safeParse } from "../../lib/schemas.js";
+import { Result as SafeParseResult } from "../../types/fp.js";
+import * as types from "../../types/primitives.js";
+import { SDKValidationError } from "../errors/sdkvalidationerror.js";
 import * as models from "../index.js";
 
 export type LucidMatchRequest = {
@@ -11,6 +15,15 @@ export type LucidMatchRequest = {
   policy?: models.Policy | undefined;
   computeCatalog?: Array<{ [k: string]: any }> | undefined;
   requireLiveHealthy?: boolean | undefined;
+};
+
+/**
+ * OK
+ */
+export type LucidMatchResponse = {
+  success: boolean;
+  match: { [k: string]: any };
+  explain: { [k: string]: any };
 };
 
 /** @internal */
@@ -46,5 +59,25 @@ export function lucidMatchRequestToJSON(
 ): string {
   return JSON.stringify(
     LucidMatchRequest$outboundSchema.parse(lucidMatchRequest),
+  );
+}
+
+/** @internal */
+export const LucidMatchResponse$inboundSchema: z.ZodMiniType<
+  LucidMatchResponse,
+  unknown
+> = z.object({
+  success: types.boolean(),
+  match: z.record(z.string(), z.any()),
+  explain: z.record(z.string(), z.any()),
+});
+
+export function lucidMatchResponseFromJSON(
+  jsonString: string,
+): SafeParseResult<LucidMatchResponse, SDKValidationError> {
+  return safeParse(
+    jsonString,
+    (x) => LucidMatchResponse$inboundSchema.parse(JSON.parse(x)),
+    `Failed to parse 'LucidMatchResponse' from JSON`,
   );
 }

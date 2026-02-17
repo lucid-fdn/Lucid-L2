@@ -16,7 +16,7 @@ export class Match extends ClientSDK {
   async explain(
     request: operations.LucidMatchExplainRequest,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidMatchExplainResponse> {
     return unwrapAsync(matchExplain(
       this,
       request,
@@ -30,7 +30,7 @@ export class Match extends ClientSDK {
   async compute(
     request: operations.LucidMatchRequest,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidMatchResponse> {
     return unwrapAsync(matchCompute(
       this,
       request,
@@ -44,7 +44,7 @@ export class Match extends ClientSDK {
   async planRoute(
     request: operations.LucidRouteRequest,
     options?: RequestOptions,
-  ): Promise<void> {
+  ): Promise<operations.LucidRouteResponse> {
     return unwrapAsync(matchPlanRoute(
       this,
       request,

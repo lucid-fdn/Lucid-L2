@@ -34,7 +34,7 @@ export function matchPlanRoute(
   options?: RequestOptions,
 ): APIPromise<
   Result<
-    void,
+    operations.LucidRouteResponse,
     | errors.ErrorResponse
     | RaijinLabsLucidAiError
     | ResponseValidationError
@@ -60,7 +60,7 @@ async function $do(
 ): Promise<
   [
     Result<
-      void,
+      operations.LucidRouteResponse,
       | errors.ErrorResponse
       | RaijinLabsLucidAiError
       | ResponseValidationError
@@ -137,7 +137,7 @@ async function $do(
   };
 
   const [result] = await M.match<
-    void,
+    operations.LucidRouteResponse,
     | errors.ErrorResponse
     | RaijinLabsLucidAiError
     | ResponseValidationError
@@ -148,7 +148,7 @@ async function $do(
     | UnexpectedClientError
     | SDKValidationError
   >(
-    M.nil(200, z.void()),
+    M.json(200, operations.LucidRouteResponse$inboundSchema),
     M.jsonErr(422, errors.ErrorResponse$inboundSchema),
     M.jsonErr(500, errors.ErrorResponse$inboundSchema),
     M.fail("4XX"),

@@ -3,19 +3,12 @@
  */
 
 import * as z from "zod/v4-mini";
-import { remap as remap$ } from "../lib/primitives.js";
 import { safeParse } from "../lib/schemas.js";
 import { Result as SafeParseResult } from "../types/fp.js";
 import * as types from "../types/primitives.js";
 import { SDKValidationError } from "./errors/sdkvalidationerror.js";
+import { Pagination, Pagination$inboundSchema } from "./pagination.js";
 import { Passport, Passport$inboundSchema } from "./passport.js";
-
-export type Pagination = {
-  total: number;
-  page: number;
-  perPage: number;
-  totalPages: number;
-};
 
 export type ListPassportsResponse = {
   success: boolean;
@@ -24,40 +17,13 @@ export type ListPassportsResponse = {
 };
 
 /** @internal */
-export const Pagination$inboundSchema: z.ZodMiniType<Pagination, unknown> = z
-  .pipe(
-    z.object({
-      total: types.number(),
-      page: types.number(),
-      per_page: types.number(),
-      total_pages: types.number(),
-    }),
-    z.transform((v) => {
-      return remap$(v, {
-        "per_page": "perPage",
-        "total_pages": "totalPages",
-      });
-    }),
-  );
-
-export function paginationFromJSON(
-  jsonString: string,
-): SafeParseResult<Pagination, SDKValidationError> {
-  return safeParse(
-    jsonString,
-    (x) => Pagination$inboundSchema.parse(JSON.parse(x)),
-    `Failed to parse 'Pagination' from JSON`,
-  );
-}
-
-/** @internal */
 export const ListPassportsResponse$inboundSchema: z.ZodMiniType<
   ListPassportsResponse,
   unknown
 > = z.object({
   success: types.boolean(),
   passports: z.array(Passport$inboundSchema),
-  pagination: z.lazy(() => Pagination$inboundSchema),
+  pagination: Pagination$inboundSchema,
 });
 
 export function listPassportsResponseFromJSON(

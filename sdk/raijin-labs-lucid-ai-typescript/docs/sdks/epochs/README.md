@@ -96,9 +96,9 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.epochs.list();
+  const result = await raijinLabsLucidAi.epochs.list();
 
-
+  console.log(result);
 }
 
 run();
@@ -120,7 +120,7 @@ async function run() {
   const res = await epochsList(raijinLabsLucidAi);
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("epochsList failed:", res.error);
   }
@@ -140,7 +140,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidListEpochsResponse](../../models/operations/lucidlistepochsresponse.md)\>**
 
 ### Errors
 
@@ -162,9 +162,9 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.epochs.create({});
+  const result = await raijinLabsLucidAi.epochs.create({});
 
-
+  console.log(result);
 }
 
 run();
@@ -186,7 +186,7 @@ async function run() {
   const res = await epochsCreate(raijinLabsLucidAi, {});
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("epochsCreate failed:", res.error);
   }
@@ -206,7 +206,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidCreateEpochResponse](../../models/operations/lucidcreateepochresponse.md)\>**
 
 ### Errors
 
@@ -228,11 +228,11 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.epochs.get({
+  const result = await raijinLabsLucidAi.epochs.get({
     epochId: "<id>",
   });
 
-
+  console.log(result);
 }
 
 run();
@@ -256,7 +256,7 @@ async function run() {
   });
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("epochsGet failed:", res.error);
   }
@@ -276,7 +276,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidGetEpochResponse](../../models/operations/lucidgetepochresponse.md)\>**
 
 ### Errors
 
@@ -299,11 +299,11 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.epochs.retry({
+  const result = await raijinLabsLucidAi.epochs.retry({
     epochId: "<id>",
   });
 
-
+  console.log(result);
 }
 
 run();
@@ -327,7 +327,7 @@ async function run() {
   });
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("epochsRetry failed:", res.error);
   }
@@ -347,12 +347,13 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidRetryEpochResponse](../../models/operations/lucidretryepochresponse.md)\>**
 
 ### Errors
 
 | Error Type                           | Status Code                          | Content Type                         |
 | ------------------------------------ | ------------------------------------ | ------------------------------------ |
+| errors.ErrorResponse                 | 400                                  | application/json                     |
 | errors.ErrorResponse                 | 500                                  | application/json                     |
 | errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
 
@@ -369,11 +370,11 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.epochs.verify({
+  const result = await raijinLabsLucidAi.epochs.verify({
     epochId: "<id>",
   });
 
-
+  console.log(result);
 }
 
 run();
@@ -397,7 +398,7 @@ async function run() {
   });
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("epochsVerify failed:", res.error);
   }
@@ -417,7 +418,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidVerifyEpochResponse](../../models/operations/lucidverifyepochresponse.md)\>**
 
 ### Errors
 
@@ -439,11 +440,11 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.epochs.getTransaction({
+  const result = await raijinLabsLucidAi.epochs.getTransaction({
     epochId: "<id>",
   });
 
-
+  console.log(result);
 }
 
 run();
@@ -467,7 +468,7 @@ async function run() {
   });
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("epochsGetTransaction failed:", res.error);
   }
@@ -487,7 +488,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidGetEpochTransactionResponse](../../models/operations/lucidgetepochtransactionresponse.md)\>**
 
 ### Errors
 
@@ -510,9 +511,9 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.epochs.commitRoot({});
+  const result = await raijinLabsLucidAi.epochs.commitRoot({});
 
-
+  console.log(result);
 }
 
 run();
@@ -534,7 +535,7 @@ async function run() {
   const res = await epochsCommitRoot(raijinLabsLucidAi, {});
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("epochsCommitRoot failed:", res.error);
   }
@@ -554,7 +555,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidCommitEpochRootResponse](../../models/operations/lucidcommitepochrootresponse.md)\>**
 
 ### Errors
 
@@ -577,13 +578,13 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.epochs.commitRootsBatch({
+  const result = await raijinLabsLucidAi.epochs.commitRootsBatch({
     epochIds: [
       "<value 1>",
     ],
   });
 
-
+  console.log(result);
 }
 
 run();
@@ -609,7 +610,7 @@ async function run() {
   });
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("epochsCommitRootsBatch failed:", res.error);
   }
@@ -629,7 +630,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidCommitEpochRootsBatchResponse](../../models/operations/lucidcommitepochrootsbatchresponse.md)\>**
 
 ### Errors
 
@@ -652,9 +653,9 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.epochs.getAnchoringHealth();
+  const result = await raijinLabsLucidAi.epochs.getAnchoringHealth();
 
-
+  console.log(result);
 }
 
 run();
@@ -676,7 +677,7 @@ async function run() {
   const res = await epochsGetAnchoringHealth(raijinLabsLucidAi);
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("epochsGetAnchoringHealth failed:", res.error);
   }
@@ -695,7 +696,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidGetAnchoringHealthResponse](../../models/operations/lucidgetanchoringhealthresponse.md)\>**
 
 ### Errors
 

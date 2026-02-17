@@ -4,6 +4,11 @@
 
 import * as z from "zod/v4-mini";
 import { remap as remap$ } from "../../lib/primitives.js";
+import { safeParse } from "../../lib/schemas.js";
+import { Result as SafeParseResult } from "../../types/fp.js";
+import * as types from "../../types/primitives.js";
+import { SDKValidationError } from "../errors/sdkvalidationerror.js";
+import * as models from "../index.js";
 
 export type LucidSearchModelsRequest = {
   runtime?: string | undefined;
@@ -14,6 +19,15 @@ export type LucidSearchModelsRequest = {
   search?: string | undefined;
   page?: number | undefined;
   perPage?: number | undefined;
+};
+
+/**
+ * OK
+ */
+export type LucidSearchModelsResponse = {
+  success: boolean;
+  models: Array<models.Passport>;
+  pagination: models.Pagination;
 };
 
 /** @internal */
@@ -56,5 +70,25 @@ export function lucidSearchModelsRequestToJSON(
 ): string {
   return JSON.stringify(
     LucidSearchModelsRequest$outboundSchema.parse(lucidSearchModelsRequest),
+  );
+}
+
+/** @internal */
+export const LucidSearchModelsResponse$inboundSchema: z.ZodMiniType<
+  LucidSearchModelsResponse,
+  unknown
+> = z.object({
+  success: types.boolean(),
+  models: z.array(models.Passport$inboundSchema),
+  pagination: models.Pagination$inboundSchema,
+});
+
+export function lucidSearchModelsResponseFromJSON(
+  jsonString: string,
+): SafeParseResult<LucidSearchModelsResponse, SDKValidationError> {
+  return safeParse(
+    jsonString,
+    (x) => LucidSearchModelsResponse$inboundSchema.parse(JSON.parse(x)),
+    `Failed to parse 'LucidSearchModelsResponse' from JSON`,
   );
 }

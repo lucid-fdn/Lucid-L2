@@ -21,9 +21,9 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.match.explain({});
+  const result = await raijinLabsLucidAi.match.explain({});
 
-
+  console.log(result);
 }
 
 run();
@@ -45,7 +45,7 @@ async function run() {
   const res = await matchExplain(raijinLabsLucidAi, {});
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("matchExplain failed:", res.error);
   }
@@ -65,7 +65,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidMatchExplainResponse](../../models/operations/lucidmatchexplainresponse.md)\>**
 
 ### Errors
 
@@ -88,9 +88,9 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.match.compute({});
+  const result = await raijinLabsLucidAi.match.compute({});
 
-
+  console.log(result);
 }
 
 run();
@@ -112,7 +112,7 @@ async function run() {
   const res = await matchCompute(raijinLabsLucidAi, {});
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("matchCompute failed:", res.error);
   }
@@ -132,7 +132,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidMatchResponse](../../models/operations/lucidmatchresponse.md)\>**
 
 ### Errors
 
@@ -155,9 +155,9 @@ import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
 const raijinLabsLucidAi = new RaijinLabsLucidAi();
 
 async function run() {
-  await raijinLabsLucidAi.match.planRoute({});
+  const result = await raijinLabsLucidAi.match.planRoute({});
 
-
+  console.log(result);
 }
 
 run();
@@ -179,7 +179,7 @@ async function run() {
   const res = await matchPlanRoute(raijinLabsLucidAi, {});
   if (res.ok) {
     const { value: result } = res;
-    
+    console.log(result);
   } else {
     console.log("matchPlanRoute failed:", res.error);
   }
@@ -199,7 +199,7 @@ run();
 
 ### Response
 
-**Promise\<void\>**
+**Promise\<[operations.LucidRouteResponse](../../models/operations/lucidrouteresponse.md)\>**
 
 ### Errors
 

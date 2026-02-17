@@ -4,16 +4,64 @@
 
 import * as z from "zod";
 
+export type PolicyAttestation = {
+  attestation_required?: boolean | undefined;
+  require_cc_on?: boolean | undefined;
+  fallback_allowed?: boolean | undefined;
+};
+
+export const PolicyAttestation$zodSchema: z.ZodType<PolicyAttestation> = z.object({
+  attestation_required: z.boolean().optional(),
+  fallback_allowed: z.boolean().optional(),
+  require_cc_on: z.boolean().optional(),
+});
+
+export type PolicyLatency = {
+  p95_ms_budget?: number | undefined;
+  hard_timeout_ms?: number | undefined;
+};
+
+export const PolicyLatency$zodSchema: z.ZodType<PolicyLatency> = z.object({
+  hard_timeout_ms: z.int().optional(),
+  p95_ms_budget: z.int().optional(),
+});
+
+export type PolicyCost = {
+  max_price_per_1k_tokens_usd?: number | undefined;
+  spot_only?: boolean | undefined;
+};
+
+export const PolicyCost$zodSchema: z.ZodType<PolicyCost> = z.object({
+  max_price_per_1k_tokens_usd: z.number().optional(),
+  spot_only: z.boolean().optional(),
+});
+
+export type PolicyPrivacy = {
+  store_inputs?: boolean | undefined;
+  redact_pii?: boolean | undefined;
+};
+
+export const PolicyPrivacy$zodSchema: z.ZodType<PolicyPrivacy> = z.object({
+  redact_pii: z.boolean().optional(),
+  store_inputs: z.boolean().optional(),
+});
+
 export type Policy = {
-  version: string;
-  constraints?: { [k: string]: any } | undefined;
-  preferences?: { [k: string]: any } | undefined;
-  fallback?: { [k: string]: any } | undefined;
+  policy_version: string;
+  allow_regions?: Array<string> | undefined;
+  residency_required?: boolean | undefined;
+  attestation?: PolicyAttestation | undefined;
+  latency?: PolicyLatency | undefined;
+  cost?: PolicyCost | undefined;
+  privacy?: PolicyPrivacy | undefined;
 };
 
 export const Policy$zodSchema: z.ZodType<Policy> = z.object({
-  constraints: z.record(z.string(), z.any()).optional(),
-  fallback: z.record(z.string(), z.any()).optional(),
-  preferences: z.record(z.string(), z.any()).optional(),
-  version: z.string(),
+  allow_regions: z.array(z.string()).optional(),
+  attestation: PolicyAttestation$zodSchema.optional(),
+  cost: PolicyCost$zodSchema.optional(),
+  latency: PolicyLatency$zodSchema.optional(),
+  policy_version: z.string(),
+  privacy: PolicyPrivacy$zodSchema.optional(),
+  residency_required: z.boolean().optional(),
 });
