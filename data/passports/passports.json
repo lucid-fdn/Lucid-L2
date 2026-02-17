@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_updated": 1770135781759,
+  "last_updated": 1771243867051,
   "passports": {
     "passport_3007eb2e89104348be5ff62673890d6a": {
       "passport_id": "passport_3007eb2e89104348be5ff62673890d6a",
@@ -1061,6 +1061,26 @@
       "status": "active",
       "created_at": 1770135781045,
       "updated_at": 1770135781045
+    },
+    "passport_621c747ab566486e8cf66ff21ebdce3e": {
+      "passport_id": "passport_621c747ab566486e8cf66ff21ebdce3e",
+      "type": "tool",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "metadata": {
+        "tool_name": "mcp-demo-tool",
+        "category": "testing"
+      },
+      "name": "MCP Demo Tool",
+      "description": "A test tool passport created via MCP server",
+      "version": "0.1.0",
+      "tags": [
+        "test",
+        "mcp",
+        "demo"
+      ],
+      "status": "active",
+      "created_at": 1771243864326,
+      "updated_at": 1771243864326
     }
   }
 }
