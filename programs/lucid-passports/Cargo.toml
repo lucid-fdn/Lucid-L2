@@ -21,6 +21,7 @@ anchor-debug = []
 
 [dependencies]
 anchor-lang = "0.31.1"
+anchor-spl = "0.31.1"
 
 [dev-dependencies]
 solana-program-test = "1.17"

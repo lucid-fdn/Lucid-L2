@@ -37,10 +37,10 @@ export class ConfigurationManager {
       lucidMint: new PublicKey('11111111111111111111111111111111')
     },
     mainnet: {
-      rpcUrl: 'https://api.mainnet-beta.solana.com',
+      rpcUrl: process.env.QUICKNODE_RPC_URL || 'https://api.mainnet-beta.solana.com',
       commitment: 'confirmed',
-      programId: new PublicKey('11111111111111111111111111111111'),
-      lucidMint: new PublicKey('11111111111111111111111111111111')
+      programId: new PublicKey(process.env.PASSPORT_PROGRAM_ID_MAINNET || '11111111111111111111111111111111'),
+      lucidMint: new PublicKey(process.env.LUCID_MINT_MAINNET || '11111111111111111111111111111111')
     }
   };
 
@@ -74,8 +74,8 @@ export class ConfigurationManager {
   }
 
   private notifyEnvironmentChange(env: Environment): void {
-    console.log(`🌐 Environment switched to: ${env}`);
-    
+    console.log(`Environment switched to: ${env}`);
+
     // Update browser extension with new config if available
     if (typeof window !== 'undefined' && (window as any).chrome && (window as any).chrome.storage) {
       (window as any).chrome.storage.local.set({
@@ -97,7 +97,7 @@ export const IGAS_PER_BATCH = 2;     // 2 LUCID per batch operation
 // Token configuration - now uses configManager for environment-aware settings
 export const LUCID_DECIMALS = 9;
 
-// Solana configuration - now uses configManager for environment-aware settings  
+// Solana configuration - now uses configManager for environment-aware settings
 export const COMPUTE_UNITS = 400_000;
 
 // API configuration
@@ -128,14 +128,14 @@ export function getCOMMITMENT() {
 // Legacy exports for backward compatibility
 export const LUCID_MINT = configManager.getConfig().lucidMint;
 export const RPC_URL = configManager.getConfig().rpcUrl;
-export const PROGRAM_ID = configManager.getConfig().programId; 
+export const PROGRAM_ID = configManager.getConfig().programId;
 export const COMMITMENT = configManager.getConfig().commitment;
 
 /**
- * Internal LLM is NOT required for Lucid’s core goal (capture external LLM messages and commit their hash).
+ * Internal LLM is NOT required for Lucid's core goal (capture external LLM messages and commit their hash).
  * Keep it configurable:
- *  - USE_INTERNAL_LLM = false → strictly hash text provided by the extension (no OpenAI/mock calls)
- *  - USE_INTERNAL_LLM = true  → route text through internal LLM provider and then hash the AI response
+ *  - USE_INTERNAL_LLM = false -> strictly hash text provided by the extension (no OpenAI/mock calls)
+ *  - USE_INTERNAL_LLM = true  -> route text through internal LLM provider and then hash the AI response
  */
 // LLM configuration
 export const LLM_CONFIG = {

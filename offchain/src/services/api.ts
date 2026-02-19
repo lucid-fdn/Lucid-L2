@@ -1262,7 +1262,17 @@ export async function createApiRouter(): Promise<express.Router> {
   router.post('/passports/sync-retry-failed', handleSyncRetryFailed);
   router.get('/passports/sync-report', handleSyncReport);
   router.get('/passports/sync-status', handleSyncStatus);
-  
+
+  // Spaces sync + deprecation detection
+  router.post('/passports/sync-spaces', handleSyncSpaces);
+  router.post('/passports/detect-deprecations', handleDetectDeprecations);
+
+  // Payment gate endpoints
+  router.post('/passports/:id/payment-gate', handleSetPaymentGate);
+  router.post('/passports/:id/pay', handlePayForAccess);
+  router.get('/passports/:id/access/:wallet', handleCheckAccess);
+  router.post('/passports/:id/withdraw', handleWithdrawRevenue);
+
   // n8n Nodes endpoints
   router.get('/flow/nodes', handleN8nNodesList);
   router.get('/flow/nodes/:nodeName', handleN8nNodeDetails);
@@ -1334,7 +1344,9 @@ export async function handleSyncAllHF(req: express.Request, res: express.Respons
       concurrency = 10,
       llmProxyUrl,
       checkpointInterval = 100,
-      maxRetries = 3
+      maxRetries = 3,
+      minDownloads = 1000,
+      minLikes = 0
     } = req.body;
 
     console.log(`🚀 Starting comprehensive HF sync: ${types.join(', ')}`);
@@ -1348,8 +1360,10 @@ export async function handleSyncAllHF(req: express.Request, res: express.Respons
       concurrency,
       llmProxyUrl,
       checkpointInterval,
-      maxRetries
-    }).catch((error) => {
+      maxRetries,
+      minDownloads,
+      minLikes
+    }).catch((error: any) => {
       console.error('Background sync failed:', error);
     });
 
@@ -1532,6 +1546,215 @@ export async function handleSyncStatus(req: express.Request, res: express.Respon
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+}
+
+// ============================================================================
+// SPACES SYNC + DEPRECATION + PAYMENT GATE ENDPOINTS
+// ============================================================================
+
+/**
+ * Start spaces-only sync
+ * POST /passports/sync-spaces
+ */
+export async function handleSyncSpaces(req: express.Request, res: express.Response) {
+  try {
+    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+
+    const {
+      batchSize = 100,
+      concurrency = 10,
+      llmProxyUrl,
+      minLikes = 0,
+    } = req.body;
+
+    const orchestrator = getHFSyncOrchestrator(llmProxyUrl);
+
+    orchestrator.startFullSync({
+      types: ['spaces'],
+      batchSize,
+      concurrency,
+      llmProxyUrl,
+      checkpointInterval: 100,
+      maxRetries: 3,
+      minLikes,
+    }).catch((error: any) => {
+      console.error('Background spaces sync failed:', error);
+    });
+
+    res.json({
+      success: true,
+      message: 'Spaces sync started in background',
+      config: { batchSize, concurrency, minLikes },
+    });
+  } catch (error) {
+    console.error('Error in handleSyncSpaces:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}
+
+/**
+ * Run deprecation detection
+ * POST /passports/detect-deprecations
+ */
+export async function handleDetectDeprecations(req: express.Request, res: express.Response) {
+  try {
+    const { getDeprecationDetector } = await import('./deprecationDetector');
+
+    const { llmProxyUrl } = req.body || {};
+    const detector = getDeprecationDetector(llmProxyUrl);
+
+    // Run in background for large indexes
+    const resultPromise = detector.detectAndRevoke();
+
+    // If quick, wait up to 10s for the result
+    const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 10000));
+    const result = await Promise.race([resultPromise, timeout]);
+
+    if (result) {
+      res.json({
+        success: true,
+        ...(result as any),
+        message: `Deprecation detection complete: ${(result as any).revoked} passports revoked`,
+      });
+    } else {
+      res.json({
+        success: true,
+        message: 'Deprecation detection started in background (index is large)',
+      });
+    }
+  } catch (error) {
+    console.error('Error in handleDetectDeprecations:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}
+
+/**
+ * Set payment gate on a passport
+ * POST /passports/:id/payment-gate
+ */
+export async function handleSetPaymentGate(req: express.Request, res: express.Response) {
+  try {
+    const { getPaymentGateService } = await import('./paymentGateService');
+    const { id } = req.params;
+    const { priceLamports = 0, priceLucid = 0, paymentTokenMint } = req.body;
+
+    const service = getPaymentGateService();
+    const tx = await service.setPaymentGate(id, priceLamports, priceLucid, paymentTokenMint);
+
+    res.json({
+      success: true,
+      passportPDA: id,
+      transaction: tx,
+      priceLamports,
+      priceLucid,
+      message: 'Payment gate set successfully',
+    });
+  } catch (error) {
+    console.error('Error in handleSetPaymentGate:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}
+
+/**
+ * Pay for access to a gated passport
+ * POST /passports/:id/pay
+ */
+export async function handlePayForAccess(req: express.Request, res: express.Response) {
+  try {
+    const { getPaymentGateService } = await import('./paymentGateService');
+    const { id } = req.params;
+    const { expiresAt = 0 } = req.body;
+
+    const service = getPaymentGateService();
+    const tx = await service.payForAccess(id, undefined, expiresAt);
+
+    res.json({
+      success: true,
+      passportPDA: id,
+      transaction: tx,
+      message: 'Access purchased successfully',
+    });
+  } catch (error) {
+    console.error('Error in handlePayForAccess:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}
+
+/**
+ * Check if a wallet has access to a passport
+ * GET /passports/:id/access/:wallet
+ */
+export async function handleCheckAccess(req: express.Request, res: express.Response) {
+  try {
+    const { getPaymentGateService } = await import('./paymentGateService');
+    const { id, wallet } = req.params;
+
+    const service = getPaymentGateService();
+    const hasAccess = await service.checkAccess(id, wallet);
+
+    // Also fetch gate info
+    const gateInfo = await service.getPaymentGateInfo(id);
+
+    res.json({
+      success: true,
+      passportPDA: id,
+      wallet,
+      hasAccess,
+      paymentGate: gateInfo ? {
+        priceLamports: gateInfo.priceLamports?.toString(),
+        priceLucid: gateInfo.priceLucid?.toString(),
+        totalRevenue: gateInfo.totalRevenue?.toString(),
+        totalAccesses: gateInfo.totalAccesses?.toString(),
+        enabled: gateInfo.enabled,
+      } : null,
+    });
+  } catch (error) {
+    console.error('Error in handleCheckAccess:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}
+
+/**
+ * Withdraw revenue from payment gate vault
+ * POST /passports/:id/withdraw
+ */
+export async function handleWithdrawRevenue(req: express.Request, res: express.Response) {
+  try {
+    const { getPaymentGateService } = await import('./paymentGateService');
+    const { id } = req.params;
+    const { amount } = req.body;
+
+    const service = getPaymentGateService();
+    const tx = await service.withdrawRevenue(id, amount);
+
+    res.json({
+      success: true,
+      passportPDA: id,
+      transaction: tx,
+      message: 'Revenue withdrawn successfully',
+    });
+  } catch (error) {
+    console.error('Error in handleWithdrawRevenue:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 }

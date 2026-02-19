@@ -2,36 +2,38 @@
 import fs from 'fs/promises';
 import path from 'path';
 
+export interface AssetIndexEntry {
+    hfId: string;
+    lastModified: string;   // ISO timestamp from HF
+    onChainPDA: string;
+    version: string;
+    contentHash: string;
+}
+
+export interface SyncTypeState {
+    total: number;
+    synced: number;
+    failed: number;
+    lastProcessedId: string;
+    checkpoint: string;
+    pagination: {
+        offset: number;
+        hasMore: boolean;
+    };
+}
+
 export interface SyncState {
-    models: {
-        total: number;
-        synced: number;
-        failed: number;
-        lastProcessedId: string;
-        checkpoint: string;
-        pagination: {
-            offset: number;
-            hasMore: boolean;
-        };
-    };
-    datasets: {
-        total: number;
-        synced: number;
-        failed: number;
-        lastProcessedId: string;
-        checkpoint: string;
-        pagination: {
-            offset: number;
-            hasMore: boolean;
-        };
-    };
+    models: SyncTypeState;
+    datasets: SyncTypeState;
+    spaces: SyncTypeState;
     failedAssets: Array<{
         name: string;
-        type: 'model' | 'dataset';
+        type: 'model' | 'dataset' | 'space';
         error: string;
         attempts: number;
         lastAttempt: string;
     }>;
+    assetIndex: Record<string, AssetIndexEntry>;
     statistics: {
         startTime: string;
         lastUpdateTime: string;
@@ -43,30 +45,24 @@ export interface SyncState {
     };
 }
 
+const DEFAULT_TYPE_STATE: SyncTypeState = {
+    total: 0,
+    synced: 0,
+    failed: 0,
+    lastProcessedId: '',
+    checkpoint: new Date().toISOString(),
+    pagination: {
+        offset: 0,
+        hasMore: true,
+    },
+};
+
 const DEFAULT_STATE: SyncState = {
-    models: {
-        total: 0,
-        synced: 0,
-        failed: 0,
-        lastProcessedId: '',
-        checkpoint: new Date().toISOString(),
-        pagination: {
-            offset: 0,
-            hasMore: true,
-        },
-    },
-    datasets: {
-        total: 0,
-        synced: 0,
-        failed: 0,
-        lastProcessedId: '',
-        checkpoint: new Date().toISOString(),
-        pagination: {
-            offset: 0,
-            hasMore: true,
-        },
-    },
+    models: { ...DEFAULT_TYPE_STATE },
+    datasets: { ...DEFAULT_TYPE_STATE },
+    spaces: { ...DEFAULT_TYPE_STATE },
     failedAssets: [],
+    assetIndex: {},
     statistics: {
         startTime: new Date().toISOString(),
         lastUpdateTime: new Date().toISOString(),
@@ -84,7 +80,7 @@ export class SyncStateManager {
 
     constructor(stateFilePath: string = 'sync-state.json') {
         this.stateFilePath = path.join(process.cwd(), stateFilePath);
-        this.state = { ...DEFAULT_STATE };
+        this.state = JSON.parse(JSON.stringify(DEFAULT_STATE));
     }
 
     /**
@@ -93,12 +89,20 @@ export class SyncStateManager {
     async load(): Promise<SyncState> {
         try {
             const data = await fs.readFile(this.stateFilePath, 'utf-8');
-            this.state = JSON.parse(data);
-            console.log('📂 Loaded sync state from file');
+            const loadedState = JSON.parse(data);
+            // Merge with defaults to handle new fields added in upgrades
+            this.state = {
+                ...JSON.parse(JSON.stringify(DEFAULT_STATE)),
+                ...loadedState,
+                // Ensure spaces state exists (upgrade from older state files)
+                spaces: loadedState.spaces || { ...DEFAULT_TYPE_STATE },
+                assetIndex: loadedState.assetIndex || {},
+            };
+            console.log('Loaded sync state from file');
             return this.state;
         } catch (error) {
-            console.log('📝 No existing state found, starting fresh');
-            this.state = { ...DEFAULT_STATE };
+            console.log('No existing state found, starting fresh');
+            this.state = JSON.parse(JSON.stringify(DEFAULT_STATE));
             await this.save();
             return this.state;
         }
@@ -116,7 +120,7 @@ export class SyncStateManager {
                 'utf-8'
             );
         } catch (error) {
-            console.error('❌ Failed to save sync state:', error);
+            console.error('Failed to save sync state:', error);
             throw error;
         }
     }
@@ -131,15 +135,50 @@ export class SyncStateManager {
     /**
      * Update models stats
      */
-    updateModels(updates: Partial<SyncState['models']>): void {
+    updateModels(updates: Partial<SyncTypeState>): void {
         this.state.models = { ...this.state.models, ...updates };
     }
 
     /**
      * Update datasets stats
      */
-    updateDatasets(updates: Partial<SyncState['datasets']>): void {
+    updateDatasets(updates: Partial<SyncTypeState>): void {
         this.state.datasets = { ...this.state.datasets, ...updates };
+    }
+
+    /**
+     * Update spaces stats
+     */
+    updateSpaces(updates: Partial<SyncTypeState>): void {
+        this.state.spaces = { ...this.state.spaces, ...updates };
+    }
+
+    /**
+     * Add or update an entry in the asset index (for incremental sync)
+     */
+    setAssetIndexEntry(hfId: string, entry: AssetIndexEntry): void {
+        this.state.assetIndex[hfId] = entry;
+    }
+
+    /**
+     * Get asset index entry
+     */
+    getAssetIndexEntry(hfId: string): AssetIndexEntry | undefined {
+        return this.state.assetIndex[hfId];
+    }
+
+    /**
+     * Remove asset index entry (e.g., on revocation)
+     */
+    removeAssetIndexEntry(hfId: string): void {
+        delete this.state.assetIndex[hfId];
+    }
+
+    /**
+     * Get all asset index entries
+     */
+    getAssetIndex(): Record<string, AssetIndexEntry> {
+        return { ...this.state.assetIndex };
     }
 
     /**
@@ -147,7 +186,7 @@ export class SyncStateManager {
      */
     addFailedAsset(
         name: string,
-        type: 'model' | 'dataset',
+        type: 'model' | 'dataset' | 'space',
         error: string
     ): void {
         const existing = this.state.failedAssets.find(
@@ -172,7 +211,7 @@ export class SyncStateManager {
     /**
      * Remove failed asset (after successful retry)
      */
-    removeFailedAsset(name: string, type: 'model' | 'dataset'): void {
+    removeFailedAsset(name: string, type: 'model' | 'dataset' | 'space'): void {
         this.state.failedAssets = this.state.failedAssets.filter(
             (a) => !(a.name === name && a.type === type)
         );
@@ -196,7 +235,7 @@ export class SyncStateManager {
      * Calculate and update throughput metrics
      */
     calculateMetrics(): void {
-        const totalSynced = this.state.models.synced + this.state.datasets.synced;
+        const totalSynced = this.state.models.synced + this.state.datasets.synced + this.state.spaces.synced;
         const startTime = new Date(this.state.statistics.startTime).getTime();
         const now = Date.now();
         const elapsedMinutes = (now - startTime) / 1000 / 60;
@@ -208,7 +247,8 @@ export class SyncStateManager {
             // Estimate completion
             const totalRemaining =
                 (this.state.models.total - this.state.models.synced) +
-                (this.state.datasets.total - this.state.datasets.synced);
+                (this.state.datasets.total - this.state.datasets.synced) +
+                (this.state.spaces.total - this.state.spaces.synced);
 
             if (throughput > 0 && totalRemaining > 0) {
                 const remainingMinutes = totalRemaining / throughput;
@@ -224,6 +264,7 @@ export class SyncStateManager {
     getProgress(): {
         models: { synced: number; total: number; progress: string };
         datasets: { synced: number; total: number; progress: string };
+        spaces: { synced: number; total: number; progress: string };
         overall: { synced: number; total: number; progress: string };
         failed: number;
         throughput: number;
@@ -239,8 +280,13 @@ export class SyncStateManager {
                 ? ((this.state.datasets.synced / this.state.datasets.total) * 100).toFixed(1)
                 : '0.0';
 
-        const totalSynced = this.state.models.synced + this.state.datasets.synced;
-        const totalAssets = this.state.models.total + this.state.datasets.total;
+        const spacesProgress =
+            this.state.spaces.total > 0
+                ? ((this.state.spaces.synced / this.state.spaces.total) * 100).toFixed(1)
+                : '0.0';
+
+        const totalSynced = this.state.models.synced + this.state.datasets.synced + this.state.spaces.synced;
+        const totalAssets = this.state.models.total + this.state.datasets.total + this.state.spaces.total;
         const overallProgress =
             totalAssets > 0
                 ? ((totalSynced / totalAssets) * 100).toFixed(1)
@@ -257,6 +303,11 @@ export class SyncStateManager {
                 total: this.state.datasets.total,
                 progress: `${datasetProgress}%`,
             },
+            spaces: {
+                synced: this.state.spaces.synced,
+                total: this.state.spaces.total,
+                progress: `${spacesProgress}%`,
+            },
             overall: {
                 synced: totalSynced,
                 total: totalAssets,
@@ -272,7 +323,7 @@ export class SyncStateManager {
      * Reset state
      */
     reset(): void {
-        this.state = { ...DEFAULT_STATE };
+        this.state = JSON.parse(JSON.stringify(DEFAULT_STATE));
         this.state.statistics.startTime = new Date().toISOString();
     }
 
@@ -286,7 +337,7 @@ export class SyncStateManager {
             JSON.stringify(this.state, null, 2),
             'utf-8'
         );
-        console.log(`💾 Checkpoint created: ${checkpointPath}`);
+        console.log(`Checkpoint created: ${checkpointPath}`);
     }
 }
 

@@ -5,12 +5,14 @@ import { getSyncStateManager, SyncStateManager } from './syncStateManager';
 import { getHFBridgeService, HFBridgeService } from './hfBridgeService';
 
 export interface SyncOptions {
-    types: Array<'models' | 'datasets' | 'all'>;
+    types: Array<'models' | 'datasets' | 'spaces' | 'all'>;
     batchSize: number;
     concurrency: number;
     llmProxyUrl?: string;
     checkpointInterval?: number; // Save checkpoint every N assets
     maxRetries?: number;
+    minDownloads?: number;  // default 1000 — filter threshold for models/datasets
+    minLikes?: number;      // default 0 — filter threshold for spaces
 }
 
 export class HFSyncOrchestrator {
@@ -35,7 +37,7 @@ export class HFSyncOrchestrator {
         this.isRunning = true;
         this.shouldStop = false;
 
-        console.log('\n🚀 Starting Comprehensive HuggingFace Passport Sync');
+        console.log('\nStarting Comprehensive HuggingFace Passport Sync');
         console.log('================================================');
 
         try {
@@ -43,7 +45,7 @@ export class HFSyncOrchestrator {
             await this.stateManager.load();
 
             const types = options.types.includes('all')
-                ? ['models', 'datasets']
+                ? ['models', 'datasets', 'spaces']
                 : options.types;
 
             // Sync models
@@ -56,14 +58,19 @@ export class HFSyncOrchestrator {
                 await this.syncDatasets(options);
             }
 
+            // Sync spaces
+            if (types.includes('spaces')) {
+                await this.syncSpaces(options);
+            }
+
             // Final checkpoint
             await this.stateManager.save();
             await this.stateManager.createCheckpoint();
 
-            console.log('\n✅ Sync completed successfully!');
+            console.log('\nSync completed successfully!');
             this.printFinalReport();
         } catch (error) {
-            console.error('\n❌ Sync failed:', error);
+            console.error('\nSync failed:', error);
             throw error;
         } finally {
             this.isRunning = false;
@@ -74,14 +81,15 @@ export class HFSyncOrchestrator {
      * Sync models from HuggingFace
      */
     private async syncModels(options: SyncOptions): Promise<void> {
-        console.log('\n📚 Syncing Models...');
+        console.log('\nSyncing Models...');
 
         const state = this.stateManager.getState();
         let offset = state.models.pagination.offset;
+        const minDownloads = options.minDownloads ?? 1000;
 
         while (state.models.pagination.hasMore && !this.shouldStop) {
             try {
-                // Fetch batch from llm_proxy
+                // Fetch batch from llm_proxy — sorted by downloads desc
                 const models = await this.fetchModelsBatch(
                     options.batchSize,
                     offset,
@@ -89,24 +97,39 @@ export class HFSyncOrchestrator {
                 );
 
                 if (models.length === 0) {
-                    this.stateManager.updateModels({ 
-                        pagination: { ...state.models.pagination, hasMore: false } 
+                    this.stateManager.updateModels({
+                        pagination: { ...state.models.pagination, hasMore: false }
                     });
                     break;
                 }
 
                 // Update total count on first batch
                 if (offset === 0 && models.length > 0) {
-                    // Estimate total based on first batch
                     const estimatedTotal = Math.min(models.length * 1000, 200000);
                     this.stateManager.updateModels({ total: estimatedTotal });
                 }
 
-                console.log(`\n📦 Processing batch: ${offset}-${offset + models.length}`);
+                // Apply download threshold filter
+                const filteredModels = models.filter((m: any) => {
+                    const downloads = m.downloads || 0;
+                    return downloads >= minDownloads;
+                });
 
-                // Process batch with concurrency control
+                // If all models in batch are below threshold and sorted by downloads,
+                // no more assets will pass the filter
+                if (filteredModels.length === 0 && minDownloads > 0) {
+                    console.log(`All models in batch below ${minDownloads} downloads threshold, stopping model sync`);
+                    this.stateManager.updateModels({
+                        pagination: { ...state.models.pagination, hasMore: false }
+                    });
+                    break;
+                }
+
+                console.log(`\nProcessing batch: ${offset}-${offset + models.length} (${filteredModels.length} passed filter)`);
+
+                // Process batch with concurrency control and incremental sync
                 const results = await this.processBatch(
-                    models,
+                    filteredModels,
                     'model',
                     options.concurrency
                 );
@@ -144,26 +167,25 @@ export class HFSyncOrchestrator {
 
             } catch (error) {
                 console.error(`Error processing models batch at offset ${offset}:`, error);
-                // Continue with next batch
                 offset += options.batchSize;
             }
         }
 
-        console.log('\n✅ Model sync completed');
+        console.log('\nModel sync completed');
     }
 
     /**
      * Sync datasets from HuggingFace
      */
     private async syncDatasets(options: SyncOptions): Promise<void> {
-        console.log('\n📊 Syncing Datasets...');
+        console.log('\nSyncing Datasets...');
 
         const state = this.stateManager.getState();
         let offset = state.datasets.pagination.offset;
+        const minDownloads = options.minDownloads ?? 1000;
 
         while (state.datasets.pagination.hasMore && !this.shouldStop) {
             try {
-                // Fetch batch from llm_proxy
                 const datasets = await this.fetchDatasetsBatch(
                     options.batchSize,
                     offset,
@@ -171,28 +193,39 @@ export class HFSyncOrchestrator {
                 );
 
                 if (datasets.length === 0) {
-                    this.stateManager.updateDatasets({ 
-                        pagination: { ...state.datasets.pagination, hasMore: false } 
+                    this.stateManager.updateDatasets({
+                        pagination: { ...state.datasets.pagination, hasMore: false }
                     });
                     break;
                 }
 
-                // Update total count on first batch
                 if (offset === 0 && datasets.length > 0) {
                     const estimatedTotal = Math.min(datasets.length * 100, 20000);
                     this.stateManager.updateDatasets({ total: estimatedTotal });
                 }
 
-                console.log(`\n📦 Processing batch: ${offset}-${offset + datasets.length}`);
+                // Apply download threshold filter
+                const filteredDatasets = datasets.filter((d: any) => {
+                    const downloads = d.downloads || 0;
+                    return downloads >= minDownloads;
+                });
 
-                // Process batch with concurrency control
+                if (filteredDatasets.length === 0 && minDownloads > 0) {
+                    console.log(`All datasets in batch below ${minDownloads} downloads threshold, stopping dataset sync`);
+                    this.stateManager.updateDatasets({
+                        pagination: { ...state.datasets.pagination, hasMore: false }
+                    });
+                    break;
+                }
+
+                console.log(`\nProcessing batch: ${offset}-${offset + datasets.length} (${filteredDatasets.length} passed filter)`);
+
                 const results = await this.processBatch(
-                    datasets,
+                    filteredDatasets,
                     'dataset',
                     options.concurrency
                 );
 
-                // Update state
                 const successCount = results.filter((r) => r.success).length;
                 const failedCount = results.filter((r) => !r.success).length;
 
@@ -208,11 +241,9 @@ export class HFSyncOrchestrator {
 
                 offset += datasets.length;
 
-                // Calculate and save metrics
                 this.stateManager.calculateMetrics();
                 await this.stateManager.save();
 
-                // Checkpoint if needed
                 if (
                     options.checkpointInterval &&
                     state.datasets.synced % options.checkpointInterval === 0
@@ -220,7 +251,6 @@ export class HFSyncOrchestrator {
                     await this.stateManager.createCheckpoint();
                 }
 
-                // Print progress
                 this.printProgress();
 
             } catch (error) {
@@ -229,7 +259,94 @@ export class HFSyncOrchestrator {
             }
         }
 
-        console.log('\n✅ Dataset sync completed');
+        console.log('\nDataset sync completed');
+    }
+
+    /**
+     * Sync spaces from HuggingFace
+     */
+    private async syncSpaces(options: SyncOptions): Promise<void> {
+        console.log('\nSyncing Spaces...');
+
+        const state = this.stateManager.getState();
+        let offset = state.spaces.pagination.offset;
+        const minLikes = options.minLikes ?? 0;
+
+        while (state.spaces.pagination.hasMore && !this.shouldStop) {
+            try {
+                const spaces = await this.fetchSpacesBatch(
+                    options.batchSize,
+                    offset,
+                    options.llmProxyUrl
+                );
+
+                if (spaces.length === 0) {
+                    this.stateManager.updateSpaces({
+                        pagination: { ...state.spaces.pagination, hasMore: false }
+                    });
+                    break;
+                }
+
+                if (offset === 0 && spaces.length > 0) {
+                    const estimatedTotal = Math.min(spaces.length * 50, 10000);
+                    this.stateManager.updateSpaces({ total: estimatedTotal });
+                }
+
+                // Apply likes threshold filter (spaces don't report downloads the same way)
+                const filteredSpaces = minLikes > 0
+                    ? spaces.filter((s: any) => (s.likes || 0) >= minLikes)
+                    : spaces;
+
+                if (filteredSpaces.length === 0 && minLikes > 0) {
+                    console.log(`All spaces in batch below ${minLikes} likes threshold, stopping spaces sync`);
+                    this.stateManager.updateSpaces({
+                        pagination: { ...state.spaces.pagination, hasMore: false }
+                    });
+                    break;
+                }
+
+                console.log(`\nProcessing spaces batch: ${offset}-${offset + spaces.length} (${filteredSpaces.length} passed filter)`);
+
+                const results = await this.processBatch(
+                    filteredSpaces,
+                    'space',
+                    options.concurrency
+                );
+
+                const successCount = results.filter((r) => r.success).length;
+                const failedCount = results.filter((r) => !r.success).length;
+
+                this.stateManager.updateSpaces({
+                    synced: state.spaces.synced + successCount,
+                    failed: state.spaces.failed + failedCount,
+                    lastProcessedId: spaces[spaces.length - 1]?.name || '',
+                    pagination: {
+                        offset: offset + spaces.length,
+                        hasMore: spaces.length >= options.batchSize,
+                    },
+                });
+
+                offset += spaces.length;
+
+                this.stateManager.calculateMetrics();
+                await this.stateManager.save();
+
+                if (
+                    options.checkpointInterval &&
+                    state.spaces.synced % options.checkpointInterval === 0
+                ) {
+                    await this.stateManager.createCheckpoint();
+                }
+
+                this.printProgress();
+
+            } catch (error) {
+                console.error(`Error processing spaces batch at offset ${offset}:`, error);
+                offset += options.batchSize;
+            }
+        }
+
+        console.log('\nSpaces sync completed');
     }
 
     /**
@@ -243,7 +360,7 @@ export class HFSyncOrchestrator {
         const url = llmProxyUrl || 'http://localhost:8000';
         try {
             const response = await axios.get(`${url}/models`, {
-                params: { limit, offset },
+                params: { limit, offset, sort: 'downloads', direction: 'desc' },
                 timeout: 30000,
             });
             return response.data || [];
@@ -264,7 +381,7 @@ export class HFSyncOrchestrator {
         const url = llmProxyUrl || 'http://localhost:8000';
         try {
             const response = await axios.get(`${url}/datasets`, {
-                params: { limit, offset },
+                params: { limit, offset, sort: 'downloads', direction: 'desc' },
                 timeout: 30000,
             });
             return response.data || [];
@@ -275,11 +392,32 @@ export class HFSyncOrchestrator {
     }
 
     /**
-     * Process a batch of assets with concurrency control
+     * Fetch spaces batch from llm_proxy with pagination
+     */
+    private async fetchSpacesBatch(
+        limit: number,
+        offset: number,
+        llmProxyUrl?: string
+    ): Promise<any[]> {
+        const url = llmProxyUrl || 'http://localhost:8000';
+        try {
+            const response = await axios.get(`${url}/spaces`, {
+                params: { limit, offset, sort: 'likes', direction: 'desc' },
+                timeout: 30000,
+            });
+            return response.data || [];
+        } catch (error) {
+            console.error(`Failed to fetch spaces batch at offset ${offset}:`, error);
+            return [];
+        }
+    }
+
+    /**
+     * Process a batch of assets with concurrency control and incremental sync
      */
     private async processBatch(
         assets: any[],
-        type: 'model' | 'dataset',
+        type: 'model' | 'dataset' | 'space',
         concurrency: number
     ): Promise<Array<{ name: string; success: boolean; error?: string }>> {
         const limit = pLimit(concurrency);
@@ -287,12 +425,40 @@ export class HFSyncOrchestrator {
 
         const tasks = assets.map((asset) =>
             limit(async () => {
+                const hfId = asset.id || asset.name || '';
+
+                // Incremental sync: check if asset is unchanged
+                const indexEntry = this.stateManager.getAssetIndexEntry(hfId);
+                const lastModified = asset.updated_at || asset.lastModified || '';
+
+                if (indexEntry && indexEntry.lastModified === lastModified) {
+                    // Asset unchanged, skip
+                    results.push({ name: asset.name, success: true });
+                    return;
+                }
+
                 try {
+                    let passportPDA: string;
+
                     if (type === 'model') {
-                        await this.hfBridge.registerModelPassport(asset);
+                        const res = await this.hfBridge.registerModelPassport(asset);
+                        passportPDA = res.passportPDA;
+                    } else if (type === 'dataset') {
+                        const res = await this.hfBridge.registerDatasetPassport(asset);
+                        passportPDA = res.passportPDA;
                     } else {
-                        await this.hfBridge.registerDatasetPassport(asset);
+                        const res = await this.hfBridge.registerSpacePassport(asset);
+                        passportPDA = res.passportPDA;
                     }
+
+                    // Update asset index for incremental tracking
+                    this.stateManager.setAssetIndexEntry(hfId, {
+                        hfId,
+                        lastModified: lastModified || new Date().toISOString(),
+                        onChainPDA: passportPDA,
+                        version: asset.version || '1.0.0',
+                        contentHash: asset.metadata?.sha || '',
+                    });
 
                     results.push({ name: asset.name, success: true });
                     this.stateManager.removeFailedAsset(asset.name, type);
@@ -312,7 +478,7 @@ export class HFSyncOrchestrator {
      * Resume sync from last checkpoint
      */
     async resume(options?: Partial<SyncOptions>): Promise<void> {
-        console.log('\n🔄 Resuming sync from last checkpoint...');
+        console.log('\nResuming sync from last checkpoint...');
 
         const defaultOptions: SyncOptions = {
             types: ['all'],
@@ -320,6 +486,8 @@ export class HFSyncOrchestrator {
             concurrency: 10,
             checkpointInterval: 100,
             maxRetries: 3,
+            minDownloads: 1000,
+            minLikes: 0,
         };
 
         const mergedOptions = { ...defaultOptions, ...options };
@@ -331,7 +499,7 @@ export class HFSyncOrchestrator {
      * Retry failed assets
      */
     async retryFailed(maxAttempts: number = 3, concurrency: number = 5): Promise<void> {
-        console.log('\n🔁 Retrying failed assets...');
+        console.log('\nRetrying failed assets...');
 
         const retryable = this.stateManager.getRetryableAssets(maxAttempts);
 
@@ -345,15 +513,12 @@ export class HFSyncOrchestrator {
         // Group by type
         const models = retryable.filter((a) => a.type === 'model');
         const datasets = retryable.filter((a) => a.type === 'dataset');
+        const spaces = retryable.filter((a) => a.type === 'space');
 
-        // Retry models
         if (models.length > 0) {
             console.log(`\nRetrying ${models.length} models...`);
-            // Fetch fresh data and retry
-            // This is simplified - in production, you'd fetch the actual asset data
             for (const model of models) {
                 try {
-                    // Would fetch and retry here
                     console.log(`Retrying model: ${model.name}`);
                 } catch (error) {
                     console.error(`Retry failed for ${model.name}:`, error);
@@ -361,7 +526,6 @@ export class HFSyncOrchestrator {
             }
         }
 
-        // Retry datasets
         if (datasets.length > 0) {
             console.log(`\nRetrying ${datasets.length} datasets...`);
             for (const dataset of datasets) {
@@ -373,6 +537,17 @@ export class HFSyncOrchestrator {
             }
         }
 
+        if (spaces.length > 0) {
+            console.log(`\nRetrying ${spaces.length} spaces...`);
+            for (const space of spaces) {
+                try {
+                    console.log(`Retrying space: ${space.name}`);
+                } catch (error) {
+                    console.error(`Retry failed for ${space.name}:`, error);
+                }
+            }
+        }
+
         await this.stateManager.save();
     }
 
@@ -380,7 +555,7 @@ export class HFSyncOrchestrator {
      * Stop sync gracefully
      */
     stop(): void {
-        console.log('\n⏸️  Stopping sync gracefully...');
+        console.log('\nStopping sync gracefully...');
         this.shouldStop = true;
     }
 
@@ -407,12 +582,12 @@ export class HFSyncOrchestrator {
      */
     private printProgress(): void {
         const progress = this.stateManager.getProgress();
-        const state = this.stateManager.getState();
 
-        console.log('\n📊 Progress Update:');
-        console.log('─────────────────────────────────────────');
+        console.log('\nProgress Update:');
+        console.log('-------------------------------------------');
         console.log(`Models:   ${progress.models.synced}/${progress.models.total} (${progress.models.progress})`);
         console.log(`Datasets: ${progress.datasets.synced}/${progress.datasets.total} (${progress.datasets.progress})`);
+        console.log(`Spaces:   ${progress.spaces.synced}/${progress.spaces.total} (${progress.spaces.progress})`);
         console.log(`Overall:  ${progress.overall.synced}/${progress.overall.total} (${progress.overall.progress})`);
         console.log(`Failed:   ${progress.failed}`);
         console.log(`Speed:    ${progress.throughput} assets/min`);
@@ -420,7 +595,7 @@ export class HFSyncOrchestrator {
             const eta = new Date(progress.eta);
             console.log(`ETA:      ${eta.toLocaleString()}`);
         }
-        console.log('─────────────────────────────────────────\n');
+        console.log('-------------------------------------------\n');
     }
 
     /**
@@ -430,17 +605,18 @@ export class HFSyncOrchestrator {
         const state = this.stateManager.getState();
         const progress = this.stateManager.getProgress();
 
-        console.log('\n📋 Final Report');
+        console.log('\nFinal Report');
         console.log('================================================');
         console.log(`Total Synced: ${progress.overall.synced}`);
         console.log(`  - Models:   ${state.models.synced}`);
         console.log(`  - Datasets: ${state.datasets.synced}`);
+        console.log(`  - Spaces:   ${state.spaces.synced}`);
         console.log(`Total Failed: ${progress.failed}`);
         console.log(`Average Speed: ${progress.throughput} assets/min`);
         console.log(`Total Transactions: ${state.statistics.totalTransactions}`);
         console.log(`Start Time: ${new Date(state.statistics.startTime).toLocaleString()}`);
         console.log(`End Time: ${new Date().toLocaleString()}`);
-        
+
         const duration = Date.now() - new Date(state.statistics.startTime).getTime();
         const hours = Math.floor(duration / (1000 * 60 * 60));
         const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
@@ -460,7 +636,7 @@ export class HFSyncOrchestrator {
                 totalSynced: progress.overall.synced,
                 totalFailed: progress.failed,
                 successRate: (
-                    (progress.overall.synced / (progress.overall.synced + progress.failed)) *
+                    (progress.overall.synced / Math.max(progress.overall.synced + progress.failed, 1)) *
                     100
                 ).toFixed(2),
             },
@@ -475,6 +651,12 @@ export class HFSyncOrchestrator {
                 failed: state.datasets.failed,
                 total: state.datasets.total,
                 progress: progress.datasets.progress,
+            },
+            spaces: {
+                synced: state.spaces.synced,
+                failed: state.spaces.failed,
+                total: state.spaces.total,
+                progress: progress.spaces.progress,
             },
             performance: {
                 throughput: progress.throughput,

@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use anchor_lang::system_program;
 
 // Program ID - deployed to devnet
 declare_id!("38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW");
@@ -143,6 +144,148 @@ pub mod lucid_passports {
 
         Ok(())
     }
+
+    // ========================================================================
+    // Payment Gating (x402) Instructions
+    // ========================================================================
+
+    /// Set a payment gate on a passport — owner defines SOL/LUCID price for access
+    pub fn set_payment_gate(
+        ctx: Context<SetPaymentGate>,
+        price_lamports: u64,
+        price_lucid: u64,
+        payment_token_mint: Pubkey,
+    ) -> Result<()> {
+        let gate = &mut ctx.accounts.payment_gate;
+        let clock = Clock::get()?;
+
+        gate.passport = ctx.accounts.passport.key();
+        gate.owner = ctx.accounts.owner.key();
+        gate.price_lamports = price_lamports;
+        gate.price_lucid = price_lucid;
+        gate.payment_token_mint = payment_token_mint;
+        gate.vault = ctx.accounts.vault.key();
+        gate.total_revenue = 0;
+        gate.total_accesses = 0;
+        gate.enabled = true;
+        gate.created_at = clock.unix_timestamp;
+        gate.bump = ctx.bumps.payment_gate;
+
+        emit!(PaymentGateSet {
+            passport: gate.passport,
+            owner: gate.owner,
+            price_lamports,
+            price_lucid,
+        });
+
+        Ok(())
+    }
+
+    /// Pay for access to a gated passport (SOL payment)
+    pub fn pay_for_access(
+        ctx: Context<PayForAccess>,
+        expires_at: i64,
+    ) -> Result<()> {
+        let gate = &mut ctx.accounts.payment_gate;
+        require!(gate.enabled, ErrorCode::PaymentGateNotEnabled);
+
+        let price = gate.price_lamports;
+        require!(price > 0, ErrorCode::InsufficientPayment);
+
+        // Transfer SOL from payer to vault
+        let cpi_context = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            system_program::Transfer {
+                from: ctx.accounts.payer.to_account_info(),
+                to: ctx.accounts.vault.to_account_info(),
+            },
+        );
+        system_program::transfer(cpi_context, price)?;
+
+        // Update gate stats
+        gate.total_revenue = gate.total_revenue.checked_add(price).unwrap();
+        gate.total_accesses = gate.total_accesses.checked_add(1).unwrap();
+
+        // Create access receipt
+        let receipt = &mut ctx.accounts.access_receipt;
+        let clock = Clock::get()?;
+
+        receipt.payer = ctx.accounts.payer.key();
+        receipt.passport = ctx.accounts.passport.key();
+        receipt.amount_paid = price;
+        receipt.expires_at = expires_at; // 0 = permanent
+        receipt.created_at = clock.unix_timestamp;
+        receipt.bump = ctx.bumps.access_receipt;
+
+        emit!(AccessPurchased {
+            passport: receipt.passport,
+            payer: receipt.payer,
+            amount: price,
+        });
+
+        Ok(())
+    }
+
+    /// Withdraw collected revenue from vault (owner only)
+    pub fn withdraw_revenue(
+        ctx: Context<WithdrawRevenue>,
+        amount: u64,
+    ) -> Result<()> {
+        require!(
+            ctx.accounts.payment_gate.owner == ctx.accounts.owner.key(),
+            ErrorCode::UnauthorizedWithdrawal
+        );
+
+        // Transfer SOL from vault to owner using vault PDA signer seeds
+        let passport_key = ctx.accounts.passport.key();
+        let seeds = &[
+            b"vault",
+            passport_key.as_ref(),
+            &[ctx.bumps.vault],
+        ];
+        let signer_seeds = &[&seeds[..]];
+
+        let vault_info = ctx.accounts.vault.to_account_info();
+        let owner_info = ctx.accounts.owner.to_account_info();
+
+        let vault_balance = vault_info.lamports();
+        require!(vault_balance >= amount, ErrorCode::InsufficientPayment);
+
+        **vault_info.try_borrow_mut_lamports()? -= amount;
+        **owner_info.try_borrow_mut_lamports()? += amount;
+
+        // We don't need signer_seeds for direct lamport manipulation but keeping
+        // the derivation above for clarity on the vault PDA.
+        let _ = signer_seeds;
+
+        emit!(RevenueWithdrawn {
+            passport: ctx.accounts.passport.key(),
+            owner: ctx.accounts.owner.key(),
+            amount,
+        });
+
+        Ok(())
+    }
+
+    /// Revoke a user's access receipt (owner only)
+    pub fn revoke_access(
+        ctx: Context<RevokeAccess>,
+    ) -> Result<()> {
+        require!(
+            ctx.accounts.payment_gate.owner == ctx.accounts.owner.key(),
+            ErrorCode::UnauthorizedWithdrawal
+        );
+
+        // Close the access receipt account, return rent to owner
+        // The account close is handled by Anchor's `close` constraint
+
+        emit!(AccessRevoked {
+            passport: ctx.accounts.passport.key(),
+            payer: ctx.accounts.access_receipt.payer,
+        });
+
+        Ok(())
+    }
 }
 
 // ============================================================================
@@ -251,6 +394,148 @@ pub struct AddAttestation<'info> {
 }
 
 // ============================================================================
+// Payment Gating Account Structures
+// ============================================================================
+
+#[derive(Accounts)]
+pub struct SetPaymentGate<'info> {
+    /// PDA: ["payment_gate", passport]
+    #[account(
+        init,
+        payer = owner,
+        space = 8 + PaymentGate::INIT_SPACE,
+        seeds = [
+            b"payment_gate",
+            passport.key().as_ref(),
+        ],
+        bump
+    )]
+    pub payment_gate: Account<'info, PaymentGate>,
+
+    #[account(has_one = owner)]
+    pub passport: Account<'info, Passport>,
+
+    /// CHECK: Vault PDA to hold collected payments
+    #[account(
+        seeds = [
+            b"vault",
+            passport.key().as_ref(),
+        ],
+        bump
+    )]
+    pub vault: AccountInfo<'info>,
+
+    #[account(mut)]
+    pub owner: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct PayForAccess<'info> {
+    /// PDA: ["access_receipt", passport, payer]
+    #[account(
+        init,
+        payer = payer,
+        space = 8 + AccessReceipt::INIT_SPACE,
+        seeds = [
+            b"access_receipt",
+            passport.key().as_ref(),
+            payer.key().as_ref(),
+        ],
+        bump
+    )]
+    pub access_receipt: Account<'info, AccessReceipt>,
+
+    #[account(
+        mut,
+        seeds = [
+            b"payment_gate",
+            passport.key().as_ref(),
+        ],
+        bump = payment_gate.bump
+    )]
+    pub payment_gate: Account<'info, PaymentGate>,
+
+    pub passport: Account<'info, Passport>,
+
+    /// CHECK: Vault PDA to receive payments
+    #[account(
+        mut,
+        seeds = [
+            b"vault",
+            passport.key().as_ref(),
+        ],
+        bump
+    )]
+    pub vault: AccountInfo<'info>,
+
+    #[account(mut)]
+    pub payer: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawRevenue<'info> {
+    #[account(
+        seeds = [
+            b"payment_gate",
+            passport.key().as_ref(),
+        ],
+        bump = payment_gate.bump
+    )]
+    pub payment_gate: Account<'info, PaymentGate>,
+
+    pub passport: Account<'info, Passport>,
+
+    /// CHECK: Vault PDA holding funds
+    #[account(
+        mut,
+        seeds = [
+            b"vault",
+            passport.key().as_ref(),
+        ],
+        bump
+    )]
+    pub vault: AccountInfo<'info>,
+
+    #[account(mut)]
+    pub owner: Signer<'info>,
+
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct RevokeAccess<'info> {
+    #[account(
+        seeds = [
+            b"payment_gate",
+            passport.key().as_ref(),
+        ],
+        bump = payment_gate.bump
+    )]
+    pub payment_gate: Account<'info, PaymentGate>,
+
+    pub passport: Account<'info, Passport>,
+
+    #[account(
+        mut,
+        close = owner,
+        seeds = [
+            b"access_receipt",
+            passport.key().as_ref(),
+            access_receipt.payer.as_ref(),
+        ],
+        bump = access_receipt.bump
+    )]
+    pub access_receipt: Account<'info, AccessReceipt>,
+
+    #[account(mut)]
+    pub owner: Signer<'info>,
+}
+
+// ============================================================================
 // Account Data Structures
 // ============================================================================
 
@@ -296,6 +581,33 @@ pub struct Attestation {
     #[max_len(200)]
     pub description: String,                // 4 + 200
     pub attester: Pubkey,                   // 32
+    pub created_at: i64,                    // 8
+    pub bump: u8,                           // 1
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct PaymentGate {
+    pub passport: Pubkey,                   // 32
+    pub owner: Pubkey,                      // 32 — receives payments
+    pub price_lamports: u64,                // 8  — SOL price (0 = free)
+    pub price_lucid: u64,                   // 8  — LUCID token price (0 = free)
+    pub payment_token_mint: Pubkey,         // 32 — SPL mint (SystemProgram if SOL-only)
+    pub vault: Pubkey,                      // 32 — vault PDA holding funds
+    pub total_revenue: u64,                 // 8
+    pub total_accesses: u64,                // 8
+    pub enabled: bool,                      // 1
+    pub created_at: i64,                    // 8
+    pub bump: u8,                           // 1
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct AccessReceipt {
+    pub payer: Pubkey,                      // 32
+    pub passport: Pubkey,                   // 32
+    pub amount_paid: u64,                   // 8
+    pub expires_at: i64,                    // 8  — 0 = permanent
     pub created_at: i64,                    // 8
     pub bump: u8,                           // 1
 }
@@ -398,6 +710,34 @@ pub struct AttestationAdded {
     pub attester: Pubkey,
 }
 
+#[event]
+pub struct PaymentGateSet {
+    pub passport: Pubkey,
+    pub owner: Pubkey,
+    pub price_lamports: u64,
+    pub price_lucid: u64,
+}
+
+#[event]
+pub struct AccessPurchased {
+    pub passport: Pubkey,
+    pub payer: Pubkey,
+    pub amount: u64,
+}
+
+#[event]
+pub struct RevenueWithdrawn {
+    pub passport: Pubkey,
+    pub owner: Pubkey,
+    pub amount: u64,
+}
+
+#[event]
+pub struct AccessRevoked {
+    pub passport: Pubkey,
+    pub payer: Pubkey,
+}
+
 // ============================================================================
 // Errors
 // ============================================================================
@@ -418,4 +758,12 @@ pub enum ErrorCode {
     InvalidStatus,
     #[msg("Version mismatch")]
     VersionMismatch,
+    #[msg("Payment gate is not enabled")]
+    PaymentGateNotEnabled,
+    #[msg("Insufficient payment amount")]
+    InsufficientPayment,
+    #[msg("Access already granted to this payer")]
+    AccessAlreadyGranted,
+    #[msg("Unauthorized withdrawal attempt")]
+    UnauthorizedWithdrawal,
 }
