@@ -42,7 +42,8 @@
     "pg": "^8.16.3",
     "pm2": "^6.0.14",
     "tweetnacl": "^1.0.3",
-    "ulid": "^3.0.2"
+    "ulid": "^3.0.2",
+    "viem": "^2.46.2"
   },
   "devDependencies": {
     "@types/bn.js": "^5.2.0",

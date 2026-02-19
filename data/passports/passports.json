@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_updated": 1771243867051,
+  "last_updated": 1771332223075,
   "passports": {
     "passport_3007eb2e89104348be5ff62673890d6a": {
       "passport_id": "passport_3007eb2e89104348be5ff62673890d6a",
@@ -1081,6 +1081,376 @@
       "status": "active",
       "created_at": 1771243864326,
       "updated_at": 1771243864326
+    },
+    "passport_a0becbf375c44c908fb370d0da7dcbe3": {
+      "passport_id": "passport_a0becbf375c44c908fb370d0da7dcbe3",
+      "type": "model",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "description": "Updated description from walkthrough",
+      "version": "1.0.1",
+      "tags": [
+        "example",
+        "walkthrough",
+        "updated"
+      ],
+      "created_at": 1771332003693,
+      "updated_at": 1771332003761
+    },
+    "passport_952a8e247e3045cd84d6bd95f497b12f": {
+      "passport_id": "passport_952a8e247e3045cd84d6bd95f497b12f",
+      "type": "compute",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_952a8e247e3045cd84d6bd95f497b12f",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "NVIDIA-A100-80GB",
+          "vram_gb": 80
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0",
+            "image": "vllm/vllm:0.4.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "http://localhost:8080/v1"
+        }
+      },
+      "name": "walkthrough-compute",
+      "description": "Example compute passport from full walkthrough",
+      "version": "1.0.0",
+      "tags": [
+        "example",
+        "walkthrough"
+      ],
+      "status": "active",
+      "created_at": 1771332003710,
+      "updated_at": 1771332003710
+    },
+    "passport_696c720e734d479091b92f90e9b2e58d": {
+      "passport_id": "passport_696c720e734d479091b92f90e9b2e58d",
+      "type": "model",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "metadata": {
+        "schema_version": "1.0",
+        "model_passport_id": "passport_696c720e734d479091b92f90e9b2e58d",
+        "format": "gguf",
+        "runtime_recommended": "vllm",
+        "name": "walkthrough-model-7B",
+        "context_length": 4096,
+        "requirements": {
+          "min_vram_gb": 24
+        }
+      },
+      "name": "walkthrough-model",
+      "description": "Example model passport from full walkthrough",
+      "version": "1.0.0",
+      "tags": [
+        "example",
+        "walkthrough"
+      ],
+      "status": "active",
+      "created_at": 1771332027054,
+      "updated_at": 1771332027054
+    },
+    "passport_65dc5ab459e94365ad0e28b31ee3744a": {
+      "passport_id": "passport_65dc5ab459e94365ad0e28b31ee3744a",
+      "type": "compute",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_65dc5ab459e94365ad0e28b31ee3744a",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "NVIDIA-A100-80GB",
+          "vram_gb": 80
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0",
+            "image": "vllm/vllm:0.4.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "http://localhost:8080/v1"
+        }
+      },
+      "name": "walkthrough-compute",
+      "description": "Example compute passport from full walkthrough",
+      "version": "1.0.0",
+      "tags": [
+        "example",
+        "walkthrough"
+      ],
+      "status": "active",
+      "created_at": 1771332027065,
+      "updated_at": 1771332027065
+    },
+    "passport_f6a09017224e4fce8f51ad3eaebc3a19": {
+      "passport_id": "passport_f6a09017224e4fce8f51ad3eaebc3a19",
+      "type": "model",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "description": "Updated description from walkthrough",
+      "version": "1.0.1",
+      "tags": [
+        "example",
+        "walkthrough",
+        "updated"
+      ],
+      "created_at": 1771332096148,
+      "updated_at": 1771332096202
+    },
+    "passport_a304553d2e924f909024063eed12c620": {
+      "passport_id": "passport_a304553d2e924f909024063eed12c620",
+      "type": "compute",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_a304553d2e924f909024063eed12c620",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "NVIDIA-A100-80GB",
+          "vram_gb": 80
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0",
+            "image": "vllm/vllm:0.4.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "http://localhost:8080/v1"
+        }
+      },
+      "name": "walkthrough-compute",
+      "description": "Example compute passport from full walkthrough",
+      "version": "1.0.0",
+      "tags": [
+        "example",
+        "walkthrough"
+      ],
+      "status": "active",
+      "created_at": 1771332096157,
+      "updated_at": 1771332096157
+    },
+    "passport_f82ab3796cde4bb8882edacf546415da": {
+      "passport_id": "passport_f82ab3796cde4bb8882edacf546415da",
+      "type": "tool",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "metadata": {
+        "temp": true
+      },
+      "name": "throwaway-passport",
+      "tags": [],
+      "status": "revoked",
+      "created_at": 1771332096214,
+      "updated_at": 1771332096223
+    },
+    "passport_9b78c9991bc24a959269e2f67523e52e": {
+      "passport_id": "passport_9b78c9991bc24a959269e2f67523e52e",
+      "type": "model",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "description": "Updated description from walkthrough",
+      "version": "1.0.1",
+      "tags": [
+        "example",
+        "walkthrough",
+        "updated"
+      ],
+      "created_at": 1771332128018,
+      "updated_at": 1771332128056
+    },
+    "passport_ed0e24c0d62f493f9ce077f08840fc52": {
+      "passport_id": "passport_ed0e24c0d62f493f9ce077f08840fc52",
+      "type": "compute",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_ed0e24c0d62f493f9ce077f08840fc52",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "NVIDIA-A100-80GB",
+          "vram_gb": 80
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0",
+            "image": "vllm/vllm:0.4.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "http://localhost:8080/v1"
+        }
+      },
+      "name": "walkthrough-compute",
+      "description": "Example compute passport from full walkthrough",
+      "version": "1.0.0",
+      "tags": [
+        "example",
+        "walkthrough"
+      ],
+      "status": "active",
+      "created_at": 1771332128028,
+      "updated_at": 1771332128028
+    },
+    "passport_b90d48ad8756407c9290514400c141b6": {
+      "passport_id": "passport_b90d48ad8756407c9290514400c141b6",
+      "type": "tool",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "metadata": {
+        "temp": true
+      },
+      "name": "throwaway-passport",
+      "tags": [],
+      "status": "revoked",
+      "created_at": 1771332128066,
+      "updated_at": 1771332128089
+    },
+    "passport_5e53956822dd440db5a1e11ca05dff2c": {
+      "passport_id": "passport_5e53956822dd440db5a1e11ca05dff2c",
+      "type": "model",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "description": "Updated description from walkthrough",
+      "version": "1.0.1",
+      "tags": [
+        "example",
+        "walkthrough",
+        "updated"
+      ],
+      "created_at": 1771332158452,
+      "updated_at": 1771332158525
+    },
+    "passport_e4a5825b305c455a99e9ebfe31d6d77a": {
+      "passport_id": "passport_e4a5825b305c455a99e9ebfe31d6d77a",
+      "type": "compute",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_e4a5825b305c455a99e9ebfe31d6d77a",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "NVIDIA-A100-80GB",
+          "vram_gb": 80
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0",
+            "image": "vllm/vllm:0.4.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "http://localhost:8080/v1"
+        }
+      },
+      "name": "walkthrough-compute",
+      "description": "Example compute passport from full walkthrough",
+      "version": "1.0.0",
+      "tags": [
+        "example",
+        "walkthrough"
+      ],
+      "status": "active",
+      "created_at": 1771332158467,
+      "updated_at": 1771332158467
+    },
+    "passport_a93c3279c79046ba82a99307ecfe23e5": {
+      "passport_id": "passport_a93c3279c79046ba82a99307ecfe23e5",
+      "type": "tool",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "metadata": {
+        "temp": true
+      },
+      "name": "throwaway-passport",
+      "tags": [],
+      "status": "revoked",
+      "created_at": 1771332158533,
+      "updated_at": 1771332158540
+    },
+    "passport_49daa4b1e7894db1b2804a6d630ce8ec": {
+      "passport_id": "passport_49daa4b1e7894db1b2804a6d630ce8ec",
+      "type": "model",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "description": "Updated description from walkthrough",
+      "version": "1.0.1",
+      "tags": [
+        "example",
+        "walkthrough",
+        "updated"
+      ],
+      "created_at": 1771332220364,
+      "updated_at": 1771332220399
+    },
+    "passport_950d03c36c9d4241954756f06ac5c5d8": {
+      "passport_id": "passport_950d03c36c9d4241954756f06ac5c5d8",
+      "type": "compute",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "metadata": {
+        "schema_version": "1.0",
+        "compute_passport_id": "passport_950d03c36c9d4241954756f06ac5c5d8",
+        "provider_type": "cloud",
+        "regions": [
+          "us-east-1"
+        ],
+        "hardware": {
+          "gpu": "NVIDIA-A100-80GB",
+          "vram_gb": 80
+        },
+        "runtimes": [
+          {
+            "name": "vllm",
+            "version": "0.4.0",
+            "image": "vllm/vllm:0.4.0"
+          }
+        ],
+        "endpoints": {
+          "inference_url": "http://localhost:8080/v1"
+        }
+      },
+      "name": "walkthrough-compute",
+      "description": "Example compute passport from full walkthrough",
+      "version": "1.0.0",
+      "tags": [
+        "example",
+        "walkthrough"
+      ],
+      "status": "active",
+      "created_at": 1771332220374,
+      "updated_at": 1771332220374
+    },
+    "passport_9c44e67879474604b0b4bdf15cf4033d": {
+      "passport_id": "passport_9c44e67879474604b0b4bdf15cf4033d",
+      "type": "tool",
+      "owner": "7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9",
+      "metadata": {
+        "temp": true
+      },
+      "name": "throwaway-passport",
+      "tags": [],
+      "status": "revoked",
+      "created_at": 1771332220405,
+      "updated_at": 1771332220410
     }
   }
 }

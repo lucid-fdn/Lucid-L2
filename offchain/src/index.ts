@@ -28,6 +28,10 @@ import { getPassportManager } from './services/passportManager';
 import { getPassportSyncService } from './services/passportSyncService';
 import { setAnchoringConfig, setAuthorityKeypair } from './services/anchoringService';
 import { getKeypair } from './solana/client';
+import { blockchainAdapterFactory } from './blockchain/BlockchainAdapterFactory';
+import { EVMAdapter } from './blockchain/evm/EVMAdapter';
+import { CHAIN_CONFIGS, getEVMChains } from './blockchain/chains';
+import { setX402Config } from './middleware/x402';
 
 const app = express();
 
@@ -35,7 +39,7 @@ const app = express();
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Payment-Proof');
   // Allow Chrome private network access preflight from secure pages
   res.header('Access-Control-Allow-Private-Network', 'true');
   
@@ -185,8 +189,71 @@ try {
   console.warn('   Epoch anchoring will not work until a keypair is configured.');
 }
 
+// Initialize EVM Blockchain Adapters (ERC-8004 Multi-Chain)
+(async () => {
+  try {
+    // Determine which chains to enable
+    const enabledChains = process.env.EVM_ENABLED_CHAINS
+      ? process.env.EVM_ENABLED_CHAINS.split(',').map((s) => s.trim())
+      : getEVMChains().filter((c) => c.isTestnet).map((c) => c.chainId);
+
+    let registered = 0;
+    for (const chainId of enabledChains) {
+      const config = CHAIN_CONFIGS[chainId];
+      if (!config) {
+        console.warn(`Unknown chain: ${chainId}, skipping`);
+        continue;
+      }
+
+      // Allow per-chain RPC override via env (e.g., APECHAIN_RPC_URL)
+      const envKey = chainId.toUpperCase().replace(/-/g, '_') + '_RPC_URL';
+      if (process.env[envKey]) {
+        config.rpcUrl = process.env[envKey]!;
+      }
+
+      // Allow per-chain ERC-8004 contract overrides
+      const contractsEnvKey = chainId.toUpperCase().replace(/-/g, '_') + '_CONTRACTS';
+      if (process.env[contractsEnvKey]) {
+        try {
+          config.erc8004 = { ...config.erc8004, ...JSON.parse(process.env[contractsEnvKey]!) };
+        } catch {
+          // Ignore malformed JSON
+        }
+      }
+
+      const adapter = new EVMAdapter();
+      blockchainAdapterFactory.register(adapter, config);
+      registered++;
+    }
+
+    if (registered > 0) {
+      console.log(`EVM Multi-Chain: ${registered} chain(s) registered`);
+      console.log(`   Chains: ${enabledChains.join(', ')}`);
+      if (process.env.EVM_PRIVATE_KEY) {
+        console.log(`   Wallet: configured`);
+      } else {
+        console.log(`   Wallet: not configured (read-only mode)`);
+      }
+    }
+  } catch (err) {
+    console.warn('EVM Multi-Chain init failed:', err instanceof Error ? err.message : err);
+  }
+})();
+
+// Configure x402 payment middleware
+if (process.env.X402_ENABLED === 'true') {
+  setX402Config({
+    enabled: true,
+    paymentAddress: process.env.X402_PAYMENT_ADDRESS || '',
+    paymentChain: (process.env.X402_PAYMENT_CHAIN as 'base' | 'base-sepolia') || 'base-sepolia',
+  });
+  console.log(`x402 Payment: enabled (chain: ${process.env.X402_PAYMENT_CHAIN || 'base-sepolia'})`);
+} else {
+  console.log('x402 Payment: disabled (set X402_ENABLED=true to enable)');
+}
+
 app.listen(API_PORT, '0.0.0.0', () => {
-  console.log(`▶️  Lucid L2 API listening on:`);
+  console.log(`Lucid L2 API listening on:`);
   console.log(`   Local:  http://localhost:${API_PORT}`);
   console.log(`   WSL:    http://172.28.35.139:${API_PORT}`);
   console.log(`   Network: http://0.0.0.0:${API_PORT}`);

@@ -354,6 +354,89 @@ export class PassportService {
     static formatVersion(version: Version): string {
         return `${version.major}.${version.minor}.${version.patch}`;
     }
+
+    /**
+     * Convert a Lucid Passport to ERC-8004 tokenURI JSON format.
+     *
+     * The tokenURI is the metadata JSON that gets stored on IPFS and referenced
+     * by the ERC-8004 Identity Registry (ERC-721 token).
+     *
+     * @param passport   Passport data from the Solana program
+     * @param options    Additional fields for the ERC-8004 metadata
+     * @returns          The tokenURI JSON object ready for IPFS upload
+     */
+    static toERC8004TokenURI(
+        passport: PassportData,
+        options?: {
+            endpoints?: string[];
+            capabilities?: string[];
+            evmWallet?: string;
+            trustModels?: string[];
+            image?: string;
+        },
+    ): ERC8004TokenURIMetadata {
+        const assetName = AssetType[passport.assetType] || 'Unknown';
+        const version = PassportService.formatVersion(passport.version);
+
+        // Map Lucid asset types to ERC-8004 capabilities
+        const defaultCapabilities: Record<number, string[]> = {
+            [AssetType.Model]: ['inference', 'model-serving'],
+            [AssetType.Dataset]: ['data-access', 'training-data'],
+            [AssetType.Tool]: ['tool-execution'],
+            [AssetType.Agent]: ['routing', 'validation', 'receipts', 'payouts'],
+            [AssetType.Voice]: ['voice-synthesis', 'tts'],
+            [AssetType.Other]: [],
+        };
+
+        // Map Lucid policy flags to trust models
+        const trustModels: string[] = options?.trustModels || ['receipt-verified', 'mmr-proof'];
+        if (passport.policyFlags & POLICY_REQUIRE_ATTRIBUTION) {
+            trustModels.push('attribution-required');
+        }
+
+        return {
+            name: `${passport.slug}`,
+            description: `Lucid ${assetName} Passport v${version}`,
+            endpoints: options?.endpoints || [`https://api.lucidlayer.io/v2`],
+            capabilities: options?.capabilities || defaultCapabilities[passport.assetType] || [],
+            wallets: {
+                solana: passport.owner.toBase58(),
+                ...(options?.evmWallet ? { evm: options.evmWallet } : {}),
+            },
+            trust_models: trustModels,
+            ...(options?.image ? { image: options.image } : {}),
+            // Lucid-specific extensions
+            lucid: {
+                asset_type: assetName.toLowerCase(),
+                version,
+                content_cid: passport.contentCid,
+                metadata_cid: passport.metadataCid,
+                license: passport.licenseCode,
+                policy_flags: passport.policyFlags,
+                status: PassportStatus[passport.status]?.toLowerCase() || 'unknown',
+            },
+        };
+    }
+}
+
+/** ERC-8004 tokenURI JSON format */
+export interface ERC8004TokenURIMetadata {
+    name: string;
+    description: string;
+    endpoints?: string[];
+    capabilities?: string[];
+    wallets?: Record<string, string>;
+    trust_models?: string[];
+    image?: string;
+    lucid?: {
+        asset_type: string;
+        version: string;
+        content_cid: string;
+        metadata_cid: string;
+        license: string;
+        policy_flags: number;
+        status: string;
+    };
 }
 
 // Export singleton instance
