@@ -236,27 +236,28 @@ pub mod lucid_passports {
             ErrorCode::UnauthorizedWithdrawal
         );
 
-        // Transfer SOL from vault to owner using vault PDA signer seeds
-        let passport_key = ctx.accounts.passport.key();
-        let seeds = &[
-            b"vault",
-            passport_key.as_ref(),
-            &[ctx.bumps.vault],
-        ];
-        let signer_seeds = &[&seeds[..]];
-
-        let vault_info = ctx.accounts.vault.to_account_info();
-        let owner_info = ctx.accounts.owner.to_account_info();
-
-        let vault_balance = vault_info.lamports();
+        let vault_balance = ctx.accounts.vault.lamports();
         require!(vault_balance >= amount, ErrorCode::InsufficientPayment);
 
-        **vault_info.try_borrow_mut_lamports()? -= amount;
-        **owner_info.try_borrow_mut_lamports()? += amount;
+        // Transfer SOL from vault PDA to owner via system_program CPI with PDA signer seeds
+        let passport_key = ctx.accounts.passport.key();
+        let bump = ctx.bumps.vault;
+        let seeds: &[&[u8]] = &[
+            b"vault",
+            passport_key.as_ref(),
+            &[bump],
+        ];
+        let signer_seeds = &[seeds];
 
-        // We don't need signer_seeds for direct lamport manipulation but keeping
-        // the derivation above for clarity on the vault PDA.
-        let _ = signer_seeds;
+        let cpi_context = CpiContext::new_with_signer(
+            ctx.accounts.system_program.to_account_info(),
+            system_program::Transfer {
+                from: ctx.accounts.vault.to_account_info(),
+                to: ctx.accounts.owner.to_account_info(),
+            },
+            signer_seeds,
+        );
+        system_program::transfer(cpi_context, amount)?;
 
         emit!(RevenueWithdrawn {
             passport: ctx.accounts.passport.key(),
