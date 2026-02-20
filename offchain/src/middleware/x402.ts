@@ -48,6 +48,9 @@ const DEFAULT_CONFIG: X402Config = {
 
 let config: X402Config = { ...DEFAULT_CONFIG };
 
+// Replay protection: set of already-spent transaction hashes
+const spentProofs = new Set<string>();
+
 // Minimal ERC-20 Transfer event ABI for verifying USDC transfers
 const TRANSFER_EVENT_ABI = parseAbi([
   'event Transfer(address indexed from, address indexed to, uint256 value)',
@@ -93,6 +96,25 @@ export function requirePayment(priceUSDC?: string) {
       });
     }
 
+    // Replay protection: reject already-used tx hashes
+    const normalizedHash = paymentProof.toLowerCase();
+    if (spentProofs.has(normalizedHash)) {
+      return res.status(402).json({
+        error: 'Payment already used',
+        reason: 'This transaction hash has already been used as payment proof.',
+        x402: {
+          version: '1',
+          payment: {
+            chain: config.paymentChain,
+            currency: 'USDC',
+            amount: price,
+            recipient: config.paymentAddress,
+            usdc_address: config.usdcAddress,
+          },
+        },
+      });
+    }
+
     // Verify the payment proof (transaction hash)
     try {
       const verified = await verifyPaymentProof(paymentProof, price);
@@ -114,7 +136,9 @@ export function requirePayment(priceUSDC?: string) {
         });
       }
 
-      // Payment verified — proceed
+      // Payment verified — mark as spent and proceed
+      spentProofs.add(normalizedHash);
+
       (req as any).x402 = {
         txHash: paymentProof,
         amount: price,
@@ -237,4 +261,30 @@ export function setX402Config(newConfig: Partial<X402Config>): void {
  */
 export function getX402Config(): Omit<X402Config, 'paymentAddress'> & { paymentAddress: string } {
   return { ...config };
+}
+
+/**
+ * Check if a tx hash has already been used as payment proof.
+ */
+export function isProofSpent(txHash: string): boolean {
+  return spentProofs.has(txHash.toLowerCase());
+}
+
+/**
+ * Get the number of spent proofs (for monitoring).
+ */
+export function getSpentProofsCount(): number {
+  return spentProofs.size;
+}
+
+/**
+ * Export parseUSDCAmount for use by payout execution.
+ */
+export { parseUSDCAmount };
+
+/**
+ * Reset spent proofs (for testing).
+ */
+export function resetSpentProofs(): void {
+  spentProofs.clear();
 }

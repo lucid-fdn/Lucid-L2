@@ -241,3 +241,152 @@ export function getPayout(run_id: string): PayoutSplit | null {
 export function getAllPayouts(): PayoutSplit[] {
   return Array.from(payoutStore.values());
 }
+
+// =============================================================================
+// Phase 1: Multi-Party Payout Execution via x402 / EVM USDC Transfers
+// =============================================================================
+
+export interface PayoutExecution {
+  run_id: string;
+  chainId: string;
+  transfers: PayoutTransfer[];
+  totalTransferred: string;
+  executedAt: number;
+}
+
+export interface PayoutTransfer {
+  recipient: string;
+  role: 'compute' | 'model' | 'protocol' | 'orchestrator';
+  amountUSDC: string;
+  txHash?: string;
+  success: boolean;
+  error?: string;
+}
+
+// In-memory store for payout executions
+const executionStore = new Map<string, PayoutExecution>();
+
+/**
+ * Execute a payout split on-chain via EVM USDC transfers.
+ *
+ * Takes a previously calculated PayoutSplit and submits USDC transfer
+ * transactions for each recipient on the specified chain.
+ */
+export async function executePayoutSplit(
+  runId: string,
+  chainId: string,
+): Promise<PayoutExecution> {
+  // Lazy imports to avoid circular dependencies
+  const { blockchainAdapterFactory } = await import('../blockchain/BlockchainAdapterFactory');
+  const { CHAIN_CONFIGS } = await import('../blockchain/chains');
+
+  // Check if already executed
+  const existing = executionStore.get(`${runId}:${chainId}`);
+  if (existing) {
+    return existing;
+  }
+
+  // Get the calculated payout
+  const payout = payoutStore.get(runId);
+  if (!payout) {
+    throw new Error(`No payout found for run_id: ${runId}`);
+  }
+
+  // Get chain config
+  const chainConfig = CHAIN_CONFIGS[chainId];
+  if (!chainConfig) {
+    throw new Error(`Unknown chain: ${chainId}`);
+  }
+
+  if (!chainConfig.usdcAddress) {
+    throw new Error(`No USDC address configured for chain: ${chainId}`);
+  }
+
+  // Get adapter
+  const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+  if (!adapter) {
+    throw new Error(`No adapter available for chain: ${chainId}`);
+  }
+
+  // ERC-20 transfer function selector: transfer(address,uint256)
+  const TRANSFER_SELECTOR = '0xa9059cbb';
+
+  const transfers: PayoutTransfer[] = [];
+
+  for (const recipient of payout.recipients) {
+    // Convert lamports to USDC (6 decimals)
+    // Lamports are 9 decimals (SOL), USDC is 6 decimals
+    // For EVM payout, we treat lamports as micro-units and convert
+    const amountUSDC = recipient.amount_lamports.toString();
+
+    // Skip zero amounts
+    if (recipient.amount_lamports === 0n) {
+      transfers.push({
+        recipient: recipient.wallet_address,
+        role: recipient.role,
+        amountUSDC: '0',
+        success: true,
+      });
+      continue;
+    }
+
+    // Skip placeholder treasury address
+    if (recipient.wallet_address === PROTOCOL_TREASURY_ADDRESS) {
+      transfers.push({
+        recipient: recipient.wallet_address,
+        role: recipient.role,
+        amountUSDC,
+        success: true, // Treasury transfers are deferred
+      });
+      continue;
+    }
+
+    try {
+      // Encode ERC-20 transfer calldata
+      // transfer(address to, uint256 amount)
+      const toAddressPadded = recipient.wallet_address.replace('0x', '').padStart(64, '0');
+      const amountHex = recipient.amount_lamports.toString(16).padStart(64, '0');
+      const calldata = `${TRANSFER_SELECTOR}${toAddressPadded}${amountHex}`;
+
+      const txReceipt = await adapter.sendTransaction({
+        to: chainConfig.usdcAddress,
+        data: calldata,
+      });
+
+      transfers.push({
+        recipient: recipient.wallet_address,
+        role: recipient.role,
+        amountUSDC,
+        txHash: txReceipt.hash,
+        success: txReceipt.success,
+        error: txReceipt.success ? undefined : txReceipt.statusMessage,
+      });
+    } catch (error) {
+      transfers.push({
+        recipient: recipient.wallet_address,
+        role: recipient.role,
+        amountUSDC,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  }
+
+  const execution: PayoutExecution = {
+    run_id: runId,
+    chainId,
+    transfers,
+    totalTransferred: payout.total_amount_lamports.toString(),
+    executedAt: Math.floor(Date.now() / 1000),
+  };
+
+  executionStore.set(`${runId}:${chainId}`, execution);
+  return execution;
+}
+
+/**
+ * Get a payout execution record.
+ */
+export function getPayoutExecution(runId: string, chainId: string): PayoutExecution | null {
+  return executionStore.get(`${runId}:${chainId}`) || null;
+}

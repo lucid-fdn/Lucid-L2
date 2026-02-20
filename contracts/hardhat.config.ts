@@ -18,29 +18,63 @@ const config: HardhatUserConfig = {
   },
   networks: {
     hardhat: {},
+
+    // ── Testnets ──────────────────────────────────────────────
     baseSepolia: {
-      url: "https://sepolia.base.org",
+      url: process.env.BASE_SEPOLIA_RPC || "https://sepolia.base.org",
       chainId: 84532,
       accounts: [DEPLOYER_KEY],
     },
     sepolia: {
-      url: "https://rpc.sepolia.org",
+      url: process.env.SEPOLIA_RPC || "https://rpc.sepolia.org",
       chainId: 11155111,
       accounts: [DEPLOYER_KEY],
     },
     apechainTestnet: {
-      url: "https://rpc.curtis.apechain.com/http",
+      url: process.env.APECHAIN_TESTNET_RPC || "https://rpc.curtis.apechain.com/http",
       chainId: 33111,
       accounts: [DEPLOYER_KEY],
     },
+
+    // ── Mainnets ─────────────────────────────────────────────
+    ethereum: {
+      url: process.env.ETHEREUM_RPC || "https://eth.llamarpc.com",
+      chainId: 1,
+      accounts: [DEPLOYER_KEY],
+    },
     base: {
-      url: "https://mainnet.base.org",
+      url: process.env.BASE_RPC || "https://mainnet.base.org",
       chainId: 8453,
       accounts: [DEPLOYER_KEY],
     },
     apechain: {
-      url: "https://rpc.apechain.com/http",
+      url: process.env.APECHAIN_RPC || "https://rpc.apechain.com/http",
       chainId: 33139,
+      accounts: [DEPLOYER_KEY],
+    },
+    arbitrum: {
+      url: process.env.ARBITRUM_RPC || "https://arb1.arbitrum.io/rpc",
+      chainId: 42161,
+      accounts: [DEPLOYER_KEY],
+    },
+    avalanche: {
+      url: process.env.AVALANCHE_RPC || "https://api.avax.network/ext/bc/C/rpc",
+      chainId: 43114,
+      accounts: [DEPLOYER_KEY],
+    },
+    polygon: {
+      url: process.env.POLYGON_RPC || "https://polygon-rpc.com",
+      chainId: 137,
+      accounts: [DEPLOYER_KEY],
+    },
+    monad: {
+      url: process.env.MONAD_RPC || "https://testnet.monad.xyz/v1",
+      chainId: 10143,
+      accounts: [DEPLOYER_KEY],
+    },
+    megaeth: {
+      url: process.env.MEGAETH_RPC || "https://rpc.megaeth.com",
+      chainId: 6342,
       accounts: [DEPLOYER_KEY],
     },
   },

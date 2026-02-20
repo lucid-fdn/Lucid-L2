@@ -3,7 +3,7 @@ import express from 'express';
 // (extracted from local ../services/* and ../utils/* into lucid-plateform-core/packages/passport)
 import { validateWithSchema, evaluatePolicy, getComputeRegistry, matchComputeForModel } from '@lucid/passport';
 import { createReceipt, getReceipt, verifyReceiptHash, verifyReceipt, getReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey, listReceipts, listExtendedReceipts, getExtendedReceipt, verifyExtendedReceipt } from '../services/receiptService';
-import { calculatePayoutSplit, createPayoutFromReceipt, getPayout, storePayout, verifyPayoutSplit } from '../services/payoutService';
+import { calculatePayoutSplit, createPayoutFromReceipt, getPayout, storePayout, verifyPayoutSplit, executePayoutSplit, getPayoutExecution } from '../services/payoutService';
 import {
   executeInferenceRequest,
   executeStreamingInferenceRequest,
@@ -31,6 +31,8 @@ import {
 } from '../services/anchoringService';
 import { blockchainAdapterFactory } from '../blockchain/BlockchainAdapterFactory';
 import { CHAIN_CONFIGS } from '../blockchain/chains';
+import { getReputationAggregator } from '../services/reputationAggregator';
+import { getReceiptReputation, submitReceiptReputation } from '../services/receiptReputationService';
 
 export const lucidLayerRouter = express.Router();
 
@@ -1742,6 +1744,223 @@ lucidLayerRouter.get('/v2/agents/:agentId/reputation', async (req, res) => {
     });
   } catch (error) {
     console.error('Error in GET /v2/agents/:agentId/reputation:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// =============================================================================
+// V2 Phase 1 Endpoints
+// =============================================================================
+
+/**
+ * GET /v2/reputation/:agentId
+ *
+ * Unified cross-chain reputation score for an agent.
+ * Aggregates on-chain reputation data from all indexed ERC-8004 chains.
+ */
+lucidLayerRouter.get('/v2/reputation/:agentId', async (req, res) => {
+  try {
+    const { agentId } = req.params;
+
+    const aggregator = getReputationAggregator();
+    const unified = aggregator.getUnifiedScore(agentId);
+
+    if (!unified) {
+      return res.json({
+        success: true,
+        agentId,
+        unifiedScore: 0,
+        totalFeedbackCount: 0,
+        chainCount: 0,
+        message: 'No reputation data found. The agent may not have received feedback yet, or indexing may still be in progress.',
+      });
+    }
+
+    return res.json({
+      success: true,
+      ...unified,
+    });
+  } catch (error) {
+    console.error('Error in GET /v2/reputation/:agentId:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /v2/reputation/:agentId/breakdown
+ *
+ * Per-chain reputation breakdown with individual feedback records.
+ */
+lucidLayerRouter.get('/v2/reputation/:agentId/breakdown', async (req, res) => {
+  try {
+    const { agentId } = req.params;
+
+    const aggregator = getReputationAggregator();
+    const chains = aggregator.getCrossChainReputation(agentId);
+
+    return res.json({
+      success: true,
+      agentId,
+      chainCount: chains.length,
+      chains,
+    });
+  } catch (error) {
+    console.error('Error in GET /v2/reputation/:agentId/breakdown:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /v2/reputation/:agentId/receipt-based
+ *
+ * Receipt-derived reputation score (Sybil-resistant).
+ * Computes reputation from verified receipts rather than subjective votes.
+ */
+lucidLayerRouter.get('/v2/reputation/:agentId/receipt-based', async (req, res) => {
+  try {
+    const { agentId } = req.params;
+
+    const score = getReceiptReputation(agentId);
+
+    return res.json({
+      success: true,
+      ...score,
+    });
+  } catch (error) {
+    console.error('Error in GET /v2/reputation/:agentId/receipt-based:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /v2/reputation/:agentId/submit
+ *
+ * Submit receipt-based reputation to on-chain Reputation Registry.
+ * Body: { chainId: string }
+ */
+lucidLayerRouter.post('/v2/reputation/:agentId/submit', async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const { chainId } = req.body || {};
+
+    if (!chainId) {
+      return res.status(400).json({ success: false, error: 'chainId is required' });
+    }
+
+    const result = await submitReceiptReputation(chainId, agentId);
+
+    return res.json({
+      success: result.success,
+      txHash: result.txHash,
+      score: result.score,
+      error: result.error,
+    });
+  } catch (error) {
+    console.error('Error in POST /v2/reputation/:agentId/submit:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /v2/reputation/indexer/status
+ *
+ * Status of the cross-chain reputation indexer.
+ */
+lucidLayerRouter.get('/v2/reputation/indexer/status', async (_req, res) => {
+  try {
+    const aggregator = getReputationAggregator();
+    const status = aggregator.getIndexerStatus();
+
+    return res.json({
+      success: true,
+      chains: status,
+    });
+  } catch (error) {
+    console.error('Error in GET /v2/reputation/indexer/status:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * POST /v2/payouts/execute
+ *
+ * Execute a payout split on-chain via USDC transfers.
+ * Body: { run_id: string, chainId: string }
+ */
+lucidLayerRouter.post('/v2/payouts/execute', async (req, res) => {
+  try {
+    const { run_id, chainId } = req.body || {};
+
+    if (!run_id) {
+      return res.status(400).json({ success: false, error: 'run_id is required' });
+    }
+    if (!chainId) {
+      return res.status(400).json({ success: false, error: 'chainId is required' });
+    }
+
+    const execution = await executePayoutSplit(run_id, chainId);
+    const allSucceeded = execution.transfers.every(t => t.success);
+
+    return res.json({
+      success: allSucceeded,
+      execution,
+    });
+  } catch (error) {
+    console.error('Error in POST /v2/payouts/execute:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+/**
+ * GET /v2/payouts/:runId/execution
+ *
+ * Get payout execution status.
+ * Query: ?chainId=...
+ */
+lucidLayerRouter.get('/v2/payouts/:runId/execution', async (req, res) => {
+  try {
+    const { runId } = req.params;
+    const chainId = req.query.chainId as string;
+
+    if (!chainId) {
+      return res.status(400).json({ success: false, error: 'chainId query parameter is required' });
+    }
+
+    const execution = getPayoutExecution(runId, chainId);
+    if (!execution) {
+      return res.status(404).json({
+        success: false,
+        error: 'No execution found for this run_id and chainId',
+      });
+    }
+
+    return res.json({
+      success: true,
+      execution,
+    });
+  } catch (error) {
+    console.error('Error in GET /v2/payouts/:runId/execution:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

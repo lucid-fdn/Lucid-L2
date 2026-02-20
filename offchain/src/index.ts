@@ -34,6 +34,7 @@ import { blockchainAdapterFactory } from './blockchain/BlockchainAdapterFactory'
 import { EVMAdapter } from './blockchain/evm/EVMAdapter';
 import { CHAIN_CONFIGS, getEVMChains } from './blockchain/chains';
 import { setX402Config } from './middleware/x402';
+import { getReputationAggregator } from './services/reputationAggregator';
 
 const app = express();
 
@@ -285,6 +286,16 @@ try {
     console.warn('EVM Multi-Chain init failed:', err instanceof Error ? err.message : err);
   }
 })();
+
+// Initialize Cross-Chain Reputation Aggregator
+if (process.env.REPUTATION_INDEXING_ENABLED === 'true') {
+  const intervalMs = parseInt(process.env.REPUTATION_INDEXING_INTERVAL || '60000', 10);
+  const aggregator = getReputationAggregator();
+  aggregator.startIndexing(intervalMs);
+  console.log(`Reputation Indexer: enabled (interval: ${intervalMs}ms)`);
+} else {
+  console.log('Reputation Indexer: disabled (set REPUTATION_INDEXING_ENABLED=true to enable)');
+}
 
 // Configure x402 payment middleware
 if (process.env.X402_ENABLED === 'true') {
