@@ -9,7 +9,11 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "noImplicitAny": false,
-    "strictNullChecks": false
+    "strictNullChecks": false,
+    "baseUrl": ".",
+    "paths": {
+      "@lucid/passport": ["../../lucid-plateform-core/packages/passport/src"]
+    }
   },
   "include": [
     "src/**/*"

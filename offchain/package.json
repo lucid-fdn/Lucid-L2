@@ -43,7 +43,8 @@
     "pm2": "^6.0.14",
     "tweetnacl": "^1.0.3",
     "ulid": "^3.0.2",
-    "viem": "^2.46.2"
+    "viem": "^2.46.2",
+    "@raijinlabs/passport": "^0.1.0"
   },
   "devDependencies": {
     "@types/bn.js": "^5.2.0",

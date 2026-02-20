@@ -26,6 +26,8 @@ import { lucidLayerRouter } from './routes/lucidLayerRoutes';
 import { passportRouter } from './routes/passportRoutes';
 import { getPassportManager } from './services/passportManager';
 import { getPassportSyncService } from './services/passportSyncService';
+import { initReceiptConsumer, startReceiptConsumer, stopReceiptConsumer } from './jobs/receiptConsumer';
+import pool from './lib/db/pool';
 import { setAnchoringConfig, setAuthorityKeypair } from './services/anchoringService';
 import { getKeypair } from './solana/client';
 import { blockchainAdapterFactory } from './blockchain/BlockchainAdapterFactory';
@@ -165,6 +167,50 @@ getPassportManager().init().then(async () => {
   }
 }).catch((err) => {
   console.error('Failed to initialize Passport Manager:', err);
+});
+
+// Initialize Receipt Consumer (polls receipt_events from TrustGate)
+try {
+  initReceiptConsumer(
+    async (sql, params) => {
+      const result = await pool.query(sql, params);
+      return { rows: result.rows };
+    },
+    {
+      interval_ms: parseInt(process.env.RECEIPT_CONSUMER_INTERVAL_MS || '5000'),
+      batch_size: parseInt(process.env.RECEIPT_CONSUMER_BATCH_SIZE || '50'),
+      enabled: process.env.RECEIPT_CONSUMER_ENABLED !== 'false',
+    }
+  );
+  startReceiptConsumer();
+  console.log('🧾 Receipt Consumer started');
+} catch (err) {
+  console.warn('⚠️ Receipt Consumer failed to start:', err instanceof Error ? err.message : err);
+}
+
+// Receipt retention cron — clean up processed events older than 30 days
+const RECEIPT_RETENTION_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
+setInterval(async () => {
+  try {
+    const result = await pool.query(
+      `DELETE FROM receipt_events WHERE processed = true AND created_at < now() - interval '30 days'`
+    );
+    if (result.rowCount && result.rowCount > 0) {
+      console.log(`🗑️  Receipt retention: deleted ${result.rowCount} processed events older than 30d`);
+    }
+  } catch (err) {
+    console.warn('⚠️ Receipt retention cleanup failed:', err instanceof Error ? err.message : err);
+  }
+}, RECEIPT_RETENTION_INTERVAL_MS);
+
+// Graceful shutdown — stop receipt consumer
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received — stopping receipt consumer');
+  stopReceiptConsumer();
+});
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINT received — stopping receipt consumer');
+  stopReceiptConsumer();
 });
 
 // Initialize Anchoring Service with Solana keypair

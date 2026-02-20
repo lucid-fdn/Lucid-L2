@@ -1,8 +1,7 @@
 import express from 'express';
-import { validateWithSchema } from '../utils/schemaValidator';
-import { evaluatePolicy } from '../services/policyEngine';
-import { getComputeRegistry } from '../services/computeRegistry';
-import { matchComputeForModel } from '../services/matchingEngine';
+// Passport engine functions — imported from shared @lucid/passport package
+// (extracted from local ../services/* and ../utils/* into lucid-plateform-core/packages/passport)
+import { validateWithSchema, evaluatePolicy, getComputeRegistry, matchComputeForModel } from '@lucid/passport';
 import { createReceipt, getReceipt, verifyReceiptHash, verifyReceipt, getReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey, listReceipts, listExtendedReceipts, getExtendedReceipt, verifyExtendedReceipt } from '../services/receiptService';
 import { calculatePayoutSplit, createPayoutFromReceipt, getPayout, storePayout, verifyPayoutSplit } from '../services/payoutService';
 import {
@@ -708,6 +707,11 @@ lucidLayerRouter.get('/v1/payouts/:run_id/verify', async (req, res) => {
  * Response (streaming): SSE stream of tokens
  */
 lucidLayerRouter.post('/v1/run/inference', async (req, res) => {
+  // Deprecation headers — clients should migrate to TrustGate /v1/chat/completions
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('Sunset', '2026-06-01');
+  res.setHeader('Link', '</v1/chat/completions>; rel="successor-version"');
+
   try {
     const request = req.body as ExecutionRequest;
 
@@ -844,6 +848,11 @@ lucidLayerRouter.post('/v1/run/inference', async (req, res) => {
  * Response: OpenAI ChatCompletionResponse format with LucidLayer extensions
  */
 lucidLayerRouter.post('/v1/chat/completions', async (req, res) => {
+  // Deprecation headers — clients should migrate to TrustGate /v1/chat/completions
+  res.setHeader('Deprecation', 'true');
+  res.setHeader('Sunset', '2026-06-01');
+  res.setHeader('Link', '</v1/chat/completions>; rel="successor-version"');
+
   try {
     const request = req.body as ChatCompletionRequest;
 
