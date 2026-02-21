@@ -11,249 +11,18 @@ import {
   executeStreamingInference,
   RuntimeType,
   InferenceRequest,
-  InferenceResponse,
   StreamChunk,
   ComputeClientError,
-  ComputeClientConfig,
 } from './computeClient';
 import { estimateTokens, estimateChatTokens } from '../utils/tokenCounter';
-import { Policy } from './policyEngine';
+import { evaluatePolicy, Policy } from './policyEngine';
 
 // ============================================================================
-// MODEL ALIAS REGISTRY
-// Allows using model names (e.g., "openai-gpt35-turbo") instead of passport IDs
+// TRUSTGATE PROVIDER CONFIGURATION
 // ============================================================================
 
-/**
- * Model alias entry - defines how to resolve a model name
- */
-interface ModelAlias {
-  type: 'passport' | 'proxy';
-  // For 'passport' type: the actual passport_id to use
-  passport_id?: string;
-  // For 'proxy' type: synthetic model metadata for llm-proxy routing
-  model_meta?: {
-    schema_version: string;
-    model_passport_id: string;
-    format: string;
-    runtime_recommended: string;
-    base: string;
-    context_length: number;
-    provider?: string;
-    requirements?: {
-      min_vram_gb: number;
-    };
-  };
-}
-
-/**
- * Built-in model aliases for llm-proxy supported models.
- * These models don't require passport registration - they route directly to llm-proxy.
- */
-const MODEL_ALIASES: Record<string, ModelAlias> = {
-  // OpenAI models via llm-proxy
-  'openai-gpt35-turbo': {
-    type: 'proxy',
-    model_meta: {
-      schema_version: '1.0',
-      model_passport_id: 'openai-gpt35-turbo',
-      format: 'api',
-      runtime_recommended: 'llmproxy',
-      base: 'openai',
-      context_length: 16385,
-      provider: 'llm-proxy',
-      requirements: { min_vram_gb: 0 },
-    },
-  },
-  'gpt-3.5-turbo': {
-    type: 'proxy',
-    model_meta: {
-      schema_version: '1.0',
-      model_passport_id: 'openai-gpt35-turbo',
-      format: 'api',
-      runtime_recommended: 'llmproxy',
-      base: 'openai',
-      context_length: 16385,
-      provider: 'llm-proxy',
-      requirements: { min_vram_gb: 0 },
-    },
-  },
-  'openai-gpt4': {
-    type: 'proxy',
-    model_meta: {
-      schema_version: '1.0',
-      model_passport_id: 'openai-gpt4',
-      format: 'api',
-      runtime_recommended: 'llmproxy',
-      base: 'openai',
-      context_length: 128000,
-      provider: 'llm-proxy',
-      requirements: { min_vram_gb: 0 },
-    },
-  },
-  'gpt-4': {
-    type: 'proxy',
-    model_meta: {
-      schema_version: '1.0',
-      model_passport_id: 'openai-gpt4',
-      format: 'api',
-      runtime_recommended: 'llmproxy',
-      base: 'openai',
-      context_length: 128000,
-      provider: 'llm-proxy',
-      requirements: { min_vram_gb: 0 },
-    },
-  },
-  'gpt-4o': {
-    type: 'proxy',
-    model_meta: {
-      schema_version: '1.0',
-      model_passport_id: 'openai-gpt4o',
-      format: 'api',
-      runtime_recommended: 'llmproxy',
-      base: 'openai',
-      context_length: 128000,
-      provider: 'llm-proxy',
-      requirements: { min_vram_gb: 0 },
-    },
-  },
-  // Anthropic models via llm-proxy
-  'anthropic-claude-3-sonnet': {
-    type: 'proxy',
-    model_meta: {
-      schema_version: '1.0',
-      model_passport_id: 'anthropic-claude-3-sonnet',
-      format: 'api',
-      runtime_recommended: 'llmproxy',
-      base: 'anthropic',
-      context_length: 200000,
-      provider: 'llm-proxy',
-      requirements: { min_vram_gb: 0 },
-    },
-  },
-  'anthropic-claude-3-opus': {
-    type: 'proxy',
-    model_meta: {
-      schema_version: '1.0',
-      model_passport_id: 'anthropic-claude-3-opus',
-      format: 'api',
-      runtime_recommended: 'llmproxy',
-      base: 'anthropic',
-      context_length: 200000,
-      provider: 'llm-proxy',
-      requirements: { min_vram_gb: 0 },
-    },
-  },
-  'claude-3-sonnet': {
-    type: 'proxy',
-    model_meta: {
-      schema_version: '1.0',
-      model_passport_id: 'anthropic-claude-3-sonnet',
-      format: 'api',
-      runtime_recommended: 'llmproxy',
-      base: 'anthropic',
-      context_length: 200000,
-      provider: 'llm-proxy',
-      requirements: { min_vram_gb: 0 },
-    },
-  },
-  // Google models via llm-proxy
-  'google-gemini-pro': {
-    type: 'proxy',
-    model_meta: {
-      schema_version: '1.0',
-      model_passport_id: 'google-gemini-pro',
-      format: 'api',
-      runtime_recommended: 'llmproxy',
-      base: 'google',
-      context_length: 32000,
-      provider: 'llm-proxy',
-      requirements: { min_vram_gb: 0 },
-    },
-  },
-  // Cohere models via llm-proxy
-  'cohere-command': {
-    type: 'proxy',
-    model_meta: {
-      schema_version: '1.0',
-      model_passport_id: 'cohere-command',
-      format: 'api',
-      runtime_recommended: 'llmproxy',
-      base: 'cohere',
-      context_length: 4096,
-      provider: 'llm-proxy',
-      requirements: { min_vram_gb: 0 },
-    },
-  },
-};
-
-/**
- * LLM-Proxy compute metadata for routing proxy models.
- * This is a synthetic compute that routes to the llm-proxy service.
- */
-const LLM_PROXY_COMPUTE_META = {
-  schema_version: '1.0',
-  compute_passport_id: 'llm-proxy-compute',
-  provider_type: 'cloud',
-  regions: ['global'],
-  hardware: {
-    gpu: 'API',
-    vram_gb: 0,
-    arch: 'api',
-  },
-  runtimes: [
-    { name: 'llmproxy', version: '1.0' },
-  ],
-  endpoints: {
-    inference_url: process.env.LLM_PROXY_URL || 'http://localhost:8001',
-  },
-  capabilities: {
-    supports_streaming: true,
-    supports_attestation: false,
-    supports_cc_on: false,
-  },
-  network: {
-    p95_ms_estimate: 500,
-    bandwidth: '1Gbps',
-  },
-  limits: {
-    max_context: 128000,
-    max_batch: 1,
-  },
-  pricing: {
-    price_per_1k_tokens_estimate: 0.002,
-    price_per_minute_estimate: 0,
-  },
-};
-
-/**
- * Check if a model name is a known alias.
- */
-function isModelAlias(modelName: string): boolean {
-  return modelName in MODEL_ALIASES;
-}
-
-/**
- * Get model alias configuration.
- */
-function getModelAlias(modelName: string): ModelAlias | undefined {
-  return MODEL_ALIASES[modelName];
-}
-
-/**
- * Register a custom model alias at runtime.
- */
-export function registerModelAlias(modelName: string, alias: ModelAlias): void {
-  MODEL_ALIASES[modelName] = alias;
-  console.log(`📋 Registered model alias: ${modelName}`);
-}
-
-/**
- * List all registered model aliases.
- */
-export function listModelAliases(): string[] {
-  return Object.keys(MODEL_ALIASES);
-}
+const TRUSTGATE_URL = process.env.TRUSTGATE_URL || 'https://trustgate-api-production.up.railway.app';
+const TRUSTGATE_API_KEY = process.env.TRUSTGATE_API_KEY || '';
 
 /**
  * Input for inference execution.
@@ -404,8 +173,274 @@ const DEFAULT_POLICY: Policy = {
 };
 
 /**
+ * Execute inference via TrustGate provider path (for API-based models).
+ * Skips compute matching — TrustGate handles provider routing.
+ * TrustGate writes receipt_events; L2's receiptConsumer handles on-chain anchoring.
+ */
+async function executeProviderRequest(
+  request: ExecutionRequest,
+  model_passport_id: string,
+  model_meta: any,
+  run_id: string,
+  startTime: number
+): Promise<ExecutionResult> {
+  const request_id = request.request_id || run_id;
+  const trace_id = request.trace_id;
+
+  const providerModel = model_meta.provider_model_id
+    || (model_meta.name ? model_meta.name.toLowerCase().replace(/\s+/g, '-') : 'unknown');
+
+  const body: any = {
+    model: providerModel,
+    max_tokens: request.max_tokens || 512,
+    temperature: request.temperature ?? 0.7,
+    stream: false,
+  };
+
+  if (request.messages && request.messages.length > 0) {
+    body.messages = request.messages;
+  } else if (request.prompt) {
+    body.messages = [{ role: 'user', content: request.prompt }];
+  }
+
+  if (request.top_p !== undefined) body.top_p = request.top_p;
+  if (request.stop) body.stop = request.stop;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Lucid-Model-Passport': model_passport_id,
+  };
+  if (TRUSTGATE_API_KEY) {
+    headers['Authorization'] = `Bearer ${TRUSTGATE_API_KEY}`;
+  }
+  if (trace_id) {
+    headers['X-Trace-ID'] = trace_id;
+  }
+
+  const policy = request.policy || DEFAULT_POLICY;
+  const policyResult = evaluatePolicy({ policy });
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120_000);
+
+    const response = await fetch(`${TRUSTGATE_URL}/v1/chat/completions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
+      return {
+        success: false,
+        run_id,
+        request_id,
+        trace_id,
+        tokens_in: 0,
+        tokens_out: 0,
+        total_latency_ms: Date.now() - startTime,
+        model_passport_id,
+        compute_passport_id: 'trustgate',
+        runtime: 'trustgate',
+        policy_hash: policyResult.policy_hash,
+        error: `TrustGate error (${response.status}): ${errorText}`,
+        error_code: response.status === 429 ? 'RATE_LIMIT' : 'PROVIDER_ERROR',
+      };
+    }
+
+    const data = await response.json();
+    const choice = data.choices?.[0];
+    const text = choice?.message?.content || choice?.text || '';
+    const finish_reason = choice?.finish_reason || 'stop';
+    const tokens_in = data.usage?.prompt_tokens || 0;
+    const tokens_out = data.usage?.completion_tokens || 0;
+
+    return {
+      success: true,
+      run_id,
+      request_id,
+      trace_id,
+      text,
+      finish_reason,
+      tokens_in,
+      tokens_out,
+      ttft_ms: Date.now() - startTime,
+      total_latency_ms: Date.now() - startTime,
+      model_passport_id,
+      compute_passport_id: 'trustgate',
+      runtime: 'trustgate',
+      policy_hash: policyResult.policy_hash,
+      receipt_id: run_id,
+    };
+  } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+    const isTimeout = error instanceof Error && error.name === 'AbortError';
+
+    return {
+      success: false,
+      run_id,
+      request_id,
+      trace_id,
+      tokens_in: 0,
+      tokens_out: 0,
+      total_latency_ms: Date.now() - startTime,
+      model_passport_id,
+      compute_passport_id: 'trustgate',
+      runtime: 'trustgate',
+      policy_hash: policyResult.policy_hash,
+      error: isTimeout ? 'TrustGate request timeout' : errorMsg,
+      error_code: isTimeout ? 'TIMEOUT' : 'PROVIDER_ERROR',
+    };
+  }
+}
+
+/**
+ * Execute streaming inference via TrustGate provider path.
+ */
+async function executeProviderStreamingRequest(
+  request: ExecutionRequest,
+  model_passport_id: string,
+  model_meta: any,
+  run_id: string,
+  startTime: number
+): Promise<StreamingExecutionResult> {
+  const request_id = request.request_id || run_id;
+  const trace_id = request.trace_id;
+
+  const providerModel = model_meta.provider_model_id
+    || (model_meta.name ? model_meta.name.toLowerCase().replace(/\s+/g, '-') : 'unknown');
+
+  const body: any = {
+    model: providerModel,
+    max_tokens: request.max_tokens || 512,
+    temperature: request.temperature ?? 0.7,
+    stream: true,
+  };
+
+  if (request.messages && request.messages.length > 0) {
+    body.messages = request.messages;
+  } else if (request.prompt) {
+    body.messages = [{ role: 'user', content: request.prompt }];
+  }
+
+  if (request.top_p !== undefined) body.top_p = request.top_p;
+  if (request.stop) body.stop = request.stop;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Accept': 'text/event-stream',
+    'X-Lucid-Model-Passport': model_passport_id,
+  };
+  if (TRUSTGATE_API_KEY) {
+    headers['Authorization'] = `Bearer ${TRUSTGATE_API_KEY}`;
+  }
+
+  const response = await fetch(`${TRUSTGATE_URL}/v1/chat/completions`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`TrustGate error (${response.status}): ${errorText}`);
+  }
+
+  if (!response.body) {
+    throw new Error('No response body for streaming from TrustGate');
+  }
+
+  const policy = request.policy || DEFAULT_POLICY;
+  const policyResult = evaluatePolicy({ policy });
+
+  let ttft_ms: number | undefined;
+  let tokens_out = 0;
+  let fullText = '';
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+
+  const wrappedStream = async function* (): AsyncGenerator<StreamChunk, void, unknown> {
+    let buffer = '';
+    let isFirst = true;
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim() || line.startsWith(':')) continue;
+
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') {
+              yield { text: '', is_first: false, is_last: true, finish_reason: 'stop', tokens_out };
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              const choice = parsed.choices?.[0];
+              const chunkText = choice?.delta?.content || '';
+
+              if (chunkText) {
+                if (isFirst && !ttft_ms) {
+                  ttft_ms = Date.now() - startTime;
+                }
+                tokens_out++;
+                fullText += chunkText;
+
+                yield { text: chunkText, is_first: isFirst, is_last: false, tokens_out };
+                isFirst = false;
+              }
+
+              if (choice?.finish_reason) {
+                yield { text: '', is_first: false, is_last: true, finish_reason: choice.finish_reason, tokens_out };
+                return;
+              }
+            } catch { /* skip unparseable chunks */ }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  };
+
+  const finalize = async () => ({
+    tokens_in: estimateChatTokens(request.messages || [{ role: 'user', content: request.prompt || '' }]).estimated,
+    tokens_out,
+    ttft_ms: ttft_ms || 0,
+    total_latency_ms: Date.now() - startTime,
+    receipt_id: run_id,
+    text: fullText,
+  });
+
+  return {
+    run_id,
+    request_id,
+    trace_id,
+    model_passport_id,
+    compute_passport_id: 'trustgate',
+    runtime: 'trustgate',
+    policy_hash: policyResult.policy_hash,
+    stream: wrappedStream(),
+    finalize,
+  };
+}
+
+/**
  * Execute inference end-to-end.
- * 
+ *
  * Flow:
  * 1. Resolve model passport and metadata
  * 2. Get compute catalog (from registry or provided)
@@ -424,10 +459,15 @@ export async function executeInferenceRequest(
   
   try {
     // 1. Resolve model passport and metadata
-    const { model_passport_id, model_meta, is_proxy_model } = await resolveModel(request);
-    
-    // 2. Get compute catalog (include LLM-Proxy compute for proxy models)
-    const compute_catalog = await getComputeCatalog(request, is_proxy_model);
+    const { model_passport_id, model_meta } = await resolveModel(request);
+
+    // Provider path: API-based models route directly to TrustGate
+    if (model_meta.format === 'api') {
+      return executeProviderRequest(request, model_passport_id, model_meta, run_id, startTime);
+    }
+
+    // 2. Get compute catalog
+    const compute_catalog = await getComputeCatalog(request);
     
     // 3. Match compute using policy
     const policy = request.policy || DEFAULT_POLICY;
@@ -532,10 +572,15 @@ export async function executeStreamingInferenceRequest(
   const trace_id = request.trace_id;
   
   // 1. Resolve model passport and metadata
-  const { model_passport_id, model_meta, is_proxy_model } = await resolveModel(request);
-  
-  // 2. Get compute catalog (include LLM-Proxy compute for proxy models)
-  const compute_catalog = await getComputeCatalog(request, is_proxy_model);
+  const { model_passport_id, model_meta } = await resolveModel(request);
+
+  // Provider path: streaming via TrustGate
+  if (model_meta.format === 'api') {
+    return executeProviderStreamingRequest(request, model_passport_id, model_meta, run_id, startTime);
+  }
+
+  // 2. Get compute catalog
+  const compute_catalog = await getComputeCatalog(request);
   
   // 3. Match compute using policy
   const policy = request.policy || DEFAULT_POLICY;
@@ -706,77 +751,37 @@ export async function executeChatCompletion(
 
 /**
  * Resolve model passport and metadata.
- * 
+ *
  * Resolution order:
  * 1. If model_meta provided directly, use it
- * 2. Check if model_passport_id is a known alias (e.g., "openai-gpt35-turbo")
- * 3. For proxy aliases, return synthetic model_meta (no passport lookup)
- * 4. For passport aliases, look up the mapped passport
- * 5. Otherwise, try to fetch from passport manager
+ * 2. Otherwise, look up passport by model_passport_id
  */
 async function resolveModel(request: ExecutionRequest): Promise<{
   model_passport_id: string;
   model_meta: any;
-  is_proxy_model?: boolean;
 }> {
-  // If model_meta provided directly, use it
   if (request.model_meta) {
     return {
       model_passport_id: request.model_meta.model_passport_id || request.model_passport_id || '',
       model_meta: request.model_meta,
     };
   }
-  
-  // Must have model_passport_id
+
   if (!request.model_passport_id) {
     throw new Error('model_passport_id or model_meta is required');
   }
-  
-  // Check if this is a known model alias
-  const alias = getModelAlias(request.model_passport_id);
-  if (alias) {
-    console.log(`🔗 Resolved model alias: ${request.model_passport_id} -> ${alias.type}`);
-    
-    if (alias.type === 'proxy' && alias.model_meta) {
-      // Proxy model - use synthetic metadata, no passport needed
-      return {
-        model_passport_id: alias.model_meta.model_passport_id,
-        model_meta: alias.model_meta,
-        is_proxy_model: true,
-      };
-    } else if (alias.type === 'passport' && alias.passport_id) {
-      // Passport alias - look up the mapped passport
-      const manager = getPassportManager();
-      const result = await manager.getPassport(alias.passport_id);
-      
-      if (!result.ok || !result.data) {
-        throw new Error(`Mapped passport not found: ${alias.passport_id}`);
-      }
-      
-      return {
-        model_passport_id: alias.passport_id,
-        model_meta: result.data.metadata,
-      };
-    }
-  }
-  
-  // Try to fetch from passport manager
+
   const manager = getPassportManager();
   const result = await manager.getPassport(request.model_passport_id);
-  
+
   if (!result.ok || !result.data) {
-    // Provide helpful error message listing available aliases
-    const aliases = listModelAliases();
-    throw new Error(
-      `Model passport not found: ${request.model_passport_id}. ` +
-      `Available model aliases: ${aliases.slice(0, 5).join(', ')}${aliases.length > 5 ? '...' : ''}`
-    );
+    throw new Error(`Model passport not found: ${request.model_passport_id}`);
   }
-  
+
   if (result.data.type !== 'model') {
     throw new Error(`Passport is not a model: ${request.model_passport_id}`);
   }
-  
+
   return {
     model_passport_id: request.model_passport_id,
     model_meta: result.data.metadata,
@@ -785,26 +790,12 @@ async function resolveModel(request: ExecutionRequest): Promise<{
 
 /**
  * Get compute catalog from request or registry.
- * 
- * @param request - The execution request
- * @param isProxyModel - If true, include the synthetic LLM-Proxy compute
  */
-async function getComputeCatalog(request: ExecutionRequest, isProxyModel?: boolean): Promise<any[]> {
-  // If catalog provided, use it
+async function getComputeCatalog(request: ExecutionRequest): Promise<any[]> {
   if (request.compute_catalog && request.compute_catalog.length > 0) {
-    // If it's a proxy model, ensure LLM_PROXY_COMPUTE_META is included
-    if (isProxyModel) {
-      const hasLlmProxy = request.compute_catalog.some(
-        (c: any) => c.compute_passport_id === 'llm-proxy-compute'
-      );
-      if (!hasLlmProxy) {
-        return [LLM_PROXY_COMPUTE_META, ...request.compute_catalog];
-      }
-    }
     return request.compute_catalog;
   }
-  
-  // If specific compute requested, get just that one
+
   if (request.compute_passport_id) {
     const manager = getPassportManager();
     const result = await manager.getPassport(request.compute_passport_id);
@@ -813,24 +804,15 @@ async function getComputeCatalog(request: ExecutionRequest, isProxyModel?: boole
     }
     throw new Error(`Compute passport not found: ${request.compute_passport_id}`);
   }
-  
-  // Get all active compute from passport manager
+
   const manager = getPassportManager();
   const result = await manager.listPassports({
     type: 'compute',
     status: 'active',
     per_page: 100,
   });
-  
-  const computeCatalog = result.items.map(p => p.metadata);
-  
-  // For proxy models, add the synthetic LLM-Proxy compute endpoint
-  if (isProxyModel) {
-    console.log('🔌 Adding LLM-Proxy compute to catalog for proxy model');
-    return [LLM_PROXY_COMPUTE_META, ...computeCatalog];
-  }
-  
-  return computeCatalog;
+
+  return result.items.map((p: any) => p.metadata);
 }
 
 /**
