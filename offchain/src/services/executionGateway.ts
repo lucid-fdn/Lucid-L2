@@ -168,8 +168,7 @@ export interface ChatCompletionResponse {
  * Default policy for matching.
  */
 const DEFAULT_POLICY: Policy = {
-  version: '1.0',
-  constraints: {},
+  policy_version: '1.0',
 };
 
 /**
@@ -792,7 +791,7 @@ async function resolveModel(request: ExecutionRequest): Promise<{
  * Get compute catalog from request or registry.
  */
 async function getComputeCatalog(request: ExecutionRequest): Promise<any[]> {
-  if (request.compute_catalog && request.compute_catalog.length > 0) {
+  if (request.compute_catalog) {
     return request.compute_catalog;
   }
 

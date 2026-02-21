@@ -51,11 +51,11 @@ import { estimateTokens, estimateChatTokens } from '../utils/tokenCounter';
 describe('Execution Gateway', () => {
   // Sample model metadata
   const sampleModelMeta = {
+    schema_version: '1.0',
     model_passport_id: 'model_test123',
     name: 'Test Model',
     format: 'safetensors',
     runtime_recommended: 'vllm',
-    license: 'apache-2.0',
     requirements: {
       min_vram_gb: 16,
     },
@@ -63,14 +63,14 @@ describe('Execution Gateway', () => {
 
   // Sample compute metadata
   const sampleComputeMeta = {
+    schema_version: '1.0',
     compute_passport_id: 'compute_test123',
-    name: 'Test Compute Node',
-    provider_type: 'bare_metal',
+    provider_type: 'onprem',
     hardware: {
       gpu: 'A100',
       vram_gb: 80,
       cpu_cores: 32,
-      ram_gb: 256,
+      memory_gb: 256,
     },
     runtimes: [
       { name: 'vllm', version: '0.4.0' },
@@ -80,19 +80,18 @@ describe('Execution Gateway', () => {
     endpoints: {
       inference_url: 'http://localhost:8000/v1/completions',
     },
-    status: { availability: 'online' },
   };
 
   // Fallback compute metadata
   const fallbackComputeMeta = {
+    schema_version: '1.0',
     compute_passport_id: 'compute_fallback456',
-    name: 'Fallback Compute Node',
     provider_type: 'cloud',
     hardware: {
       gpu: 'A10G',
       vram_gb: 24,
       cpu_cores: 8,
-      ram_gb: 64,
+      memory_gb: 64,
     },
     runtimes: [
       { name: 'vllm', version: '0.3.0' },
@@ -101,7 +100,6 @@ describe('Execution Gateway', () => {
     endpoints: {
       inference_url: 'http://localhost:8001/v1/completions',
     },
-    status: { availability: 'online' },
   };
 
   beforeEach(() => {
@@ -286,8 +284,6 @@ describe('Execution Gateway', () => {
     });
 
     it('should create receipt asynchronously after successful inference', async () => {
-      jest.useFakeTimers();
-      
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -305,12 +301,9 @@ describe('Execution Gateway', () => {
       const result = await executeInferenceRequest(request);
       expect(result.success).toBe(true);
 
-      // Receipt creation is async via setImmediate
-      jest.runAllTimers();
-      
-      // Small delay for async operations
+      // Receipt creation is async via setImmediate — flush the queue
       await new Promise(resolve => setImmediate(resolve));
-      
+
       expect(mockCreateReceipt).toHaveBeenCalled();
     });
 
@@ -327,10 +320,10 @@ describe('Execution Gateway', () => {
         model_meta: sampleModelMeta,
         prompt: 'Test policy',
         policy: {
-          version: '1.0',
-          constraints: {
-            geo_allow: ['us-east'],
-            max_cost_usd: 1.0,
+          policy_version: '1.0',
+          allow_regions: ['us-east'],
+          cost: {
+            max_price_per_1k_tokens_usd: 1.0,
           },
         },
         compute_catalog: [sampleComputeMeta],
@@ -371,7 +364,7 @@ describe('Execution Gateway', () => {
         ok: true,
         json: async () => ({
           choices: [{
-            text: 'I am an AI assistant.',
+            message: { role: 'assistant', content: 'I am an AI assistant.' },
             finish_reason: 'stop',
           }],
           usage: {
@@ -620,9 +613,168 @@ describe('Execution Gateway', () => {
       expect(mockFetch).toHaveBeenCalled();
       const fetchCall = mockFetch.mock.calls[0] as unknown[];
       const body = JSON.parse((fetchCall[1] as RequestInit).body as string);
-      
+
       // vLLM format should include messages or prompt
       expect(body.max_tokens || body.max_new_tokens).toBeDefined();
+    });
+  });
+
+  describe('Provider Path (TrustGate)', () => {
+    const apiModelMeta = {
+      schema_version: '1.0',
+      model_passport_id: 'model_gpt4o_test',
+      format: 'api',
+      runtime_recommended: 'trustgate',
+      provider_model_id: 'gpt-4o',
+      base: 'openai',
+      context_length: 128000,
+      requirements: { min_vram_gb: 0 },
+    };
+
+    beforeEach(() => {
+      // Reset fetch mock to clear any stale queued responses from earlier tests
+      mockFetch.mockReset();
+    });
+
+    it('should route format=api models to TrustGate, skipping compute matching', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: 'chatcmpl-123',
+          object: 'chat.completion',
+          choices: [{
+            index: 0,
+            message: { role: 'assistant', content: 'Hello from GPT-4o!' },
+            finish_reason: 'stop',
+          }],
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        }),
+      } as Response);
+
+      const request: ExecutionRequest = {
+        model_meta: apiModelMeta,
+        messages: [{ role: 'user', content: 'Hello' }],
+        max_tokens: 100,
+      };
+
+      const result = await executeInferenceRequest(request);
+
+      expect(result.success).toBe(true);
+      expect(result.text).toBe('Hello from GPT-4o!');
+      expect(result.compute_passport_id).toBe('trustgate');
+      expect(result.runtime).toBe('trustgate');
+      expect(result.tokens_in).toBe(10);
+      expect(result.tokens_out).toBe(5);
+      expect(mockCreateReceipt).not.toHaveBeenCalled();
+    });
+
+    it('should use provider_model_id as the model field sent to TrustGate', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { role: 'assistant', content: 'test' }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 5, completion_tokens: 2 },
+        }),
+      } as Response);
+
+      const request: ExecutionRequest = {
+        model_meta: apiModelMeta,
+        prompt: 'Hello',
+      };
+
+      await executeInferenceRequest(request);
+
+      const fetchCall = mockFetch.mock.calls[0] as unknown[];
+      const body = JSON.parse((fetchCall[1] as RequestInit).body as string);
+      expect(body.model).toBe('gpt-4o');
+    });
+
+    it('should return error when TrustGate returns non-ok response', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        text: async () => 'Rate limit exceeded',
+      } as Response);
+
+      const request: ExecutionRequest = {
+        model_meta: apiModelMeta,
+        prompt: 'Hello',
+      };
+
+      const result = await executeInferenceRequest(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error_code).toBe('RATE_LIMIT');
+    });
+
+    it('should succeed with empty compute catalog for format=api models', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { role: 'assistant', content: 'test' }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 5, completion_tokens: 2 },
+        }),
+      } as Response);
+
+      const request: ExecutionRequest = {
+        model_meta: apiModelMeta,
+        messages: [{ role: 'user', content: 'Hello' }],
+        compute_catalog: [],
+      };
+
+      const result = await executeInferenceRequest(request);
+      expect(result.success).toBe(true);
+      expect(result.compute_passport_id).toBe('trustgate');
+    });
+
+    it('should still use compute path for non-api format models', async () => {
+      const request: ExecutionRequest = {
+        model_meta: {
+          schema_version: '1.0',
+          model_passport_id: 'model_test123',
+          name: 'Test Model',
+          format: 'safetensors',
+          runtime_recommended: 'vllm',
+          requirements: { min_vram_gb: 16 },
+        },
+        prompt: 'Test',
+        compute_catalog: [],
+      };
+
+      const result = await executeInferenceRequest(request);
+      // Non-api models should NOT route to TrustGate
+      expect(result.success).toBe(false);
+      expect(result.compute_passport_id).not.toBe('trustgate');
+      expect(result.runtime).not.toBe('trustgate');
+    });
+
+    it('should route via provider path when passport lookup returns format=api', async () => {
+      mockGetPassport.mockResolvedValueOnce({
+        ok: true,
+        data: {
+          id: 'model_gpt4o_test',
+          type: 'model',
+          metadata: apiModelMeta,
+        },
+      });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { role: 'assistant', content: 'Via passport lookup' }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 5, completion_tokens: 3 },
+        }),
+      } as Response);
+
+      const request: ExecutionRequest = {
+        model_passport_id: 'model_gpt4o_test',
+        messages: [{ role: 'user', content: 'Hello' }],
+      };
+
+      const result = await executeInferenceRequest(request);
+      expect(result.success).toBe(true);
+      expect(result.compute_passport_id).toBe('trustgate');
+      expect(mockGetPassport).toHaveBeenCalledWith('model_gpt4o_test');
     });
   });
 });
