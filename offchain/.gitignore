@@ -10,4 +10,5 @@ bun.lock
 .DS_Store
 .env
 .env.local
+.env.backup*
 *.mcpb
