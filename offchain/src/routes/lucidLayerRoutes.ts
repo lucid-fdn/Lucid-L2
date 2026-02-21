@@ -1,7 +1,8 @@
 import express from 'express';
-// Passport engine functions — imported from shared @lucid/passport package
-// (extracted from local ../services/* and ../utils/* into lucid-plateform-core/packages/passport)
-import { validateWithSchema, evaluatePolicy, getComputeRegistry, matchComputeForModel } from '@lucid/passport';
+import { validateWithSchema } from '../utils/schemaValidator';
+import { evaluatePolicy } from '../services/policyEngine';
+import { getComputeRegistry } from '../services/computeRegistry';
+import { matchComputeForModel } from '../services/matchingEngine';
 import { createReceipt, getReceipt, verifyReceiptHash, verifyReceipt, getReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey, listReceipts, listExtendedReceipts, getExtendedReceipt, verifyExtendedReceipt } from '../services/receiptService';
 import { calculatePayoutSplit, createPayoutFromReceipt, getPayout, storePayout, verifyPayoutSplit, executePayoutSplit, getPayoutExecution } from '../services/payoutService';
 import {
