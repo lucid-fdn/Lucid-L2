@@ -2,7 +2,6 @@
 import { LLMProvider, LLMResponse, LLMConfig, LLMError, LLMProviderType } from './llm';
 import { OpenAIProvider } from './openai';
 import { MockProvider } from './mock';
-import { LLMProxyProvider } from './llmproxy';
 
 export class LLMRouter {
   private providers: Map<string, LLMProvider> = new Map();
@@ -18,16 +17,6 @@ export class LLMRouter {
   private initializeProviders(): void {
     // Initialize mock provider (always available)
     this.providers.set(LLMProviderType.MOCK, new MockProvider());
-
-    // Initialize llm-proxy provider if baseUrl is provided
-    if (this.config.baseUrl && this.config.provider === 'llmproxy') {
-      this.providers.set('llmproxy', new LLMProxyProvider({
-        baseUrl: this.config.baseUrl,
-        defaultModel: this.config.model,
-        maxTokens: this.config.maxTokens,
-        temperature: this.config.temperature
-      }));
-    }
 
     // Initialize OpenAI provider if API key is provided
     if (this.config.provider === LLMProviderType.OPENAI && this.config.apiKey) {

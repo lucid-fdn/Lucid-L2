@@ -139,16 +139,16 @@ export const COMMITMENT = configManager.getConfig().commitment;
  */
 // LLM configuration
 export const LLM_CONFIG = {
-  provider: 'llmproxy', // Using llm-proxy for multi-model support
-  model: 'openai-gpt35-turbo', // Default model via Eden AI
-  apiKey: process.env.OPENAI_API_KEY || '', // Not needed for llm-proxy, but kept for compatibility
-  baseUrl: 'http://localhost:8001', // llm-proxy URL
+  provider: 'openai',
+  model: 'gpt-3.5-turbo',
+  apiKey: process.env.OPENAI_API_KEY || '',
+  baseUrl: process.env.LLM_BASE_URL || '',
   maxTokens: 150,
   temperature: 0.7,
-  fallbackProviders: ['mock'] // Fallback to mock if llm-proxy is unavailable
+  fallbackProviders: ['mock']
 };
 
-// Toggle internal LLM usage (true = use llm-proxy for AI responses)
+// Toggle internal LLM usage (true = use internal LLM provider for AI responses)
 export const USE_INTERNAL_LLM = true;
 
 // n8n Orchestrator Configuration
