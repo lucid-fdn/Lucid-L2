@@ -453,14 +453,14 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
     throw new Error('Maximum 16 epochs per batch');
   }
 
-  // Prepare all epochs
+  // Prepare all epochs — use indexed array to preserve input order
   const epochs: Epoch[] = [];
-  const results: AnchorResult[] = [];
+  const resultsByEpochId = new Map<string, AnchorResult>();
 
   for (const epoch_id of epoch_ids) {
     const epoch = prepareEpochForFinalization(epoch_id);
     if (!epoch) {
-      results.push({
+      resultsByEpochId.set(epoch_id, {
         success: false,
         root: '',
         epoch_id,
@@ -470,7 +470,7 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
     }
     if (epoch.leaf_count === 0) {
       failEpoch(epoch_id, 'Empty epoch');
-      results.push({
+      resultsByEpochId.set(epoch_id, {
         success: false,
         root: epoch.mmr_root,
         epoch_id,
@@ -482,7 +482,7 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
   }
 
   if (epochs.length === 0) {
-    return results;
+    return epoch_ids.map(id => resultsByEpochId.get(id)!);
   }
 
   // Mock mode
@@ -491,28 +491,28 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
     for (const epoch of epochs) {
       finalizeEpoch(epoch.epoch_id, mockTx, epoch.mmr_root);
       await updateReceiptsWithAnchor(epoch, mockTx);
-      results.push({
+      resultsByEpochId.set(epoch.epoch_id, {
         success: true,
         signature: mockTx,
         root: epoch.mmr_root,
         epoch_id: epoch.epoch_id,
       });
     }
-    return results;
+    return epoch_ids.map(id => resultsByEpochId.get(id)!);
   }
 
   // Check for authority keypair
   if (!config.authority_keypair) {
     for (const epoch of epochs) {
       failEpoch(epoch.epoch_id, 'No authority keypair configured');
-      results.push({
+      resultsByEpochId.set(epoch.epoch_id, {
         success: false,
         root: epoch.mmr_root,
         epoch_id: epoch.epoch_id,
         error: 'No authority keypair configured',
       });
     }
-    return results;
+    return epoch_ids.map(id => resultsByEpochId.get(id)!);
   }
 
   const authority = config.authority_keypair;
@@ -546,7 +546,7 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
       for (const epoch of epochs) {
         finalizeEpoch(epoch.epoch_id, signature, epoch.mmr_root);
         await updateReceiptsWithAnchor(epoch, signature);
-        results.push({
+        resultsByEpochId.set(epoch.epoch_id, {
           success: true,
           signature,
           root: epoch.mmr_root,
@@ -554,7 +554,7 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
         });
       }
 
-      return results;
+      return epoch_ids.map(id => resultsByEpochId.get(id)!);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       console.error(`Batch anchoring attempt ${attempt}/${maxRetries} failed:`, lastError.message);
@@ -568,7 +568,7 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
   // All retries failed
   for (const epoch of epochs) {
     failEpoch(epoch.epoch_id, lastError?.message || 'Unknown error');
-    results.push({
+    resultsByEpochId.set(epoch.epoch_id, {
       success: false,
       root: epoch.mmr_root,
       epoch_id: epoch.epoch_id,
@@ -576,7 +576,7 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
     });
   }
 
-  return results;
+  return epoch_ids.map(id => resultsByEpochId.get(id)!);
 }
 
 /**

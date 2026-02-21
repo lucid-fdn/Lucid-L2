@@ -1,8 +1,8 @@
 /**
  * Tests for PR7: MCP Server Implementation
  */
-import { LucidMcpServer, getMcpServer, resetMcpServer } from '../mcp/mcpServer.js';
-import { getComputeRegistry } from '../services/computeRegistry.js';
+import { LucidMcpServer, getMcpServer, resetMcpServer } from '../mcp/mcpServer';
+import { getComputeRegistry } from '../services/computeRegistry';
 
 describe('MCP Server', () => {
   let server: LucidMcpServer;
@@ -173,7 +173,7 @@ describe('MCP Server', () => {
           arguments: {
             model_passport_id: 'model-mcp-test',
             compute_passport_id: 'compute-mcp-test',
-            policy_hash: 'abc123hash',
+            policy_hash: 'a'.repeat(64),
             runtime: 'vLLM',
             tokens_in: 100,
             tokens_out: 200,

@@ -475,14 +475,14 @@ lucidLayerRouter.get('/v1/receipts/:receipt_id/proof', async (req, res) => {
       return res.status(404).json({ success: false, error: 'No proof available for this receipt' });
     }
     
-    // Transform MerkleProof to ReceiptProof format expected by OpenAPI schema
+    // Transform MerkleProof to ReceiptProof format
     const proof = {
       run_id: receipt.run_id,
       receipt_hash: receipt.receipt_hash,
+      leaf: merkleProof.leaf,
       leaf_index: merkleProof.leafIndex,
-      proof: merkleProof.siblings,
+      siblings: merkleProof.siblings,
       root: merkleProof.root,
-      // Include directions for verification (not in OpenAPI but useful for clients)
       directions: merkleProof.directions,
     };
     

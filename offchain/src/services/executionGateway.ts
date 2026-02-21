@@ -399,8 +399,7 @@ export interface ChatCompletionResponse {
  * Default policy for matching.
  */
 const DEFAULT_POLICY: Policy = {
-  version: '1.0',
-  constraints: {},
+  policy_version: '1.0',
 };
 
 /**

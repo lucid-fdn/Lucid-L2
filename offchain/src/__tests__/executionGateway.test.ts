@@ -49,59 +49,57 @@ import {
 import { estimateTokens, estimateChatTokens } from '../utils/tokenCounter';
 
 describe('Execution Gateway', () => {
-  // Sample model metadata
+  // Sample model metadata (must conform to ModelMeta.schema.json)
   const sampleModelMeta = {
+    schema_version: '1.0' as const,
     model_passport_id: 'model_test123',
     name: 'Test Model',
-    format: 'safetensors',
-    runtime_recommended: 'vllm',
-    license: 'apache-2.0',
+    format: 'safetensors' as const,
+    runtime_recommended: 'vllm' as const,
     requirements: {
       min_vram_gb: 16,
     },
   };
 
-  // Sample compute metadata
+  // Sample compute metadata (must conform to ComputeMeta.schema.json)
   const sampleComputeMeta = {
+    schema_version: '1.0' as const,
     compute_passport_id: 'compute_test123',
-    name: 'Test Compute Node',
-    provider_type: 'bare_metal',
+    provider_type: 'onprem' as const,
     hardware: {
       gpu: 'A100',
       vram_gb: 80,
       cpu_cores: 32,
-      ram_gb: 256,
+      memory_gb: 256,
     },
     runtimes: [
-      { name: 'vllm', version: '0.4.0' },
-      { name: 'tgi', version: '1.4.0' },
+      { name: 'vllm' as const, version: '0.4.0' },
+      { name: 'tgi' as const, version: '1.4.0' },
     ],
     regions: ['us-east'],
     endpoints: {
       inference_url: 'http://localhost:8000/v1/completions',
     },
-    status: { availability: 'online' },
   };
 
-  // Fallback compute metadata
+  // Fallback compute metadata (must conform to ComputeMeta.schema.json)
   const fallbackComputeMeta = {
+    schema_version: '1.0' as const,
     compute_passport_id: 'compute_fallback456',
-    name: 'Fallback Compute Node',
-    provider_type: 'cloud',
+    provider_type: 'cloud' as const,
     hardware: {
       gpu: 'A10G',
       vram_gb: 24,
       cpu_cores: 8,
-      ram_gb: 64,
+      memory_gb: 64,
     },
     runtimes: [
-      { name: 'vllm', version: '0.3.0' },
+      { name: 'vllm' as const, version: '0.3.0' },
     ],
     regions: ['us-east'],
     endpoints: {
       inference_url: 'http://localhost:8001/v1/completions',
     },
-    status: { availability: 'online' },
   };
 
   beforeEach(() => {
@@ -205,7 +203,9 @@ describe('Execution Gateway', () => {
     });
 
     it('should return error when no compatible compute found', async () => {
-      // Empty compute catalog - no compatible compute
+      // Override listPassports to return empty (empty catalog falls through to manager)
+      mockListPassports.mockResolvedValueOnce({ items: [] });
+
       const request: ExecutionRequest = {
         model_meta: sampleModelMeta,
         prompt: 'Test',
@@ -286,8 +286,6 @@ describe('Execution Gateway', () => {
     });
 
     it('should create receipt asynchronously after successful inference', async () => {
-      jest.useFakeTimers();
-      
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -305,12 +303,9 @@ describe('Execution Gateway', () => {
       const result = await executeInferenceRequest(request);
       expect(result.success).toBe(true);
 
-      // Receipt creation is async via setImmediate
-      jest.runAllTimers();
-      
-      // Small delay for async operations
-      await new Promise(resolve => setImmediate(resolve));
-      
+      // Receipt creation is async — wait a tick for it to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       expect(mockCreateReceipt).toHaveBeenCalled();
     });
 
@@ -327,10 +322,10 @@ describe('Execution Gateway', () => {
         model_meta: sampleModelMeta,
         prompt: 'Test policy',
         policy: {
-          version: '1.0',
-          constraints: {
-            geo_allow: ['us-east'],
-            max_cost_usd: 1.0,
+          policy_version: '1.0',
+          allow_regions: ['us-east'],
+          cost: {
+            max_price_per_1k_tokens_usd: 1.0,
           },
         },
         compute_catalog: [sampleComputeMeta],
@@ -371,7 +366,7 @@ describe('Execution Gateway', () => {
         ok: true,
         json: async () => ({
           choices: [{
-            text: 'I am an AI assistant.',
+            message: { role: 'assistant', content: 'I am an AI assistant.' },
             finish_reason: 'stop',
           }],
           usage: {
@@ -585,6 +580,9 @@ describe('Execution Gateway', () => {
     });
 
     it('should throw for streaming when no compatible compute', async () => {
+      // Override listPassports to return empty (empty catalog falls through to manager)
+      mockListPassports.mockResolvedValueOnce({ items: [] });
+
       const request: ExecutionRequest = {
         model_meta: sampleModelMeta,
         prompt: 'Stream test',
