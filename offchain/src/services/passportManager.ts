@@ -166,6 +166,17 @@ export class PassportManager {
       return metadataResult;
     }
 
+    // Validate provider_model_id for API-based models
+    if (input.type === 'model' && input.metadata?.format === 'api') {
+      if (!input.metadata.provider_model_id || typeof input.metadata.provider_model_id !== 'string' || input.metadata.provider_model_id.trim() === '') {
+        return {
+          ok: false,
+          error: 'Model passports with format "api" require a non-empty provider_model_id field',
+          details: 'provider_model_id should be the exact model string for the provider API (e.g., "gpt-4o", "claude-3-sonnet-20240229")',
+        };
+      }
+    }
+
     // Ensure passport_id in metadata matches type requirements
     if (input.type === 'model') {
       if (!input.metadata.model_passport_id) {
@@ -277,6 +288,17 @@ export class PassportManager {
       const metadataResult = this.validateMetadata(existing.type, input.metadata);
       if (!metadataResult.ok) {
         return metadataResult;
+      }
+
+      // Validate provider_model_id for API-based models
+      if (existing.type === 'model' && input.metadata?.format === 'api') {
+        if (!input.metadata.provider_model_id || typeof input.metadata.provider_model_id !== 'string' || input.metadata.provider_model_id.trim() === '') {
+          return {
+            ok: false,
+            error: 'Model passports with format "api" require a non-empty provider_model_id field',
+            details: 'provider_model_id should be the exact model string for the provider API (e.g., "gpt-4o", "claude-3-sonnet-20240229")',
+          };
+        }
       }
 
       // Preserve the passport ID in metadata
