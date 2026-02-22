@@ -103,6 +103,9 @@ export interface StreamingExecutionResult {
   runtime: string;
   policy_hash: string;
   stream: AsyncGenerator<StreamChunk, void, unknown>;
+  // Fallback info
+  used_fallback?: boolean;
+  fallback_reason?: string;
   // Called after stream completes to get final metrics and receipt
   finalize: () => Promise<{
     tokens_in: number;
@@ -171,6 +174,33 @@ const DEFAULT_POLICY: Policy = {
   policy_version: '1.0',
 };
 
+// ============================================================================
+// SHARED HELPERS
+// ============================================================================
+
+/**
+ * Check if a model has an API path (TrustGate).
+ */
+function modelHasApiPath(model_meta: any): boolean {
+  return Boolean(model_meta.api_model_id || model_meta.provider_model_id || model_meta.format === 'api');
+}
+
+/**
+ * Check if a model has a compute path (downloadable).
+ */
+function modelHasComputePath(model_meta: any): boolean {
+  return model_meta.format === 'safetensors' || model_meta.format === 'gguf';
+}
+
+/**
+ * Resolve the model ID to send to TrustGate.
+ */
+function resolveApiModelId(model_meta: any): string {
+  return model_meta.api_model_id
+    || model_meta.provider_model_id  // backward compat during migration
+    || (model_meta.name ? model_meta.name.toLowerCase().replace(/\s+/g, '-') : 'unknown');
+}
+
 /**
  * Execute inference via TrustGate provider path (for API-based models).
  * Skips compute matching — TrustGate handles provider routing.
@@ -186,9 +216,7 @@ async function executeProviderRequest(
   const request_id = request.request_id || run_id;
   const trace_id = request.trace_id;
 
-  const apiModelId = model_meta.api_model_id
-    || model_meta.provider_model_id  // backward compat during migration
-    || (model_meta.name ? model_meta.name.toLowerCase().replace(/\s+/g, '-') : 'unknown');
+  const apiModelId = resolveApiModelId(model_meta);
 
   const body: any = {
     model: apiModelId,
@@ -311,9 +339,7 @@ async function executeProviderStreamingRequest(
   const request_id = request.request_id || run_id;
   const trace_id = request.trace_id;
 
-  const apiModelId = model_meta.api_model_id
-    || model_meta.provider_model_id  // backward compat during migration
-    || (model_meta.name ? model_meta.name.toLowerCase().replace(/\s+/g, '-') : 'unknown');
+  const apiModelId = resolveApiModelId(model_meta);
 
   const body: any = {
     model: apiModelId,
@@ -463,8 +489,8 @@ export async function executeInferenceRequest(
     const { model_passport_id, model_meta } = await resolveModel(request);
 
     // Determine available paths
-    const hasApiPath = Boolean(model_meta.api_model_id || model_meta.provider_model_id || model_meta.format === 'api');
-    const hasComputePath = model_meta.format === 'safetensors' || model_meta.format === 'gguf';
+    const hasApiPath = modelHasApiPath(model_meta);
+    const hasComputePath = modelHasComputePath(model_meta);
 
     // API-only models: TrustGate directly
     if (hasApiPath && !hasComputePath) {
@@ -594,8 +620,8 @@ export async function executeStreamingInferenceRequest(
   const { model_passport_id, model_meta } = await resolveModel(request);
 
   // Determine available paths
-  const hasApiPath = Boolean(model_meta.api_model_id || model_meta.provider_model_id || model_meta.format === 'api');
-  const hasComputePath = model_meta.format === 'safetensors' || model_meta.format === 'gguf';
+  const hasApiPath = modelHasApiPath(model_meta);
+  const hasComputePath = modelHasComputePath(model_meta);
 
   // API-only models: streaming via TrustGate
   if (hasApiPath && !hasComputePath) {
@@ -617,101 +643,119 @@ export async function executeStreamingInferenceRequest(
   if (!match) {
     // Dual-path: if TrustGate path is available, fall back to streaming via TrustGate
     if (hasApiPath) {
-      return executeProviderStreamingRequest(request, model_passport_id, model_meta, run_id, startTime);
+      const fallbackResult = await executeProviderStreamingRequest(request, model_passport_id, model_meta, run_id, startTime);
+      return {
+        ...fallbackResult,
+        used_fallback: true,
+        fallback_reason: 'No compatible compute found, routed to TrustGate',
+      };
     }
     throw new Error('NO_COMPATIBLE_COMPUTE');
   }
   
   // 4. Get compute endpoint
-  const computeMeta = compute_catalog.find(
-    (c: any) => c.compute_passport_id === match.compute_passport_id
-  );
-  const endpoint = computeMeta?.endpoints?.inference_url;
-  if (!endpoint) {
-    throw new Error('COMPUTE_MISSING_ENDPOINT');
-  }
-  
-  // 5. Build inference request
-  const inferenceRequest: InferenceRequest = {
-    prompt: request.prompt,
-    messages: request.messages,
-    max_tokens: request.max_tokens,
-    temperature: request.temperature,
-    top_p: request.top_p,
-    top_k: request.top_k,
-    stop: request.stop,
-    stream: true,
-  };
-  
-  // Estimate input tokens
-  const inputEstimate = request.messages
-    ? estimateChatTokens(request.messages)
-    : estimateTokens(request.prompt || '');
-  
-  // Track metrics during streaming
-  let ttft_ms: number | undefined;
-  let tokens_out = 0;
-  let fullText = '';
-  
-  // Create streaming generator wrapper
-  const wrappedStream = async function* (): AsyncGenerator<StreamChunk, void, unknown> {
-    const stream = executeStreamingInference(
-      endpoint,
-      match.selected_runtime as RuntimeType,
-      inferenceRequest
+  try {
+    const computeMeta = compute_catalog.find(
+      (c: any) => c.compute_passport_id === match.compute_passport_id
     );
-    
-    for await (const chunk of stream) {
-      // Track TTFT
-      if (chunk.is_first && !ttft_ms) {
-        ttft_ms = Date.now() - startTime;
-      }
-      
-      fullText += chunk.text;
-      tokens_out = chunk.tokens_out || tokens_out + 1;
-      
-      yield chunk;
+    const endpoint = computeMeta?.endpoints?.inference_url;
+    if (!endpoint) {
+      throw new Error('COMPUTE_MISSING_ENDPOINT');
     }
-  };
-  
-  // Finalize function to create receipt and return metrics
-  const finalize = async () => {
-    const total_latency_ms = Date.now() - startTime;
-    
-    // Create receipt
-    createReceiptAsync({
+
+    // 5. Build inference request
+    const inferenceRequest: InferenceRequest = {
+      prompt: request.prompt,
+      messages: request.messages,
+      max_tokens: request.max_tokens,
+      temperature: request.temperature,
+      top_p: request.top_p,
+      top_k: request.top_k,
+      stop: request.stop,
+      stream: true,
+    };
+
+    // Estimate input tokens
+    const inputEstimate = request.messages
+      ? estimateChatTokens(request.messages)
+      : estimateTokens(request.prompt || '');
+
+    // Track metrics during streaming
+    let ttft_ms: number | undefined;
+    let tokens_out = 0;
+    let fullText = '';
+
+    // Create streaming generator wrapper
+    const wrappedStream = async function* (): AsyncGenerator<StreamChunk, void, unknown> {
+      const stream = executeStreamingInference(
+        endpoint,
+        match.selected_runtime as RuntimeType,
+        inferenceRequest
+      );
+
+      for await (const chunk of stream) {
+        // Track TTFT
+        if (chunk.is_first && !ttft_ms) {
+          ttft_ms = Date.now() - startTime;
+        }
+
+        fullText += chunk.text;
+        tokens_out = chunk.tokens_out || tokens_out + 1;
+
+        yield chunk;
+      }
+    };
+
+    // Finalize function to create receipt and return metrics
+    const finalize = async () => {
+      const total_latency_ms = Date.now() - startTime;
+
+      // Create receipt
+      createReceiptAsync({
+        model_passport_id,
+        compute_passport_id: match.compute_passport_id,
+        policy_hash: explain.policy_hash,
+        runtime: match.selected_runtime,
+        tokens_in: inputEstimate.estimated,
+        tokens_out,
+        ttft_ms: ttft_ms || 0,
+        trace_id,
+        run_id,
+      });
+
+      return {
+        tokens_in: inputEstimate.estimated,
+        tokens_out,
+        ttft_ms: ttft_ms || 0,
+        total_latency_ms,
+        receipt_id: run_id,
+        text: fullText,
+      };
+    };
+
+    return {
+      run_id,
+      request_id,
+      trace_id,
       model_passport_id,
       compute_passport_id: match.compute_passport_id,
-      policy_hash: explain.policy_hash,
       runtime: match.selected_runtime,
-      tokens_in: inputEstimate.estimated,
-      tokens_out,
-      ttft_ms: ttft_ms || 0,
-      trace_id,
-      run_id,
-    });
-    
-    return {
-      tokens_in: inputEstimate.estimated,
-      tokens_out,
-      ttft_ms: ttft_ms || 0,
-      total_latency_ms,
-      receipt_id: run_id,
-      text: fullText,
+      policy_hash: explain.policy_hash,
+      stream: wrappedStream(),
+      finalize,
     };
-  };
-  
-  return {
-    run_id,
-    request_id,
-    trace_id,
-    model_passport_id,
-    compute_passport_id: match.compute_passport_id,
-    runtime: match.selected_runtime,
-    policy_hash: explain.policy_hash,
-    stream: wrappedStream(),
-    finalize,
-  };
+  } catch (computeError) {
+    // Dual-path: if TrustGate path is available, fall back to streaming via TrustGate
+    if (hasApiPath) {
+      const fallbackResult = await executeProviderStreamingRequest(request, model_passport_id, model_meta, run_id, startTime);
+      return {
+        ...fallbackResult,
+        used_fallback: true,
+        fallback_reason: 'All compute endpoints failed, routed to TrustGate',
+      };
+    }
+    throw computeError;
+  }
 }
 
 /**

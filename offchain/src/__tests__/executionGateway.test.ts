@@ -840,6 +840,41 @@ describe('Execution Gateway', () => {
       expect(result.runtime).not.toBe('trustgate');
     });
 
+    it('should fallback to TrustGate when compute execution fails for dual-path model', async () => {
+      const dualPathMeta = {
+        schema_version: '1.0',
+        model_passport_id: 'model_llama3_test',
+        format: 'safetensors',
+        runtime_recommended: 'vllm',
+        api_model_id: 'meta-llama/llama-3-70b',
+        requirements: { min_vram_gb: 16 },
+      };
+
+      // First call: compute endpoint fails
+      mockFetch.mockRejectedValueOnce(new Error('Connection refused'));
+      // Second call: TrustGate succeeds
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { role: 'assistant', content: 'TrustGate saved the day' }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 5, completion_tokens: 4 },
+        }),
+      } as Response);
+
+      const request: ExecutionRequest = {
+        model_meta: dualPathMeta,
+        prompt: 'Hello',
+        compute_catalog: [sampleComputeMeta], // Will match but fail at execution
+      };
+
+      const result = await executeInferenceRequest(request);
+
+      expect(result.success).toBe(true);
+      expect(result.text).toBe('TrustGate saved the day');
+      expect(result.compute_passport_id).toBe('trustgate');
+      expect(result.used_fallback).toBe(true);
+    });
+
     it('should NOT fallback to TrustGate for downloadable models WITHOUT api_model_id', async () => {
       const request: ExecutionRequest = {
         model_meta: sampleModelMeta,
