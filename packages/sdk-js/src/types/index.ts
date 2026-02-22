@@ -66,8 +66,9 @@ export interface PassportFilters {
 
 export interface ModelMeta {
   name: string;
-  format: string; // e.g., 'safetensors', 'gguf'
-  runtime_recommended: string; // e.g., 'vllm', 'tgi', 'tensorrt'
+  format: 'safetensors' | 'gguf' | 'api';
+  runtime_recommended: string; // e.g., 'vllm', 'tgi', 'tensorrt', 'trustgate', 'openai'
+  api_model_id?: string; // TrustGate model ID — enables API path (e.g., 'gpt-4o', 'meta-llama/llama-3-70b')
   hf_repo?: string;
   model_type?: string;
   architecture?: string;
