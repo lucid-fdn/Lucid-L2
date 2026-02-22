@@ -382,7 +382,7 @@ describe('PassportManager', () => {
       expect(result.error).toContain('schema validation failed');
     });
 
-    it('should reject format=api model passport without provider_model_id', async () => {
+    it('should reject format=api model passport without api_model_id', async () => {
       const apiMetaNoProvider = {
         schema_version: '1.0',
         model_passport_id: 'placeholder_placeholder',
@@ -397,16 +397,16 @@ describe('PassportManager', () => {
       });
 
       expect(result.ok).toBe(false);
-      expect(result.error).toContain('provider_model_id');
+      expect(result.error).toContain('api_model_id');
     });
 
-    it('should accept format=api model passport with valid provider_model_id', async () => {
+    it('should accept format=api model passport with valid api_model_id', async () => {
       const apiMetaWithProvider = {
         schema_version: '1.0',
         model_passport_id: 'placeholder_placeholder',
         format: 'api',
         runtime_recommended: 'trustgate',
-        provider_model_id: 'gpt-4o',
+        api_model_id: 'gpt-4o',
       };
 
       const result = await manager.createPassport({
@@ -417,7 +417,7 @@ describe('PassportManager', () => {
 
       expect(result.ok).toBe(true);
       expect(result.data).toBeDefined();
-      expect(result.data!.metadata.provider_model_id).toBe('gpt-4o');
+      expect(result.data!.metadata.api_model_id).toBe('gpt-4o');
     });
 
     it('should update metadata passport_id to match generated ID', async () => {
@@ -487,7 +487,7 @@ describe('PassportManager', () => {
       expect(result.error).toContain('Not authorized');
     });
 
-    it('should reject update to format=api without provider_model_id', async () => {
+    it('should reject update to format=api without api_model_id', async () => {
       const created = await manager.createPassport({
         type: 'model',
         owner: VALID_OWNER,
@@ -496,7 +496,7 @@ describe('PassportManager', () => {
           model_passport_id: 'placeholder_placeholder',
           format: 'api',
           runtime_recommended: 'trustgate',
-          provider_model_id: 'gpt-4o',
+          api_model_id: 'gpt-4o',
         },
       });
 
@@ -508,12 +508,12 @@ describe('PassportManager', () => {
           model_passport_id: created.data!.passport_id,
           format: 'api',
           runtime_recommended: 'trustgate',
-          // Missing provider_model_id
+          // Missing api_model_id
         },
       });
 
       expect(result.ok).toBe(false);
-      expect(result.error).toContain('provider_model_id');
+      expect(result.error).toContain('api_model_id');
     });
 
     it('should preserve metadata passport_id on update', async () => {
