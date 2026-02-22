@@ -12,6 +12,42 @@ import {
 } from '../storage/passportStore';
 import { validateWithSchema, SchemaId } from '../utils/schemaValidator';
 
+// =============================================================================
+// TRUSTGATE CATALOG VALIDATION
+// =============================================================================
+
+const TRUSTGATE_URL = process.env.TRUSTGATE_URL || 'https://trustgate-api-production.up.railway.app';
+let trustgateCatalogCache: { models: Set<string>; expires: number } | null = null;
+const CATALOG_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+async function getTrustGateCatalog(): Promise<Set<string>> {
+  if (trustgateCatalogCache && Date.now() < trustgateCatalogCache.expires) {
+    return trustgateCatalogCache.models;
+  }
+
+  try {
+    const response = await fetch(`${TRUSTGATE_URL}/v1/models`);
+    if (!response.ok) {
+      console.warn('TrustGate catalog check failed:', response.status);
+      return new Set();
+    }
+    const data = await response.json();
+    const models = new Set<string>(
+      (data.data || []).map((m: { id: string }) => m.id)
+    );
+    trustgateCatalogCache = { models, expires: Date.now() + CATALOG_CACHE_TTL };
+    return models;
+  } catch (error) {
+    console.warn('TrustGate catalog unreachable:', error);
+    return new Set();
+  }
+}
+
+/** Reset catalog cache (exported for testing) */
+export function _resetTrustGateCatalogCache() {
+  trustgateCatalogCache = null;
+}
+
 /**
  * Schema mapping for passport types
  */
@@ -175,6 +211,24 @@ export class PassportManager {
           error: 'Model passports with format "api" require a non-empty api_model_id field',
           details: 'api_model_id is the model string TrustGate uses for routing (e.g., "gpt-4o", "claude-3-sonnet-20240229")',
         };
+      }
+    }
+
+    // Validate api_model_id against TrustGate catalog
+    if (input.type === 'model' && (input.metadata?.api_model_id || input.metadata?.provider_model_id || input.metadata?.format === 'api')) {
+      const catalog = await getTrustGateCatalog();
+      const modelId = input.metadata.api_model_id
+        || input.metadata.provider_model_id
+        || (input.metadata.name ? input.metadata.name.toLowerCase().replace(/\s+/g, '-') : '');
+
+      if (catalog.size > 0 && modelId && !catalog.has(modelId)) {
+        if (input.metadata.format === 'api') {
+          return {
+            ok: false,
+            error: `Model '${modelId}' not found in TrustGate catalog. Available models can be checked at ${TRUSTGATE_URL}/v1/models`,
+          };
+        }
+        console.log(`[PassportManager] TrustGate may serve this model — consider setting api_model_id for dual-path routing`);
       }
     }
 
