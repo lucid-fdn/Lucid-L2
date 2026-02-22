@@ -186,11 +186,12 @@ async function executeProviderRequest(
   const request_id = request.request_id || run_id;
   const trace_id = request.trace_id;
 
-  const providerModel = model_meta.provider_model_id
+  const apiModelId = model_meta.api_model_id
+    || model_meta.provider_model_id  // backward compat during migration
     || (model_meta.name ? model_meta.name.toLowerCase().replace(/\s+/g, '-') : 'unknown');
 
   const body: any = {
-    model: providerModel,
+    model: apiModelId,
     max_tokens: request.max_tokens || 512,
     temperature: request.temperature ?? 0.7,
     stream: false,
@@ -310,11 +311,12 @@ async function executeProviderStreamingRequest(
   const request_id = request.request_id || run_id;
   const trace_id = request.trace_id;
 
-  const providerModel = model_meta.provider_model_id
+  const apiModelId = model_meta.api_model_id
+    || model_meta.provider_model_id  // backward compat during migration
     || (model_meta.name ? model_meta.name.toLowerCase().replace(/\s+/g, '-') : 'unknown');
 
   const body: any = {
-    model: providerModel,
+    model: apiModelId,
     max_tokens: request.max_tokens || 512,
     temperature: request.temperature ?? 0.7,
     stream: true,
@@ -460,8 +462,12 @@ export async function executeInferenceRequest(
     // 1. Resolve model passport and metadata
     const { model_passport_id, model_meta } = await resolveModel(request);
 
-    // Provider path: API-based models route directly to TrustGate
-    if (model_meta.format === 'api') {
+    // Determine available paths
+    const hasApiPath = Boolean(model_meta.api_model_id || model_meta.provider_model_id || model_meta.format === 'api');
+    const hasComputePath = model_meta.format === 'safetensors' || model_meta.format === 'gguf';
+
+    // API-only models: TrustGate directly
+    if (hasApiPath && !hasComputePath) {
       return executeProviderRequest(request, model_passport_id, model_meta, run_id, startTime);
     }
 
@@ -478,6 +484,11 @@ export async function executeInferenceRequest(
     });
     
     if (!match) {
+      // Dual-path: if TrustGate path is available, fall back to it
+      if (hasApiPath) {
+        const providerResult = await executeProviderRequest(request, model_passport_id, model_meta, run_id, startTime);
+        return { ...providerResult, used_fallback: true, fallback_reason: 'No compatible compute found, routed to TrustGate' };
+      }
       return {
         success: false,
         run_id,
@@ -496,14 +507,23 @@ export async function executeInferenceRequest(
     }
     
     // 4. Execute inference
-    const result = await executeWithFallback(
-      request,
-      match,
-      compute_catalog,
-      model_meta,
-      run_id,
-      startTime
-    );
+    let result;
+    try {
+      result = await executeWithFallback(
+        request,
+        match,
+        compute_catalog,
+        model_meta,
+        run_id,
+        startTime
+      );
+    } catch (computeError) {
+      if (hasApiPath) {
+        const providerResult = await executeProviderRequest(request, model_passport_id, model_meta, run_id, startTime);
+        return { ...providerResult, used_fallback: true, fallback_reason: 'All compute endpoints failed, routed to TrustGate' };
+      }
+      throw computeError;
+    }
     
     // 5. Create receipt asynchronously (don't block response)
     createReceiptAsync({
@@ -573,14 +593,18 @@ export async function executeStreamingInferenceRequest(
   // 1. Resolve model passport and metadata
   const { model_passport_id, model_meta } = await resolveModel(request);
 
-  // Provider path: streaming via TrustGate
-  if (model_meta.format === 'api') {
+  // Determine available paths
+  const hasApiPath = Boolean(model_meta.api_model_id || model_meta.provider_model_id || model_meta.format === 'api');
+  const hasComputePath = model_meta.format === 'safetensors' || model_meta.format === 'gguf';
+
+  // API-only models: streaming via TrustGate
+  if (hasApiPath && !hasComputePath) {
     return executeProviderStreamingRequest(request, model_passport_id, model_meta, run_id, startTime);
   }
 
   // 2. Get compute catalog
   const compute_catalog = await getComputeCatalog(request);
-  
+
   // 3. Match compute using policy
   const policy = request.policy || DEFAULT_POLICY;
   const { match, explain } = matchComputeForModel({
@@ -589,8 +613,12 @@ export async function executeStreamingInferenceRequest(
     compute_catalog,
     require_live_healthy: true,
   });
-  
+
   if (!match) {
+    // Dual-path: if TrustGate path is available, fall back to streaming via TrustGate
+    if (hasApiPath) {
+      return executeProviderStreamingRequest(request, model_passport_id, model_meta, run_id, startTime);
+    }
     throw new Error('NO_COMPATIBLE_COMPUTE');
   }
   

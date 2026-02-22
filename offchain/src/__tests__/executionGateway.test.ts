@@ -625,7 +625,7 @@ describe('Execution Gateway', () => {
       model_passport_id: 'model_gpt4o_test',
       format: 'api',
       runtime_recommended: 'trustgate',
-      provider_model_id: 'gpt-4o',
+      api_model_id: 'gpt-4o',
       base: 'openai',
       context_length: 128000,
       requirements: { min_vram_gb: 0 },
@@ -668,7 +668,7 @@ describe('Execution Gateway', () => {
       expect(mockCreateReceipt).not.toHaveBeenCalled();
     });
 
-    it('should use provider_model_id as the model field sent to TrustGate', async () => {
+    it('should use api_model_id as the model field sent to TrustGate', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -775,6 +775,82 @@ describe('Execution Gateway', () => {
       expect(result.success).toBe(true);
       expect(result.compute_passport_id).toBe('trustgate');
       expect(mockGetPassport).toHaveBeenCalledWith('model_gpt4o_test');
+    });
+
+    it('should use TrustGate as fallback when no compute found for dual-path model', async () => {
+      const dualPathMeta = {
+        schema_version: '1.0',
+        model_passport_id: 'model_llama3_test',
+        format: 'safetensors',
+        runtime_recommended: 'vllm',
+        api_model_id: 'meta-llama/llama-3-70b',
+        requirements: { min_vram_gb: 40 },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { role: 'assistant', content: 'Hello from TrustGate fallback' }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: 5, completion_tokens: 3 },
+        }),
+      } as Response);
+
+      const request: ExecutionRequest = {
+        model_meta: dualPathMeta,
+        messages: [{ role: 'user', content: 'Hello' }],
+        compute_catalog: [],
+      };
+
+      const result = await executeInferenceRequest(request);
+
+      expect(result.success).toBe(true);
+      expect(result.text).toBe('Hello from TrustGate fallback');
+      expect(result.compute_passport_id).toBe('trustgate');
+      expect(result.used_fallback).toBe(true);
+    });
+
+    it('should prefer compute path over TrustGate for dual-path model', async () => {
+      const dualPathMeta = {
+        schema_version: '1.0',
+        model_passport_id: 'model_llama3_test',
+        format: 'safetensors',
+        runtime_recommended: 'vllm',
+        api_model_id: 'meta-llama/llama-3-70b',
+        requirements: { min_vram_gb: 16 },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          choices: [{ text: 'Hello from compute', finish_reason: 'stop' }],
+          usage: { prompt_tokens: 5, completion_tokens: 3 },
+        }),
+      } as Response);
+
+      const request: ExecutionRequest = {
+        model_meta: dualPathMeta,
+        prompt: 'Hello',
+        compute_catalog: [sampleComputeMeta],
+      };
+
+      const result = await executeInferenceRequest(request);
+
+      expect(result.success).toBe(true);
+      expect(result.compute_passport_id).not.toBe('trustgate');
+      expect(result.runtime).not.toBe('trustgate');
+    });
+
+    it('should NOT fallback to TrustGate for downloadable models WITHOUT api_model_id', async () => {
+      const request: ExecutionRequest = {
+        model_meta: sampleModelMeta,
+        prompt: 'Hello',
+        compute_catalog: [],
+      };
+
+      const result = await executeInferenceRequest(request);
+
+      expect(result.success).toBe(false);
+      expect(result.error_code).toBe('NO_COMPATIBLE_COMPUTE');
     });
   });
 });
