@@ -143,6 +143,17 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
       reputationRegistry: process.env.BASE_SEPOLIA_REPUTATION_REGISTRY,
     },
     usdcAddress: process.env.BASE_SEPOLIA_USDC_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+    // Phase 3 contracts (populated on deploy)
+    escrowContract: process.env.BASE_SEPOLIA_ESCROW_CONTRACT,
+    arbitrationContract: process.env.BASE_SEPOLIA_ARBITRATION_CONTRACT,
+    entryPoint: '0x0000000071727De22E5E9d8BAf0edAc6f37da032', // Canonical EntryPoint v0.7
+    paymaster: process.env.BASE_SEPOLIA_PAYMASTER,
+    modules: {
+      policy: process.env.BASE_SEPOLIA_MODULE_POLICY,
+      payout: process.env.BASE_SEPOLIA_MODULE_PAYOUT,
+      receipt: process.env.BASE_SEPOLIA_MODULE_RECEIPT,
+    },
+    zkmlVerifier: process.env.BASE_SEPOLIA_ZKML_VERIFIER,
   },
 
   'ethereum-sepolia': {

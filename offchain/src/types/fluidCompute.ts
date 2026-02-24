@@ -589,6 +589,15 @@ export interface ExtendedReceiptBody {
   image_hash?: string;
   model_hash?: string;
   attestation?: Record<string, unknown>;
+
+  // Phase 3: zkML proof attachment
+  zkml_proof?: {
+    proof: string;
+    public_inputs: string[];
+    model_circuit_hash: string;
+    verified_onchain?: boolean;
+    verification_tx?: string;
+  };
 }
 
 /**

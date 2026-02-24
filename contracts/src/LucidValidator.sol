@@ -155,6 +155,47 @@ contract LucidValidator {
     }
 
     // =========================================================================
+    // zkML Proof Verification (Phase 3)
+    // =========================================================================
+
+    /**
+     * @notice Delegate zkML proof verification to a ZkMLVerifier contract.
+     * @param zkmlVerifier Address of the ZkMLVerifier contract
+     * @param modelHash Model circuit hash
+     * @param a Proof point A (uint256[2])
+     * @param b Proof point B (uint256[2][2])
+     * @param c Proof point C (uint256[2])
+     * @param publicInputs Public inputs array
+     * @return valid True if the proof is valid
+     */
+    function verifyZkMLProof(
+        address zkmlVerifier,
+        bytes32 modelHash,
+        uint256[2] calldata a,
+        uint256[2][2] calldata b,
+        uint256[2] calldata c,
+        uint256[] calldata publicInputs
+    ) external returns (bool valid) {
+        require(zkmlVerifier != address(0), "Invalid verifier address");
+
+        // Encode the call to ZkMLVerifier.verifyProof
+        // We pass the proof components directly and let the verifier handle pairing
+        (bool success, bytes memory result) = zkmlVerifier.call(
+            abi.encodeWithSignature(
+                "verifyProof(bytes32,(uint256,uint256),(uint256[2],uint256[2]),(uint256,uint256),uint256[])",
+                modelHash,
+                a,
+                b,
+                c,
+                publicInputs
+            )
+        );
+
+        if (!success) return false;
+        return abi.decode(result, (bool));
+    }
+
+    // =========================================================================
     // Internal Helpers
     // =========================================================================
 

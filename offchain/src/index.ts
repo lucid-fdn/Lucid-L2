@@ -44,6 +44,11 @@ import { ReceiptVolumeAlgorithm } from './services/reputation/algorithms/Receipt
 import { CrossChainWeightedAlgorithm } from './services/reputation/algorithms/CrossChainWeightedAlgorithm';
 import { StakeWeightedAlgorithm } from './services/reputation/algorithms/StakeWeightedAlgorithm';
 import { tbaRouter } from './routes/tbaRoutes';
+import { escrowRouter } from './routes/escrowRoutes';
+import { disputeRouter } from './routes/disputeRoutes';
+import { paymasterRouter } from './routes/paymasterRoutes';
+import { erc7579Router } from './routes/erc7579Routes';
+import { zkmlRouter } from './routes/zkmlRoutes';
 
 const app = express();
 
@@ -167,6 +172,13 @@ app.use('/', reputationMarketplaceRouter);
 
 // Mount TBA routes (ERC-6551 Token Bound Accounts)
 app.use('/', tbaRouter);
+
+// Mount Phase 3 routes
+app.use('/', escrowRouter);
+app.use('/', disputeRouter);
+app.use('/', paymasterRouter);
+app.use('/', erc7579Router);
+app.use('/', zkmlRouter);
 
 // Register built-in reputation algorithms
 reputationAlgorithmRegistry.register(new ReceiptVolumeAlgorithm());

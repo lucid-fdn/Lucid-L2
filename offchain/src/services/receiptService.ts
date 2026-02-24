@@ -102,6 +102,14 @@ export interface SignedReceipt {
   };
   // Internal tracking (not in schema)
   _mmr_leaf_index?: number;
+  // Phase 3: zkML proof attachment
+  zkml_proof?: {
+    proof: string;
+    public_inputs: string[];
+    model_circuit_hash: string;
+    verified_onchain?: boolean;
+    verification_tx?: string;
+  };
 }
 
 export interface ReceiptVerifyResult {
@@ -448,6 +456,28 @@ export function createReceipt(input: RunReceiptInput, idempotencyKey?: string): 
   const tree = getReceiptTree();
   const leafIndex = tree.addLeaf(receipt_hash);
   signed._mmr_leaf_index = leafIndex;
+
+  // Phase 3: Optionally attach zkML proof if enabled
+  if (process.env.ZKML_ENABLED === 'true') {
+    try {
+      const { getZkMLService } = require('./zkmlService');
+      const zkmlService = getZkMLService();
+      const proof = zkmlService.generateProof({
+        modelId: input.model_passport_id,
+        inputHash: receipt_hash,
+        outputHash: receipt_hash,
+        policyHash: input.policy_hash,
+      });
+      signed.zkml_proof = {
+        proof: JSON.stringify({ a: proof.a, b: proof.b, c: proof.c }),
+        public_inputs: proof.publicInputs,
+        model_circuit_hash: proof.modelCircuitHash,
+        verified_onchain: false,
+      };
+    } catch {
+      // zkML attachment is best-effort; don't fail the receipt
+    }
+  }
 
   // Store receipt
   receiptStore.set(run_id, signed);

@@ -409,3 +409,61 @@ export async function executePayoutSplit(
 export function getPayoutExecution(runId: string, chainId: string): PayoutExecution | null {
   return executionStore.get(`${runId}:${chainId}`) || null;
 }
+
+// =============================================================================
+// Phase 3: Escrowed Payout
+// =============================================================================
+
+/**
+ * Create an escrowed payout. Instead of directly transferring funds,
+ * creates an escrow that releases on receipt verification.
+ *
+ * Use when `escrow: true` flag is set on the payout request.
+ */
+export async function createEscrowedPayout(params: {
+  run_id: string;
+  chainId: string;
+  total_amount_lamports: bigint;
+  compute_wallet: string;
+  model_wallet?: string;
+  duration?: number; // escrow duration in seconds, default 24h
+  expectedReceiptHash?: string;
+}): Promise<{ escrowId: string; txHash: string; payout: PayoutSplit }> {
+  // Calculate the split first
+  const payout = calculatePayoutSplit({
+    run_id: params.run_id,
+    total_amount_lamports: params.total_amount_lamports,
+    compute_wallet: params.compute_wallet,
+    model_wallet: params.model_wallet,
+  });
+
+  storePayout(payout);
+
+  // Create escrow for the compute provider's share
+  const { getEscrowService } = await import('./escrowService');
+  const escrowService = getEscrowService();
+
+  const { CHAIN_CONFIGS } = await import('../blockchain/chains');
+  const chainConfig = CHAIN_CONFIGS[params.chainId];
+  if (!chainConfig) throw new Error(`Unknown chain: ${params.chainId}`);
+
+  const tokenAddress = chainConfig.lucidTokenAddress || chainConfig.usdcAddress;
+  if (!tokenAddress) throw new Error(`No payment token on chain: ${params.chainId}`);
+
+  const computeRecipient = payout.recipients.find((r) => r.role === 'compute');
+  if (!computeRecipient) throw new Error('No compute recipient in payout split');
+
+  const result = await escrowService.createEscrow(params.chainId, {
+    beneficiary: computeRecipient.wallet_address,
+    token: tokenAddress,
+    amount: computeRecipient.amount_lamports.toString(),
+    duration: params.duration || 86400, // 24h default
+    expectedReceiptHash: params.expectedReceiptHash,
+  });
+
+  return {
+    escrowId: result.escrowId,
+    txHash: result.txHash,
+    payout,
+  };
+}

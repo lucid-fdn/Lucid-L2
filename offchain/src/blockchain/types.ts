@@ -67,6 +67,28 @@ export interface ChainConfig {
     registry: string;
     accountImplementation: string;
   };
+
+  /** LucidEscrow contract address */
+  escrowContract?: string;
+
+  /** LucidArbitration contract address */
+  arbitrationContract?: string;
+
+  /** ERC-4337 EntryPoint v0.7 address */
+  entryPoint?: string;
+
+  /** LucidPaymaster contract address */
+  paymaster?: string;
+
+  /** ERC-7579 module addresses */
+  modules?: {
+    policy?: string;
+    payout?: string;
+    receipt?: string;
+  };
+
+  /** ZkMLVerifier contract address */
+  zkmlVerifier?: string;
 }
 
 // =============================================================================
