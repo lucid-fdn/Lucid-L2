@@ -32,9 +32,18 @@ import { setAnchoringConfig, setAuthorityKeypair } from './services/anchoringSer
 import { getKeypair } from './solana/client';
 import { blockchainAdapterFactory } from './blockchain/BlockchainAdapterFactory';
 import { EVMAdapter } from './blockchain/evm/EVMAdapter';
-import { CHAIN_CONFIGS, getEVMChains } from './blockchain/chains';
+import { SolanaAdapter } from './blockchain/solana/SolanaAdapter';
+import { CHAIN_CONFIGS, getEVMChains, getSolanaChains } from './blockchain/chains';
 import { setX402Config } from './middleware/x402';
 import { getReputationAggregator } from './services/reputationAggregator';
+import { identityBridgeRouter } from './routes/identityBridgeRoutes';
+import { bridgeRouter } from './routes/bridgeRoutes';
+import { reputationMarketplaceRouter } from './routes/reputationMarketplaceRoutes';
+import { reputationAlgorithmRegistry } from './services/reputation';
+import { ReceiptVolumeAlgorithm } from './services/reputation/algorithms/ReceiptVolumeAlgorithm';
+import { CrossChainWeightedAlgorithm } from './services/reputation/algorithms/CrossChainWeightedAlgorithm';
+import { StakeWeightedAlgorithm } from './services/reputation/algorithms/StakeWeightedAlgorithm';
+import { tbaRouter } from './routes/tbaRoutes';
 
 const app = express();
 
@@ -146,6 +155,24 @@ app.use('/api/solana', solanaRoutes);
 
 // Mount health check routes
 app.use('/health', healthRoutes);
+
+// Mount Identity Bridge routes (CAIP-10 cross-chain identity)
+app.use('/', identityBridgeRouter);
+
+// Mount Cross-Chain Bridge routes (LayerZero OFT $LUCID)
+app.use('/', bridgeRouter);
+
+// Mount Reputation Marketplace routes
+app.use('/', reputationMarketplaceRouter);
+
+// Mount TBA routes (ERC-6551 Token Bound Accounts)
+app.use('/', tbaRouter);
+
+// Register built-in reputation algorithms
+reputationAlgorithmRegistry.register(new ReceiptVolumeAlgorithm());
+reputationAlgorithmRegistry.register(new CrossChainWeightedAlgorithm());
+reputationAlgorithmRegistry.register(new StakeWeightedAlgorithm());
+console.log(`Reputation Marketplace: ${reputationAlgorithmRegistry.count()} algorithm(s) registered`);
 
 // Initialize Passport Manager and wire up On-Chain Sync
 getPassportManager().init().then(async () => {
@@ -284,6 +311,41 @@ try {
     }
   } catch (err) {
     console.warn('EVM Multi-Chain init failed:', err instanceof Error ? err.message : err);
+  }
+})();
+
+// Initialize Solana Blockchain Adapters
+(async () => {
+  try {
+    const enabledSolanaChains = process.env.SOLANA_ENABLED_CHAINS
+      ? process.env.SOLANA_ENABLED_CHAINS.split(',').map((s) => s.trim())
+      : getSolanaChains().filter((c) => c.isTestnet).map((c) => c.chainId);
+
+    let registered = 0;
+    for (const chainId of enabledSolanaChains) {
+      const config = CHAIN_CONFIGS[chainId];
+      if (!config || config.chainType !== 'solana') {
+        console.warn(`Unknown or non-Solana chain: ${chainId}, skipping`);
+        continue;
+      }
+
+      // Allow per-chain RPC override
+      const envKey = chainId.toUpperCase().replace(/-/g, '_') + '_RPC_URL';
+      if (process.env[envKey]) {
+        config.rpcUrl = process.env[envKey]!;
+      }
+
+      const adapter = new SolanaAdapter();
+      blockchainAdapterFactory.register(adapter, config);
+      registered++;
+    }
+
+    if (registered > 0) {
+      console.log(`Solana Multi-Chain: ${registered} chain(s) registered`);
+      console.log(`   Chains: ${enabledSolanaChains.join(', ')}`);
+    }
+  } catch (err) {
+    console.warn('Solana Multi-Chain init failed:', err instanceof Error ? err.message : err);
   }
 })();
 

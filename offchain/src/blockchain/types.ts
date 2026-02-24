@@ -55,6 +55,18 @@ export interface ChainConfig {
 
   /** LucidValidator contract address */
   lucidValidatorAddress?: string;
+
+  /** LayerZero V2 endpoint address (for OFT cross-chain transfers) */
+  layerZeroEndpoint?: string;
+
+  /** $LUCID token address on this chain (OFT or native) */
+  lucidTokenAddress?: string;
+
+  /** ERC-6551 Token Bound Account configuration */
+  erc6551?: {
+    registry: string;
+    accountImplementation: string;
+  };
 }
 
 // =============================================================================
@@ -143,6 +155,9 @@ export interface AgentIdentity {
 
   /** Whether the agent is active */
   isActive?: boolean;
+
+  /** CAIP-10 cross-chain address (e.g. "solana:5eykt...:pubkey" or "eip155:8453:0x...") */
+  caip10Address?: string;
 }
 
 export interface ValidationSubmission {

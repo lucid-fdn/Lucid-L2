@@ -189,7 +189,41 @@ export class EVMAdapter implements IBlockchainAdapter {
       this._account.address,
     );
 
-    return this.waitForTx(hash);
+    const receipt = await this.waitForTx(hash);
+
+    // Auto-create TBA if ERC-6551 is configured and autoCreateTBA is enabled
+    if (receipt.success && this._config?.erc6551 && process.env.AUTO_CREATE_TBA === 'true') {
+      try {
+        // Extract tokenId from the Transfer(address,address,uint256) event in the tx receipt
+        // Transfer event topic: keccak256("Transfer(address,address,uint256)")
+        const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+        const rawReceipt = receipt.raw as { logs?: Array<{ address: string; topics?: string[] }> } | undefined;
+        const logs = rawReceipt?.logs || [];
+        const identityAddr = this._config.erc8004?.identityRegistry?.toLowerCase();
+
+        let mintedTokenId: string | null = null;
+        for (const log of logs) {
+          const logAddr = (log.address || '').toLowerCase();
+          if (logAddr === identityAddr && log.topics?.[0] === TRANSFER_TOPIC && log.topics.length >= 4) {
+            // ERC-721 Transfer: topics[3] is the tokenId
+            mintedTokenId = BigInt(log.topics[3]).toString();
+            break;
+          }
+        }
+
+        if (mintedTokenId && identityAddr) {
+          const { getTBAService } = await import('../../services/tbaService');
+          const tbaService = getTBAService();
+          const tba = await tbaService.createTBA(this._chainId, identityAddr, mintedTokenId);
+          console.log(`[EVMAdapter] TBA auto-created for token ${mintedTokenId}: ${tba.address}`);
+        }
+      } catch (err) {
+        // TBA creation is optional — log but don't fail
+        console.warn(`[EVMAdapter] TBA auto-creation failed:`, err instanceof Error ? err.message : err);
+      }
+    }
+
+    return receipt;
   }
 
   async queryAgent(agentId: string): Promise<AgentIdentity | null> {
@@ -329,6 +363,10 @@ export class EVMAdapter implements IBlockchainAdapter {
 
   get publicClient(): any {
     return this._publicClient;
+  }
+
+  get walletClient(): any {
+    return this._walletClient;
   }
 
   // =========================================================================

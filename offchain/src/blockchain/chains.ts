@@ -43,6 +43,8 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
       reputationRegistry: process.env.BASE_REPUTATION_REGISTRY,
     },
     usdcAddress: process.env.BASE_USDC_ADDRESS || '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+    layerZeroEndpoint: '0x1a44076050125825900e736c501f859c50fE728c',
+    lucidTokenAddress: process.env.BASE_LUCID_OFT_ADDRESS,
   },
 
   'ethereum': {
@@ -60,6 +62,8 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
       reputationRegistry: process.env.ETHEREUM_REPUTATION_REGISTRY,
     },
     usdcAddress: process.env.ETHEREUM_USDC_ADDRESS || '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    layerZeroEndpoint: '0x1a44076050125825900e736c501f859c50fE728c',
+    lucidTokenAddress: process.env.ETHEREUM_LUCID_OFT_ADDRESS,
   },
 
   'arbitrum': {
@@ -71,6 +75,8 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     isTestnet: false,
     explorerUrl: 'https://arbiscan.io',
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    layerZeroEndpoint: '0x1a44076050125825900e736c501f859c50fE728c',
+    lucidTokenAddress: process.env.ARBITRUM_LUCID_OFT_ADDRESS,
   },
 
   'avalanche': {

@@ -163,6 +163,25 @@ export function estimatePayout(params: {
 }
 
 /**
+ * Resolve a payout recipient's TBA address if available.
+ * If the agent has a Token Bound Account, payouts go to the TBA instead.
+ */
+export async function resolvePayoutRecipient(
+  chainId: string,
+  agentTokenId: string,
+  fallbackWallet: string,
+): Promise<string> {
+  try {
+    const { getTBAService } = await import('./tbaService');
+    const tbaService = getTBAService();
+    const tbaAddress = await tbaService.resolveTBAForAgent(chainId, agentTokenId);
+    return tbaAddress || fallbackWallet;
+  } catch {
+    return fallbackWallet;
+  }
+}
+
+/**
  * Create payout from receipt data
  */
 export function createPayoutFromReceipt(params: {
