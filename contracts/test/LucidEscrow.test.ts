@@ -212,7 +212,7 @@ describe("LucidEscrow", function () {
     it("should reject dispute from non-party", async function () {
       await expect(
         escrow.connect(other).disputeEscrow(escrowId, "Random dispute")
-      ).to.be.revertedWith("Only depositor or beneficiary can dispute");
+      ).to.be.revertedWith("Only depositor, beneficiary, or arbitration contract can dispute");
     });
 
     it("should prevent timeout claim after dispute", async function () {

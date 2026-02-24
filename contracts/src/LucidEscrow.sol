@@ -205,8 +205,10 @@ contract LucidEscrow is ReentrancyGuard, Ownable {
         require(escrow.createdAt != 0, "Escrow does not exist");
         require(escrow.status == EscrowStatus.Created, "Escrow not in Created status");
         require(
-            msg.sender == escrow.depositor || msg.sender == escrow.beneficiary,
-            "Only depositor or beneficiary can dispute"
+            msg.sender == escrow.depositor ||
+            msg.sender == escrow.beneficiary ||
+            msg.sender == arbitrationContract,
+            "Only depositor, beneficiary, or arbitration contract can dispute"
         );
 
         escrow.status = EscrowStatus.Disputed;

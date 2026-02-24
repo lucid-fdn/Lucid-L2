@@ -8,7 +8,7 @@ describe("LucidPaymaster", function () {
   let owner: any;
   let user: any;
 
-  const LUCID_PER_ETH = ethers.parseUnits("1000", 18); // 1 ETH = 1000 $LUCID
+  const LUCID_PER_ETH = ethers.parseUnits("1000", 9); // 1 ETH = 1000 $LUCID (9-decimal token)
   const MAX_COST_LUCID = ethers.parseUnits("10000", 9); // Max 10000 $LUCID per op
 
   beforeEach(async function () {
@@ -106,7 +106,7 @@ describe("LucidPaymaster", function () {
 
   describe("setExchangeRate", function () {
     it("should update exchange rate", async function () {
-      const newRate = ethers.parseUnits("2000", 18);
+      const newRate = ethers.parseUnits("2000", 9);
       await paymaster.setExchangeRate(newRate);
       expect(await paymaster.lucidPerEth()).to.equal(newRate);
     });
@@ -117,7 +117,7 @@ describe("LucidPaymaster", function () {
 
     it("should reject non-owner", async function () {
       await expect(
-        paymaster.connect(user).setExchangeRate(ethers.parseUnits("2000", 18))
+        paymaster.connect(user).setExchangeRate(ethers.parseUnits("2000", 9))
       ).to.be.reverted;
     });
   });

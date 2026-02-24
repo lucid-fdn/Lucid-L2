@@ -46,8 +46,8 @@ contract LucidPaymaster is Ownable {
     IERC20 public immutable lucidToken;
     IEntryPoint public immutable entryPoint;
 
-    /// @notice Exchange rate: $LUCID per ETH (18 decimals)
-    /// e.g., 1000 * 10^18 means 1 ETH = 1000 $LUCID
+    /// @notice Exchange rate: $LUCID per ETH (in token's native decimals)
+    /// e.g., 1000 * 10^9 means 1 ETH = 1000 $LUCID (9-decimal token)
     uint256 public lucidPerEth;
 
     /// @notice Maximum gas cost in $LUCID that the paymaster will sponsor
