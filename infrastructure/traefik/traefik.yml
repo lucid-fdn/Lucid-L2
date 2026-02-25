@@ -1,6 +1,6 @@
 api:
-  dashboard: true
-  insecure: true  # Access dashboard on :8080
+  dashboard: false
+  insecure: false
 
 entryPoints:
   web:

@@ -14,7 +14,7 @@ services:
     image: nginx:alpine
     container_name: lucid-mcp-twitter
     ports:
-      - "9001:80"
+      - "127.0.0.1:9001:80"
     networks:
       - lucid-network
     environment:
@@ -33,7 +33,7 @@ services:
     image: nginx:alpine
     container_name: lucid-mcp-ipfs
     ports:
-      - "9002:80"
+      - "127.0.0.1:9002:80"
     networks:
       - lucid-network
     environment:
@@ -52,7 +52,7 @@ services:
     image: nginx:alpine
     container_name: lucid-mcp-solana
     ports:
-      - "9003:80"
+      - "127.0.0.1:9003:80"
     networks:
       - lucid-network
     environment:
@@ -72,7 +72,7 @@ services:
     image: nginx:alpine
     container_name: lucid-mcp-github
     ports:
-      - "9004:80"
+      - "127.0.0.1:9004:80"
     networks:
       - lucid-network
     environment:
@@ -91,7 +91,7 @@ services:
     image: nginx:alpine
     container_name: lucid-mcp-search
     ports:
-      - "9005:80"
+      - "127.0.0.1:9005:80"
     networks:
       - lucid-network
     environment:

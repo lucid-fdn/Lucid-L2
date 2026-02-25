@@ -7,7 +7,7 @@ SUPABASE_HOST="db.kwihlcnapmkaivijyiif.supabase.co"
 SUPABASE_PORT="5432"
 SUPABASE_DB="postgres"
 SUPABASE_USER="postgres"
-SUPABASE_PASSWORD="Tk5JbpMcX!qdEvE"
+SUPABASE_PASSWORD="${SUPABASE_PASSWORD:?SUPABASE_PASSWORD env var must be set}"
 
 echo "🚀 Starting migration to Supabase Cloud..."
 echo "Target: $SUPABASE_HOST"

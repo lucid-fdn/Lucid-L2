@@ -5,8 +5,8 @@ services:
     container_name: lucid-redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes
+      - "127.0.0.1:6379:6379"
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     networks:
@@ -23,15 +23,15 @@ services:
     container_name: lucid-nango
     restart: unless-stopped
     ports:
-      - "3003:3003"  # API
-      - "3007:3007"  # Dashboard
+      - "127.0.0.1:3003:3003"  # API
+      - "127.0.0.1:3007:3007"  # Dashboard
     environment:
       SERVER_PORT: 3003
       NANGO_DB_HOST: aws-1-eu-north-1.pooler.supabase.com
       NANGO_DB_PORT: 6543
       NANGO_DB_NAME: postgres
       NANGO_DB_USER: postgres.kwihlcnapmkaivijyiif
-      NANGO_DB_PASSWORD: Tk5JbpMcX!qdEvE
+      NANGO_DB_PASSWORD: ${SUPABASE_PASSWORD}
       NANGO_ENCRYPTION_KEY: ${NANGO_ENCRYPTION_KEY}
       NANGO_SECRET_KEY: ${NANGO_SECRET_KEY}
       NANGO_CALLBACK_URL: ${NANGO_CALLBACK_URL}
@@ -59,7 +59,7 @@ services:
     ports:
       - "80:80"     # HTTP
       - "443:443"   # HTTPS
-      - "8080:8080" # Dashboard
+      - "127.0.0.1:8080:8080" # Dashboard (localhost only)
     volumes:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic:/etc/traefik/dynamic:ro
