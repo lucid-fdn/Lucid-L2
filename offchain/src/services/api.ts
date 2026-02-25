@@ -1332,17 +1332,17 @@ export async function handleToolsList(req: express.Request, res: express.Respons
 /**
  * Start comprehensive sync of all HuggingFace assets
  * POST /passports/sync-all-hf
- * Body: { types: ['models' | 'datasets' | 'all'], batchSize?: number, concurrency?: number, llmProxyUrl?: string }
+ * Body: { types: ['models' | 'datasets' | 'all'], batchSize?: number, concurrency?: number, hfToken?: string }
  */
 export async function handleSyncAllHF(req: express.Request, res: express.Response) {
   try {
     const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
-    
+
     const {
       types = ['all'],
       batchSize = 100,
       concurrency = 10,
-      llmProxyUrl,
+      hfToken,
       checkpointInterval = 100,
       maxRetries = 3,
       minDownloads = 1000,
@@ -1351,14 +1351,14 @@ export async function handleSyncAllHF(req: express.Request, res: express.Respons
 
     console.log(`🚀 Starting comprehensive HF sync: ${types.join(', ')}`);
 
-    const orchestrator = getHFSyncOrchestrator(llmProxyUrl);
+    const orchestrator = getHFSyncOrchestrator(hfToken);
 
     // Start sync in background
     orchestrator.startFullSync({
       types,
       batchSize,
       concurrency,
-      llmProxyUrl,
+      hfToken,
       checkpointInterval,
       maxRetries,
       minDownloads,
@@ -1420,14 +1420,14 @@ export async function handleSyncResume(req: express.Request, res: express.Respon
   try {
     const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
     
-    const { batchSize, concurrency, llmProxyUrl } = req.body;
+    const { batchSize, concurrency, hfToken } = req.body;
 
     console.log('🔄 Resuming sync from checkpoint...');
 
-    const orchestrator = getHFSyncOrchestrator(llmProxyUrl);
+    const orchestrator = getHFSyncOrchestrator(hfToken);
 
     // Resume in background
-    orchestrator.resume({ batchSize, concurrency, llmProxyUrl }).catch((error) => {
+    orchestrator.resume({ batchSize, concurrency, hfToken }).catch((error) => {
       console.error('Resume failed:', error);
     });
 
@@ -1565,17 +1565,17 @@ export async function handleSyncSpaces(req: express.Request, res: express.Respon
     const {
       batchSize = 100,
       concurrency = 10,
-      llmProxyUrl,
+      hfToken,
       minLikes = 0,
     } = req.body;
 
-    const orchestrator = getHFSyncOrchestrator(llmProxyUrl);
+    const orchestrator = getHFSyncOrchestrator(hfToken);
 
     orchestrator.startFullSync({
       types: ['spaces'],
       batchSize,
       concurrency,
-      llmProxyUrl,
+      hfToken,
       checkpointInterval: 100,
       maxRetries: 3,
       minLikes,
@@ -1605,8 +1605,8 @@ export async function handleDetectDeprecations(req: express.Request, res: expres
   try {
     const { getDeprecationDetector } = await import('./deprecationDetector');
 
-    const { llmProxyUrl } = req.body || {};
-    const detector = getDeprecationDetector(llmProxyUrl);
+    const { hfToken } = req.body || {};
+    const detector = getDeprecationDetector(hfToken);
 
     // Run in background for large indexes
     const resultPromise = detector.detectAndRevoke();
@@ -2455,11 +2455,11 @@ export async function handleSyncHFModels(req: express.Request, res: express.Resp
   try {
     const { getHFBridgeService } = await import('./hfBridgeService');
     
-    const { limit = 5, llmProxyUrl } = req.body;
+    const { limit = 5, hfToken } = req.body;
 
     console.log(`🔄 Starting HF model sync, limit: ${limit}`);
 
-    const hfBridge = getHFBridgeService(llmProxyUrl);
+    const hfBridge = getHFBridgeService(hfToken);
     const results = await hfBridge.syncModels(limit);
 
     res.json({
@@ -2486,11 +2486,11 @@ export async function handleSyncHFDatasets(req: express.Request, res: express.Re
   try {
     const { getHFBridgeService } = await import('./hfBridgeService');
     
-    const { limit = 5, llmProxyUrl } = req.body;
+    const { limit = 5, hfToken } = req.body;
 
     console.log(`🔄 Starting HF dataset sync, limit: ${limit}`);
 
-    const hfBridge = getHFBridgeService(llmProxyUrl);
+    const hfBridge = getHFBridgeService(hfToken);
     const results = await hfBridge.syncDatasets(limit);
 
     res.json({

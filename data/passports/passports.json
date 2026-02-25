@@ -955,12 +955,13 @@
         "schema_version": "1.0",
         "model_passport_id": "passport_e071242835e74ddb9dd1bf15f2537ef8",
         "name": "GPT-3.5 Turbo",
-        "description": "OpenAI GPT-3.5 Turbo via LLM-Proxy",
+        "description": "OpenAI GPT-3.5 Turbo via TrustGate",
         "format": "api",
-        "runtime_recommended": "llmproxy",
+        "runtime_recommended": "trustgate",
         "base": "openai",
         "context_length": 16385,
-        "provider": "llm-proxy",
+        "provider": "trustgate",
+        "api_model_id": "gpt-3.5-turbo",
         "requirements": {
           "min_vram_gb": 0
         }
@@ -978,12 +979,13 @@
         "schema_version": "1.0",
         "model_passport_id": "passport_3a5a75699a45462eaf7e2fa9f197d4da",
         "name": "GPT-3.5 Turbo",
-        "description": "OpenAI GPT-3.5 Turbo via LLM-Proxy",
+        "description": "OpenAI GPT-3.5 Turbo via TrustGate",
         "format": "api",
-        "runtime_recommended": "llmproxy",
+        "runtime_recommended": "trustgate",
         "base": "openai",
         "context_length": 16385,
-        "provider": "llm-proxy",
+        "provider": "trustgate",
+        "api_model_id": "gpt-3.5-turbo",
         "requirements": {
           "min_vram_gb": 0
         }
@@ -1001,12 +1003,13 @@
         "schema_version": "1.0",
         "model_passport_id": "passport_308bd638940b4cad9079bb115a7b0bf0",
         "name": "GPT-4",
-        "description": "OpenAI GPT-4 via LLM-Proxy",
+        "description": "OpenAI GPT-4 via TrustGate",
         "format": "api",
-        "runtime_recommended": "llmproxy",
+        "runtime_recommended": "trustgate",
         "base": "openai",
         "context_length": 128000,
-        "provider": "llm-proxy",
+        "provider": "trustgate",
+        "api_model_id": "gpt-4",
         "requirements": {
           "min_vram_gb": 0
         }
@@ -1024,12 +1027,13 @@
         "schema_version": "1.0",
         "model_passport_id": "passport_65a9c40a9e3a47e3acbbe6a3badc4f3c",
         "name": "GPT-4o",
-        "description": "OpenAI GPT-4o via LLM-Proxy",
+        "description": "OpenAI GPT-4o via TrustGate",
         "format": "api",
-        "runtime_recommended": "llmproxy",
+        "runtime_recommended": "trustgate",
         "base": "openai",
         "context_length": 128000,
-        "provider": "llm-proxy",
+        "provider": "trustgate",
+        "api_model_id": "gpt-4o",
         "requirements": {
           "min_vram_gb": 0
         }
@@ -1047,12 +1051,13 @@
         "schema_version": "1.0",
         "model_passport_id": "passport_b55b5d0407904d42b728a6f0fbdaa6dd",
         "name": "Claude 3 Sonnet",
-        "description": "Anthropic Claude 3 Sonnet via LLM-Proxy",
+        "description": "Anthropic Claude 3 Sonnet via TrustGate",
         "format": "api",
-        "runtime_recommended": "llmproxy",
+        "runtime_recommended": "trustgate",
         "base": "anthropic",
         "context_length": 200000,
-        "provider": "llm-proxy",
+        "provider": "trustgate",
+        "api_model_id": "claude-3-sonnet-20240229",
         "requirements": {
           "min_vram_gb": 0
         }

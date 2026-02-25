@@ -2,7 +2,7 @@
 const axios = require('axios');
 
 const API_URL = 'http://localhost:3001/api';
-const LLM_PROXY_URL = 'http://localhost:8001';
+const HF_TOKEN = process.env.HF_TOKEN || '';
 
 async function testSyncSmallBatch() {
     console.log('\n🧪 Test 1: Sync Small Batch (10 models)');
@@ -14,17 +14,17 @@ async function testSyncSmallBatch() {
             batchSize: 10,
             concurrency: 3,
             checkpointInterval: 5,
-            llmProxyUrl: LLM_PROXY_URL
+            hfToken: HF_TOKEN
         });
 
         console.log('✅ Sync started:', response.data);
-        
+
         // Wait and check progress
         await new Promise(resolve => setTimeout(resolve, 2000));
-        
+
         const progress = await axios.get(`${API_URL}/passports/sync-progress`);
         console.log('\n📊 Progress:', progress.data);
-        
+
     } catch (error) {
         console.error('❌ Test failed:', error.response?.data || error.message);
     }
@@ -50,15 +50,15 @@ async function testSyncProgress() {
         for (let i = 0; i < 5; i++) {
             const response = await axios.get(`${API_URL}/passports/sync-progress`);
             const progress = response.data.progress;
-            
+
             console.log(`\n[Update ${i + 1}]`);
             console.log(`Models: ${progress.models.synced}/${progress.models.total} (${progress.models.progress})`);
             console.log(`Throughput: ${progress.throughput} assets/min`);
-            
+
             if (progress.eta) {
                 console.log(`ETA: ${new Date(progress.eta).toLocaleString()}`);
             }
-            
+
             await new Promise(resolve => setTimeout(resolve, 5000));
         }
     } catch (error) {
@@ -111,19 +111,19 @@ async function testFullWorkflow() {
 
     // Test 1: Start small batch
     await testSyncSmallBatch();
-    
+
     // Wait for sync to process
     await new Promise(resolve => setTimeout(resolve, 10000));
-    
+
     // Test 2: Check status
     await testSyncStatus();
-    
+
     // Test 3: Monitor progress
     await testSyncProgress();
-    
+
     // Test 4: Generate report
     await testSyncReport();
-    
+
     console.log('\n✅ All tests completed!');
 }
 

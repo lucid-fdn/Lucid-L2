@@ -16,7 +16,8 @@ class NodeFactories:
     """Factory class for creating node execution functions"""
     
     def __init__(self):
-        self.llm_proxy_url = os.getenv('LLM_PROXY_URL', 'http://host.docker.internal:8001')
+        self.trustgate_url = os.getenv('TRUSTGATE_URL', 'https://trustgate-api-production.up.railway.app')
+        self.trustgate_api_key = os.getenv('TRUSTGATE_API_KEY', '')
         self.lucid_api_url = os.getenv('LUCID_API_URL', 'http://host.docker.internal:3001')
     
     @staticmethod
@@ -63,22 +64,28 @@ class NodeFactories:
                 max_tokens = node_input.get('maxTokens', 150)
                 
                 logger.info(f"Executing LLM node {node_id} with model {model}")
-                
-                # Call LLM proxy
+
+                # Call TrustGate (OpenAI-compatible)
+                headers = {'Content-Type': 'application/json'}
+                if self.trustgate_api_key:
+                    headers['Authorization'] = f'Bearer {self.trustgate_api_key}'
+
                 async with httpx.AsyncClient(timeout=30.0) as client:
                     response = await client.post(
-                        f"{self.llm_proxy_url}/invoke/model/{model}",
+                        f"{self.trustgate_url}/v1/chat/completions",
+                        headers=headers,
                         json={
-                            "prompt": prompt,
-                            "parameters": {"max_tokens": max_tokens}
+                            "model": model,
+                            "messages": [{"role": "user", "content": prompt}],
+                            "max_tokens": max_tokens
                         }
                     )
-                    
+
                     if response.status_code == 200:
                         data = response.json()
-                        state[node_id] = data.get('output', '')
+                        state[node_id] = data['choices'][0]['message']['content']
                     else:
-                        logger.error(f"LLM API error: {response.status_code}")
+                        logger.error(f"TrustGate API error: {response.status_code}")
                         state[node_id] = f"Error: {response.status_code}"
                 
                 return state

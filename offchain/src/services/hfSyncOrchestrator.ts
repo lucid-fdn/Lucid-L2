@@ -8,7 +8,7 @@ export interface SyncOptions {
     types: Array<'models' | 'datasets' | 'spaces' | 'all'>;
     batchSize: number;
     concurrency: number;
-    llmProxyUrl?: string;
+    hfToken?: string;
     checkpointInterval?: number; // Save checkpoint every N assets
     maxRetries?: number;
     minDownloads?: number;  // default 1000 — filter threshold for models/datasets
@@ -18,12 +18,23 @@ export interface SyncOptions {
 export class HFSyncOrchestrator {
     private stateManager: SyncStateManager;
     private hfBridge: HFBridgeService;
+    private hfToken: string;
+    private hfApiBaseUrl: string = 'https://huggingface.co/api';
     private isRunning: boolean = false;
     private shouldStop: boolean = false;
 
-    constructor(llmProxyUrl: string = 'http://localhost:8000') {
+    constructor(hfToken: string = process.env.HF_TOKEN || '') {
         this.stateManager = getSyncStateManager();
-        this.hfBridge = getHFBridgeService(llmProxyUrl);
+        this.hfBridge = getHFBridgeService(hfToken);
+        this.hfToken = hfToken;
+    }
+
+    private get hfHeaders(): Record<string, string> {
+        const headers: Record<string, string> = {};
+        if (this.hfToken) {
+            headers['Authorization'] = `Bearer ${this.hfToken}`;
+        }
+        return headers;
     }
 
     /**
@@ -89,11 +100,10 @@ export class HFSyncOrchestrator {
 
         while (state.models.pagination.hasMore && !this.shouldStop) {
             try {
-                // Fetch batch from llm_proxy — sorted by downloads desc
+                // Fetch batch from HuggingFace API — sorted by downloads desc
                 const models = await this.fetchModelsBatch(
                     options.batchSize,
-                    offset,
-                    options.llmProxyUrl
+                    offset
                 );
 
                 if (models.length === 0) {
@@ -188,8 +198,7 @@ export class HFSyncOrchestrator {
             try {
                 const datasets = await this.fetchDatasetsBatch(
                     options.batchSize,
-                    offset,
-                    options.llmProxyUrl
+                    offset
                 );
 
                 if (datasets.length === 0) {
@@ -276,8 +285,7 @@ export class HFSyncOrchestrator {
             try {
                 const spaces = await this.fetchSpacesBatch(
                     options.batchSize,
-                    offset,
-                    options.llmProxyUrl
+                    offset
                 );
 
                 if (spaces.length === 0) {
@@ -350,17 +358,16 @@ export class HFSyncOrchestrator {
     }
 
     /**
-     * Fetch models batch from llm_proxy with pagination
+     * Fetch models batch from HuggingFace API with pagination
      */
     private async fetchModelsBatch(
         limit: number,
-        offset: number,
-        llmProxyUrl?: string
+        offset: number
     ): Promise<any[]> {
-        const url = llmProxyUrl || 'http://localhost:8000';
         try {
-            const response = await axios.get(`${url}/models`, {
-                params: { limit, offset, sort: 'downloads', direction: 'desc' },
+            const response = await axios.get(`${this.hfApiBaseUrl}/models`, {
+                params: { limit, offset, sort: 'downloads', direction: -1 },
+                headers: this.hfHeaders,
                 timeout: 30000,
             });
             return response.data || [];
@@ -371,17 +378,16 @@ export class HFSyncOrchestrator {
     }
 
     /**
-     * Fetch datasets batch from llm_proxy with pagination
+     * Fetch datasets batch from HuggingFace API with pagination
      */
     private async fetchDatasetsBatch(
         limit: number,
-        offset: number,
-        llmProxyUrl?: string
+        offset: number
     ): Promise<any[]> {
-        const url = llmProxyUrl || 'http://localhost:8000';
         try {
-            const response = await axios.get(`${url}/datasets`, {
-                params: { limit, offset, sort: 'downloads', direction: 'desc' },
+            const response = await axios.get(`${this.hfApiBaseUrl}/datasets`, {
+                params: { limit, offset, sort: 'downloads', direction: -1 },
+                headers: this.hfHeaders,
                 timeout: 30000,
             });
             return response.data || [];
@@ -392,17 +398,16 @@ export class HFSyncOrchestrator {
     }
 
     /**
-     * Fetch spaces batch from llm_proxy with pagination
+     * Fetch spaces batch from HuggingFace API with pagination
      */
     private async fetchSpacesBatch(
         limit: number,
-        offset: number,
-        llmProxyUrl?: string
+        offset: number
     ): Promise<any[]> {
-        const url = llmProxyUrl || 'http://localhost:8000';
         try {
-            const response = await axios.get(`${url}/spaces`, {
-                params: { limit, offset, sort: 'likes', direction: 'desc' },
+            const response = await axios.get(`${this.hfApiBaseUrl}/spaces`, {
+                params: { limit, offset, sort: 'likes', direction: -1 },
+                headers: this.hfHeaders,
                 timeout: 30000,
             });
             return response.data || [];
@@ -696,9 +701,9 @@ export class HFSyncOrchestrator {
 // Export singleton instance
 let orchestratorInstance: HFSyncOrchestrator | null = null;
 
-export function getHFSyncOrchestrator(llmProxyUrl?: string): HFSyncOrchestrator {
+export function getHFSyncOrchestrator(hfToken?: string): HFSyncOrchestrator {
     if (!orchestratorInstance) {
-        orchestratorInstance = new HFSyncOrchestrator(llmProxyUrl);
+        orchestratorInstance = new HFSyncOrchestrator(hfToken);
     }
     return orchestratorInstance;
 }

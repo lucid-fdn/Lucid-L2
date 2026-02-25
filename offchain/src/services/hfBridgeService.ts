@@ -21,27 +21,37 @@ const AGENT_TAGS = new Set([
 
 /**
  * HuggingFace Bridge Service
- * Fetches model/dataset/spaces metadata from llm_proxy and registers them as passports
+ * Fetches model/dataset/spaces metadata from HuggingFace API and registers them as passports
  */
 export class HFBridgeService {
     private passportService: PassportService;
     private contentService: ContentService;
-    private llmProxyBaseUrl: string;
+    private hfApiBaseUrl: string = 'https://huggingface.co/api';
+    private hfToken: string;
 
-    constructor(llmProxyUrl: string = 'http://localhost:8000') {
+    constructor(hfToken: string = process.env.HF_TOKEN || '') {
         this.passportService = getPassportService();
         this.contentService = getContentService();
-        this.llmProxyBaseUrl = llmProxyUrl;
-        console.log(`HF Bridge initialized, connecting to: ${this.llmProxyBaseUrl}`);
+        this.hfToken = hfToken;
+        console.log(`HF Bridge initialized, connecting to: ${this.hfApiBaseUrl}`);
+    }
+
+    private get hfHeaders(): Record<string, string> {
+        const headers: Record<string, string> = {};
+        if (this.hfToken) {
+            headers['Authorization'] = `Bearer ${this.hfToken}`;
+        }
+        return headers;
     }
 
     /**
-     * Fetch model from llm_proxy
+     * Fetch model from HuggingFace API
      */
     async fetchModel(modelId: string): Promise<any> {
         try {
-            const response = await axios.get(`${this.llmProxyBaseUrl}/models`, {
+            const response = await axios.get(`${this.hfApiBaseUrl}/models`, {
                 params: { search: modelId, limit: 1 },
+                headers: this.hfHeaders,
             });
 
             if (response.data && response.data.length > 0) {
@@ -56,12 +66,13 @@ export class HFBridgeService {
     }
 
     /**
-     * Fetch dataset from llm_proxy
+     * Fetch dataset from HuggingFace API
      */
     async fetchDataset(datasetId: string): Promise<any> {
         try {
-            const response = await axios.get(`${this.llmProxyBaseUrl}/datasets`, {
+            const response = await axios.get(`${this.hfApiBaseUrl}/datasets`, {
                 params: { search: datasetId, limit: 1 },
+                headers: this.hfHeaders,
             });
 
             if (response.data && response.data.length > 0) {
@@ -76,12 +87,13 @@ export class HFBridgeService {
     }
 
     /**
-     * Fetch all models from llm_proxy
+     * Fetch all models from HuggingFace API
      */
     async fetchAllModels(limit: number = 100): Promise<any[]> {
         try {
-            const response = await axios.get(`${this.llmProxyBaseUrl}/models`, {
+            const response = await axios.get(`${this.hfApiBaseUrl}/models`, {
                 params: { limit },
+                headers: this.hfHeaders,
             });
             return response.data || [];
         } catch (error) {
@@ -91,12 +103,13 @@ export class HFBridgeService {
     }
 
     /**
-     * Fetch all datasets from llm_proxy
+     * Fetch all datasets from HuggingFace API
      */
     async fetchAllDatasets(limit: number = 100): Promise<any[]> {
         try {
-            const response = await axios.get(`${this.llmProxyBaseUrl}/datasets`, {
+            const response = await axios.get(`${this.hfApiBaseUrl}/datasets`, {
                 params: { limit },
+                headers: this.hfHeaders,
             });
             return response.data || [];
         } catch (error) {
@@ -106,12 +119,13 @@ export class HFBridgeService {
     }
 
     /**
-     * Fetch all spaces from llm_proxy
+     * Fetch all spaces from HuggingFace API
      */
     async fetchAllSpaces(limit: number = 100): Promise<any[]> {
         try {
-            const response = await axios.get(`${this.llmProxyBaseUrl}/spaces`, {
-                params: { limit, sort: 'likes', direction: 'desc' },
+            const response = await axios.get(`${this.hfApiBaseUrl}/spaces`, {
+                params: { limit, sort: 'likes', direction: '-1' },
+                headers: this.hfHeaders,
             });
             return response.data || [];
         } catch (error) {
@@ -610,9 +624,9 @@ export class HFBridgeService {
 // Export singleton instance
 let hfBridgeServiceInstance: HFBridgeService | null = null;
 
-export function getHFBridgeService(llmProxyUrl?: string): HFBridgeService {
+export function getHFBridgeService(hfToken?: string): HFBridgeService {
     if (!hfBridgeServiceInstance) {
-        hfBridgeServiceInstance = new HFBridgeService(llmProxyUrl);
+        hfBridgeServiceInstance = new HFBridgeService(hfToken);
     }
     return hfBridgeServiceInstance;
 }

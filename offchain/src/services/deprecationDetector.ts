@@ -13,13 +13,10 @@ export class DeprecationDetector {
     private stateManager: SyncStateManager;
     private hfBridge: HFBridgeService;
     private syncService: PassportSyncService;
-    private llmProxyBaseUrl: string;
-
-    constructor(llmProxyUrl: string = 'http://localhost:8000') {
+    constructor(hfToken: string = process.env.HF_TOKEN || '') {
         this.stateManager = getSyncStateManager();
-        this.hfBridge = getHFBridgeService(llmProxyUrl);
+        this.hfBridge = getHFBridgeService(hfToken);
         this.syncService = getPassportSyncService();
-        this.llmProxyBaseUrl = llmProxyUrl;
     }
 
     /**
@@ -144,9 +141,9 @@ export class DeprecationDetector {
 // Singleton
 let detectorInstance: DeprecationDetector | null = null;
 
-export function getDeprecationDetector(llmProxyUrl?: string): DeprecationDetector {
+export function getDeprecationDetector(hfToken?: string): DeprecationDetector {
     if (!detectorInstance) {
-        detectorInstance = new DeprecationDetector(llmProxyUrl);
+        detectorInstance = new DeprecationDetector(hfToken);
     }
     return detectorInstance;
 }

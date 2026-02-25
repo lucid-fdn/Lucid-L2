@@ -6,7 +6,7 @@ services:
     container_name: lucid-n8n
     restart: unless-stopped
     ports:
-      - "5678:5678"
+      - "127.0.0.1:5678:5678"
     environment:
       # Basic Auth
       - N8N_BASIC_AUTH_ACTIVE=true
@@ -38,7 +38,8 @@ services:
       
       # Custom environment variables for workflows
       - N8N_HMAC_SECRET=${N8N_HMAC_SECRET}
-      - LLM_PROXY_URL=http://host.docker.internal:8001
+      - TRUSTGATE_URL=${TRUSTGATE_URL:-https://trustgate-api-production.up.railway.app}
+      - TRUSTGATE_API_KEY=${TRUSTGATE_API_KEY}
       - LUCID_API_URL=http://host.docker.internal:3001
       
       # Elasticsearch Configuration
@@ -51,7 +52,6 @@ services:
       - ./workflows:/home/node/workflows:ro
     networks:
       - lucid-network
-      - llm-proxy_ai-network
     depends_on:
       - postgres
       - redis
@@ -103,5 +103,3 @@ volumes:
 networks:
   lucid-network:
     driver: bridge
-  llm-proxy_ai-network:
-    external: true

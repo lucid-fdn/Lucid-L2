@@ -2512,10 +2512,10 @@ components:
           enum: [safetensors, gguf, api]
         runtime_recommended:
           type: string
-          enum: [vllm, tgi, tensorrt, llmproxy, openai]
+          enum: [vllm, tgi, tensorrt, trustgate, openai]
         name: { type: string }
         description: { type: string }
-        provider: { type: string, description: "Provider name (e.g. llm-proxy, openai)" }
+        provider: { type: string, description: "Provider name (e.g. trustgate, openai)" }
         base:
           type: string
           enum: [hf, openai, anthropic, google, cohere, custom_endpoint]
