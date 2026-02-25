@@ -388,7 +388,7 @@ export class EVMAdapter implements IBlockchainAdapter {
   ): Promise<TxReceipt> {
     this.ensureConnected();
 
-    const entryPoint = this._chainConfig?.entryPoint;
+    const entryPoint = this._config?.entryPoint;
     if (!entryPoint) {
       throw new Error(`No EntryPoint configured for chain ${this._chainId}`);
     }
