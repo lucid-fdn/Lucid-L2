@@ -13,9 +13,10 @@ import {
   computeForModel,
 } from '../storage/searchQueryBuilder';
 import { PassportStore, Passport, PassportType } from '../storage/passportStore';
-import { getPassportManager, resetPassportManager } from '../services/passportManager';
+import { PassportManager, getPassportManager, resetPassportManager } from '../services/passportManager';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 // Test data directory
 const TEST_DATA_DIR = path.join(__dirname, '../../data/test-search');
@@ -482,60 +483,57 @@ describe('Predefined Queries', () => {
 });
 
 describe('PassportManager Search Integration', () => {
-  beforeAll(async () => {
-    // Clean up test directory
-    if (fs.existsSync(TEST_DATA_DIR)) {
-      fs.rmSync(TEST_DATA_DIR, { recursive: true });
-    }
-    fs.mkdirSync(TEST_DATA_DIR, { recursive: true });
-  });
-
-  afterAll(async () => {
-    resetPassportManager();
-    // Clean up
-    if (fs.existsSync(TEST_DATA_DIR)) {
-      fs.rmSync(TEST_DATA_DIR, { recursive: true });
-    }
-  });
+  let manager: PassportManager;
+  let testDataDir: string;
 
   beforeEach(async () => {
+    testDataDir = path.join(os.tmpdir(), `passport-search-test-${Date.now()}`);
+    fs.mkdirSync(testDataDir, { recursive: true });
+    const store = new PassportStore(testDataDir, 0);
+    manager = new PassportManager(store);
+    await manager.init();
+  });
+
+  afterEach(async () => {
+    await manager.shutdown();
+    if (fs.existsSync(testDataDir)) {
+      fs.rmSync(testDataDir, { recursive: true, force: true });
+    }
     resetPassportManager();
   });
 
   it('should search models via manager', async () => {
-    const manager = getPassportManager();
-    await manager.init();
 
-    // Create test model passports
-    await manager.createPassport({
+    // Create test model passports (schema requires schema_version, model_passport_id >= 10 chars, no additionalProperties)
+    const r1 = await manager.createPassport({
       type: 'model',
       owner: '7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV',
       metadata: {
-        model_passport_id: 'test',
-        model_name: 'test-model',
+        schema_version: '1.0',
+        model_passport_id: 'test_model_vllm_001',
         runtime_recommended: 'vllm',
         format: 'safetensors',
         requirements: { min_vram_gb: 16 },
-        required_runtimes: ['vllm'],
       },
       name: 'Test vLLM Model',
       tags: ['test', 'vllm'],
     });
+    expect(r1.ok).toBe(true);
 
-    await manager.createPassport({
+    const r2 = await manager.createPassport({
       type: 'model',
       owner: '7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV',
       metadata: {
-        model_passport_id: 'test2',
-        model_name: 'test-model-2',
+        schema_version: '1.0',
+        model_passport_id: 'test_model_tgi_002',
         runtime_recommended: 'tgi',
         format: 'safetensors',
         requirements: { min_vram_gb: 24 },
-        required_runtimes: ['tgi'],
       },
       name: 'Test TGI Model',
       tags: ['test', 'tgi'],
     });
+    expect(r2.ok).toBe(true);
 
     // Search by runtime
     const vllmResults = await manager.searchModels({ runtime: 'vllm' });
@@ -549,15 +547,13 @@ describe('PassportManager Search Integration', () => {
   });
 
   it('should search compute via manager', async () => {
-    const manager = getPassportManager();
-    await manager.init();
-
-    // Create test compute passports
-    await manager.createPassport({
+    // Create test compute passports (schema requires schema_version, compute_passport_id >= 10 chars)
+    const c1 = await manager.createPassport({
       type: 'compute',
       owner: '7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV',
       metadata: {
-        compute_passport_id: 'c1',
+        schema_version: '1.0',
+        compute_passport_id: 'compute_aws_a100_001',
         provider_type: 'cloud',
         regions: ['us-east-1'],
         runtimes: [{ name: 'vllm', version: '0.3.0' }],
@@ -567,12 +563,14 @@ describe('PassportManager Search Integration', () => {
       name: 'AWS A100 Compute',
       tags: ['aws', 'a100'],
     });
+    expect(c1.ok).toBe(true);
 
-    await manager.createPassport({
+    const c2 = await manager.createPassport({
       type: 'compute',
       owner: '7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV',
       metadata: {
-        compute_passport_id: 'c2',
+        schema_version: '1.0',
+        compute_passport_id: 'compute_depin_h100_001',
         provider_type: 'depin',
         regions: ['eu-west-1'],
         runtimes: [{ name: 'tgi', version: '1.0' }],
@@ -582,6 +580,7 @@ describe('PassportManager Search Integration', () => {
       name: 'DePIN H100 Compute',
       tags: ['depin', 'h100'],
     });
+    expect(c2.ok).toBe(true);
 
     // Search by region
     const usResults = await manager.searchCompute({ regions: ['us-east-1'] });

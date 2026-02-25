@@ -314,63 +314,57 @@ export function applyAdvancedFilters(passports: Passport[], filters: SearchFilte
  */
 export function calculateRelevanceScore(passport: Passport, query: string): number {
   if (!query) return 0;
-  
+
   const queryLower = query.toLowerCase();
   const queryTerms = queryLower.split(/\s+/).filter(t => t.length > 0);
   let score = 0;
-  
-  // Exact name match (highest score)
-  if (passport.name?.toLowerCase() === queryLower) {
+
+  const nameLower = passport.name?.toLowerCase() || '';
+  const descLower = passport.description?.toLowerCase() || '';
+  const tagsLower = (passport.tags || []).map(t => t.toLowerCase());
+
+  // Exact name match (highest bonus)
+  if (nameLower === queryLower) {
     score += 100;
   }
-  
-  // Name contains query
-  if (passport.name?.toLowerCase().includes(queryLower)) {
+
+  // Name contains full query string (bonus for phrase match)
+  if (queryTerms.length === 1 && nameLower.includes(queryLower)) {
     score += 50;
   }
-  
-  // Name contains query terms
+
+  // Per-term scoring — accumulates with more matching terms
   for (const term of queryTerms) {
-    if (passport.name?.toLowerCase().includes(term)) {
-      score += 10;
+    if (nameLower.includes(term)) {
+      score += 30;
     }
-  }
-  
-  // Description contains query
-  if (passport.description?.toLowerCase().includes(queryLower)) {
-    score += 20;
-  }
-  
-  // Description contains query terms
-  for (const term of queryTerms) {
-    if (passport.description?.toLowerCase().includes(term)) {
-      score += 5;
+    if (descLower.includes(term)) {
+      score += 25;
     }
-  }
-  
-  // Tags match query terms
-  const tagsLower = (passport.tags || []).map(t => t.toLowerCase());
-  for (const term of queryTerms) {
     if (tagsLower.some(t => t.includes(term))) {
       score += 15;
     }
   }
-  
+
   // Metadata fields (for model/compute specific search)
   if (passport.type === 'model' && passport.metadata) {
     const modelName = passport.metadata.model_name?.toLowerCase() || '';
-    if (modelName.includes(queryLower)) {
-      score += 30;
+    for (const term of queryTerms) {
+      if (modelName.includes(term)) {
+        score += 15;
+      }
     }
   }
-  
+
   if (passport.type === 'compute' && passport.metadata) {
     const gpu = passport.metadata.hardware?.gpu?.toLowerCase() || '';
-    if (gpu.includes(queryLower)) {
-      score += 20;
+    for (const term of queryTerms) {
+      if (gpu.includes(term)) {
+        score += 10;
+      }
     }
   }
-  
+
   return score;
 }
 

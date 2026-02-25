@@ -454,6 +454,7 @@ passportRouter.get('/v1/models', async (req, res) => {
       runtime,
       format,
       max_vram,
+      available,
       owner,
       tags,
       search,
@@ -474,6 +475,9 @@ passportRouter.get('/v1/models', async (req, res) => {
       if (!isNaN(vram)) {
         filters.max_vram = vram;
       }
+    }
+    if (available === 'true') {
+      filters.available = true;
     }
     if (owner && typeof owner === 'string') {
       filters.owner = owner;

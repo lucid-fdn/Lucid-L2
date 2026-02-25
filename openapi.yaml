@@ -297,6 +297,10 @@ paths:
           name: max_vram
           schema: { type: integer }
         - in: query
+          name: available
+          description: When true, only return models that can currently serve inference (have healthy compute or are API-hosted)
+          schema: { type: string, enum: ['true', 'false'] }
+        - in: query
           name: owner
           schema: { type: string }
         - in: query
