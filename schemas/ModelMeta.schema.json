@@ -9,10 +9,10 @@
     "schema_version": { "type": "string", "const": "1.0" },
     "model_passport_id": { "type": "string", "minLength": 10 },
     "format": { "type": "string", "enum": ["safetensors", "gguf", "api"] },
-    "runtime_recommended": { "type": "string", "enum": ["vllm", "tgi", "tensorrt", "llmproxy", "openai"] },
+    "runtime_recommended": { "type": "string", "enum": ["vllm", "tgi", "tensorrt", "trustgate", "openai"] },
     "name": { "type": "string", "description": "Human-readable model name" },
     "description": { "type": "string", "description": "Model description" },
-    "provider": { "type": "string", "description": "Provider name (e.g., llm-proxy, openai)" },
+    "provider": { "type": "string", "description": "Provider name (e.g., openai, anthropic)" },
     "base": {
       "type": "string",
       "enum": ["hf", "openai", "anthropic", "google", "cohere", "custom_endpoint"],
@@ -59,6 +59,11 @@
       "default": []
     },
     "weights_uri": { "type": "string" },
-    "weights_hash": { "type": "string" }
+    "weights_hash": { "type": "string" },
+    "api_model_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The model identifier string for TrustGate API routing (e.g., gpt-4o, meta-llama/llama-3-70b). If set, the model can be accessed via TrustGate regardless of format."
+    }
   }
 }

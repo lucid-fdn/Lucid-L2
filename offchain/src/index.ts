@@ -9,6 +9,28 @@ import { createApiRouter } from './services/api';
 import { API_PORT } from './utils/config';
 import { validateEnvironmentOrThrow, printEnvironmentStatus } from './utils/environmentValidator';
 
+// --- Observability ---------------------------------------------------------
+// Sentry & OTel provide error tracking, performance monitoring, and
+// distributed tracing.  Both degrade gracefully when env vars are absent.
+import {
+  initSentry,
+  setupSentryErrorHandler,
+  captureError,
+  flushSentry,
+} from './lib/observability';
+import { initTracing, shutdownTracing } from './lib/observability';
+
+// Initialise Sentry early (synchronous, no-op when SENTRY_DSN is unset)
+initSentry();
+
+// Kick off OTel tracing (async, no-op when OTEL_ENABLED !== 'true').
+// The dynamic imports inside initTracing will register instrumentation hooks
+// for HTTP, Express, and pg as soon as the promise resolves.
+initTracing().catch((err) =>
+  console.warn('[otel] Failed to initialize tracing:', err),
+);
+// ---------------------------------------------------------------------------
+
 // Validate environment variables on startup
 validateEnvironmentOrThrow();
 printEnvironmentStatus();
@@ -243,14 +265,18 @@ setInterval(async () => {
   }
 }, RECEIPT_RETENTION_INTERVAL_MS);
 
-// Graceful shutdown — stop receipt consumer
-process.on('SIGTERM', () => {
-  console.log('🛑 SIGTERM received — stopping receipt consumer');
+// Graceful shutdown — stop receipt consumer & flush observability
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received — shutting down');
   stopReceiptConsumer();
+  await Promise.all([flushSentry(), shutdownTracing()]);
+  process.exit(0);
 });
-process.on('SIGINT', () => {
-  console.log('🛑 SIGINT received — stopping receipt consumer');
+process.on('SIGINT', async () => {
+  console.log('SIGINT received — shutting down');
   stopReceiptConsumer();
+  await Promise.all([flushSentry(), shutdownTracing()]);
+  process.exit(0);
 });
 
 // Initialize Anchoring Service with Solana keypair
@@ -382,6 +408,10 @@ if (process.env.X402_ENABLED === 'true') {
 } else {
   console.log('x402 Payment: disabled (set X402_ENABLED=true to enable)');
 }
+
+// Sentry error handler — must be registered after all routes but before any
+// custom error-handling middleware so that Sentry sees unhandled errors first.
+setupSentryErrorHandler(app);
 
 app.listen(API_PORT, '0.0.0.0', () => {
   console.log(`Lucid L2 API listening on:`);

@@ -1,0 +1,97 @@
+# Cline Ignore File
+# Files and directories that Cline should ignore to reduce context noise
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+.vercel/
+.turbo/
+
+# Lock files (too large, not useful for context)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# Test coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Cache
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Temporary files
+*.tmp
+*.temp
+.temp/
+tmp/
+
+# Large media files (not useful for code context)
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.wmv
+*.flv
+
+# Large image files
+*.psd
+*.ai
+*.sketch
+
+# Git
+.git/
+.gitattributes
+
+# Supabase generated files (large, can be regenerated)
+supabase/functions/node_modules/
+
+# Documentation that's too large or auto-generated
+CHANGELOG.md
+LICENSE.md
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Build artifacts
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+
+.clineignore
