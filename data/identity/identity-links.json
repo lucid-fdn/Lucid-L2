@@ -1,0 +1,18 @@
+{
+  "version": "1.0",
+  "lastUpdated": 1771880234669,
+  "links": {
+    "link_6a276aa16dd042cc9bd0cce9f81db654": {
+      "linkId": "link_6a276aa16dd042cc9bd0cce9f81db654",
+      "primaryCaip10": "eip155:8453:0xBaseAddress123",
+      "linkedCaip10": "eip155:1:0xEthAddress456",
+      "createdAt": 1771879602801
+    },
+    "link_9839ec2ad14b49d0820b5cbf9e1d4f70": {
+      "linkId": "link_9839ec2ad14b49d0820b5cbf9e1d4f70",
+      "primaryCaip10": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1:SolanaPubKey123",
+      "linkedCaip10": "eip155:1:0xEthAddress456",
+      "createdAt": 1771879602804
+    }
+  }
+}
