@@ -34,7 +34,7 @@
     "typescript-eslint": "^8.26.0"
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "^0.1.17",
+    "@ai-sdk/openai-compatible": "^2.0.30",
     "zod": "^3.25.65 || ^4.0.0"
   },
   "exports": {
