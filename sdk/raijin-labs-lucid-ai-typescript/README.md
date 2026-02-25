@@ -47,39 +47,57 @@ Route groups:
 <!-- Start SDK Installation [installation] -->
 ## SDK Installation
 
-> [!TIP]
-> To finish publishing your SDK to npm and others you must [run your first generation action](https://www.speakeasy.com/docs/github-setup#step-by-step-guide).
-
-
-The SDK can be installed with either [npm](https://www.npmjs.com/), [pnpm](https://pnpm.io/), [bun](https://bun.sh/) or [yarn](https://classic.yarnpkg.com/en/) package managers.
-
-### NPM
-
 ```bash
-npm add <UNSET>
-```
-
-### PNPM
-
-```bash
-pnpm add <UNSET>
-```
-
-### Bun
-
-```bash
-bun add <UNSET>
-```
-
-### Yarn
-
-```bash
-yarn add <UNSET>
+npm install raijin-labs-lucid-ai
 ```
 
 > [!NOTE]
 > This package is published with CommonJS and ES Modules (ESM) support.
 <!-- End SDK Installation [installation] -->
+
+## Vercel AI SDK Provider
+
+The SDK includes a built-in [Vercel AI SDK](https://sdk.vercel.ai/) provider for streaming chat completions and embeddings. Import from `raijin-labs-lucid-ai/ai`:
+
+```typescript
+import { createLucidProvider } from 'raijin-labs-lucid-ai/ai'
+import { generateText, embed } from 'ai'
+
+const lucid = createLucidProvider({
+  apiKey: process.env.LUCID_API_KEY,
+  baseURL: 'https://api.lucid.foundation', // optional, this is the default
+})
+
+// Chat / streaming inference
+const { text } = await generateText({
+  model: lucid.chatModel('gpt-4o'),
+  prompt: 'Hello!',
+})
+
+// Embeddings
+const { embedding } = await embed({
+  model: lucid.textEmbeddingModel('text-embedding-3-small'),
+  value: 'How to deploy Next.js',
+})
+```
+
+### Filtering available models
+
+Use `searchModels({ available: 'true' })` to only get models that can currently serve inference:
+
+```typescript
+import { RaijinLabsLucidAi } from 'raijin-labs-lucid-ai'
+
+const sdk = new RaijinLabsLucidAi({
+  serverURL: 'https://api.lucid.foundation',
+})
+
+// Only models with healthy compute or API-hosted via TrustGate
+const { models } = await sdk.passports.searchModels({ available: 'true' })
+```
+
+- `format=api` models (GPT-4o, Claude, etc.) are always available — routed through TrustGate
+- `format=safetensors`/`gguf` models require a healthy compute node with compatible runtime and hardware
 
 <!-- Start Requirements [requirements] -->
 ## Requirements
