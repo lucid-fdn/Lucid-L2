@@ -92,6 +92,7 @@ async function $do(
   const path = pathToFunc("/v1/models")();
 
   const query = encodeFormQuery({
+    "available": payload?.available,
     "format": payload?.format,
     "max_vram": payload?.max_vram,
     "owner": payload?.owner,

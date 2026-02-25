@@ -14,6 +14,7 @@ export type LucidSearchModelsRequest = {
   runtime?: string | undefined;
   format?: string | undefined;
   maxVram?: number | undefined;
+  available?: string | undefined;
   owner?: string | undefined;
   tags?: string | undefined;
   search?: string | undefined;
@@ -35,6 +36,7 @@ export type LucidSearchModelsRequest$Outbound = {
   runtime?: string | undefined;
   format?: string | undefined;
   max_vram?: number | undefined;
+  available?: string | undefined;
   owner?: string | undefined;
   tags?: string | undefined;
   search?: string | undefined;
@@ -51,6 +53,7 @@ export const LucidSearchModelsRequest$outboundSchema: z.ZodMiniType<
     runtime: z.optional(z.string()),
     format: z.optional(z.string()),
     maxVram: z.optional(z.int()),
+    available: z.optional(z.string()),
     owner: z.optional(z.string()),
     tags: z.optional(z.string()),
     search: z.optional(z.string()),
