@@ -78,6 +78,17 @@ const config: HardhatUserConfig = {
       accounts: [DEPLOYER_KEY],
     },
   },
+  sourcify: {
+    enabled: true,
+  },
+  etherscan: {
+    apiKey: {
+      sepolia: process.env.ETHERSCAN_API_KEY || "",
+      mainnet: process.env.ETHERSCAN_API_KEY || "",
+      baseSepolia: process.env.BASESCAN_API_KEY || "",
+      base: process.env.BASESCAN_API_KEY || "",
+    },
+  },
 };
 
 export default config;

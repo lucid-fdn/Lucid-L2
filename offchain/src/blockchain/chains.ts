@@ -43,8 +43,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
       reputationRegistry: process.env.BASE_REPUTATION_REGISTRY,
     },
     usdcAddress: process.env.BASE_USDC_ADDRESS || '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-    layerZeroEndpoint: '0x1a44076050125825900e736c501f859c50fE728c',
-    lucidTokenAddress: process.env.BASE_LUCID_OFT_ADDRESS,
+    lucidTokenAddress: process.env.BASE_LUCID_TOKEN_ADDRESS,
   },
 
   'ethereum': {
@@ -62,8 +61,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
       reputationRegistry: process.env.ETHEREUM_REPUTATION_REGISTRY,
     },
     usdcAddress: process.env.ETHEREUM_USDC_ADDRESS || '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
-    layerZeroEndpoint: '0x1a44076050125825900e736c501f859c50fE728c',
-    lucidTokenAddress: process.env.ETHEREUM_LUCID_OFT_ADDRESS,
+    lucidTokenAddress: process.env.ETHEREUM_LUCID_TOKEN_ADDRESS,
   },
 
   'arbitrum': {
@@ -75,8 +73,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     isTestnet: false,
     explorerUrl: 'https://arbiscan.io',
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-    layerZeroEndpoint: '0x1a44076050125825900e736c501f859c50fE728c',
-    lucidTokenAddress: process.env.ARBITRUM_LUCID_OFT_ADDRESS,
+    lucidTokenAddress: process.env.ARBITRUM_LUCID_TOKEN_ADDRESS,
   },
 
   'avalanche': {
@@ -161,7 +158,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     name: 'Ethereum Sepolia',
     chainType: 'evm',
     evmChainId: 11155111,
-    rpcUrl: process.env.ETHEREUM_SEPOLIA_RPC_URL || 'https://rpc.sepolia.org',
+    rpcUrl: process.env.ETHEREUM_SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com',
     isTestnet: true,
     explorerUrl: 'https://sepolia.etherscan.io',
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
@@ -170,6 +167,18 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
       validationRegistry: process.env.ETHEREUM_SEPOLIA_VALIDATION_REGISTRY,
       reputationRegistry: process.env.ETHEREUM_SEPOLIA_REPUTATION_REGISTRY,
     },
+    lucidValidatorAddress: process.env.SEPOLIA_LUCID_VALIDATOR || '0x2f3F68fEF35D39711F78Ce75c5a7fbA35f80500e',
+    lucidTokenAddress: process.env.SEPOLIA_LUCID_TOKEN || '0x060f76F82325B98bC595954F6b8c88083B43b379',
+    escrowContract: process.env.SEPOLIA_ESCROW_CONTRACT || '0x3Aff9d80Cd91Fb9C4fE475155e60e9C473F55088',
+    arbitrationContract: process.env.SEPOLIA_ARBITRATION_CONTRACT || '0x912d97060bE413E2e28066B52AC4D82947A3f499',
+    entryPoint: '0x0000000071727De22E5E9d8BAf0edAc6f37da032',
+    paymaster: process.env.SEPOLIA_PAYMASTER || '0xAA663967159E18A3Da2A8277FDDa35C0389e1462',
+    modules: {
+      policy: process.env.SEPOLIA_MODULE_POLICY || '0x1be63A49Ce0D65A010E2fF9038b81FEdf6AB1477',
+      payout: process.env.SEPOLIA_MODULE_PAYOUT || '0xAec07214d21627dFD2131470B29a8372be21eF55',
+      receipt: process.env.SEPOLIA_MODULE_RECEIPT || '0x7695cd6F97d1434A2Ab5f778C6B02898385b14cc',
+    },
+    zkmlVerifier: process.env.SEPOLIA_ZKML_VERIFIER || '0xd69Ce5E5AA5a68D55413766320b520eeA3fdFf98',
   },
 
   'apechain-testnet': {

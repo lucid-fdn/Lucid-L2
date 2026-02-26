@@ -56,10 +56,7 @@ export interface ChainConfig {
   /** LucidValidator contract address */
   lucidValidatorAddress?: string;
 
-  /** LayerZero V2 endpoint address (for OFT cross-chain transfers) */
-  layerZeroEndpoint?: string;
-
-  /** $LUCID token address on this chain (OFT or native) */
+  /** $LUCID ERC-20 token address on this chain */
   lucidTokenAddress?: string;
 
   /** ERC-6551 Token Bound Account configuration */
