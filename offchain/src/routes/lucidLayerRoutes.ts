@@ -172,16 +172,17 @@ lucidLayerRouter.post('/v1/route', async (req, res) => {
       });
     }
 
+    const m = match as any;
     return res.json({
       success: true,
       request_id,
       route: {
-        compute_passport_id: match.compute_passport_id,
-        model_passport_id: match.model_passport_id,
+        compute_passport_id: m.compute_passport_id,
+        model_passport_id: m.model_passport_id,
         endpoint,
-        runtime: match.selected_runtime,
+        runtime: m.selected_runtime,
         policy_hash: explain.policy_hash,
-        fallbacks: match.fallbacks,
+        fallbacks: m.fallbacks,
       },
       explain,
     });
@@ -1617,17 +1618,18 @@ lucidLayerRouter.post('/v2/route', async (req, res) => {
       });
     }
 
+    const m2 = match as any;
     const response: Record<string, unknown> = {
       success: true,
       request_id,
       chain_id: chain_id || null,
       route: {
-        compute_passport_id: match.compute_passport_id,
-        model_passport_id: match.model_passport_id,
+        compute_passport_id: m2.compute_passport_id,
+        model_passport_id: m2.model_passport_id,
         endpoint,
-        runtime: match.selected_runtime,
+        runtime: m2.selected_runtime,
         policy_hash: explain.policy_hash,
-        fallbacks: match.fallbacks,
+        fallbacks: m2.fallbacks,
       },
       explain,
     };
