@@ -12,6 +12,7 @@ import {
 } from '../storage/passportStore';
 import { validateWithSchema, SchemaId } from '../utils/schemaValidator';
 import { hasAvailableCompute } from './matchingEngine';
+import { MODEL_CATALOG } from './modelCatalog';
 
 // =============================================================================
 // TRUSTGATE CATALOG VALIDATION
@@ -795,29 +796,55 @@ export class PassportManager {
         continue;
       }
 
-      const provider = deriveProvider(model.id);
+      const catalogEntry = MODEL_CATALOG[model.id];
+      const provider = catalogEntry?.provider || deriveProvider(model.id);
       const passportId = `passport_api_${model.id.replace(/[^a-zA-Z0-9-_]/g, '_')}`;
 
-      const metadata = {
-        schema_version: '1.0',
+      // Build rich metadata from catalog (falls back to minimal if model not in catalog)
+      const metadata: Record<string, any> = {
+        schema_version: '2.0',
         model_passport_id: passportId,
         format: 'api',
         runtime_recommended: 'trustgate',
-        name: model.id,
+        name: catalogEntry?.name || model.id,
         provider,
         api_model_id: model.id,
-        base: this.mapProviderToBase(provider),
+        base: catalogEntry?.base || this.mapProviderToBase(provider),
       };
+
+      // Enrich with catalog data if available
+      if (catalogEntry) {
+        metadata.modality = catalogEntry.modality;
+        metadata.context_length = catalogEntry.context_length;
+        metadata.max_output_tokens = catalogEntry.max_output_tokens;
+        if (catalogEntry.parameter_count) metadata.parameter_count = catalogEntry.parameter_count;
+        metadata.architecture = catalogEntry.architecture;
+        if (catalogEntry.knowledge_cutoff) metadata.knowledge_cutoff = catalogEntry.knowledge_cutoff;
+        metadata.license = catalogEntry.license;
+        metadata.languages = catalogEntry.languages;
+        metadata.capabilities = catalogEntry.capabilities;
+        metadata.pricing = catalogEntry.pricing;
+        metadata.infrastructure = catalogEntry.infrastructure;
+        // Initialize empty trust/provenance — computed later from on-chain data
+        metadata.trust = { trust_score: 0, total_inferences: 0 };
+        metadata.provenance = { created_by: 'lucid-gateway' };
+        metadata.economics = {
+          revenue_split: { compute_bps: 0, model_bps: 0, protocol_bps: 10000 },
+          staking_required: false,
+        };
+      }
+
+      const displayName = catalogEntry?.name || model.id;
 
       try {
         await this.store.create({
           type: 'model',
           owner,
           metadata,
-          name: model.id,
-          description: `Lucid Gateway — ${provider} (${model.id})`,
-          version: '1.0',
-          tags: ['auto-sync', 'api', provider, 'lucid', 'lucid-gateway'],
+          name: displayName,
+          description: `Lucid Gateway — ${displayName} by ${provider}`,
+          version: '2.0',
+          tags: ['auto-sync', 'api', provider, 'lucid', 'lucid-gateway', ...(catalogEntry?.modality || [])],
         });
         created++;
       } catch (err) {

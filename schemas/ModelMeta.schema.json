@@ -1,39 +1,199 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://lucidlayer.ai/schemas/passport/1.0/ModelMeta.schema.json",
-  "title": "Lucid Model Metadata",
+  "$id": "https://lucidlayer.ai/schemas/passport/2.0/ModelMeta.schema.json",
+  "title": "Lucid Model Metadata v2",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "model_passport_id", "format", "runtime_recommended"],
   "properties": {
-    "schema_version": { "type": "string", "const": "1.0" },
+
+    "schema_version": { "type": "string", "enum": ["1.0", "2.0"] },
     "model_passport_id": { "type": "string", "minLength": 10 },
-    "format": { "type": "string", "enum": ["safetensors", "gguf", "api"] },
-    "runtime_recommended": { "type": "string", "enum": ["vllm", "tgi", "tensorrt", "trustgate", "openai"] },
-    "name": { "type": "string", "description": "Human-readable model name" },
+
+    "format": {
+      "type": "string",
+      "enum": ["safetensors", "gguf", "api"],
+      "description": "Model weight format or API-only"
+    },
+    "runtime_recommended": {
+      "type": "string",
+      "enum": ["vllm", "tgi", "tensorrt", "trustgate", "openai", "ollama", "llama.cpp"],
+      "description": "Recommended inference runtime"
+    },
+
+    "name": { "type": "string", "description": "Human-readable model name (e.g., GPT-4o)" },
     "description": { "type": "string", "description": "Model description" },
     "provider": { "type": "string", "description": "Provider name (e.g., openai, anthropic)" },
+
     "base": {
       "type": "string",
-      "enum": ["hf", "openai", "anthropic", "google", "cohere", "custom_endpoint"],
-      "default": "hf"
+      "enum": ["hf", "openai", "anthropic", "google", "mistral", "groq", "deepseek", "xai", "perplexity", "moonshot", "minimax", "custom_endpoint"],
+      "default": "hf",
+      "description": "Base API compatibility layer"
     },
+
+    "api_model_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Model identifier for API routing (e.g., gpt-4o, claude-3-5-sonnet)"
+    },
+
+    "modality": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["text", "vision", "audio", "image_gen", "embedding", "code", "reasoning"] },
+      "description": "Input/output modalities supported"
+    },
+    "context_length": { "type": "integer", "minimum": 1, "description": "Maximum input context window in tokens" },
+    "max_output_tokens": { "type": "integer", "minimum": 1, "description": "Maximum output tokens per request" },
+    "parameter_count": { "type": "string", "description": "Model size (e.g., 8B, 70B, 405B, undisclosed)" },
+    "architecture": { "type": "string", "description": "Model architecture (e.g., transformer, moe, diffusion)" },
+    "knowledge_cutoff": { "type": "string", "description": "Training data cutoff date (e.g., 2024-10)" },
+    "license": { "type": "string", "description": "License type (e.g., proprietary, apache-2.0, llama3.1)" },
+    "languages": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Supported languages (ISO 639-1 codes or 'multilingual')"
+    },
+
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["streaming", "tools", "json_mode", "vision", "web_search", "fine_tuning", "batch_api", "reasoning", "code_execution", "file_upload"]
+      },
+      "description": "Supported API features"
+    },
+
+    "pricing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "input_per_mtok": { "type": "number", "minimum": 0, "description": "USD per million input tokens" },
+        "output_per_mtok": { "type": "number", "minimum": 0, "description": "USD per million output tokens" },
+        "currency": { "type": "string", "default": "usd" },
+        "free_tier": { "type": "boolean", "default": false, "description": "Whether a free tier is available" }
+      },
+      "description": "Pricing information"
+    },
+
+    "infrastructure": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "regions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Inference regions (e.g., us-east-1, eu-west-1, global)"
+        },
+        "data_residency": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Where data is processed/stored (e.g., US, EU, global)"
+        },
+        "content_policy": {
+          "type": "string",
+          "enum": ["strict", "moderate", "permissive", "none"],
+          "description": "Content moderation policy level"
+        },
+        "rate_limit_rpm": { "type": "integer", "description": "Requests per minute limit" }
+      },
+      "description": "Infrastructure and compliance details"
+    },
+
+    "trust": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "trust_score": { "type": "number", "minimum": 0, "maximum": 100, "description": "Computed from on-chain receipts (0-100)" },
+        "total_inferences": { "type": "integer", "minimum": 0, "description": "Total provable inference count from receipt chain" },
+        "uptime_30d": { "type": "number", "minimum": 0, "maximum": 100, "description": "Uptime percentage over last 30 days" },
+        "p95_latency_ms": { "type": "integer", "minimum": 0, "description": "P95 latency in milliseconds (measured)" },
+        "verified_benchmarks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "benchmark": { "type": "string", "description": "Benchmark name (e.g., MMLU, HumanEval, GSM8K)" },
+              "score": { "type": "number", "description": "Score value" },
+              "proof_hash": { "type": "string", "description": "SHA-256 hash of benchmark run for verification" }
+            }
+          },
+          "description": "Benchmark results with cryptographic proof"
+        },
+        "last_verified_at": { "type": "string", "format": "date-time", "description": "Last trust score update timestamp" }
+      },
+      "description": "On-chain computed trust metrics — unique to Lucid"
+    },
+
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "training_data_hash": { "type": "string", "description": "SHA-256 hash of training dataset manifest" },
+        "fine_tune_lineage": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Chain of passport IDs from base model to current (on-chain custody)"
+        },
+        "audit_trail_pda": { "type": "string", "description": "Solana PDA address — anyone can verify model history" },
+        "created_by": { "type": "string", "description": "Organization or wallet that registered the model" },
+        "source_url": { "type": "string", "description": "Original model source (e.g., HuggingFace repo URL)" }
+      },
+      "description": "Verifiable model provenance — anchored on Solana"
+    },
+
+    "compliance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "certifications": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Compliance certs (e.g., SOC2, HIPAA, GDPR, ISO27001)"
+        },
+        "eu_ai_act_risk_level": {
+          "type": "string",
+          "enum": ["minimal", "limited", "high", "unacceptable"],
+          "description": "EU AI Act risk classification"
+        }
+      },
+      "description": "Regulatory compliance metadata"
+    },
+
+    "economics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "revenue_split": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "compute_bps": { "type": "integer", "description": "Compute provider share (basis points, e.g., 7000 = 70%)" },
+            "model_bps": { "type": "integer", "description": "Model owner share (basis points)" },
+            "protocol_bps": { "type": "integer", "description": "Protocol fee (basis points)" }
+          },
+          "description": "Revenue split in basis points (must sum to 10000)"
+        },
+        "staking_required": { "type": "boolean", "description": "Whether provider must stake tokens" }
+      },
+      "description": "Economic model for the passport"
+    },
+
     "hf": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
         "repo_id": { "type": "string" },
         "revision": { "type": "string" }
-      }
+      },
+      "description": "HuggingFace repository info (for safetensors/gguf formats)"
     },
-    "context_length": { "type": "integer", "minimum": 1 },
     "quantizations": {
       "type": "array",
-      "items": {
-        "type": "string",
-        "enum": ["fp16", "int8", "awq", "gptq", "gguf_q4"]
-      },
-      "default": []
+      "items": { "type": "string", "enum": ["fp16", "bf16", "fp8", "int8", "int4", "awq", "gptq", "gguf_q4", "gguf_q5", "gguf_q8"] },
+      "default": [],
+      "description": "Available quantizations (for self-hosted models)"
     },
     "requirements": {
       "type": "object",
@@ -43,7 +203,8 @@
         "gpu_classes": { "type": "array", "items": { "type": "string" }, "default": [] },
         "cuda_min": { "type": "string" }
       },
-      "default": {}
+      "default": {},
+      "description": "Hardware requirements (for self-hosted models)"
     },
     "endpoints": {
       "type": "object",
@@ -51,19 +212,16 @@
       "properties": {
         "openai_compat_base_url": { "type": "string" },
         "auth_mode": { "type": "string", "enum": ["byok", "lucid_key", "none"], "default": "none" }
-      }
+      },
+      "description": "Endpoint configuration (for self-hosted or BYOK models)"
     },
     "artifacts": {
       "type": "array",
       "items": { "type": "string" },
-      "default": []
+      "default": [],
+      "description": "Additional artifact URIs"
     },
-    "weights_uri": { "type": "string" },
-    "weights_hash": { "type": "string" },
-    "api_model_id": {
-      "type": "string",
-      "minLength": 1,
-      "description": "The model identifier string for TrustGate API routing (e.g., gpt-4o, meta-llama/llama-3-70b). If set, the model can be accessed via TrustGate regardless of format."
-    }
+    "weights_uri": { "type": "string", "description": "URI to model weights" },
+    "weights_hash": { "type": "string", "description": "SHA-256 hash of model weights" }
   }
 }
