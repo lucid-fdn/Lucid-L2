@@ -27,6 +27,42 @@ const LUCID_PER_ETH = ethers.parseUnits("1000", 9);
 // Max gas cost: 10000 $LUCID per operation
 const MAX_COST_LUCID = ethers.parseUnits("10000", 9);
 
+// Track nonce manually to avoid "replacement transaction underpriced" on L2s
+let currentNonce = -1;
+
+/** Deploy a contract with explicit nonce + gas management */
+async function deployContract(name: string, args: any[] = []) {
+  console.log(`Deploying ${name}...`);
+  const [deployer] = await ethers.getSigners();
+  const Factory = await ethers.getContractFactory(name);
+
+  // Initialize nonce from chain on first deploy
+  if (currentNonce < 0) {
+    currentNonce = await ethers.provider.getTransactionCount(deployer.address, "latest");
+  }
+
+  // Fresh fee data per deploy
+  const feeData = await ethers.provider.getFeeData();
+  const overrides: Record<string, any> = {
+    nonce: currentNonce,
+  };
+  if (feeData.maxFeePerGas) {
+    overrides.maxFeePerGas = feeData.maxFeePerGas * 2n;
+    overrides.maxPriorityFeePerGas = (feeData.maxPriorityFeePerGas || 1000000n) * 2n;
+  }
+
+  const contract = await Factory.deploy(...args, overrides);
+  currentNonce++;
+  await contract.waitForDeployment();
+  const deployTx = contract.deploymentTransaction();
+  if (deployTx) {
+    await deployTx.wait(1);
+  }
+  const addr = await contract.getAddress();
+  console.log(`  ✓ ${name}: ${addr}`);
+  return contract;
+}
+
 async function main() {
   const [deployer] = await ethers.getSigners();
   console.log("=".repeat(60));
@@ -45,98 +81,70 @@ async function main() {
   if (validatorAddress) {
     console.log("Using existing LucidValidator:", validatorAddress);
   } else {
-    console.log("Deploying LucidValidator...");
-    const LucidValidator = await ethers.getContractFactory("LucidValidator");
-    const validator = await LucidValidator.deploy();
-    await validator.waitForDeployment();
+    const validator = await deployContract("LucidValidator");
     validatorAddress = await validator.getAddress();
-    console.log("  ✓ LucidValidator:", validatorAddress);
   }
   deployed["LucidValidator"] = validatorAddress;
 
   // ── 2. ZkMLVerifier ────────────────────────────────────────
-  console.log("Deploying ZkMLVerifier...");
-  const ZkMLVerifier = await ethers.getContractFactory("ZkMLVerifier");
-  const zkml = await ZkMLVerifier.deploy();
-  await zkml.waitForDeployment();
+  const zkml = await deployContract("ZkMLVerifier");
   deployed["ZkMLVerifier"] = await zkml.getAddress();
-  console.log("  ✓ ZkMLVerifier:", deployed["ZkMLVerifier"]);
 
   // ── 3. LucidEscrow ────────────────────────────────────────
-  console.log("Deploying LucidEscrow...");
-  const LucidEscrow = await ethers.getContractFactory("LucidEscrow");
-  const escrow = await LucidEscrow.deploy(validatorAddress);
-  await escrow.waitForDeployment();
+  const escrow = await deployContract("LucidEscrow", [validatorAddress]);
   deployed["LucidEscrow"] = await escrow.getAddress();
-  console.log("  ✓ LucidEscrow:", deployed["LucidEscrow"]);
 
-  // ── 4. Deploy MockERC20 as LUCID token (testnet only) ─────
+  // ── 4. Deploy LucidToken (or use existing) ─────────────────
   let lucidTokenAddress = process.env.LUCID_TOKEN_ADDRESS;
   if (lucidTokenAddress) {
     console.log("Using existing LUCID token:", lucidTokenAddress);
   } else {
-    console.log("Deploying MockERC20 as LUCID token (testnet)...");
-    const MockERC20 = await ethers.getContractFactory("MockERC20");
-    const token = await MockERC20.deploy("Lucid Token", "LUCID", 9);
-    await token.waitForDeployment();
+    const token = await deployContract("LucidToken", ["Lucid", "LUCID", deployer.address]);
     lucidTokenAddress = await token.getAddress();
-    console.log("  ✓ LUCID Token (Mock):", lucidTokenAddress);
   }
   deployed["LucidToken"] = lucidTokenAddress;
 
   // ── 5. LucidArbitration ────────────────────────────────────
-  console.log("Deploying LucidArbitration...");
-  const LucidArbitration = await ethers.getContractFactory("LucidArbitration");
-  const arbitration = await LucidArbitration.deploy(
+  const arbitration = await deployContract("LucidArbitration", [
     deployed["LucidEscrow"],
     validatorAddress,
-    lucidTokenAddress
-  );
-  await arbitration.waitForDeployment();
+    lucidTokenAddress,
+  ]);
   deployed["LucidArbitration"] = await arbitration.getAddress();
-  console.log("  ✓ LucidArbitration:", deployed["LucidArbitration"]);
 
   // ── 6. Link Escrow <-> Arbitration ─────────────────────────
   console.log("Linking Escrow → Arbitration...");
-  const tx = await escrow.setArbitrationContract(deployed["LucidArbitration"]);
-  await tx.wait();
+  const feeData = await ethers.provider.getFeeData();
+  const linkTx = await escrow.setArbitrationContract(deployed["LucidArbitration"], {
+    nonce: currentNonce,
+    maxFeePerGas: feeData.maxFeePerGas! * 2n,
+    maxPriorityFeePerGas: (feeData.maxPriorityFeePerGas || 1000000n) * 2n,
+  });
+  currentNonce++;
+  await linkTx.wait(1);
   console.log("  ✓ Escrow arbitration contract set");
 
   // ── 7. ERC-7579 Modules ────────────────────────────────────
   console.log("Deploying ERC-7579 Modules...");
-
-  const LucidPolicyModule = await ethers.getContractFactory("LucidPolicyModule");
-  const policy = await LucidPolicyModule.deploy();
-  await policy.waitForDeployment();
+  const policy = await deployContract("LucidPolicyModule");
   deployed["LucidPolicyModule"] = await policy.getAddress();
-  console.log("  ✓ LucidPolicyModule:", deployed["LucidPolicyModule"]);
 
-  const LucidPayoutModule = await ethers.getContractFactory("LucidPayoutModule");
-  const payout = await LucidPayoutModule.deploy();
-  await payout.waitForDeployment();
+  const payout = await deployContract("LucidPayoutModule");
   deployed["LucidPayoutModule"] = await payout.getAddress();
-  console.log("  ✓ LucidPayoutModule:", deployed["LucidPayoutModule"]);
 
-  const LucidReceiptModule = await ethers.getContractFactory("LucidReceiptModule");
-  const receipt = await LucidReceiptModule.deploy();
-  await receipt.waitForDeployment();
+  const receipt = await deployContract("LucidReceiptModule");
   deployed["LucidReceiptModule"] = await receipt.getAddress();
-  console.log("  ✓ LucidReceiptModule:", deployed["LucidReceiptModule"]);
 
   // ── 8. LucidPaymaster ──────────────────────────────────────
   const entryPointAddress = process.env.ENTRY_POINT_ADDRESS || ENTRY_POINT_V07;
-  console.log("Deploying LucidPaymaster...");
   console.log("  EntryPoint:", entryPointAddress);
-  const LucidPaymaster = await ethers.getContractFactory("LucidPaymaster");
-  const paymaster = await LucidPaymaster.deploy(
+  const paymaster = await deployContract("LucidPaymaster", [
     lucidTokenAddress,
     entryPointAddress,
     LUCID_PER_ETH,
-    MAX_COST_LUCID
-  );
-  await paymaster.waitForDeployment();
+    MAX_COST_LUCID,
+  ]);
   deployed["LucidPaymaster"] = await paymaster.getAddress();
-  console.log("  ✓ LucidPaymaster:", deployed["LucidPaymaster"]);
 
   // ── Summary ────────────────────────────────────────────────
   console.log("");

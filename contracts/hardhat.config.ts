@@ -35,6 +35,11 @@ const config: HardhatUserConfig = {
       chainId: 33111,
       accounts: [DEPLOYER_KEY],
     },
+    avalancheFuji: {
+      url: process.env.AVALANCHE_FUJI_RPC || "https://api.avax-test.network/ext/bc/C/rpc",
+      chainId: 43113,
+      accounts: [DEPLOYER_KEY],
+    },
 
     // ── Mainnets ─────────────────────────────────────────────
     ethereum: {

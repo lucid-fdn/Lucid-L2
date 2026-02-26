@@ -140,17 +140,18 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
       reputationRegistry: process.env.BASE_SEPOLIA_REPUTATION_REGISTRY,
     },
     usdcAddress: process.env.BASE_SEPOLIA_USDC_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
-    // Phase 3 contracts (populated on deploy)
-    escrowContract: process.env.BASE_SEPOLIA_ESCROW_CONTRACT,
-    arbitrationContract: process.env.BASE_SEPOLIA_ARBITRATION_CONTRACT,
-    entryPoint: '0x0000000071727De22E5E9d8BAf0edAc6f37da032', // Canonical EntryPoint v0.7
-    paymaster: process.env.BASE_SEPOLIA_PAYMASTER,
+    lucidValidatorAddress: process.env.BASE_SEPOLIA_LUCID_VALIDATOR || '0x7695cd6F97d1434A2Ab5f778C6B02898385b14cc',
+    lucidTokenAddress: process.env.BASE_SEPOLIA_LUCID_TOKEN || '0x17F583fc59b745E24C5078b9C8e4577b866cD7fc',
+    escrowContract: process.env.BASE_SEPOLIA_ESCROW_CONTRACT || '0x060f76F82325B98bC595954F6b8c88083B43b379',
+    arbitrationContract: process.env.BASE_SEPOLIA_ARBITRATION_CONTRACT || '0xc93b3E60503cAD1FEc11209F374A67D2886c6BA5',
+    entryPoint: '0x0000000071727De22E5E9d8BAf0edAc6f37da032',
+    paymaster: process.env.BASE_SEPOLIA_PAYMASTER || '0xd2671c81a7169E66Aa9B0db5D0bF865Cfd6868bD',
     modules: {
-      policy: process.env.BASE_SEPOLIA_MODULE_POLICY,
-      payout: process.env.BASE_SEPOLIA_MODULE_PAYOUT,
-      receipt: process.env.BASE_SEPOLIA_MODULE_RECEIPT,
+      policy: process.env.BASE_SEPOLIA_MODULE_POLICY || '0xe0263C014B66D4452CD42ec9693A830f5D28bC5F',
+      payout: process.env.BASE_SEPOLIA_MODULE_PAYOUT || '0x51646afF187945B7F573503139A3a2c470064229',
+      receipt: process.env.BASE_SEPOLIA_MODULE_RECEIPT || '0x00b811fD025A3B2606a83Ee9C4bF882f4612B745',
     },
-    zkmlVerifier: process.env.BASE_SEPOLIA_ZKML_VERIFIER,
+    zkmlVerifier: process.env.BASE_SEPOLIA_ZKML_VERIFIER || '0xAA663967159E18A3Da2A8277FDDa35C0389e1462',
   },
 
   'ethereum-sepolia': {
@@ -195,6 +196,29 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
       validationRegistry: process.env.APECHAIN_TESTNET_VALIDATION_REGISTRY,
       reputationRegistry: process.env.APECHAIN_TESTNET_REPUTATION_REGISTRY,
     },
+    lucidValidatorAddress: process.env.APECHAIN_TESTNET_LUCID_VALIDATOR || '0x2f3F68fEF35D39711F78Ce75c5a7fbA35f80500e',
+    lucidTokenAddress: process.env.APECHAIN_TESTNET_LUCID_TOKEN || '0x585Fdf7ba18c550599412260aaA003ff006e111f',
+    escrowContract: process.env.APECHAIN_TESTNET_ESCROW_CONTRACT || '0x3Aff9d80Cd91Fb9C4fE475155e60e9C473F55088',
+    arbitrationContract: process.env.APECHAIN_TESTNET_ARBITRATION_CONTRACT || '0x912d97060bE413E2e28066B52AC4D82947A3f499',
+    entryPoint: '0x0000000071727De22E5E9d8BAf0edAc6f37da032',
+    paymaster: process.env.APECHAIN_TESTNET_PAYMASTER || '0xAA663967159E18A3Da2A8277FDDa35C0389e1462',
+    modules: {
+      policy: process.env.APECHAIN_TESTNET_MODULE_POLICY || '0x1be63A49Ce0D65A010E2fF9038b81FEdf6AB1477',
+      payout: process.env.APECHAIN_TESTNET_MODULE_PAYOUT || '0xAec07214d21627dFD2131470B29a8372be21eF55',
+      receipt: process.env.APECHAIN_TESTNET_MODULE_RECEIPT || '0x7695cd6F97d1434A2Ab5f778C6B02898385b14cc',
+    },
+    zkmlVerifier: process.env.APECHAIN_TESTNET_ZKML_VERIFIER || '0xd69Ce5E5AA5a68D55413766320b520eeA3fdFf98',
+  },
+
+  'avalanche-fuji': {
+    chainId: 'avalanche-fuji',
+    name: 'Avalanche Fuji Testnet',
+    chainType: 'evm',
+    evmChainId: 43113,
+    rpcUrl: process.env.AVALANCHE_FUJI_RPC_URL || 'https://api.avax-test.network/ext/bc/C/rpc',
+    isTestnet: true,
+    explorerUrl: 'https://testnet.snowtrace.io',
+    nativeCurrency: { name: 'Avalanche', symbol: 'AVAX', decimals: 18 },
   },
 
   // =========================================================================
