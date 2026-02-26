@@ -14,6 +14,7 @@
       "./models/errors": "./src/models/errors/index.ts",
       "./models": "./src/models/index.ts",
       "./models/operations": "./src/models/operations/index.ts",
+      "./ai": "./src/ai.ts",
       "./*.js": "./src/*.ts",
       "./*": "./src/*.ts"
     }
@@ -24,7 +25,6 @@
     "build": "tshy",
     "prepublishOnly": "npm run build"
   },
-  "peerDependencies": {},
   "devDependencies": {
     "@eslint/js": "^9.19.0",
     "eslint": "^9.19.0",
@@ -34,6 +34,7 @@
     "typescript-eslint": "^8.26.0"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^2.0.30",
     "zod": "^3.25.65 || ^4.0.0"
   },
   "exports": {
@@ -91,6 +92,17 @@
       "require": {
         "types": "./dist/commonjs/models/operations/index.d.ts",
         "default": "./dist/commonjs/models/operations/index.js"
+      }
+    },
+    "./ai": {
+      "import": {
+        "raijin-labs-lucid-ai/source": "./src/ai.ts",
+        "types": "./dist/esm/ai.d.ts",
+        "default": "./dist/esm/ai.js"
+      },
+      "require": {
+        "types": "./dist/commonjs/ai.d.ts",
+        "default": "./dist/commonjs/ai.js"
       }
     },
     "./*.js": {

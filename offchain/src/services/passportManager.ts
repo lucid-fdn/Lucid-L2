@@ -11,6 +11,7 @@ import {
   getPassportStore,
 } from '../storage/passportStore';
 import { validateWithSchema, SchemaId } from '../utils/schemaValidator';
+import { hasAvailableCompute } from './matchingEngine';
 
 // =============================================================================
 // TRUSTGATE CATALOG VALIDATION
@@ -459,6 +460,7 @@ export class PassportManager {
     runtime?: string;
     format?: string;
     max_vram?: number;
+    available?: boolean;
     owner?: string;
     tags?: string[];
     search?: string;
@@ -500,6 +502,19 @@ export class PassportManager {
       });
 
       // Update pagination counts
+      result.pagination.total = result.items.length;
+      result.pagination.total_pages = Math.ceil(
+        result.items.length / result.pagination.per_page
+      );
+    }
+
+    // Filter to only models with available compute (or format=api via TrustGate)
+    if (filters.available) {
+      const computeResult = await this.store.list({ type: 'compute', status: 'active' });
+      const computeCatalog = computeResult.items.map(p => p.metadata);
+      result.items = result.items.filter(p =>
+        hasAvailableCompute(p.metadata, computeCatalog)
+      );
       result.pagination.total = result.items.length;
       result.pagination.total_pages = Math.ceil(
         result.items.length / result.pagination.per_page

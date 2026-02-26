@@ -37,7 +37,7 @@ export interface MatchExplainResult {
  * - runtime_recommended: single preferred runtime
  * - runtimes_supported: list of supported runtimes (hard requirement)
  */
-function runtimeCompatible(modelMeta: any, computeMeta: any): string | null {
+export function runtimeCompatible(modelMeta: any, computeMeta: any): string | null {
   const computeRuntimes: Array<{ name: string; version?: string }> = Array.isArray(computeMeta?.runtimes) 
     ? computeMeta.runtimes 
     : [];
@@ -74,7 +74,7 @@ function runtimeCompatible(modelMeta: any, computeMeta: any): string | null {
   return computeRuntimes[0]?.name ?? null;
 }
 
-function hardwareCompatible(modelMeta: any, computeMeta: any): MatchRejectReason[] {
+export function hardwareCompatible(modelMeta: any, computeMeta: any): MatchRejectReason[] {
   const reasons: MatchRejectReason[] = [];
   const minVram = Number(modelMeta?.requirements?.min_vram_gb ?? 0);
   const vram = Number(computeMeta?.hardware?.vram_gb ?? 0);
@@ -250,4 +250,30 @@ export function matchComputeForModel(input: {
   };
 
   return { match, explain };
+}
+
+/**
+ * Lightweight availability check: can at least one compute node serve this model?
+ *
+ * - `format=api` models are always available (routed through TrustGate).
+ * - Self-hosted models (`safetensors`/`gguf`) need a healthy compute node
+ *   with compatible runtime and hardware.
+ *
+ * Short-circuits on first match — no scoring, no policy, no explain.
+ */
+export function hasAvailableCompute(
+  modelMeta: any,
+  computeCatalog: any[],
+): boolean {
+  // API-hosted models are always available via TrustGate
+  if (modelMeta?.format === 'api') return true;
+
+  const reg = getComputeRegistry();
+  for (const compute of computeCatalog) {
+    if (!runtimeCompatible(modelMeta, compute)) continue;
+    if (hardwareCompatible(modelMeta, compute).length > 0) continue;
+    if (!reg.isHealthy(compute.compute_passport_id)) continue;
+    return true;
+  }
+  return false;
 }

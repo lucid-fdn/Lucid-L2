@@ -13,9 +13,10 @@ import {
   computeForModel,
 } from '../storage/searchQueryBuilder';
 import { PassportStore, Passport, PassportType } from '../storage/passportStore';
-import { getPassportManager, resetPassportManager, PassportManager } from '../services/passportManager';
+import { PassportManager, getPassportManager, resetPassportManager } from '../services/passportManager';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 // Test data directory
 const TEST_DATA_DIR = path.join(__dirname, '../../data/test-search');
@@ -486,23 +487,22 @@ describe('Predefined Queries', () => {
 });
 
 describe('PassportManager Search Integration', () => {
-  beforeAll(async () => {
-    // Clean up test directory
-    if (fs.existsSync(TEST_DATA_DIR)) {
-      fs.rmSync(TEST_DATA_DIR, { recursive: true });
-    }
-    fs.mkdirSync(TEST_DATA_DIR, { recursive: true });
-  });
-
-  afterAll(async () => {
-    resetPassportManager();
-    // Clean up
-    if (fs.existsSync(TEST_DATA_DIR)) {
-      fs.rmSync(TEST_DATA_DIR, { recursive: true });
-    }
-  });
+  let manager: PassportManager;
+  let testDataDir: string;
 
   beforeEach(async () => {
+    testDataDir = path.join(os.tmpdir(), `passport-search-test-${Date.now()}`);
+    fs.mkdirSync(testDataDir, { recursive: true });
+    const store = new PassportStore(testDataDir, 0);
+    manager = new PassportManager(store);
+    await manager.init();
+  });
+
+  afterEach(async () => {
+    await manager.shutdown();
+    if (fs.existsSync(testDataDir)) {
+      fs.rmSync(testDataDir, { recursive: true, force: true });
+    }
     resetPassportManager();
     // Clean test data between tests for isolation
     if (fs.existsSync(TEST_DATA_DIR)) {
@@ -512,11 +512,8 @@ describe('PassportManager Search Integration', () => {
   });
 
   it('should search models via manager', async () => {
-    const store = new PassportStore(TEST_DATA_DIR);
-    const manager = new PassportManager(store);
-    await manager.init();
 
-    // Create test model passports (must conform to ModelMeta.schema.json)
+    // Create test model passports (schema requires schema_version, model_passport_id >= 10 chars, no additionalProperties)
     const r1 = await manager.createPassport({
       type: 'model',
       owner: '7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV',
@@ -559,17 +556,13 @@ describe('PassportManager Search Integration', () => {
   });
 
   it('should search compute via manager', async () => {
-    const store = new PassportStore(TEST_DATA_DIR);
-    const manager = new PassportManager(store);
-    await manager.init();
-
-    // Create test compute passports (must conform to ComputeMeta.schema.json)
-    const r1 = await manager.createPassport({
+    // Create test compute passports (schema requires schema_version, compute_passport_id >= 10 chars)
+    const c1 = await manager.createPassport({
       type: 'compute',
       owner: '7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV',
       metadata: {
         schema_version: '1.0',
-        compute_passport_id: 'compute_cloud_a100_01',
+        compute_passport_id: 'compute_aws_a100_001',
         provider_type: 'cloud',
         regions: ['us-east-1'],
         runtimes: [{ name: 'vllm', version: '0.3.0' }],
@@ -579,14 +572,14 @@ describe('PassportManager Search Integration', () => {
       name: 'AWS A100 Compute',
       tags: ['aws', 'a100'],
     });
-    expect(r1.ok).toBe(true);
+    expect(c1.ok).toBe(true);
 
-    const r2 = await manager.createPassport({
+    const c2 = await manager.createPassport({
       type: 'compute',
       owner: '7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV',
       metadata: {
         schema_version: '1.0',
-        compute_passport_id: 'compute_depin_h100_01',
+        compute_passport_id: 'compute_depin_h100_001',
         provider_type: 'depin',
         regions: ['eu-west-1'],
         runtimes: [{ name: 'tgi', version: '1.0' }],
@@ -596,7 +589,7 @@ describe('PassportManager Search Integration', () => {
       name: 'DePIN H100 Compute',
       tags: ['depin', 'h100'],
     });
-    expect(r2.ok).toBe(true);
+    expect(c2.ok).toBe(true);
 
     // Search by region
     const usResults = await manager.searchCompute({ regions: ['us-east-1'] });
