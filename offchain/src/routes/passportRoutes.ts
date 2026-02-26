@@ -478,6 +478,8 @@ passportRouter.get('/v1/models', async (req, res) => {
     }
     if (available === 'true') {
       filters.available = true;
+    } else if (available === 'false') {
+      filters.available = false;
     }
     if (owner && typeof owner === 'string') {
       filters.owner = owner;

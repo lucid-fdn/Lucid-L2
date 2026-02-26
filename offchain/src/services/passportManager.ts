@@ -508,13 +508,14 @@ export class PassportManager {
       );
     }
 
-    // Filter to only models with available compute (or format=api via TrustGate)
-    if (filters.available) {
+    // Filter by compute availability (tri-state: true=available only, false=unavailable only, undefined=all)
+    if (filters.available !== undefined) {
       const computeResult = await this.store.list({ type: 'compute', status: 'active' });
       const computeCatalog = computeResult.items.map(p => p.metadata);
-      result.items = result.items.filter(p =>
-        hasAvailableCompute(p.metadata, computeCatalog)
-      );
+      result.items = result.items.filter(p => {
+        const isAvailable = hasAvailableCompute(p.metadata, computeCatalog);
+        return filters.available ? isAvailable : !isAvailable;
+      });
       result.pagination.total = result.items.length;
       result.pagination.total_pages = Math.ceil(
         result.items.length / result.pagination.per_page
