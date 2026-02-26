@@ -94,15 +94,15 @@ async function main() {
   const escrow = await deployContract("LucidEscrow", [validatorAddress]);
   deployed["LucidEscrow"] = await escrow.getAddress();
 
-  // ── 4. Deploy LucidToken (or use existing) ─────────────────
+  // ── 4. Deploy Lucid token (or use existing) ─────────────────
   let lucidTokenAddress = process.env.LUCID_TOKEN_ADDRESS;
   if (lucidTokenAddress) {
     console.log("Using existing LUCID token:", lucidTokenAddress);
   } else {
-    const token = await deployContract("LucidToken", ["Lucid", "LUCID", deployer.address]);
+    const token = await deployContract("Lucid", ["Lucid", "LUCID", deployer.address]);
     lucidTokenAddress = await token.getAddress();
   }
-  deployed["LucidToken"] = lucidTokenAddress;
+  deployed["Lucid"] = lucidTokenAddress;
 
   // ── 5. LucidArbitration ────────────────────────────────────
   const arbitration = await deployContract("LucidArbitration", [

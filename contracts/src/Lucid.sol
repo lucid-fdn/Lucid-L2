@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
- * @title LucidToken
+ * @title Lucid
  * @notice ERC-20 representation of $LUCID on EVM chains.
  *         Solana is the canonical chain (SPL mint: 7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9).
  *         EVM chains use this contract with mint/burn gated by a bridge authority.
@@ -15,7 +15,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *        Owner (bridge authority) can mint when tokens are locked on Solana
  *        and burn when tokens are unlocked back to Solana.
  */
-contract LucidToken is ERC20, ERC20Burnable, Ownable {
+contract Lucid is ERC20, ERC20Burnable, Ownable {
     /**
      * @param _name   Token name ("Lucid")
      * @param _symbol Token symbol ("LUCID")

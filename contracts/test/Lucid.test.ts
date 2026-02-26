@@ -1,5 +1,5 @@
 /**
- * LucidToken Tests
+ * Lucid Tests
  *
  * Tests the ERC-20 $LUCID token contract: metadata, minting, burning, access control.
  */
@@ -7,7 +7,7 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 
-describe('LucidToken', function () {
+describe('Lucid', function () {
   let lucidToken: any;
   let owner: any;
   let user1: any;
@@ -16,8 +16,8 @@ describe('LucidToken', function () {
   beforeEach(async function () {
     [owner, user1, user2] = await ethers.getSigners();
 
-    const LucidToken = await ethers.getContractFactory('LucidToken');
-    lucidToken = await LucidToken.deploy('Lucid', 'LUCID', owner.address);
+    const Lucid = await ethers.getContractFactory('Lucid');
+    lucidToken = await Lucid.deploy('Lucid', 'LUCID', owner.address);
     await lucidToken.waitForDeployment();
   });
 

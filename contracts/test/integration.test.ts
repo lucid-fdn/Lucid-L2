@@ -1,38 +1,68 @@
 /**
  * Integration Tests — Live Testnet Contracts
  *
- * Calls real deployed contracts on Sepolia (or any configured --network).
+ * Calls real deployed contracts on Sepolia, Base Sepolia, or ApeChain Curtis.
  * Skips automatically on local hardhat network.
  *
  * Usage:
  *   EVM_PRIVATE_KEY=0x... npx hardhat test test/integration.test.ts --network sepolia
+ *   EVM_PRIVATE_KEY=0x... npx hardhat test test/integration.test.ts --network baseSepolia
  */
 import { expect } from "chai";
 import { ethers } from "hardhat";
 import { createHash } from "crypto";
 
-// Deployed addresses on Ethereum Sepolia
-const SEPOLIA_ADDRESSES: Record<string, string> = {
-  LucidValidator: "0x2f3F68fEF35D39711F78Ce75c5a7fbA35f80500e",
-  ZkMLVerifier: "0xd69Ce5E5AA5a68D55413766320b520eeA3fdFf98",
-  LucidEscrow: "0x3Aff9d80Cd91Fb9C4fE475155e60e9C473F55088",
-  LucidToken: "0x060f76F82325B98bC595954F6b8c88083B43b379",
-  LucidArbitration: "0x912d97060bE413E2e28066B52AC4D82947A3f499",
-  LucidPolicyModule: "0x1be63A49Ce0D65A010E2fF9038b81FEdf6AB1477",
-  LucidPayoutModule: "0xAec07214d21627dFD2131470B29a8372be21eF55",
-  LucidReceiptModule: "0x7695cd6F97d1434A2Ab5f778C6B02898385b14cc",
-  LucidPaymaster: "0xAA663967159E18A3Da2A8277FDDa35C0389e1462",
+// Deployed addresses per network
+const NETWORK_ADDRESSES: Record<string, Record<string, string>> = {
+  sepolia: {
+    LucidValidator: "0x2f3F68fEF35D39711F78Ce75c5a7fbA35f80500e",
+    ZkMLVerifier: "0xd69Ce5E5AA5a68D55413766320b520eeA3fdFf98",
+    LucidEscrow: "0x3Aff9d80Cd91Fb9C4fE475155e60e9C473F55088",
+    Lucid: "0x060f76F82325B98bC595954F6b8c88083B43b379",
+    LucidArbitration: "0x3D29D5dDAe2da5E571C015EfAbdfCab9A1B0F9BA",
+    LucidPolicyModule: "0x1be63A49Ce0D65A010E2fF9038b81FEdf6AB1477",
+    LucidPayoutModule: "0xAec07214d21627dFD2131470B29a8372be21eF55",
+    LucidReceiptModule: "0x7695cd6F97d1434A2Ab5f778C6B02898385b14cc",
+    LucidPaymaster: "0xafDcb7f7D75784076eC1f62DB13F7651A73789A2",
+  },
+  baseSepolia: {
+    LucidValidator: "0x7695cd6F97d1434A2Ab5f778C6B02898385b14cc",
+    ZkMLVerifier: "0xAA663967159E18A3Da2A8277FDDa35C0389e1462",
+    LucidEscrow: "0x060f76F82325B98bC595954F6b8c88083B43b379",
+    Lucid: "0x17F583fc59b745E24C5078b9C8e4577b866cD7fc",
+    LucidArbitration: "0xc93b3E60503cAD1FEc11209F374A67D2886c6BA5",
+    LucidPolicyModule: "0xe0263C014B66D4452CD42ec9693A830f5D28bC5F",
+    LucidPayoutModule: "0x51646afF187945B7F573503139A3a2c470064229",
+    LucidReceiptModule: "0x00b811fD025A3B2606a83Ee9C4bF882f4612B745",
+    LucidPaymaster: "0xd2671c81a7169E66Aa9B0db5D0bF865Cfd6868bD",
+  },
 };
 
-// Skip on local hardhat network
-const isLive = process.env.HARDHAT_NETWORK !== undefined && process.env.HARDHAT_NETWORK !== "hardhat";
+const networkName = process.env.HARDHAT_NETWORK || "hardhat";
+const isLive = networkName !== "hardhat";
+const ADDRESSES = NETWORK_ADDRESSES[networkName] || {};
 
 function sha256Hex(data: string): string {
   return "0x" + createHash("sha256").update(data).digest("hex");
 }
 
-(isLive ? describe : describe.skip)("Integration: Live Testnet Contracts", function () {
-  // Longer timeouts for testnet RPC calls
+// L2 chains need explicit nonce + gas overrides to avoid "replacement transaction underpriced"
+let _nonce = -1;
+async function txOverrides(): Promise<Record<string, any>> {
+  const [signer] = await ethers.getSigners();
+  if (_nonce < 0) {
+    _nonce = await ethers.provider.getTransactionCount(signer.address, "latest");
+  }
+  const feeData = await ethers.provider.getFeeData();
+  const overrides: Record<string, any> = { nonce: _nonce++ };
+  if (feeData.maxFeePerGas) {
+    overrides.maxFeePerGas = feeData.maxFeePerGas * 2n;
+    overrides.maxPriorityFeePerGas = (feeData.maxPriorityFeePerGas || 1000000n) * 2n;
+  }
+  return overrides;
+}
+
+(isLive ? describe : describe.skip)(`Integration: ${networkName} Contracts`, function () {
   this.timeout(120_000);
 
   let deployer: any;
@@ -47,21 +77,26 @@ function sha256Hex(data: string): string {
   let paymaster: any;
 
   before(async function () {
+    if (!ADDRESSES.LucidValidator) {
+      console.log(`  No addresses configured for network '${networkName}', skipping`);
+      this.skip();
+    }
+
     [deployer] = await ethers.getSigners();
+    console.log("  Network:", networkName);
     console.log("  Deployer:", deployer.address);
     const balance = await ethers.provider.getBalance(deployer.address);
     console.log("  Balance:", ethers.formatEther(balance), "ETH");
 
-    // Attach to deployed contracts
-    validator = await ethers.getContractAt("LucidValidator", SEPOLIA_ADDRESSES.LucidValidator);
-    zkml = await ethers.getContractAt("ZkMLVerifier", SEPOLIA_ADDRESSES.ZkMLVerifier);
-    escrow = await ethers.getContractAt("LucidEscrow", SEPOLIA_ADDRESSES.LucidEscrow);
-    token = await ethers.getContractAt("LucidToken", SEPOLIA_ADDRESSES.LucidToken);
-    arbitration = await ethers.getContractAt("LucidArbitration", SEPOLIA_ADDRESSES.LucidArbitration);
-    policyModule = await ethers.getContractAt("LucidPolicyModule", SEPOLIA_ADDRESSES.LucidPolicyModule);
-    payoutModule = await ethers.getContractAt("LucidPayoutModule", SEPOLIA_ADDRESSES.LucidPayoutModule);
-    receiptModule = await ethers.getContractAt("LucidReceiptModule", SEPOLIA_ADDRESSES.LucidReceiptModule);
-    paymaster = await ethers.getContractAt("LucidPaymaster", SEPOLIA_ADDRESSES.LucidPaymaster);
+    validator = await ethers.getContractAt("LucidValidator", ADDRESSES.LucidValidator);
+    zkml = await ethers.getContractAt("ZkMLVerifier", ADDRESSES.ZkMLVerifier);
+    escrow = await ethers.getContractAt("LucidEscrow", ADDRESSES.LucidEscrow);
+    token = await ethers.getContractAt("Lucid", ADDRESSES.Lucid);
+    arbitration = await ethers.getContractAt("LucidArbitration", ADDRESSES.LucidArbitration);
+    policyModule = await ethers.getContractAt("LucidPolicyModule", ADDRESSES.LucidPolicyModule);
+    payoutModule = await ethers.getContractAt("LucidPayoutModule", ADDRESSES.LucidPayoutModule);
+    receiptModule = await ethers.getContractAt("LucidReceiptModule", ADDRESSES.LucidReceiptModule);
+    paymaster = await ethers.getContractAt("LucidPaymaster", ADDRESSES.LucidPaymaster);
   });
 
   // ────────────────────────────────────────────────────────
@@ -100,7 +135,6 @@ function sha256Hex(data: string): string {
 
     it("should verify a single-leaf MMR proof", async function () {
       const leaf = sha256Hex("mmr-leaf-integration");
-      // Single-leaf MMR: no siblings, one peak = the leaf itself
       const result = await validator.verifyMMRProof(
         leaf,
         [],      // no siblings
@@ -130,9 +164,9 @@ function sha256Hex(data: string): string {
   });
 
   // ────────────────────────────────────────────────────────
-  // 3. LucidToken — ERC-20 basics
+  // 3. Lucid Token — ERC-20 basics
   // ────────────────────────────────────────────────────────
-  describe("LucidToken", function () {
+  describe("Lucid Token", function () {
     it("should have 9 decimals", async function () {
       const decimals = await token.decimals();
       expect(decimals).to.equal(9);
@@ -154,8 +188,8 @@ function sha256Hex(data: string): string {
     it("should mint tokens (owner only)", async function () {
       const amount = ethers.parseUnits("100", 9); // 100 LUCID
       const balanceBefore = await token.balanceOf(deployer.address);
-      const tx = await token.mint(deployer.address, amount);
-      await tx.wait(1);
+      const tx = await token.mint(deployer.address, amount, await txOverrides());
+      await tx.wait(2); // wait 2 confirmations on L2 for state propagation
       const balanceAfter = await token.balanceOf(deployer.address);
       expect(balanceAfter - balanceBefore).to.equal(amount);
     });
@@ -168,31 +202,25 @@ function sha256Hex(data: string): string {
     const escrowAmount = ethers.parseUnits("10", 9); // 10 LUCID
 
     it("should create and release an escrow with receipt verification", async function () {
-      // Use manual nonce tracking to avoid nonce race on live testnets
-      let nonce = await ethers.provider.getTransactionCount(deployer.address, "latest");
+      const mintTx = await token.mint(deployer.address, escrowAmount, await txOverrides());
+      await mintTx.wait(2);
 
-      // Mint tokens and approve escrow contract
-      const mintTx = await token.mint(deployer.address, escrowAmount, { nonce: nonce++ });
-      await mintTx.wait(1);
+      const approveTx = await token.approve(ADDRESSES.LucidEscrow, escrowAmount, await txOverrides());
+      await approveTx.wait(2);
 
-      const approveTx = await token.approve(SEPOLIA_ADDRESSES.LucidEscrow, escrowAmount, { nonce: nonce++ });
-      await approveTx.wait(1);
-
-      // Create escrow (depositor = deployer, beneficiary = deployer for simplicity)
       const receiptPreimage = "integration-escrow-" + Date.now();
       const receiptHash = sha256Hex(receiptPreimage);
 
       const tx = await escrow.createEscrow(
-        deployer.address, // beneficiary
-        SEPOLIA_ADDRESSES.LucidToken,
+        deployer.address,
+        ADDRESSES.Lucid,
         escrowAmount,
-        3600, // 1 hour duration
+        3600,
         receiptHash,
-        { nonce: nonce++ }
+        await txOverrides()
       );
-      const receipt = await tx.wait(1);
+      const receipt = await tx.wait(2);
 
-      // Extract escrowId from event
       const createEvent = receipt.logs.find(
         (l: any) => l.fragment?.name === "EscrowCreated"
       );
@@ -200,18 +228,15 @@ function sha256Hex(data: string): string {
       const escrowId = createEvent!.args[0];
       console.log("    Created escrow:", escrowId);
 
-      // Read escrow state
       const escrowData = await escrow.getEscrow(escrowId);
       expect(escrowData.status).to.equal(0); // Created
 
-      // Release with "receipt" (MVP: just needs 64-byte sig + 32-byte pubkey)
       const sig = "0x" + "aa".repeat(64);
       const pubkey = "0x" + "bb".repeat(32);
 
-      const releaseTx = await escrow.releaseEscrow(escrowId, receiptHash, sig, pubkey, { nonce: nonce++ });
-      await releaseTx.wait(1);
+      const releaseTx = await escrow.releaseEscrow(escrowId, receiptHash, sig, pubkey, await txOverrides());
+      await releaseTx.wait(2);
 
-      // Verify released
       const released = await escrow.getEscrow(escrowId);
       expect(released.status).to.equal(1); // Released
       console.log("    Escrow released successfully");
@@ -243,15 +268,14 @@ function sha256Hex(data: string): string {
 
     it("should set and read a policy", async function () {
       const policyHash = sha256Hex("integration-policy-" + Date.now());
-      const tx = await policyModule.setPolicy(policyHash, true);
-      await tx.wait(1);
+      const tx = await policyModule.setPolicy(policyHash, true, await txOverrides());
+      await tx.wait(2);
 
       const allowed = await policyModule.isPolicyAllowed(deployer.address, policyHash);
       expect(allowed).to.be.true;
 
-      // Clean up
-      const cleanTx = await policyModule.setPolicy(policyHash, false);
-      await cleanTx.wait(1);
+      const cleanTx = await policyModule.setPolicy(policyHash, false, await txOverrides());
+      await cleanTx.wait(2);
     });
 
     it("should emit a receipt event", async function () {
@@ -262,8 +286,8 @@ function sha256Hex(data: string): string {
         [receiptHash, policyHash, "model_test", "compute_test", 100, 50]
       );
 
-      const tx = await receiptModule.emitReceipt(encoded);
-      const receipt = await tx.wait(1);
+      const tx = await receiptModule.emitReceipt(encoded, await txOverrides());
+      const receipt = await tx.wait(2);
       const event = receipt.logs.find(
         (l: any) => l.fragment?.name === "ReceiptEmitted"
       );
@@ -303,33 +327,29 @@ function sha256Hex(data: string): string {
   });
 
   // ────────────────────────────────────────────────────────
-  // 7. Cross-contract: Escrow → Arbitration wiring
+  // 7. Cross-contract wiring
   // ────────────────────────────────────────────────────────
   describe("Cross-Contract Wiring", function () {
     it("LucidEscrow should reference the correct validator", async function () {
       const validatorAddr = await escrow.lucidValidator();
-      expect(validatorAddr).to.equal(SEPOLIA_ADDRESSES.LucidValidator);
+      expect(validatorAddr).to.equal(ADDRESSES.LucidValidator);
     });
 
     it("LucidArbitration should reference escrow and validator", async function () {
       const escrowAddr = await arbitration.escrowContract();
       const validatorAddr = await arbitration.lucidValidator();
-      expect(escrowAddr).to.equal(SEPOLIA_ADDRESSES.LucidEscrow);
-      expect(validatorAddr).to.equal(SEPOLIA_ADDRESSES.LucidValidator);
+      expect(escrowAddr).to.equal(ADDRESSES.LucidEscrow);
+      expect(validatorAddr).to.equal(ADDRESSES.LucidValidator);
     });
 
-    it("LucidArbitration and LucidPaymaster should reference the same token", async function () {
-      // The deploy script may have used a MockERC20 or the real LucidToken;
-      // what matters is all contracts reference the same token address.
-      const arbToken = await arbitration.lucidToken();
-      const pmToken = await paymaster.lucidToken();
-      console.log("    Arbitration token:", arbToken);
-      console.log("    Paymaster token: ", pmToken);
-      expect(arbToken).to.equal(pmToken);
-      // Verify it's a valid ERC-20 (has name/symbol)
-      const linkedToken = await ethers.getContractAt("LucidToken", arbToken);
-      const name = await linkedToken.name();
-      expect(name).to.be.a("string").that.is.not.empty;
+    it("LucidArbitration should reference the correct token", async function () {
+      const tokenAddr = await arbitration.lucidToken();
+      expect(tokenAddr).to.equal(ADDRESSES.Lucid);
+    });
+
+    it("LucidPaymaster should reference the correct token", async function () {
+      const tokenAddr = await paymaster.lucidToken();
+      expect(tokenAddr).to.equal(ADDRESSES.Lucid);
     });
   });
 });
