@@ -44,6 +44,51 @@ async function getTrustGateCatalog(): Promise<Set<string>> {
   }
 }
 
+/** Full catalog entry from TrustGate/LiteLLM */
+interface TrustGateCatalogEntry {
+  id: string;
+  owned_by?: string;
+}
+
+/** Get full catalog with model details from TrustGate */
+async function getTrustGateCatalogFull(): Promise<TrustGateCatalogEntry[]> {
+  try {
+    const response = await fetch(`${TRUSTGATE_URL}/v1/models`);
+    if (!response.ok) {
+      console.warn('TrustGate catalog fetch failed:', response.status);
+      return [];
+    }
+    const data = await response.json();
+    return (data.data || []).map((m: any) => ({
+      id: m.id,
+      owned_by: m.owned_by,
+    }));
+  } catch (error) {
+    console.warn('TrustGate catalog unreachable:', error);
+    return [];
+  }
+}
+
+/** Derive provider from model name prefix */
+function deriveProvider(modelId: string): string {
+  const id = modelId.toLowerCase();
+  if (/^(gpt-|o1-|o3-|o4-)/.test(id)) return 'openai';
+  if (/^claude-/.test(id)) return 'anthropic';
+  if (/^gemini-/.test(id)) return 'google';
+  if (/^(groq\/|llama.*groq)/.test(id)) return 'groq';
+  if (/^(mistral|codestral)/.test(id)) return 'mistral';
+  if (/^(cohere|command)/.test(id)) return 'cohere';
+  if (/^perplexity/.test(id)) return 'perplexity';
+  if (/^grok-/.test(id)) return 'xai';
+  if (/^(together|meta-llama|deepseek.*together)/.test(id)) return 'together';
+  if (/^(fireworks|accounts\/fireworks)/.test(id)) return 'fireworks';
+  if (/^deepseek/.test(id)) return 'deepseek';
+  if (/^(hf\/|huggingface)/.test(id)) return 'huggingface';
+  if (/^(vercel|v0-)/.test(id)) return 'vercel';
+  if (/^(text-embedding|embedding)/.test(id)) return 'openai';
+  return 'unknown';
+}
+
 /** Reset catalog cache (exported for testing) */
 export function _resetTrustGateCatalogCache() {
   trustgateCatalogCache = null;
@@ -709,6 +754,102 @@ export class PassportManager {
   async exists(passportId: string): Promise<boolean> {
     await this.ensureInitialized();
     return this.store.exists(passportId);
+  }
+
+  /**
+   * Sync API models from TrustGate/LiteLLM catalog into the passport store.
+   * Creates format=api passports for any catalog model not yet registered.
+   * Revokes stale passports whose api_model_id is no longer in catalog.
+   * Idempotent — safe to call on every startup.
+   */
+  async syncApiModels(): Promise<{ created: number; skipped: number; removed: number }> {
+    await this.ensureInitialized();
+
+    const catalog = await getTrustGateCatalogFull();
+    if (catalog.length === 0) {
+      console.warn('[TrustGate Sync] No models returned from TrustGate — skipping sync');
+      return { created: 0, skipped: 0, removed: 0 };
+    }
+
+    const owner = process.env.PLATFORM_OWNER_ADDRESS || '11111111111111111111111111111111';
+
+    // Get existing api passports
+    const existing = await this.store.list({ type: 'model', status: 'active', per_page: 1000 });
+    const existingApiPassports = existing.items.filter(p => p.metadata?.format === 'api');
+    const existingByModelId = new Map<string, typeof existingApiPassports[0]>();
+    for (const p of existingApiPassports) {
+      if (p.metadata?.api_model_id) {
+        existingByModelId.set(p.metadata.api_model_id, p);
+      }
+    }
+
+    const catalogIds = new Set(catalog.map(m => m.id));
+    let created = 0;
+    let skipped = 0;
+
+    // Create passports for new catalog models
+    for (const model of catalog) {
+      if (existingByModelId.has(model.id)) {
+        skipped++;
+        continue;
+      }
+
+      const provider = deriveProvider(model.id);
+      const passportId = `passport_api_${model.id.replace(/[^a-zA-Z0-9-_]/g, '_')}`;
+
+      const metadata = {
+        schema_version: '1.0',
+        model_passport_id: passportId,
+        format: 'api',
+        runtime_recommended: 'trustgate',
+        name: model.id,
+        provider,
+        api_model_id: model.id,
+        base: this.mapProviderToBase(provider),
+      };
+
+      try {
+        await this.store.create({
+          type: 'model',
+          owner,
+          metadata,
+          name: model.id,
+          description: `Auto-synced from TrustGate (${provider})`,
+          version: '1.0',
+          tags: ['auto-sync', 'api', provider],
+        });
+        created++;
+      } catch (err) {
+        console.warn(`[TrustGate Sync] Failed to create passport for ${model.id}:`, err);
+      }
+    }
+
+    // Revoke stale passports no longer in catalog
+    let removed = 0;
+    for (const [modelId, passport] of existingByModelId) {
+      if (!catalogIds.has(modelId) && passport.tags?.includes('auto-sync')) {
+        try {
+          await this.store.update(passport.passport_id, { status: 'revoked' });
+          removed++;
+        } catch (err) {
+          console.warn(`[TrustGate Sync] Failed to revoke stale passport ${passport.passport_id}:`, err);
+        }
+      }
+    }
+
+    console.log(`[TrustGate Sync] Done: ${created} created, ${skipped} skipped, ${removed} removed (${catalog.length} in catalog)`);
+    return { created, skipped, removed };
+  }
+
+  /** Map provider name to ModelMeta base enum */
+  private mapProviderToBase(provider: string): string {
+    switch (provider) {
+      case 'openai': return 'openai';
+      case 'anthropic': return 'anthropic';
+      case 'google': return 'google';
+      case 'cohere': return 'cohere';
+      default: return 'custom_endpoint';
+    }
   }
 
   /**

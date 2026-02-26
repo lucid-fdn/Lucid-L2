@@ -211,7 +211,19 @@ console.log(`Reputation Marketplace: ${reputationAlgorithmRegistry.count()} algo
 // Initialize Passport Manager and wire up On-Chain Sync
 getPassportManager().init().then(async () => {
   console.log('📦 Passport Manager ready');
-  
+
+  // Auto-sync API models from TrustGate catalog
+  if (process.env.TRUSTGATE_SYNC_ENABLED !== 'false') {
+    try {
+      const syncResult = await getPassportManager().syncApiModels();
+      console.log(`🔄 TrustGate Sync: ${syncResult.created} created, ${syncResult.skipped} existing, ${syncResult.removed} revoked`);
+    } catch (err) {
+      console.warn('⚠️ TrustGate Sync failed (non-blocking):', err instanceof Error ? err.message : err);
+    }
+  } else {
+    console.log('ℹ️ TrustGate Sync disabled (TRUSTGATE_SYNC_ENABLED=false)');
+  }
+
   // Wire up Passport On-Chain Sync Service (if enabled)
   if (process.env.PASSPORT_SYNC_ENABLED !== 'false') {
     try {
