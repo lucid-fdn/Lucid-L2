@@ -103,8 +103,8 @@ describe('Execution Gateway', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    
+    jest.resetAllMocks();
+
     // Default mock implementations
     mockGetPassport.mockResolvedValue({
       ok: true,
@@ -134,7 +134,9 @@ describe('Execution Gateway', () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Flush any pending setImmediate callbacks (e.g. createReceiptAsync)
+    await new Promise(resolve => setImmediate(resolve));
     jest.useRealTimers();
   });
 
@@ -384,7 +386,7 @@ describe('Execution Gateway', () => {
         ],
       };
 
-      // Need to provide compute catalog via passport manager
+      // Provide compute catalog via passport manager
       mockListPassports.mockResolvedValueOnce({
         items: [{ id: 'compute_test123', type: 'compute', metadata: sampleComputeMeta }],
       });
@@ -496,6 +498,7 @@ describe('Execution Gateway', () => {
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
+        text: async () => 'Internal Server Error',
       } as Response);
 
       const request: ExecutionRequest = {

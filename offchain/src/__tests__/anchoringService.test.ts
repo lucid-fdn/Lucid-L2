@@ -595,7 +595,7 @@ describe('Anchoring Service', () => {
       const instruction = buildCommitEpochInstruction(authority, root);
       
       expect(instruction.programId).toBeDefined();
-      expect(instruction.keys.length).toBe(3); // epoch_record, authority, system_program
+      expect(instruction.keys.length).toBe(2); // authority, epoch_record
       expect(instruction.data.length).toBeGreaterThan(32); // discriminator + root
     });
 
