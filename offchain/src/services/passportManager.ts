@@ -83,6 +83,7 @@ function deriveProvider(modelId: string): string {
   if (/^(together|meta-llama|deepseek.*together)/.test(id)) return 'together';
   if (/^(fireworks|accounts\/fireworks)/.test(id)) return 'fireworks';
   if (/^deepseek/.test(id)) return 'deepseek';
+  if (/^kimi-/.test(id)) return 'moonshot';
   if (/^(hf[-\/]|huggingface)/.test(id)) return 'huggingface';
   if (/^(vercel|v0-)/.test(id)) return 'vercel';
   if (/^(text-embedding|embedding)/.test(id)) return 'openai';
