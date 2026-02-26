@@ -75,7 +75,7 @@ function deriveProvider(modelId: string): string {
   if (/^(gpt-|o1-|o3-|o4-)/.test(id)) return 'openai';
   if (/^claude-/.test(id)) return 'anthropic';
   if (/^gemini-/.test(id)) return 'google';
-  if (/^(groq\/|llama.*groq)/.test(id)) return 'groq';
+  if (/^groq[-\/]/.test(id)) return 'groq';
   if (/^(mistral|codestral)/.test(id)) return 'mistral';
   if (/^(cohere|command)/.test(id)) return 'cohere';
   if (/^perplexity/.test(id)) return 'perplexity';
@@ -83,7 +83,7 @@ function deriveProvider(modelId: string): string {
   if (/^(together|meta-llama|deepseek.*together)/.test(id)) return 'together';
   if (/^(fireworks|accounts\/fireworks)/.test(id)) return 'fireworks';
   if (/^deepseek/.test(id)) return 'deepseek';
-  if (/^(hf\/|huggingface)/.test(id)) return 'huggingface';
+  if (/^(hf[-\/]|huggingface)/.test(id)) return 'huggingface';
   if (/^(vercel|v0-)/.test(id)) return 'vercel';
   if (/^(text-embedding|embedding)/.test(id)) return 'openai';
   return 'unknown';
