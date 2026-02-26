@@ -815,9 +815,9 @@ export class PassportManager {
           owner,
           metadata,
           name: model.id,
-          description: `Auto-synced from TrustGate (${provider})`,
+          description: `Lucid Gateway — ${provider} (${model.id})`,
           version: '1.0',
-          tags: ['auto-sync', 'api', provider],
+          tags: ['auto-sync', 'api', provider, 'lucid', 'lucid-gateway'],
         });
         created++;
       } catch (err) {
