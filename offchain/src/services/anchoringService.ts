@@ -79,7 +79,20 @@ let connection: Connection | null = null;
 // =============================================================================
 
 // Anchor instruction discriminators (first 8 bytes of sha256("global:<instruction_name>"))
-// VERIFIED: Computed from sha256("global:<instruction_name>")[:8]
+// Init instructions: create the PDA account (first call for a given authority)
+const INIT_EPOCH_DISCRIMINATOR = Buffer.from([
+  0x4e, 0x51, 0x42, 0x4c, 0xd9, 0x71, 0xbd, 0x6d, // sha256("global:init_epoch")[0:8]
+]);
+
+const INIT_EPOCHS_DISCRIMINATOR = Buffer.from([
+  0xb1, 0x09, 0x61, 0x24, 0x67, 0x6b, 0xb4, 0x4f, // sha256("global:init_epochs")[0:8]
+]);
+
+const INIT_EPOCH_V2_DISCRIMINATOR = Buffer.from([
+  0xdc, 0x7d, 0xb8, 0xc7, 0x34, 0xf5, 0x04, 0x82, // sha256("global:init_epoch_v2")[0:8]
+]);
+
+// Update instructions: overwrite an existing PDA (authority enforced via has_one)
 const COMMIT_EPOCH_DISCRIMINATOR = Buffer.from([
   0x8c, 0x00, 0x3e, 0xba, 0x49, 0xb4, 0xc9, 0xb3, // sha256("global:commit_epoch")[0:8]
 ]);
@@ -92,7 +105,7 @@ const COMMIT_EPOCH_V2_DISCRIMINATOR = Buffer.from([
   0xa5, 0x30, 0x60, 0x5c, 0x09, 0xdf, 0x0c, 0x22, // sha256("global:commit_epoch_v2")[0:8]
 ]);
 
-// NOTE: These discriminators have been verified on 2026-02-03
+// NOTE: Discriminators verified 2026-02-26 after init/update split
 
 // =============================================================================
 // CONFIGURATION MANAGEMENT
@@ -182,7 +195,7 @@ export function deriveEpochBatchRecordPDA(authority: PublicKey): [PublicKey, num
 // =============================================================================
 
 /**
- * Build a commit_epoch instruction.
+ * Build a commit_epoch (update) instruction.
  */
 export function buildCommitEpochInstruction(
   authority: PublicKey,
@@ -194,17 +207,45 @@ export function buildCommitEpochInstruction(
 
   const [epochRecordPDA] = deriveEpochRecordPDA(authority);
 
-  // Build instruction data: discriminator + root
   const data = Buffer.concat([
     COMMIT_EPOCH_DISCRIMINATOR,
+    root,
+  ]);
+
+  // Update instruction: no system_program needed (account already exists)
+  return new TransactionInstruction({
+    programId: getThoughtEpochProgramId(),
+    keys: [
+      { pubkey: authority, isSigner: true, isWritable: false },
+      { pubkey: epochRecordPDA, isSigner: false, isWritable: true },
+    ],
+    data,
+  });
+}
+
+/**
+ * Build an init_epoch instruction (creates the PDA — first use only).
+ */
+export function buildInitEpochInstruction(
+  authority: PublicKey,
+  root: Buffer
+): TransactionInstruction {
+  if (root.length !== 32) {
+    throw new Error('Root must be exactly 32 bytes');
+  }
+
+  const [epochRecordPDA] = deriveEpochRecordPDA(authority);
+
+  const data = Buffer.concat([
+    INIT_EPOCH_DISCRIMINATOR,
     root,
   ]);
 
   return new TransactionInstruction({
     programId: getThoughtEpochProgramId(),
     keys: [
-      { pubkey: epochRecordPDA, isSigner: false, isWritable: true },
       { pubkey: authority, isSigner: true, isWritable: true },
+      { pubkey: epochRecordPDA, isSigner: false, isWritable: true },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
     data,
@@ -212,7 +253,7 @@ export function buildCommitEpochInstruction(
 }
 
 /**
- * Build a commit_epochs instruction for batch commits.
+ * Build a commit_epochs (update) instruction for batch commits.
  */
 export function buildCommitEpochsInstruction(
   authority: PublicKey,
@@ -227,12 +268,47 @@ export function buildCommitEpochsInstruction(
 
   const [epochBatchRecordPDA] = deriveEpochBatchRecordPDA(authority);
 
-  // Build instruction data: discriminator + vec length (4 bytes LE) + roots
   const vecLen = Buffer.alloc(4);
   vecLen.writeUInt32LE(roots.length, 0);
-  
+
   const data = Buffer.concat([
     COMMIT_EPOCHS_DISCRIMINATOR,
+    vecLen,
+    ...roots,
+  ]);
+
+  // Update: no system_program (account already exists)
+  return new TransactionInstruction({
+    programId: getThoughtEpochProgramId(),
+    keys: [
+      { pubkey: authority, isSigner: true, isWritable: false },
+      { pubkey: epochBatchRecordPDA, isSigner: false, isWritable: true },
+    ],
+    data,
+  });
+}
+
+/**
+ * Build an init_epochs instruction (creates the batch PDA — first use only).
+ */
+export function buildInitEpochsInstruction(
+  authority: PublicKey,
+  roots: Buffer[]
+): TransactionInstruction {
+  if (roots.length > 16) {
+    throw new Error('Maximum 16 roots per batch');
+  }
+  if (roots.some(r => r.length !== 32)) {
+    throw new Error('All roots must be exactly 32 bytes');
+  }
+
+  const [epochBatchRecordPDA] = deriveEpochBatchRecordPDA(authority);
+
+  const vecLen = Buffer.alloc(4);
+  vecLen.writeUInt32LE(roots.length, 0);
+
+  const data = Buffer.concat([
+    INIT_EPOCHS_DISCRIMINATOR,
     vecLen,
     ...roots,
   ]);
@@ -240,8 +316,8 @@ export function buildCommitEpochsInstruction(
   return new TransactionInstruction({
     programId: getThoughtEpochProgramId(),
     keys: [
-      { pubkey: epochBatchRecordPDA, isSigner: false, isWritable: true },
       { pubkey: authority, isSigner: true, isWritable: true },
+      { pubkey: epochBatchRecordPDA, isSigner: false, isWritable: true },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
     data,
@@ -249,7 +325,32 @@ export function buildCommitEpochsInstruction(
 }
 
 /**
- * Build a commit_epoch_v2 instruction with metadata.
+ * Encode the v2 instruction payload (shared between init and update).
+ */
+function encodeV2Payload(
+  root: Buffer,
+  epoch_index: number,
+  leaf_count: number,
+  timestamp: number,
+  mmr_size: number,
+): Buffer {
+  const epochIdBuffer = Buffer.alloc(8);
+  epochIdBuffer.writeBigUInt64LE(BigInt(epoch_index), 0);
+
+  const leafCountBuffer = Buffer.alloc(8);
+  leafCountBuffer.writeBigUInt64LE(BigInt(leaf_count), 0);
+
+  const timestampBuffer = Buffer.alloc(8);
+  timestampBuffer.writeBigInt64LE(BigInt(timestamp), 0);
+
+  const mmrSizeBuffer = Buffer.alloc(8);
+  mmrSizeBuffer.writeBigUInt64LE(BigInt(mmr_size), 0);
+
+  return Buffer.concat([root, epochIdBuffer, leafCountBuffer, timestampBuffer, mmrSizeBuffer]);
+}
+
+/**
+ * Build a commit_epoch_v2 (update) instruction with metadata.
  */
 export function buildCommitEpochV2Instruction(
   authority: PublicKey,
@@ -266,32 +367,50 @@ export function buildCommitEpochV2Instruction(
 
   const [epochRecordPDA] = deriveEpochRecordV2PDA(authority);
 
-  const epochIdBuffer = Buffer.alloc(8);
-  epochIdBuffer.writeBigUInt64LE(BigInt(epoch_index), 0);
-
-  const leafCountBuffer = Buffer.alloc(8);
-  leafCountBuffer.writeBigUInt64LE(BigInt(leaf_count), 0);
-
-  const timestampBuffer = Buffer.alloc(8);
-  timestampBuffer.writeBigInt64LE(BigInt(timestamp), 0);
-
-  const mmrSizeBuffer = Buffer.alloc(8);
-  mmrSizeBuffer.writeBigUInt64LE(BigInt(mmr_size), 0);
-
   const data = Buffer.concat([
     COMMIT_EPOCH_V2_DISCRIMINATOR,
-    root,
-    epochIdBuffer,
-    leafCountBuffer,
-    timestampBuffer,
-    mmrSizeBuffer,
+    encodeV2Payload(root, epoch_index, leaf_count, timestamp, mmr_size),
+  ]);
+
+  // Update: no system_program (account already exists)
+  return new TransactionInstruction({
+    programId: getThoughtEpochProgramId(),
+    keys: [
+      { pubkey: authority, isSigner: true, isWritable: false },
+      { pubkey: epochRecordPDA, isSigner: false, isWritable: true },
+    ],
+    data,
+  });
+}
+
+/**
+ * Build an init_epoch_v2 instruction (creates the PDA — first use only).
+ */
+export function buildInitEpochV2Instruction(
+  authority: PublicKey,
+  root: Buffer,
+  epoch_id: string,
+  epoch_index: number,
+  leaf_count: number,
+  timestamp: number,
+  mmr_size: number
+): TransactionInstruction {
+  if (root.length !== 32) {
+    throw new Error('Root must be exactly 32 bytes');
+  }
+
+  const [epochRecordPDA] = deriveEpochRecordV2PDA(authority);
+
+  const data = Buffer.concat([
+    INIT_EPOCH_V2_DISCRIMINATOR,
+    encodeV2Payload(root, epoch_index, leaf_count, timestamp, mmr_size),
   ]);
 
   return new TransactionInstruction({
     programId: getThoughtEpochProgramId(),
     keys: [
-      { pubkey: epochRecordPDA, isSigner: false, isWritable: true },
       { pubkey: authority, isSigner: true, isWritable: true },
+      { pubkey: epochRecordPDA, isSigner: false, isWritable: true },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
     data,
@@ -377,16 +496,23 @@ export async function commitEpochRoot(epoch_id: string): Promise<AnchorResult> {
   // Convert hex root to buffer
   const rootBuffer = Buffer.from(epoch.mmr_root, 'hex');
 
-  // Build transaction
-  const instruction = buildCommitEpochV2Instruction(
+  // Check if the v2 PDA already exists — use init if not, update if so
+  const [epochRecordPDA] = deriveEpochRecordV2PDA(authority.publicKey);
+  const existingAccount = await conn.getAccountInfo(epochRecordPDA);
+
+  const v2Args = [
     authority.publicKey,
     rootBuffer,
     epoch.epoch_id.replace('epoch_', ''),
     epoch.epoch_index,
     epoch.leaf_count,
     epoch.finalized_at || Math.floor(Date.now() / 1000),
-    epoch.end_leaf_index ? epoch.end_leaf_index + 1 : epoch.leaf_count
-  );
+    epoch.end_leaf_index ? epoch.end_leaf_index + 1 : epoch.leaf_count,
+  ] as const;
+
+  const instruction = existingAccount
+    ? buildCommitEpochV2Instruction(...v2Args)
+    : buildInitEpochV2Instruction(...v2Args);
 
   const transaction = new Transaction().add(instruction);
 
@@ -521,8 +647,13 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
   // Convert roots to buffers
   const rootBuffers = epochs.map(e => Buffer.from(e.mmr_root, 'hex'));
 
-  // Build batch transaction
-  const instruction = buildCommitEpochsInstruction(authority.publicKey, rootBuffers);
+  // Check if the batch PDA already exists — use init if not, update if so
+  const [batchPDA] = deriveEpochBatchRecordPDA(authority.publicKey);
+  const existingBatch = await conn.getAccountInfo(batchPDA);
+
+  const instruction = existingBatch
+    ? buildCommitEpochsInstruction(authority.publicKey, rootBuffers)
+    : buildInitEpochsInstruction(authority.publicKey, rootBuffers);
   const transaction = new Transaction().add(instruction);
 
   // Send with retries

@@ -74,20 +74,25 @@ import { zkmlRouter } from './routes/zkmlRoutes';
 
 const app = express();
 
-// Add CORS headers for WSL-Windows cross-origin requests
+// CORS — restrict to known origins (env-configurable)
+const ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:3001').split(',').map(o => o.trim());
+
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Payment-Proof');
   // Allow Chrome private network access preflight from secure pages
   res.header('Access-Control-Allow-Private-Network', 'true');
-  
+
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
     res.sendStatus(200);
     return;
   }
-  
+
   next();
 });
 

@@ -10,7 +10,12 @@ const MAX_RECIPIENTS: usize = 10; // Maximum number of recipients per transactio
 pub mod gas_utils {
     use super::*;
 
-    /// Collect gas tokens from user and distribute to recipients based on percentages
+    /// Collect gas tokens from user — burn only.
+    ///
+    /// **WARNING**: This instruction burns tokens but does NOT distribute to recipients.
+    /// The `recipients` field is recorded in the emitted event for off-chain settlement.
+    /// On-chain distribution requires passing recipient token accounts as remaining_accounts
+    /// and is not yet implemented. Do NOT call this expecting on-chain payouts.
     pub fn collect_and_split(
         ctx: Context<CollectAndSplit>,
         m_gas_amount: u64,
@@ -31,6 +36,12 @@ pub mod gas_utils {
 
         require!(total_gas > 0, ErrorCode::ZeroGasAmount);
 
+        // Validate that the user ATA belongs to the expected LUCID mint
+        require!(
+            ctx.accounts.user_ata.mint == ctx.accounts.lucid_mint.key(),
+            ErrorCode::MintMismatch
+        );
+
         // Burn total gas from user's account
         let burn_ctx = CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
@@ -43,7 +54,9 @@ pub mod gas_utils {
 
         token::burn(burn_ctx, total_gas)?;
 
-        // Emit gas collection event
+        msg!("GAS: burned {} tokens (distribution is off-chain only)", total_gas);
+
+        // Emit gas collection event (off-chain indexer handles distribution)
         emit!(GasCollected {
             user: ctx.accounts.user.key(),
             m_gas_amount,
@@ -55,7 +68,8 @@ pub mod gas_utils {
         Ok(())
     }
 
-    /// Alternative instruction for minting rewards to recipients (future enhancement)
+    /// Placeholder for future on-chain minting + distribution.
+    /// Currently emits an event only — no tokens are minted or transferred.
     pub fn mint_and_distribute(
         _ctx: Context<MintAndDistribute>,
         total_amount: u64,
@@ -70,8 +84,8 @@ pub mod gas_utils {
 
         require!(total_amount > 0, ErrorCode::ZeroGasAmount);
 
-        // This would require mint authority - placeholder for future enhancement
-        // For now, just emit the event to track intended distributions
+        msg!("GAS: mint_and_distribute is a placeholder — no tokens minted");
+
         emit!(GasDistributed {
             total_amount,
             recipients: recipients.clone(),
@@ -156,4 +170,7 @@ pub enum ErrorCode {
     
     #[msg("Arithmetic overflow")]
     ArithmeticOverflow,
+
+    #[msg("User ATA mint does not match the provided LUCID mint")]
+    MintMismatch,
 }

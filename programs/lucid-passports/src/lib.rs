@@ -1,8 +1,14 @@
 use anchor_lang::prelude::*;
 use anchor_lang::system_program;
+use anchor_lang::solana_program::hash::hash as sha256;
 
 // Program ID - deployed to devnet
 declare_id!("38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW");
+
+/// Hash a slug to a fixed 32-byte seed (prevents PDA seed overflow for slugs > 32 bytes).
+fn slug_seed(slug: &str) -> [u8; 32] {
+    sha256(slug.as_bytes()).to_bytes()
+}
 
 /// Maximum length for asset slugs (e.g., "mistral-7b-instruct-v0.2")
 const MAX_SLUG_LEN: usize = 64;
@@ -300,7 +306,9 @@ pub mod lucid_passports {
     version: Version,
 )]
 pub struct RegisterPassport<'info> {
-    /// PDA: ["passport", owner, asset_type_byte, slug_bytes, version_bytes]
+    /// PDA: ["passport", owner, asset_type_byte, sha256(slug), version_bytes]
+    /// Slug is hashed to prevent PDA seed overflow (slugs can be up to 64 bytes,
+    /// but each PDA seed is limited to 32 bytes).
     #[account(
         init,
         payer = owner,
@@ -309,7 +317,7 @@ pub struct RegisterPassport<'info> {
             b"passport",
             owner.key().as_ref(),
             &[asset_type as u8],
-            slug.as_bytes(),
+            &slug_seed(&slug),
             &version.to_bytes(),
         ],
         bump
@@ -331,7 +339,7 @@ pub struct UpdatePassport<'info> {
             b"passport",
             owner.key().as_ref(),
             &[passport.asset_type as u8],
-            passport.slug.as_bytes(),
+            &slug_seed(&passport.slug),
             &passport.version.to_bytes(),
         ],
         bump = passport.bump
@@ -359,8 +367,8 @@ pub struct LinkVersion<'info> {
     #[account(has_one = owner)]
     pub current_passport: Account<'info, Passport>,
 
-    /// CHECK: Previous passport, validated by owner
-    pub previous_passport: AccountInfo<'info>,
+    /// Previous passport — deserialized and validated by Anchor (no unchecked account)
+    pub previous_passport: Account<'info, Passport>,
 
     #[account(mut)]
     pub owner: Signer<'info>,

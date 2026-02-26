@@ -44,9 +44,14 @@ export function getOrchestratorKeypair(): SigningKeypair {
       publicKey: new Uint8Array(publicKey),
       secretKey: new Uint8Array(secretKey),
     };
+  } else if (process.env.NODE_ENV === 'production') {
+    // CRITICAL: Never fall back to a dev key in production
+    throw new Error(
+      'LUCID_ORCHESTRATOR_SECRET_KEY is required in production. ' +
+      'Generate one with: node -e "console.log(require(\'tweetnacl\').sign.keyPair().secretKey.reduce((s,b)=>s+b.toString(16).padStart(2,\'0\'),\'\'))"'
+    );
   } else {
-    // MVP fallback: generate deterministic keypair from a seed
-    // WARNING: This is for development only. In production, always use env var.
+    // Development/test fallback: deterministic keypair from a seed
     const seed = Buffer.alloc(32);
     Buffer.from('LUCID_MVP_DEV_SEED_DO_NOT_USE_IN_PROD').copy(seed, 0, 0, 32);
     const keypair = nacl.sign.keyPair.fromSeed(seed);
@@ -54,10 +59,7 @@ export function getOrchestratorKeypair(): SigningKeypair {
       publicKey: keypair.publicKey,
       secretKey: keypair.secretKey,
     };
-    
-    if (process.env.NODE_ENV === 'production') {
-      console.warn('[WARNING] Using development signing key. Set LUCID_ORCHESTRATOR_SECRET_KEY in production.');
-    }
+    console.warn('[WARN] Using development signing key. Set LUCID_ORCHESTRATOR_SECRET_KEY for production.');
   }
 
   return cachedKeypair;

@@ -19,11 +19,12 @@ function notifyPrivyAuthenticated(payload: any) {
         });
       } catch {}
     } else {
-      window.postMessage({ type: 'PRIVY_CONNECTED', payload }, '*');
+      // Restrict postMessage to own origin — never broadcast to '*'
+      window.postMessage({ type: 'PRIVY_CONNECTED', payload }, window.location.origin);
     }
   } catch {
     try {
-      window.postMessage({ type: 'PRIVY_CONNECTED', payload }, '*');
+      window.postMessage({ type: 'PRIVY_CONNECTED', payload }, window.location.origin);
     } catch {}
   }
 }
@@ -33,7 +34,7 @@ function notifyPrivyLoggedOut() {
     if (typeof chrome !== 'undefined' && chrome?.runtime?.sendMessage) {
       chrome.runtime.sendMessage({ type: 'privy_logged_out' }, () => {});
     } else {
-      window.postMessage({ type: 'PRIVY_LOGGED_OUT' }, '*');
+      window.postMessage({ type: 'PRIVY_LOGGED_OUT' }, window.location.origin);
     }
   } catch {}
 }

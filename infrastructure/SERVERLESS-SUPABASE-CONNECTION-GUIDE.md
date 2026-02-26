@@ -6,15 +6,15 @@ Your local Supabase instance is now configured for external access via PostgREST
 ## 🔌 Connection Details
 
 ### API Endpoints
-- **PostgREST API**: `http://13.221.253.195:3000`
-- **Kong Gateway**: `http://13.221.253.195:8000`
-- **Supabase Studio**: `http://13.221.253.195:3010`
+- **PostgREST API**: `http://<YOUR_SERVER_IP>:3000`
+- **Kong Gateway**: `http://<YOUR_SERVER_IP>:8000`
+- **Supabase Studio**: `http://<YOUR_SERVER_IP>:3010`
 
 ### Authentication Keys
 ```bash
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJhbm9uIiwiZXhwIjoxOTgzODEyOTk2fQ.z0ZM6XeVdZtyR1nhfFyaB0wFlzobe8_IZXvhqUCZPFg
+SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY>
 
-SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.QgI22wW2Xr8r7AqZJ3tpNuNBCASQ-tmJdTGowkqnnaU
+SUPABASE_SERVICE_KEY=<YOUR_SUPABASE_SERVICE_KEY>
 ```
 
 ⚠️ **Security Note**: For production, generate new keys with proper expiration times.
@@ -28,8 +28,8 @@ SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 ```javascript
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = 'http://13.221.253.195:3000'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJhbm9uIiwiZXhwIjoxOTgzODEyOTk2fQ.z0ZM6XeVdZtyR1nhfFyaB0wFlzobe8_IZXvhqUCZPFg'
+const supabaseUrl = 'http://<YOUR_SERVER_IP>:3000'
+const supabaseAnonKey = '<YOUR_SUPABASE_ANON_KEY>'
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
@@ -50,7 +50,7 @@ if (error) {
 
 ```javascript
 // GET request
-const response = await fetch('http://13.221.253.195:3000/workflows?limit=10', {
+const response = await fetch('http://<YOUR_SERVER_IP>:3000/workflows?limit=10', {
   headers: {
     'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
     'apikey': SUPABASE_ANON_KEY,
@@ -65,7 +65,7 @@ const workflows = await response.json()
 
 ```javascript
 // .env file
-SUPABASE_URL=http://13.221.253.195:3000
+SUPABASE_URL=http://<YOUR_SERVER_IP>:3000
 SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 // In your code
@@ -308,13 +308,13 @@ exports.handler = async (event, context) => {
 
 ### Test 1: Basic Connectivity
 ```bash
-curl http://13.221.253.195:3000/
+curl http://<YOUR_SERVER_IP>:3000/
 ```
 Expected: OpenAPI spec (JSON)
 
 ### Test 2: List Tables
 ```bash
-curl http://13.221.253.195:3000/workflows?limit=1 \
+curl http://<YOUR_SERVER_IP>:3000/workflows?limit=1 \
   -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
   -H "apikey: $SUPABASE_ANON_KEY"
 ```
@@ -324,7 +324,7 @@ curl http://13.221.253.195:3000/workflows?limit=1 \
 // test-connection.js
 const fetch = require('node-fetch')
 
-const SUPABASE_URL = 'http://13.221.253.195:3000'
+const SUPABASE_URL = 'http://<YOUR_SERVER_IP>:3000'
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
 
 async function testConnection() {
@@ -368,9 +368,9 @@ testConnection()
 ### Environment Variables Template
 ```bash
 # .env for your serverless app
-SUPABASE_URL=http://13.221.253.195:3000
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJhbm9uIiwiZXhwIjoxOTgzODEyOTk2fQ.z0ZM6XeVdZtyR1nhfFyaB0wFlzobe8_IZXvhqUCZPFg
-SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1sb2NhbCIsInJvbGUiOiJzZXJ2aWNlX3JvbGUiLCJleHAiOjE5ODM4MTI5OTZ9.QgI22wW2Xr8r7AqZJ3tpNuNBCASQ-tmJdTGowkqnnaU
+SUPABASE_URL=http://<YOUR_SERVER_IP>:3000
+SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY>
+SUPABASE_SERVICE_KEY=<YOUR_SUPABASE_SERVICE_KEY>
 ```
 
 ---
@@ -478,7 +478,7 @@ if (permissions.length > 0) {
 ### 1. Check Connectivity
 ```bash
 # From your serverless environment
-curl -v http://13.221.253.195:3000/
+curl -v http://<YOUR_SERVER_IP>:3000/
 ```
 
 ### 2. Inspect Logs
@@ -622,7 +622,7 @@ Before deploying to production:
 ### OpenAPI Documentation
 View the full API spec at:
 ```
-http://13.221.253.195:3000/
+http://<YOUR_SERVER_IP>:3000/
 ```
 
 ### PostgREST Query Operators
@@ -648,7 +648,7 @@ http://13.221.253.195:3000/
 **Solution**: Ensure your firewall allows connections on port 3000
 ```bash
 # Check if port is accessible
-nc -zv 13.221.253.195 3000
+nc -zv <YOUR_SERVER_IP> 3000
 ```
 
 ### Problem: 401 Unauthorized
@@ -671,7 +671,7 @@ echo "YOUR_JWT" | cut -d'.' -f2 | base64 -d | jq
 
 ## 🚀 Next Steps
 
-1. **Replace `13.221.253.195`** with your actual server IP or domain
+1. **Replace `<YOUR_SERVER_IP>`** with your actual server IP or domain
 2. **Test the connection** from your serverless environment
 3. **Implement pagination** for large datasets
 4. **Set up monitoring** to track API usage
@@ -697,4 +697,4 @@ Your Supabase database is now accessible from any serverless application via:
 3. **RLS Policies** → Automatic security and data isolation
 4. **JWT Authentication** → Secure access control
 
-Connect using the Supabase JS client or direct HTTP requests to `http://13.221.253.195:3000`.
+Connect using the Supabase JS client or direct HTTP requests to `http://<YOUR_SERVER_IP>:3000`.

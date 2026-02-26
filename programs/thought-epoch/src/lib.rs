@@ -9,16 +9,24 @@ const MAX_BATCH: usize = 16; // adjust as you like
 pub mod thought_epoch {
     use super::*;
 
-    /// Commit a 32-byte Merkle root to chain.
-    pub fn commit_epoch(ctx: Context<CommitEpoch>, root: [u8; 32]) -> Result<()> {
+    /// Initialize a new epoch record (first time only).
+    pub fn init_epoch(ctx: Context<InitEpoch>, root: [u8; 32]) -> Result<()> {
         let rec = &mut ctx.accounts.epoch_record;
         rec.merkle_root = root;
         rec.authority   = *ctx.accounts.authority.key;
         Ok(())
     }
 
-    /// Commit up to MAX_BATCH roots in one Tx.
-    pub fn commit_epochs(ctx: Context<CommitEpochs>, roots: Vec<[u8; 32]>) -> Result<()> {
+    /// Update an existing epoch record (authority must match).
+    pub fn commit_epoch(ctx: Context<UpdateEpoch>, root: [u8; 32]) -> Result<()> {
+        let rec = &mut ctx.accounts.epoch_record;
+        rec.merkle_root = root;
+        // authority already validated by has_one constraint
+        Ok(())
+    }
+
+    /// Initialize a new batch record (first time only).
+    pub fn init_epochs(ctx: Context<InitEpochs>, roots: Vec<[u8; 32]>) -> Result<()> {
         require!(roots.len() <= MAX_BATCH, ErrorCode::BatchTooLarge);
         let batch = &mut ctx.accounts.epoch_record_batch;
         batch.roots = roots;
@@ -26,15 +34,18 @@ pub mod thought_epoch {
         Ok(())
     }
 
-    /// Commit a Merkle root with v0+ metadata for Fluid Compute.
-    ///
-    /// This is the v2 record format used for verifiable anchoring:
-    /// - epoch_id: monotonically increasing epoch identifier
-    /// - leaf_count: total leaves in the MMR at commit time
-    /// - timestamp: unix timestamp (seconds)
-    /// - mmr_size: total MMR size
-    pub fn commit_epoch_v2(
-        ctx: Context<CommitEpochV2>,
+    /// Update an existing batch record (authority must match).
+    pub fn commit_epochs(ctx: Context<UpdateEpochs>, roots: Vec<[u8; 32]>) -> Result<()> {
+        require!(roots.len() <= MAX_BATCH, ErrorCode::BatchTooLarge);
+        let batch = &mut ctx.accounts.epoch_record_batch;
+        batch.roots = roots;
+        // authority already validated by has_one constraint
+        Ok(())
+    }
+
+    /// Initialize a new v2 epoch record (first time only).
+    pub fn init_epoch_v2(
+        ctx: Context<InitEpochV2>,
         root: [u8; 32],
         epoch_id: u64,
         leaf_count: u64,
@@ -50,16 +61,37 @@ pub mod thought_epoch {
         rec.mmr_size = mmr_size;
         Ok(())
     }
+
+    /// Update an existing v2 epoch record (authority must match).
+    pub fn commit_epoch_v2(
+        ctx: Context<UpdateEpochV2>,
+        root: [u8; 32],
+        epoch_id: u64,
+        leaf_count: u64,
+        timestamp: i64,
+        mmr_size: u64,
+    ) -> Result<()> {
+        let rec = &mut ctx.accounts.epoch_record_v2;
+        rec.merkle_root = root;
+        // authority already validated by has_one constraint
+        rec.epoch_id = epoch_id;
+        rec.leaf_count = leaf_count;
+        rec.timestamp = timestamp;
+        rec.mmr_size = mmr_size;
+        Ok(())
+    }
 }
 
+// --- Init accounts (create only, never overwrite) ---
+
 #[derive(Accounts)]
-pub struct CommitEpoch<'info> {
+pub struct InitEpoch<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
 
-    /// PDA seeds = ["epoch", authority], bump
+    /// PDA seeds = ["epoch", authority], bump — created once
     #[account(
-       init_if_needed,
+       init,
        payer    = authority,
        space    = 8 + 32 + 32,
        seeds    = [b"epoch", authority.key().as_ref()],
@@ -70,19 +102,13 @@ pub struct CommitEpoch<'info> {
     pub system_program: Program<'info, System>,
 }
 
-#[account]
-pub struct EpochRecord {
-    pub merkle_root: [u8; 32],
-    pub authority:   Pubkey,
-}
-
 #[derive(Accounts)]
-pub struct CommitEpochs<'info> {
+pub struct InitEpochs<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
 
     #[account(
-       init_if_needed,
+       init,
        payer    = authority,
        space    = 8 + (4 + MAX_BATCH * 32) + 32,
        seeds    = [b"epochs", authority.key().as_ref()],
@@ -94,13 +120,13 @@ pub struct CommitEpochs<'info> {
 }
 
 #[derive(Accounts)]
-pub struct CommitEpochV2<'info> {
+pub struct InitEpochV2<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
 
-    /// PDA seeds = ["epoch_v2", authority], bump
+    /// PDA seeds = ["epoch_v2", authority], bump — created once
     #[account(
-       init_if_needed,
+       init,
        payer    = authority,
        space    = 8 + 32 + 32 + 8 + 8 + 8 + 8,
        seeds    = [b"epoch_v2", authority.key().as_ref()],
@@ -109,6 +135,53 @@ pub struct CommitEpochV2<'info> {
     pub epoch_record_v2: Account<'info, EpochRecordV2>,
 
     pub system_program: Program<'info, System>,
+}
+
+// --- Update accounts (existing records, authority enforced via has_one) ---
+
+#[derive(Accounts)]
+pub struct UpdateEpoch<'info> {
+    pub authority: Signer<'info>,
+
+    #[account(
+       mut,
+       has_one  = authority,
+       seeds    = [b"epoch", authority.key().as_ref()],
+       bump
+    )]
+    pub epoch_record: Account<'info, EpochRecord>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateEpochs<'info> {
+    pub authority: Signer<'info>,
+
+    #[account(
+       mut,
+       has_one  = authority,
+       seeds    = [b"epochs", authority.key().as_ref()],
+       bump
+    )]
+    pub epoch_record_batch: Account<'info, EpochRecordBatch>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateEpochV2<'info> {
+    pub authority: Signer<'info>,
+
+    #[account(
+       mut,
+       has_one  = authority,
+       seeds    = [b"epoch_v2", authority.key().as_ref()],
+       bump
+    )]
+    pub epoch_record_v2: Account<'info, EpochRecordV2>,
+}
+
+#[account]
+pub struct EpochRecord {
+    pub merkle_root: [u8; 32],
+    pub authority:   Pubkey,
 }
 
 #[account]
