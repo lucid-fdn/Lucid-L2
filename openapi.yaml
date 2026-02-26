@@ -298,7 +298,7 @@ paths:
           schema: { type: integer }
         - in: query
           name: available
-          description: When true, only return models that can currently serve inference (have healthy compute or are API-hosted)
+          description: "Tri-state filter: 'true' returns only models that can serve inference (healthy compute or API-hosted), 'false' returns only unavailable models (missing compute), omit for all models"
           schema: { type: string, enum: ['true', 'false'] }
         - in: query
           name: owner

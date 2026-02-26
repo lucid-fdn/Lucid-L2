@@ -37,7 +37,9 @@ Client → /v1/chat/completions → Passport matching → LLM execution
 
 ### Offchain API (Express, port 3001)
 - `/v1/chat/completions` — OpenAI-compatible inference
-- `/v1/models` — Model passport listing (supports `?available=true` to filter by compute availability)
+- `/v1/models` — Model passport listing (supports `?available=true|false` tri-state filter)
+- `/v1/compute/nodes/heartbeat` — Compute node heartbeat (POST, 30s TTL)
+- `/v1/compute/nodes/:id/health` — Compute node health check (GET)
 - `/v1/passports` — CRUD for model/compute/tool/agent passports
 - `/v1/receipts` — Create, verify, prove cryptographic receipts
 - `/v1/epochs` — Epoch management and Solana anchoring
@@ -47,8 +49,13 @@ Client → /v1/chat/completions → Passport matching → LLM execution
 - `/api/oauth` — Nango OAuth management
 - `/api/hyperliquid`, `/api/solana` — DeFi integrations
 
-### Model Availability Filter (`?available=true`)
-When `GET /v1/models?available=true`, each model is checked:
+### Model Availability Filter (`?available=true|false`)
+Tri-state filter (industry standard):
+- `?available=true` → only models that can serve inference now
+- `?available=false` → only models missing compute (useful for debugging)
+- Omitted → all models regardless of availability
+
+Availability check per model:
 - **`format=api`** → always available (routed through TrustGate, no compute needed)
 - **`format=safetensors`/`gguf`** → requires at least one healthy compute node with:
   1. Compatible runtime (`runtimeCompatible()`)
@@ -56,6 +63,15 @@ When `GET /v1/models?available=true`, each model is checked:
   3. Recent heartbeat within 30s (`ComputeRegistry.isHealthy()`)
 
 Implementation: `hasAvailableCompute()` in `matchingEngine.ts` — short-circuits on first match.
+
+### Compute Heartbeat System
+In-memory registry with 30s TTL. Compute nodes send periodic heartbeats to stay alive.
+
+- **POST** `/v1/compute/nodes/heartbeat` — body: `{ compute_passport_id, status: "healthy"|"degraded"|"down", queue_depth?, p95_ms_estimate? }`
+- **GET** `/v1/compute/nodes/:id/health` — returns live state or 503 if expired
+- Registry: `ComputeRegistry` singleton in `computeRegistry.ts` (in-memory Map, no DB)
+- Used by: `/v1/match`, `/v1/route`, and `?available=true|false` model filtering
+- MCP tool: `lucid_heartbeat` in `mcpServer.ts` (alternative to REST endpoint)
 
 ### Key Algorithms
 - **MMR**: SHA-256, right-to-left peak bagging. Epoch finalization: >100 receipts OR >1 hour
@@ -87,7 +103,7 @@ Supabase (eu-north-1): `credentials`, `user_wallets`, `session_signers`, `signer
 - **Custom entry point** `src/ai.ts` (safe from re-gen): Vercel AI SDK provider using `@ai-sdk/openai-compatible`
   - Import as `raijin-labs-lucid-ai/ai` → `createLucidProvider()` for chat + embeddings
 - `@ai-sdk/openai-compatible@2.x` — must stay in sync with consumers' `ai` package major version
-- `searchModels({ available: 'true' })` — SDK method for filtered model listing
+- `searchModels({ available: 'true' })` — SDK method for filtered model listing (`'true'`=available, `'false'`=unavailable, omit=all)
 - Build: `cd sdk/raijin-labs-lucid-ai-typescript && npm run build` (uses `tshy` for dual CJS/ESM)
 
 ## Cross-Dependencies

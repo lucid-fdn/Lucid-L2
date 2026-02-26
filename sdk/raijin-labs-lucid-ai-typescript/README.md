@@ -81,9 +81,9 @@ const { embedding } = await embed({
 })
 ```
 
-### Filtering available models
+### Filtering by model availability
 
-Use `searchModels({ available: 'true' })` to only get models that can currently serve inference:
+Tri-state filter — `'true'` for available, `'false'` for unavailable, omit for all:
 
 ```typescript
 import { RaijinLabsLucidAi } from 'raijin-labs-lucid-ai'
@@ -92,12 +92,19 @@ const sdk = new RaijinLabsLucidAi({
   serverURL: 'https://api.lucid.foundation',
 })
 
-// Only models with healthy compute or API-hosted via TrustGate
+// Only models that can serve inference right now
 const { models } = await sdk.passports.searchModels({ available: 'true' })
+
+// Only models missing compute (useful for debugging)
+const { models: offline } = await sdk.passports.searchModels({ available: 'false' })
+
+// All models regardless of availability
+const { models: all } = await sdk.passports.searchModels({})
 ```
 
 - `format=api` models (GPT-4o, Claude, etc.) are always available — routed through TrustGate
 - `format=safetensors`/`gguf` models require a healthy compute node with compatible runtime and hardware
+- Compute nodes register via `POST /v1/compute/nodes/heartbeat` with a 30s TTL
 
 <!-- Start Requirements [requirements] -->
 ## Requirements
