@@ -16,19 +16,27 @@ export class ArweaveStorage implements IDepinStorage {
   private async getUploader(): Promise<any> {
     if (this.uploader) return this.uploader;
 
-    const privateKey = process.env.IRYS_PRIVATE_KEY;
-    if (!privateKey) throw new Error('IRYS_PRIVATE_KEY env var required for Arweave uploads');
+    const privateKeyEnv = process.env.IRYS_PRIVATE_KEY;
+    if (!privateKeyEnv) throw new Error('IRYS_PRIVATE_KEY env var required for Arweave uploads');
 
     try {
       const { Uploader } = require('@irys/upload');
       const { Solana } = require('@irys/upload-solana');
+
+      // Parse key: supports JSON array "[1,2,3,...]" or base58 string
+      let wallet: Uint8Array;
+      if (privateKeyEnv.trimStart().startsWith('[')) {
+        wallet = new Uint8Array(JSON.parse(privateKeyEnv));
+      } else {
+        wallet = new Uint8Array(Buffer.from(privateKeyEnv, 'base64'));
+      }
 
       const rpcUrl = this.network === 'mainnet'
         ? 'https://api.mainnet-beta.solana.com'
         : 'https://api.devnet.solana.com';
 
       this.uploader = await Uploader(Solana)
-        .withWallet(privateKey)
+        .withWallet(wallet)
         .withRpc(rpcUrl)
         .devnet(this.network !== 'mainnet');
 

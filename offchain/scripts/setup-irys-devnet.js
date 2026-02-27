@@ -23,7 +23,7 @@ async function main() {
   }
 
   const keypairBytes = JSON.parse(fs.readFileSync(KEYPAIR_PATH, 'utf-8'));
-  const privateKey = Buffer.from(keypairBytes).toString('base64');
+  const wallet = new Uint8Array(keypairBytes);
 
   console.log('=== Irys Devnet Setup ===\n');
 
@@ -33,15 +33,17 @@ async function main() {
 
   console.log('Initializing Irys uploader (devnet)...');
   const uploader = await Uploader(Solana)
-    .withWallet(privateKey)
+    .withWallet(wallet)
     .withRpc('https://api.devnet.solana.com')
     .devnet();
+
+  console.log('Address:', uploader.address);
 
   // Check balance
   const balance = await uploader.getBalance();
   console.log('Current Irys balance:', balance.toString(), 'lamports');
 
-  if (balance.lt(100000)) {
+  if (balance.toString() === '0' || BigInt(balance.toString()) < 100000n) {
     console.log('\nFunding Irys with 0.5 SOL...');
     try {
       const fundTx = await uploader.fund(uploader.utils.toAtomic(0.5));
@@ -49,8 +51,8 @@ async function main() {
     } catch (err) {
       console.error('Funding failed:', err.message);
       console.error('\nMake sure the keypair has devnet SOL:');
-      console.error('  solana airdrop 1 $(solana-keygen pubkey ' + KEYPAIR_PATH + ') --url devnet');
-      console.error('  Or visit https://faucet.solana.com');
+      console.error('  solana airdrop 1 ' + uploader.address + ' --url devnet');
+      console.error('  Or visit https://faucet.solana.com and paste: ' + uploader.address);
       process.exit(1);
     }
 
@@ -90,11 +92,14 @@ async function main() {
     console.log('  https://arweave.net/' + receipt.id);
   }
 
+  // Output env var (JSON array format — ArweaveStorage.ts parses this)
+  const envKey = JSON.stringify(Array.from(keypairBytes));
+
   console.log('\n=== Setup Complete ===\n');
-  console.log('Railway env vars to set:');
+  console.log('Env vars to set on your server:');
   console.log('  DEPIN_PERMANENT_PROVIDER=arweave');
   console.log('  IRYS_NETWORK=devnet');
-  console.log('  IRYS_PRIVATE_KEY=' + privateKey);
+  console.log('  IRYS_PRIVATE_KEY=' + envKey);
   console.log('\n(For mainnet, change IRYS_NETWORK=mainnet and fund with real SOL)');
 }
 
