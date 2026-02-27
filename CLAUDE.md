@@ -17,7 +17,7 @@ anchor deploy --provider.cluster devnet
 
 # Tests
 cd tests && npm test                        # Mocha on-chain
-cd offchain && npm test                     # Jest API (18 test files)
+cd offchain && npm test                     # Jest API (21 test files)
 ```
 
 ## Architecture
@@ -47,6 +47,9 @@ Client → /v1/chat/completions → Passport matching → LLM execution
 - `/v1/payouts` — Revenue split (basis points)
 - `/api/agents` — MMR-based agent orchestration
 - `/api/oauth` — Nango OAuth management
+- `/v1/passports/:id/token/launch` — Launch share token for passport
+- `/v1/passports/:id/token` — Get share token info
+- `/v1/passports/:id/token/airdrop` — Trigger revenue airdrop
 - `/api/hyperliquid`, `/api/solana` — DeFi integrations
 
 ### Model Availability Filter (`?available=true|false`)
@@ -81,15 +84,60 @@ In-memory registry with 30s TTL. Compute nodes send periodic heartbeats to stay 
 - **Revenue split**: Default 70% compute / 20% model / 10% protocol (basis points)
 - **Compute matching**: Runtime compat → hardware check → policy eval → score → select
 
+### DePIN Storage Layer (Swappable)
+Decentralized storage behind `IDepinStorage` interface. Factory: `getPermanentStorage()` / `getEvolvingStorage()`.
+
+| Provider | Env Value | Use Case |
+|----------|-----------|----------|
+| `ArweaveStorage` | `arweave` | Permanent metadata (via Irys SDK) |
+| `LighthouseStorage` | `lighthouse` | Evolving data (Filecoin+IPFS) |
+| `MockStorage` | `mock` | Dev/test (local SHA-256 files) |
+
+Env: `DEPIN_PERMANENT_PROVIDER`, `DEPIN_EVOLVING_PROVIDER` (default: `mock`). Kill switch: `DEPIN_UPLOAD_ENABLED=false`.
+
+### NFT Provider Layer (Chain-Agnostic)
+NFT minting behind `INFTProvider` interface. String-based addresses work for both Solana base58 and EVM 0x.
+
+| Provider | Env Value | Chain |
+|----------|-----------|-------|
+| `Token2022Provider` | `token2022` | Solana |
+| `MetaplexCoreProvider` | `metaplex-core` | Solana |
+| `EVMNFTProvider` | `evm-erc721` | EVM (wraps EVMAdapter + TBA) |
+| `MockNFTProvider` | `mock` | Dev/test |
+
+Env: `NFT_PROVIDER` (default: `mock`), `NFT_CHAINS` (multi-chain: `solana-devnet,base`), `NFT_MINT_ON_CREATE=true`.
+
+### Share Tokens (Fractional Ownership)
+Token IS the share — no custom Anchor program. Swappable launcher behind `ITokenLauncher`.
+
+| Provider | Env Value | Use Case |
+|----------|-----------|----------|
+| `DirectMintLauncher` | `direct-mint` | SPL Token-2022 direct mint |
+| `GenesisLauncher` | `genesis` | Metaplex Genesis TGE |
+| `MockTokenLauncher` | `mock` | Dev/test |
+
+Env: `TOKEN_LAUNCHER` (default: `mock`). Revenue: off-chain airdrop via `revenueAirdrop.ts` (snapshot holders, proportional SOL transfer).
+
+### Schema Validation
+ToolMeta and AgentMeta schemas wired into passport creation. `TYPE_SCHEMA_MAP` in `passportManager.ts`:
+- `model` → `ModelMeta.schema.json`, `compute` → `ComputeMeta.schema.json`
+- `tool` → `ToolMeta.schema.json`, `agent` → `AgentMeta.schema.json`
+- `dataset` → no schema (basic validation only)
+
 ## Key Files
 ```
 programs/thought-epoch/         # Anchor program: commit_epoch, commit_epochs, commit_epoch_v2
 programs/lucid-passports/       # Anchor program: passport registry + payment gates
 programs/gas-utils/             # Anchor program: token burn/split
 offchain/src/index.ts           # Express server entry
+offchain/src/storage/depin/     # DePIN storage (IDepinStorage, Arweave, Lighthouse, Mock)
+offchain/src/nft/               # NFT providers (INFTProvider, Token2022, Metaplex, EVM, Mock)
+offchain/src/shares/            # Token launchers (ITokenLauncher, DirectMint, Genesis, Mock)
+offchain/src/jobs/              # Background jobs (revenueAirdrop.ts)
 offchain/src/utils/mmr.ts       # MerkleTree + AgentMMR classes
 offchain/src/solana/gas.ts      # Dual-gas transaction building
 offchain/src/utils/config.ts    # Gas rates, program IDs, network config
+schemas/                        # JSON schemas (ModelMeta, ComputeMeta, ToolMeta, AgentMeta, etc.)
 infrastructure/migrations/      # Supabase SQL migrations
 sdk/                            # Auto-generated TypeScript + Python SDKs
 agent-services/                 # CrewAI + LangGraph microservices

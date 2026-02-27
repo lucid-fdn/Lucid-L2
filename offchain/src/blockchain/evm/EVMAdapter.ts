@@ -212,7 +212,7 @@ export class EVMAdapter implements IBlockchainAdapter {
         }
 
         if (mintedTokenId && identityAddr) {
-          const { getTBAService } = await import('../../services/tbaService');
+          const { getTBAService } = await import('../../services/identity/tbaService');
           const tbaService = getTBAService();
           const tba = await tbaService.createTBA(this._chainId, identityAddr, mintedTokenId);
           console.log(`[EVMAdapter] TBA auto-created for token ${mintedTokenId}: ${tba.address}`);

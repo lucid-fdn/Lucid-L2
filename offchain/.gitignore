@@ -12,3 +12,5 @@ bun.lock
 .env.local
 .env.backup*
 *.mcpb
+keys/
+.depin-mock-storage/

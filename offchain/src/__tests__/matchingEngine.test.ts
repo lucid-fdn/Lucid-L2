@@ -1,5 +1,5 @@
-import { matchComputeForModel } from '../services/matchingEngine';
-import { getComputeRegistry } from '../services/computeRegistry';
+import { matchComputeForModel } from '../services/passport/matchingEngine';
+import { getComputeRegistry } from '../services/compute/computeRegistry';
 
 describe('matchingEngine.matchComputeForModel', () => {
   test('selects healthy compatible compute and rejects incompatible', () => {

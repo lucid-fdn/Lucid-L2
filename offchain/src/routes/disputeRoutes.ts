@@ -5,7 +5,7 @@
  */
 
 import { Router } from 'express';
-import { getDisputeService } from '../services/disputeService';
+import { getDisputeService } from '../services/finance/disputeService';
 
 export const disputeRouter = Router();
 

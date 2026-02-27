@@ -22,7 +22,7 @@ import {
   resetEpochStore,
   getAllEpochs,
   Epoch,
-} from '../services/epochService';
+} from '../services/receipt/epochService';
 
 import {
   commitEpochRoot,
@@ -35,12 +35,12 @@ import {
   resetAnchoringState,
   deriveEpochRecordPDA,
   buildCommitEpochInstruction,
-} from '../services/anchoringService';
+} from '../services/receipt/anchoringService';
 
 import {
   createReceipt,
   resetReceiptStore,
-} from '../services/receiptService';
+} from '../services/receipt/receiptService';
 
 import { resetReceiptTree } from '../utils/merkleTree';
 
@@ -595,7 +595,7 @@ describe('Anchoring Service', () => {
       const instruction = buildCommitEpochInstruction(authority, root);
       
       expect(instruction.programId).toBeDefined();
-      expect(instruction.keys.length).toBe(2); // authority, epoch_record
+      expect(instruction.keys.length).toBe(2); // authority, epoch_record (no system_program in update instruction)
       expect(instruction.data.length).toBeGreaterThan(32); // discriminator + root
     });
 

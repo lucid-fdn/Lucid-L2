@@ -1,8 +1,8 @@
 /**
  * Tests for PaymasterService
  */
-import { PaymasterService, getPaymasterService } from '../services/paymasterService';
-import type { UserOperation } from '../services/paymasterTypes';
+import { PaymasterService, getPaymasterService } from '../services/identity/paymasterService';
+import type { UserOperation } from '../services/identity/paymasterTypes';
 
 const mockUserOp: UserOperation = {
   sender: '0x1234567890abcdef1234567890abcdef12345678',

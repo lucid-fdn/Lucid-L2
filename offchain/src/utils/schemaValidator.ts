@@ -4,7 +4,7 @@ import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
 import Ajv2020 from 'ajv/dist/2020.js';
 
-export type SchemaId = 'Policy' | 'ModelMeta' | 'ComputeMeta' | 'RunReceipt';
+export type SchemaId = 'Policy' | 'ModelMeta' | 'ComputeMeta' | 'RunReceipt' | 'ToolMeta' | 'AgentMeta';
 
 /** Validation result type - discriminated union */
 export type ValidationResult<T> = 
@@ -16,6 +16,8 @@ const SCHEMA_FILES: Record<SchemaId, string> = {
   ModelMeta: 'ModelMeta.schema.json',
   ComputeMeta: 'ComputeMeta.schema.json',
   RunReceipt: 'RunReceipt.schema.json',
+  ToolMeta: 'ToolMeta.schema.json',
+  AgentMeta: 'AgentMeta.schema.json',
 };
 
 let ajvSingleton: Ajv | null = null;

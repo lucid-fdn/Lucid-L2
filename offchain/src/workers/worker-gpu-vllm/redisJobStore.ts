@@ -17,7 +17,7 @@ import type {
   JobStatus,
   JobErrorCode,
 } from '../../types/fluidCompute';
-import { ExtendedSignedReceipt } from '../../services/receiptService';
+import { ExtendedSignedReceipt } from '../../services/receipt/receiptService';
 
 /**
  * Serializable job state for Redis storage

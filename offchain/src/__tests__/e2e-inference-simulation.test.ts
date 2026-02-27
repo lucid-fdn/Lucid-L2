@@ -33,7 +33,7 @@ const mockSearchModels = jest.fn<() => Promise<any>>();
 const mockGetCount = jest.fn<() => Promise<number>>();
 const mockInit = jest.fn<() => Promise<void>>();
 const mockGetPendingSync = jest.fn<() => Promise<any[]>>();
-jest.mock('../services/passportManager', () => ({
+jest.mock('../services/passport/passportManager', () => ({
   getPassportManager: () => ({
     getPassport: mockGetPassport,
     listPassports: mockListPassports,
@@ -47,7 +47,7 @@ jest.mock('../services/passportManager', () => ({
 // Compute registry mock
 const mockGetLiveState = jest.fn<(id: string) => any>();
 const mockUpsertHeartbeat = jest.fn<() => any>();
-jest.mock('../services/computeRegistry', () => ({
+jest.mock('../services/compute/computeRegistry', () => ({
   getComputeRegistry: () => ({
     getLiveState: mockGetLiveState,
     upsertHeartbeat: mockUpsertHeartbeat,
@@ -60,7 +60,7 @@ jest.mock('../services/computeRegistry', () => ({
 
 // Receipt service mock
 const mockCreateReceipt = jest.fn<() => any>();
-jest.mock('../services/receiptService', () => ({
+jest.mock('../services/receipt/receiptService', () => ({
   createReceipt: mockCreateReceipt,
   getReceipt: jest.fn(),
   verifyReceiptHash: jest.fn(() => true),
@@ -76,7 +76,7 @@ jest.mock('../services/receiptService', () => ({
 }));
 
 // Mock other services used by lucidLayerRoutes
-jest.mock('../services/epochService', () => ({
+jest.mock('../services/receipt/epochService', () => ({
   createEpoch: jest.fn(),
   getCurrentEpoch: jest.fn(() => ({ epoch_id: 'e1', mmr_root: '', leaf_count: 0, created_at: Date.now() })),
   getEpoch: jest.fn(),
@@ -87,7 +87,7 @@ jest.mock('../services/epochService', () => ({
   getAllEpochs: jest.fn(() => []),
 }));
 
-jest.mock('../services/anchoringService', () => ({
+jest.mock('../services/receipt/anchoringService', () => ({
   commitEpochRoot: jest.fn(),
   commitEpochRootsBatch: jest.fn(),
   verifyEpochAnchor: jest.fn(),
@@ -103,7 +103,7 @@ jest.mock('../blockchain/chains', () => ({
   CHAIN_CONFIGS: {},
 }));
 
-jest.mock('../services/payoutService', () => ({
+jest.mock('../services/finance/payoutService', () => ({
   calculatePayoutSplit: jest.fn(),
   createPayoutFromReceipt: jest.fn(),
   getPayout: jest.fn(),
@@ -120,7 +120,7 @@ import {
   executeChatCompletion,
   ExecutionRequest,
   ChatCompletionRequest,
-} from '../services/executionGateway';
+} from '../services/inference/executionGateway';
 
 // ---------------------------------------------------------------------------
 // Test data — mirrors production passport metadata schemas

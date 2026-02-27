@@ -1,7 +1,7 @@
 import express from 'express';
 import { Nango } from '@nangohq/node';
 import { verifyPrivyToken, PrivyRequest } from '../middleware/privyAuth';
-import { PROVIDER_TO_NANGO_MAP } from '../services/nangoService';
+import { PROVIDER_TO_NANGO_MAP } from '../services/oauth/nangoService';
 
 const router = express.Router();
 
@@ -124,4 +124,4 @@ router.get('/:provider/resources/:resource', async (req: PrivyRequest, res) => {
   }
 });
 
-export default router;
+export const oauthResourcesRouter = router;

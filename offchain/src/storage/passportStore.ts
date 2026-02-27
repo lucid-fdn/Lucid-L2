@@ -34,6 +34,14 @@ export interface Passport {
   on_chain_pda?: string; // PDA address if synced to Solana
   on_chain_tx?: string; // Transaction signature of on-chain registration
   last_sync_at?: number; // Last sync timestamp
+  // DePIN storage fields
+  depin_metadata_cid?: string; // CID from decentralized storage
+  depin_provider?: string; // Which provider stored it (arweave, lighthouse, mock)
+  // NFT fields
+  nft_mint?: string; // NFT mint address (Solana base58 or EVM 0x...)
+  nft_chain?: string; // Chain where NFT was minted
+  // Share token fields
+  share_token_mint?: string; // SPL token mint for fractional ownership
 }
 
 /**

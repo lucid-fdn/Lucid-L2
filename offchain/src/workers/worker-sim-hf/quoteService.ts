@@ -8,7 +8,7 @@
  */
 
 import { v4 as uuid } from 'uuid';
-import { computeQuoteHash, verifyQuoteHash } from '../../services/receiptService';
+import { computeQuoteHash, verifyQuoteHash } from '../../services/receipt/receiptService';
 import { signMessage, verifySignature, getOrchestratorPublicKey } from '../../utils/signing';
 import type {
   OfferQuote,

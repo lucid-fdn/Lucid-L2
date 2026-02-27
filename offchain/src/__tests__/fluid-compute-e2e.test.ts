@@ -20,7 +20,7 @@ import {
   resetReceiptStore,
   getMmrRoot,
   getMmrLeafCount,
-} from '../services/receiptService';
+} from '../services/receipt/receiptService';
 import {
   createEpoch,
   getCurrentEpoch,
@@ -31,7 +31,7 @@ import {
   getEpochStats,
   setEpochConfig,
   resetEpochStore,
-} from '../services/epochService';
+} from '../services/receipt/epochService';
 import {
   enableMockMode,
   disableMockMode,
@@ -39,7 +39,7 @@ import {
   verifyEpochAnchor,
   resetAnchoringState,
   checkAnchoringHealth,
-} from '../services/anchoringService';
+} from '../services/receipt/anchoringService';
 import type {
   OfferQuote,
   JobRequest,

@@ -5,7 +5,7 @@
  */
 
 import { Router } from 'express';
-import { getPaymasterService } from '../services/paymasterService';
+import { getPaymasterService } from '../services/identity/paymasterService';
 
 export const paymasterRouter = Router();
 

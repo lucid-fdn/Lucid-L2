@@ -1,9 +1,9 @@
 /**
  * Tests for EscrowService
  */
-import { EscrowService, getEscrowService } from '../services/escrowService';
-import type { EscrowParams } from '../services/escrowTypes';
-import { EscrowStatus } from '../services/escrowTypes';
+import { EscrowService, getEscrowService } from '../services/finance/escrowService';
+import type { EscrowParams } from '../services/finance/escrowTypes';
+import { EscrowStatus } from '../services/finance/escrowTypes';
 
 describe('EscrowService', () => {
   describe('singleton', () => {

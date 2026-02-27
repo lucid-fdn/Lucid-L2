@@ -2,7 +2,7 @@
 // REST API routes for Passport CRUD operations
 
 import express from 'express';
-import { getPassportManager } from '../services/passportManager';
+import { getPassportManager } from '../services/passport/passportManager';
 import type { PassportType, PassportStatus, PassportFilters } from '../storage/passportStore';
 
 export const passportRouter = express.Router();
@@ -96,7 +96,7 @@ passportRouter.get('/v1/passports/pending-sync', async (_req, res) => {
  */
 passportRouter.post('/v1/passports', async (req, res) => {
   try {
-    const { type, owner, metadata, name, description, version, tags } = req.body || {};
+    const { type, owner, metadata, name, description, version, tags, mintNFT } = req.body || {};
 
     // Basic input validation
     if (!type) {
@@ -127,6 +127,7 @@ passportRouter.post('/v1/passports', async (req, res) => {
       description,
       version,
       tags,
+      mintNFT,
     });
 
     if (!result.ok) {

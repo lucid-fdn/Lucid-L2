@@ -1,8 +1,8 @@
 /**
  * Tests for DisputeService
  */
-import { DisputeService, getDisputeService } from '../services/disputeService';
-import { DisputeStatus } from '../services/disputeTypes';
+import { DisputeService, getDisputeService } from '../services/finance/disputeService';
+import { DisputeStatus } from '../services/finance/disputeTypes';
 
 describe('DisputeService', () => {
   describe('singleton', () => {

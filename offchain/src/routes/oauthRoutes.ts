@@ -1,5 +1,5 @@
 import express from 'express';
-import { NangoService, SUPPORTED_PROVIDERS } from '../services/nangoService';
+import { NangoService, SUPPORTED_PROVIDERS } from '../services/oauth/nangoService';
 import { verifyPrivyToken, PrivyRequest } from '../middleware/privyAuth';
 import { verifyHmacSignature, HmacRequest } from '../middleware/hmacAuth';
 import { verifyAdminAuth, AdminRequest } from '../middleware/adminAuth';
@@ -408,4 +408,4 @@ router.post('/admin/cleanup', verifyAdminAuth, async (req: AdminRequest, res) =>
   }
 });
 
-export default router;
+export const oauthRouter = router;

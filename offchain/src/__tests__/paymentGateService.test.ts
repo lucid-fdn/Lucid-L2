@@ -51,7 +51,7 @@ describe('PaymentGateService', () => {
   let getPaymentGateService: any;
 
   beforeAll(() => {
-    const mod = require('../services/paymentGateService');
+    const mod = require('../services/finance/paymentGateService');
     PaymentGateService = mod.PaymentGateService;
     getPaymentGateService = mod.getPaymentGateService;
   });
@@ -141,7 +141,7 @@ describe('PaymentGateService', () => {
         readFileSync: jest.fn().mockReturnValue(JSON.stringify(Array.from({ length: 64 }, (_, i) => i))),
       }));
 
-      const mod = require('../services/paymentGateService');
+      const mod = require('../services/finance/paymentGateService');
       const instance1 = mod.getPaymentGateService();
       const instance2 = mod.getPaymentGateService();
       expect(instance1).toBe(instance2);

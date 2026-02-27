@@ -5,7 +5,7 @@
  */
 
 import { Router } from 'express';
-import { getCrossChainBridgeService } from '../services/crossChainBridgeService';
+import { getCrossChainBridgeService } from '../services/identity/crossChainBridgeService';
 
 export const bridgeRouter = Router();
 

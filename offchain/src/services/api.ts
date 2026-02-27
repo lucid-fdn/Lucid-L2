@@ -9,7 +9,7 @@ import { loadStore, saveStore, MemoryStore } from '../utils/memoryStore';
 import { makeComputeIx, makeBurnIx, calculateGasCost } from '../solana/gas';
 import { LUCID_MINT, MGAS_PER_ROOT, IGAS_PER_BATCH, N8N_URL, N8N_HMAC_SECRET, N8N_API_KEY } from '../utils/config';
 import { batchCommit } from '../commands/batch';
-import { getMMRService, AgentEpochData } from './mmrService';
+import { getMMRService, AgentEpochData } from './receipt/mmrService';
 import { FlowSpecService } from '../flowspec/flowspecService';
 import { FlowSpec, FlowExecutionContext } from '../flowspec/types';
 
@@ -128,12 +128,12 @@ export async function handleBatch(req: express.Request, res: express.Response) {
 /**
  * Initialize or load an AI agent
  * POST /agents/init
- * Body: { agentId: string, ipfsCid?: string }
+ * Body: { agentId: string, depinCid?: string }
  */
 export async function handleAgentInit(req: express.Request, res: express.Response) {
   try {
-    const { agentId, ipfsCid } = req.body as { agentId: string; ipfsCid?: string };
-    
+    const { agentId, depinCid } = req.body as { agentId: string; depinCid?: string };
+
     if (!agentId || typeof agentId !== 'string') {
       return res.status(400).json({
         success: false,
@@ -142,16 +142,16 @@ export async function handleAgentInit(req: express.Request, res: express.Respons
     }
 
     const mmrService = getMMRService();
-    const agent = await mmrService.initializeAgent(agentId, ipfsCid);
-    
+    const agent = await mmrService.initializeAgent(agentId, depinCid);
+
     const stats = await mmrService.getAgentStats(agentId);
-    
+
     res.json({
       success: true,
       agentId,
       initialized: true,
       stats,
-      message: ipfsCid ? `Agent loaded from IPFS: ${ipfsCid}` : 'New agent initialized'
+      message: depinCid ? `Agent loaded from DePIN: ${depinCid}` : 'New agent initialized'
     });
   } catch (error) {
     console.error('Error in handleAgentInit:', error);
@@ -214,7 +214,7 @@ export async function handleAgentEpoch(req: express.Request, res: express.Respon
       epochNumber: finalEpochNumber,
       vectorCount: validVectors.length,
       mmrRoot: result.mmrRoot.toString('hex'),
-      ipfsCid: result.ipfsCid,
+      depinCid: result.depinCid,
       transactionSignature: result.transactionSignature,
       gasCost: result.gasCost,
       message: `Epoch ${finalEpochNumber} processed successfully for agent ${agentId}`
@@ -291,7 +291,7 @@ export async function handleAgentBatchEpochs(req: express.Request, res: express.
         agentId: validEpochs.find(e => e.epochNumber === r.epochNumber)?.agentId,
         epochNumber: r.epochNumber,
         mmrRoot: r.mmrRoot.toString('hex'),
-        ipfsCid: r.ipfsCid,
+        depinCid: r.depinCid,
         transactionSignature: r.transactionSignature,
         gasCost: r.gasCost
       })),
@@ -564,7 +564,7 @@ export async function handleSystemStatus(req: express.Request, res: express.Resp
   try {
     const mmrService = getMMRService();
     const agents = mmrService.listAgents();
-    const ipfsConnected = await mmrService.checkIPFSConnection();
+    const storageHealthy = await mmrService.checkStorageHealth();
 
     // Get blockchain connection status - test connection without initializing full program
     let blockchainConnected = false;
@@ -576,7 +576,7 @@ export async function handleSystemStatus(req: express.Request, res: express.Resp
       blockchainConnected = slot > 0;
     } catch (error) {
       blockchainError = error instanceof Error ? error.message : 'Unknown blockchain error';
-      console.log('⚠️  Blockchain connection check failed:', blockchainError);
+      console.log('Blockchain connection check failed:', blockchainError);
     }
 
     res.json({
@@ -591,8 +591,9 @@ export async function handleSystemStatus(req: express.Request, res: express.Resp
         connected: blockchainConnected,
         error: blockchainError
       },
-      ipfs: {
-        connected: ipfsConnected
+      storage: {
+        healthy: storageHealthy,
+        type: 'depin'
       },
       agents: {
         total: agents.length,
@@ -622,7 +623,7 @@ export async function handleSystemStatus(req: express.Request, res: express.Resp
  */
 export async function handleAgentPlan(req: express.Request, res: express.Response) {
   try {
-    const { getAgentPlanner } = await import('./agentPlanner');
+    const { getAgentPlanner } = await import('./agent/agentPlanner');
     const { goal, context, constraints, autoExecute } = req.body as {
       goal: string;
       context?: Record<string, any>;
@@ -713,7 +714,7 @@ export async function handleAgentPlan(req: express.Request, res: express.Respons
  */
 export async function handleAgentAccomplish(req: express.Request, res: express.Response) {
   try {
-    const { getAgentOrchestrator } = await import('./agentOrchestrator');
+    const { getAgentOrchestrator } = await import('./agent/agentOrchestrator');
     const { goal, context, preferredExecutor, dryRun } = req.body;
 
     if (!goal || typeof goal !== 'string') {
@@ -748,7 +749,7 @@ export async function handleAgentAccomplish(req: express.Request, res: express.R
  */
 export async function handleAgentAccomplishPreview(req: express.Request, res: express.Response) {
   try {
-    const { getAgentOrchestrator } = await import('./agentOrchestrator');
+    const { getAgentOrchestrator } = await import('./agent/agentOrchestrator');
     const { goal, context } = req.body;
 
     if (!goal || typeof goal !== 'string') {
@@ -777,7 +778,7 @@ export async function handleAgentAccomplishPreview(req: express.Request, res: ex
  */
 export async function handleAgentOrchestratorHistory(req: express.Request, res: express.Response) {
   try {
-    const { getAgentOrchestrator } = await import('./agentOrchestrator');
+    const { getAgentOrchestrator } = await import('./agent/agentOrchestrator');
     const { tenantId } = req.params;
     const limit = parseInt(req.query.limit as string) || 50;
 
@@ -814,7 +815,7 @@ export async function handleAgentOrchestratorHistory(req: express.Request, res: 
  */
 export async function handleAgentOrchestratorHealth(req: express.Request, res: express.Response) {
   try {
-    const { getAgentOrchestrator } = await import('./agentOrchestrator');
+    const { getAgentOrchestrator } = await import('./agent/agentOrchestrator');
     const orchestrator = getAgentOrchestrator();
     
     const health = await orchestrator.healthCheck();
@@ -849,7 +850,7 @@ export async function handleAgentValidate(req: express.Request, res: express.Res
       });
     }
 
-    const { getAgentPlanner } = await import('./agentPlanner');
+    const { getAgentPlanner } = await import('./agent/agentPlanner');
     const planner = getAgentPlanner();
     
     const validation = await planner.validateFlowSpec(flowspec);
@@ -874,7 +875,7 @@ export async function handleAgentValidate(req: express.Request, res: express.Res
  */
 export async function handleAgentPlannerInfo(req: express.Request, res: express.Response) {
   try {
-    const { getAgentPlanner } = await import('./agentPlanner');
+    const { getAgentPlanner } = await import('./agent/agentPlanner');
     const planner = getAgentPlanner();
     
     const isHealthy = await planner.health();
@@ -915,7 +916,7 @@ export async function handleAgentPlannerInfo(req: express.Request, res: express.
  */
 export async function handleAgentExecute(req: express.Request, res: express.Response) {
   try {
-    const { getExecutorRouter } = await import('./executorRouter');
+    const { getExecutorRouter } = await import('./agent/executorRouter');
     const { flowspec, context, executor } = req.body as {
       flowspec: FlowSpec;
       context: FlowExecutionContext;
@@ -948,7 +949,7 @@ export async function handleAgentExecute(req: express.Request, res: express.Resp
  */
 export async function handleExecutorHealth(req: express.Request, res: express.Response) {
   try {
-    const { getExecutorRouter } = await import('./executorRouter');
+    const { getExecutorRouter } = await import('./agent/executorRouter');
     const router = getExecutorRouter();
     
     const health = await router.checkExecutorHealth();
@@ -974,7 +975,7 @@ export async function handleExecutorHealth(req: express.Request, res: express.Re
  */
 export async function handleExecutorDecision(req: express.Request, res: express.Response) {
   try {
-    const { getExecutorRouter } = await import('./executorRouter');
+    const { getExecutorRouter } = await import('./agent/executorRouter');
     const { flowspec } = req.body as { flowspec: FlowSpec };
 
     if (!flowspec) {
@@ -1298,7 +1299,7 @@ export async function createApiRouter(): Promise<express.Router> {
  */
 export async function handleToolsList(req: express.Request, res: express.Response) {
   try {
-    const { getMCPRegistry } = await import('./mcpRegistry');
+    const { getMCPRegistry } = await import('./mcp/mcpRegistry');
     const registry = getMCPRegistry();
     
     const tools = await registry.listTools();
@@ -1336,7 +1337,7 @@ export async function handleToolsList(req: express.Request, res: express.Respons
  */
 export async function handleSyncAllHF(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./hf/hfSyncOrchestrator');
 
     const {
       types = ['all'],
@@ -1392,7 +1393,7 @@ export async function handleSyncAllHF(req: express.Request, res: express.Respons
  */
 export async function handleSyncProgress(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./hf/hfSyncOrchestrator');
     
     const orchestrator = getHFSyncOrchestrator();
     const progress = orchestrator.getProgress();
@@ -1418,7 +1419,7 @@ export async function handleSyncProgress(req: express.Request, res: express.Resp
  */
 export async function handleSyncResume(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./hf/hfSyncOrchestrator');
     
     const { batchSize, concurrency, hfToken } = req.body;
 
@@ -1450,7 +1451,7 @@ export async function handleSyncResume(req: express.Request, res: express.Respon
  */
 export async function handleSyncStop(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./hf/hfSyncOrchestrator');
     
     const orchestrator = getHFSyncOrchestrator();
     orchestrator.stop();
@@ -1475,7 +1476,7 @@ export async function handleSyncStop(req: express.Request, res: express.Response
  */
 export async function handleSyncRetryFailed(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./hf/hfSyncOrchestrator');
     
     const { maxAttempts = 3, concurrency = 5 } = req.body;
 
@@ -1506,7 +1507,7 @@ export async function handleSyncRetryFailed(req: express.Request, res: express.R
  */
 export async function handleSyncReport(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./hf/hfSyncOrchestrator');
     
     const orchestrator = getHFSyncOrchestrator();
     const report = orchestrator.generateReport();
@@ -1531,7 +1532,7 @@ export async function handleSyncReport(req: express.Request, res: express.Respon
  */
 export async function handleSyncStatus(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./hf/hfSyncOrchestrator');
     
     const orchestrator = getHFSyncOrchestrator();
     const status = orchestrator.getStatus();
@@ -1560,7 +1561,7 @@ export async function handleSyncStatus(req: express.Request, res: express.Respon
  */
 export async function handleSyncSpaces(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./hf/hfSyncOrchestrator');
 
     const {
       batchSize = 100,
@@ -1603,7 +1604,7 @@ export async function handleSyncSpaces(req: express.Request, res: express.Respon
  */
 export async function handleDetectDeprecations(req: express.Request, res: express.Response) {
   try {
-    const { getDeprecationDetector } = await import('./deprecationDetector');
+    const { getDeprecationDetector } = await import('./hf/deprecationDetector');
 
     const { hfToken } = req.body || {};
     const detector = getDeprecationDetector(hfToken);
@@ -1642,7 +1643,7 @@ export async function handleDetectDeprecations(req: express.Request, res: expres
  */
 export async function handleSetPaymentGate(req: express.Request, res: express.Response) {
   try {
-    const { getPaymentGateService } = await import('./paymentGateService');
+    const { getPaymentGateService } = await import('./finance/paymentGateService');
     const { id } = req.params;
     const { priceLamports = 0, priceLucid = 0, paymentTokenMint } = req.body;
 
@@ -1672,7 +1673,7 @@ export async function handleSetPaymentGate(req: express.Request, res: express.Re
  */
 export async function handlePayForAccess(req: express.Request, res: express.Response) {
   try {
-    const { getPaymentGateService } = await import('./paymentGateService');
+    const { getPaymentGateService } = await import('./finance/paymentGateService');
     const { id } = req.params;
     const { expiresAt = 0 } = req.body;
 
@@ -1700,7 +1701,7 @@ export async function handlePayForAccess(req: express.Request, res: express.Resp
  */
 export async function handleCheckAccess(req: express.Request, res: express.Response) {
   try {
-    const { getPaymentGateService } = await import('./paymentGateService');
+    const { getPaymentGateService } = await import('./finance/paymentGateService');
     const { id, wallet } = req.params;
 
     const service = getPaymentGateService();
@@ -1737,7 +1738,7 @@ export async function handleCheckAccess(req: express.Request, res: express.Respo
  */
 export async function handleWithdrawRevenue(req: express.Request, res: express.Response) {
   try {
-    const { getPaymentGateService } = await import('./paymentGateService');
+    const { getPaymentGateService } = await import('./finance/paymentGateService');
     const { id } = req.params;
     const { amount } = req.body;
 
@@ -1765,7 +1766,7 @@ export async function handleWithdrawRevenue(req: express.Request, res: express.R
  */
 export async function handleToolInfo(req: express.Request, res: express.Response) {
   try {
-    const { getMCPRegistry } = await import('./mcpRegistry');
+    const { getMCPRegistry } = await import('./mcp/mcpRegistry');
     const { name } = req.params;
     
     const registry = getMCPRegistry();
@@ -1799,7 +1800,7 @@ export async function handleToolInfo(req: express.Request, res: express.Response
  */
 export async function handleToolExecute(req: express.Request, res: express.Response) {
   try {
-    const { getMCPRegistry } = await import('./mcpRegistry');
+    const { getMCPRegistry } = await import('./mcp/mcpRegistry');
     const { tool, operation, params } = req.body as {
       tool: string;
       operation: string;
@@ -1832,7 +1833,7 @@ export async function handleToolExecute(req: express.Request, res: express.Respo
  */
 export async function handleToolsStats(req: express.Request, res: express.Response) {
   try {
-    const { getMCPRegistry } = await import('./mcpRegistry');
+    const { getMCPRegistry } = await import('./mcp/mcpRegistry');
     const registry = getMCPRegistry();
     
     const stats = registry.getStats();
@@ -1857,7 +1858,7 @@ export async function handleToolsStats(req: express.Request, res: express.Respon
  */
 export async function handleToolsRefresh(req: express.Request, res: express.Response) {
   try {
-    const { getMCPRegistry } = await import('./mcpRegistry');
+    const { getMCPRegistry } = await import('./mcp/mcpRegistry');
     const registry = getMCPRegistry();
     
     await registry.refresh();
@@ -1888,7 +1889,7 @@ export async function handleToolsRefresh(req: express.Request, res: express.Resp
  */
 export async function handleN8nNodesReindex(req: express.Request, res: express.Response) {
   try {
-    const { getN8nNodeIndexer } = await import('./n8nNodeIndexer');
+    const { getN8nNodeIndexer } = await import('./n8n/n8nNodeIndexer');
     const { forceRefresh = false } = req.body;
     
     const indexer = getN8nNodeIndexer();
@@ -1910,7 +1911,7 @@ export async function handleN8nNodesReindex(req: express.Request, res: express.R
  */
 export async function handleN8nNodesStats(req: express.Request, res: express.Response) {
   try {
-    const { getElasticsearchService } = await import('./elasticsearchService');
+    const { getElasticsearchService } = await import('./n8n/elasticsearchService');
     
     const esService = getElasticsearchService();
     const stats = await esService.getStats();
@@ -1935,7 +1936,7 @@ export async function handleN8nNodesStats(req: express.Request, res: express.Res
  */
 export async function handleN8nNodesDeleteIndex(req: express.Request, res: express.Response) {
   try {
-    const { getElasticsearchService } = await import('./elasticsearchService');
+    const { getElasticsearchService } = await import('./n8n/elasticsearchService');
     
     const esService = getElasticsearchService();
     await esService.deleteIndex();
@@ -1959,8 +1960,8 @@ export async function handleN8nNodesDeleteIndex(req: express.Request, res: expre
  */
 export async function handleN8nNodesIndexStatus(req: express.Request, res: express.Response) {
   try {
-    const { getN8nNodeIndexer } = await import('./n8nNodeIndexer');
-    const { getElasticsearchService } = await import('./elasticsearchService');
+    const { getN8nNodeIndexer } = await import('./n8n/n8nNodeIndexer');
+    const { getElasticsearchService } = await import('./n8n/elasticsearchService');
     
     const indexer = getN8nNodeIndexer();
     const esService = getElasticsearchService();
@@ -1990,8 +1991,8 @@ export async function handleN8nNodesIndexStatus(req: express.Request, res: expre
  */
 export async function handleN8nNodesList(req: express.Request, res: express.Response) {
   try {
-    const { getElasticsearchService } = await import('./elasticsearchService');
-    const { getN8nNodeIndexer } = await import('./n8nNodeIndexer');
+    const { getElasticsearchService } = await import('./n8n/elasticsearchService');
+    const { getN8nNodeIndexer } = await import('./n8n/n8nNodeIndexer');
     
     const { 
       category, 
@@ -2309,8 +2310,8 @@ export async function handleN8nNodeCategories(req: express.Request, res: express
  */
 export async function handlePassportRegister(req: express.Request, res: express.Response) {
   try {
-    const { getPassportService } = await import('./passportService');
-    const { getContentService } = await import('./contentService');
+    const { getPassportService } = await import('./passport/passportService');
+    const { getContentService } = await import('./inference/contentService');
     
     const passportService = getPassportService();
     const contentService = getContentService();
@@ -2370,7 +2371,7 @@ export async function handlePassportRegister(req: express.Request, res: express.
  */
 export async function handlePassportGet(req: express.Request, res: express.Response) {
   try {
-    const { getPassportService } = await import('./passportService');
+    const { getPassportService } = await import('./passport/passportService');
     const { PublicKey } = await import('@solana/web3.js');
     
     const passportService = getPassportService();
@@ -2417,7 +2418,7 @@ export async function handlePassportGet(req: express.Request, res: express.Respo
  */
 export async function handlePassportsByOwner(req: express.Request, res: express.Response) {
   try {
-    const { getPassportService } = await import('./passportService');
+    const { getPassportService } = await import('./passport/passportService');
     const { PublicKey } = await import('@solana/web3.js');
     
     const passportService = getPassportService();
@@ -2453,7 +2454,7 @@ export async function handlePassportsByOwner(req: express.Request, res: express.
  */
 export async function handleSyncHFModels(req: express.Request, res: express.Response) {
   try {
-    const { getHFBridgeService } = await import('./hfBridgeService');
+    const { getHFBridgeService } = await import('./hf/hfBridgeService');
     
     const { limit = 5, hfToken } = req.body;
 
@@ -2484,7 +2485,7 @@ export async function handleSyncHFModels(req: express.Request, res: express.Resp
  */
 export async function handleSyncHFDatasets(req: express.Request, res: express.Response) {
   try {
-    const { getHFBridgeService } = await import('./hfBridgeService');
+    const { getHFBridgeService } = await import('./hf/hfBridgeService');
     
     const { limit = 5, hfToken } = req.body;
 
@@ -2515,7 +2516,7 @@ export async function handleSyncHFDatasets(req: express.Request, res: express.Re
  */
 export async function handlePassportSearch(req: express.Request, res: express.Response) {
   try {
-    const { getPassportService } = await import('./passportService');
+    const { getPassportService } = await import('./passport/passportService');
     
     const passportService = getPassportService();
     const { type } = req.query;

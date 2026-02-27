@@ -5,7 +5,7 @@
  */
 
 import { Router } from 'express';
-import { getTBAService } from '../services/tbaService';
+import { getTBAService } from '../services/identity/tbaService';
 
 export const tbaRouter = Router();
 

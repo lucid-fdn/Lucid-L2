@@ -10,7 +10,7 @@ const mockFetch = jest.fn<typeof fetch>();
 // Mock passportManager
 const mockGetPassport = jest.fn<() => Promise<any>>();
 const mockListPassports = jest.fn<() => Promise<any>>();
-jest.mock('../services/passportManager', () => ({
+jest.mock('../services/passport/passportManager', () => ({
   getPassportManager: () => ({
     getPassport: mockGetPassport,
     listPassports: mockListPassports,
@@ -20,7 +20,7 @@ jest.mock('../services/passportManager', () => ({
 // Mock computeRegistry
 const mockGetLiveState = jest.fn<(id: string) => any>();
 const mockUpsertHeartbeat = jest.fn<() => any>();
-jest.mock('../services/computeRegistry', () => ({
+jest.mock('../services/compute/computeRegistry', () => ({
   getComputeRegistry: () => ({
     getLiveState: mockGetLiveState,
     upsertHeartbeat: mockUpsertHeartbeat,
@@ -33,7 +33,7 @@ jest.mock('../services/computeRegistry', () => ({
 
 // Mock receiptService
 const mockCreateReceipt = jest.fn<() => any>();
-jest.mock('../services/receiptService', () => ({
+jest.mock('../services/receipt/receiptService', () => ({
   createReceipt: mockCreateReceipt,
 }));
 
@@ -45,7 +45,7 @@ import {
   getGatewayConfig,
   ExecutionRequest,
   ChatCompletionRequest,
-} from '../services/executionGateway';
+} from '../services/inference/executionGateway';
 import { estimateTokens, estimateChatTokens } from '../utils/tokenCounter';
 
 describe('Execution Gateway', () => {
@@ -135,9 +135,16 @@ describe('Execution Gateway', () => {
   });
 
   afterEach(async () => {
-    // Flush any pending setImmediate callbacks (e.g. createReceiptAsync)
-    await new Promise(resolve => setImmediate(resolve));
     jest.useRealTimers();
+    // Reset gateway config to defaults
+    configureGateway({
+      default_max_tokens: 512,
+      default_temperature: 0.7,
+      timeout_ms: 120000,
+      max_retries: 3,
+    });
+    // Flush any pending setImmediate from createReceiptAsync
+    await new Promise(resolve => setImmediate(resolve));
   });
 
   describe('executeInferenceRequest', () => {
@@ -494,12 +501,17 @@ describe('Execution Gateway', () => {
 
   describe('Error Handling', () => {
     it('should handle HTTP errors from compute endpoint', async () => {
-      mockFetch.mockResolvedValueOnce({
+      // Must mock all retry attempts (default max_retries=3)
+      const errorResponse = {
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
         text: async () => 'Internal Server Error',
-      } as Response);
+        json: async () => ({ error: 'Internal Server Error' }),
+      } as Response;
+      mockFetch.mockResolvedValueOnce(errorResponse)
+        .mockResolvedValueOnce(errorResponse)
+        .mockResolvedValueOnce(errorResponse);
 
       const request: ExecutionRequest = {
         model_meta: sampleModelMeta,
@@ -513,7 +525,10 @@ describe('Execution Gateway', () => {
     });
 
     it('should handle network errors', async () => {
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      // Reject all retry attempts
+      mockFetch.mockRejectedValueOnce(new Error('Network error'))
+        .mockRejectedValueOnce(new Error('Network error'))
+        .mockRejectedValueOnce(new Error('Network error'));
 
       const request: ExecutionRequest = {
         model_meta: sampleModelMeta,

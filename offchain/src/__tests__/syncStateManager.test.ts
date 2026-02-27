@@ -12,7 +12,7 @@ describe('SyncStateManager', () => {
   let stateFileName: string;
 
   beforeAll(() => {
-    const mod = require('../services/syncStateManager');
+    const mod = require('../services/hf/syncStateManager');
     SyncStateManager = mod.SyncStateManager;
   });
 

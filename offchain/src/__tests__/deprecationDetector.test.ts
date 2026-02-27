@@ -8,7 +8,7 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 // Mock syncStateManager
 const mockAssetIndex: Record<string, any> = {};
-jest.mock('../services/syncStateManager', () => ({
+jest.mock('../services/hf/syncStateManager', () => ({
   getSyncStateManager: jest.fn(() => ({
     load: jest.fn().mockResolvedValue(undefined),
     save: jest.fn().mockResolvedValue(undefined),
@@ -21,14 +21,14 @@ jest.mock('../services/syncStateManager', () => ({
 }));
 
 // Mock hfBridgeService
-jest.mock('../services/hfBridgeService', () => ({
+jest.mock('../services/hf/hfBridgeService', () => ({
   getHFBridgeService: jest.fn(() => ({})),
   HFBridgeService: jest.fn(),
 }));
 
 // Mock passportSyncService
 const mockUpdatePassportStatus = jest.fn().mockResolvedValue('mock-tx-id');
-jest.mock('../services/passportSyncService', () => ({
+jest.mock('../services/passport/passportSyncService', () => ({
   getPassportSyncService: jest.fn(() => ({
     updatePassportStatus: mockUpdatePassportStatus,
   })),
@@ -40,7 +40,7 @@ describe('DeprecationDetector', () => {
   let getDeprecationDetector: any;
 
   beforeAll(() => {
-    const mod = require('../services/deprecationDetector');
+    const mod = require('../services/hf/deprecationDetector');
     DeprecationDetector = mod.DeprecationDetector;
     getDeprecationDetector = mod.getDeprecationDetector;
   });
@@ -219,16 +219,16 @@ describe('DeprecationDetector', () => {
       jest.resetModules();
 
       // Re-mock everything for clean module
-      jest.doMock('../services/syncStateManager', () => ({
+      jest.doMock('../services/hf/syncStateManager', () => ({
         getSyncStateManager: jest.fn(() => ({
           load: jest.fn(), save: jest.fn(), getAssetIndex: jest.fn(() => ({})),
           removeAssetIndexEntry: jest.fn(),
         })),
       }));
-      jest.doMock('../services/hfBridgeService', () => ({ getHFBridgeService: jest.fn(() => ({})) }));
-      jest.doMock('../services/passportSyncService', () => ({ getPassportSyncService: jest.fn(() => ({})) }));
+      jest.doMock('../services/hf/hfBridgeService', () => ({ getHFBridgeService: jest.fn(() => ({})) }));
+      jest.doMock('../services/passport/passportSyncService', () => ({ getPassportSyncService: jest.fn(() => ({})) }));
 
-      const mod = require('../services/deprecationDetector');
+      const mod = require('../services/hf/deprecationDetector');
       const inst1 = mod.getDeprecationDetector();
       const inst2 = mod.getDeprecationDetector();
       expect(inst1).toBe(inst2);

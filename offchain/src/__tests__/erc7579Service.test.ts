@@ -1,8 +1,8 @@
 /**
  * Tests for ERC7579Service
  */
-import { ERC7579Service, getERC7579Service } from '../services/erc7579Service';
-import { ModuleType } from '../services/erc7579Types';
+import { ERC7579Service, getERC7579Service } from '../services/identity/erc7579Service';
+import { ModuleType } from '../services/identity/erc7579Types';
 
 describe('ERC7579Service', () => {
   describe('singleton', () => {

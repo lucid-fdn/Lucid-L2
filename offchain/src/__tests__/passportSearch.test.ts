@@ -13,7 +13,7 @@ import {
   computeForModel,
 } from '../storage/searchQueryBuilder';
 import { PassportStore, Passport, PassportType } from '../storage/passportStore';
-import { PassportManager, getPassportManager, resetPassportManager } from '../services/passportManager';
+import { PassportManager, getPassportManager, resetPassportManager } from '../services/passport/passportManager';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';

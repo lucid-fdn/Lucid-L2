@@ -21,7 +21,7 @@ import { QuoteService } from './quoteService';
 import { WorkerSigningService } from './signingService';
 import { getRuntimeHash, getGpuFingerprint, validatePinnedRevision } from './runtimeUtils';
 import { canonicalSha256Hex } from '../../utils/hash';
-import { addReceiptToEpoch } from '../../services/epochService';
+import { addReceiptToEpoch } from '../../services/receipt/epochService';
 import type {
   JobRequest,
   JobResult,
@@ -33,7 +33,7 @@ import type {
   JobOutput,
 } from '../../types/fluidCompute';
 import { mapToV0ErrorCode } from '../../types/fluidCompute';
-import { createExtendedReceipt, ExtendedSignedReceipt } from '../../services/receiptService';
+import { createExtendedReceipt, ExtendedSignedReceipt } from '../../services/receipt/receiptService';
 
 /**
  * S3 Storage configuration

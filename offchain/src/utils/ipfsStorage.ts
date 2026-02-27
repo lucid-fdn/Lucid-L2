@@ -2,12 +2,16 @@ import { MMRState, AgentMMR } from './mmr';
 import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { getEvolvingStorage, IDepinStorage } from '../storage/depin';
 
 /**
  * File-based Storage Manager for MMR data (simulating IPFS)
- * 
+ *
  * Handles off-chain storage of MMR states using local file system
  * with content-addressed storage similar to IPFS.
+ *
+ * @deprecated Use IDepinStorage via getEvolvingStorage() instead.
+ * Kept for backward compatibility with CLI commands/mmr.ts.
  */
 
 export interface IPFSConfig {
@@ -22,6 +26,10 @@ export interface StoredMMRData {
   version: string;
 }
 
+/**
+ * @deprecated Use IDepinStorage via getEvolvingStorage() / getPermanentStorage() instead.
+ * Kept for backward compatibility with CLI commands/mmr.ts.
+ */
 export class IPFSStorageManager {
   private storageDir: string;
   private initialized: boolean = false;
@@ -275,50 +283,60 @@ export class IPFSStorageManager {
 }
 
 /**
- * Agent MMR Registry for managing multiple agents
+ * Agent MMR Registry for managing multiple agents.
+ *
+ * Uses the IDepinStorage interface (DePIN storage layer) for persisting
+ * agent MMR state. Defaults to the evolving-storage singleton (Lighthouse
+ * in production, MockStorage in dev/test).
  */
 export class AgentMMRRegistry {
-  private agents: Map<string, { mmr: AgentMMR; ipfsCid?: string }> = new Map();
-  private storage: IPFSStorageManager;
+  private agents: Map<string, { mmr: AgentMMR; depinCid?: string }> = new Map();
+  private depinStorage: IDepinStorage;
 
-  constructor(ipfsConfig?: IPFSConfig) {
-    this.storage = new IPFSStorageManager(ipfsConfig);
+  constructor(storage?: IDepinStorage) {
+    this.depinStorage = storage || getEvolvingStorage();
   }
 
   /**
-   * Register a new agent or load existing one from storage
+   * Register a new agent or load existing one from DePIN storage.
    */
-  async registerAgent(agentId: string, ipfsCid?: string): Promise<AgentMMR> {
+  async registerAgent(agentId: string, depinCid?: string): Promise<AgentMMR> {
     if (this.agents.has(agentId)) {
       return this.agents.get(agentId)!.mmr;
     }
 
     let agentMMR: AgentMMR;
 
-    if (ipfsCid) {
-      // Load from storage
-      const loadedMMR = await this.storage.retrieveAgentMMR(ipfsCid);
-      if (loadedMMR) {
-        agentMMR = loadedMMR;
-        console.log(`🔄 Loaded agent ${agentId} from storage: ${ipfsCid}`);
-      } else {
+    if (depinCid) {
+      // Load from DePIN storage
+      try {
+        const raw = await this.depinStorage.retrieve(depinCid);
+        if (raw) {
+          const mmrData = deserializeMMRData(raw);
+          agentMMR = new AgentMMR(mmrData.agentId, mmrData.mmrState);
+          console.log(`Loaded agent ${agentId} from DePIN storage: ${depinCid}`);
+        } else {
+          agentMMR = new AgentMMR(agentId);
+          console.log(`Failed to load agent ${agentId} from DePIN (CID not found), created new MMR`);
+        }
+      } catch (err) {
         agentMMR = new AgentMMR(agentId);
-        console.log(`⚠️  Failed to load agent ${agentId} from storage, created new MMR`);
+        console.warn(`Failed to load agent ${agentId} from DePIN:`, err instanceof Error ? err.message : err);
       }
     } else {
       // Create new
       agentMMR = new AgentMMR(agentId);
-      console.log(`✨ Created new MMR for agent ${agentId}`);
+      console.log(`Created new MMR for agent ${agentId}`);
     }
 
-    this.agents.set(agentId, { mmr: agentMMR, ipfsCid });
+    this.agents.set(agentId, { mmr: agentMMR, depinCid });
     return agentMMR;
   }
 
   /**
-   * Process epoch for an agent and update storage
+   * Process epoch for an agent and upload updated state to DePIN storage.
    */
-  async processAgentEpoch(agentId: string, vectors: Buffer[], epochNumber: number): Promise<{ root: Buffer; ipfsCid: string }> {
+  async processAgentEpoch(agentId: string, vectors: Buffer[], epochNumber: number): Promise<{ root: Buffer; depinCid: string }> {
     const agentData = this.agents.get(agentId);
     if (!agentData) {
       throw new Error(`Agent ${agentId} not registered`);
@@ -327,27 +345,26 @@ export class AgentMMRRegistry {
     // Process the epoch
     const newRoot = agentData.mmr.processEpoch(vectors, epochNumber);
 
-    // Store updated MMR
-    const newCid = await this.storage.storeAgentMMR(agentData.mmr);
-    
+    // Serialize and upload to DePIN storage
+    const mmrData: StoredMMRData = {
+      agentId: agentData.mmr.getAgentId(),
+      mmrState: agentData.mmr.getState(),
+      rootHistory: agentData.mmr.getRootHistory(),
+      lastUpdated: Date.now(),
+      version: '1.0',
+    };
+    const serializable = serializeMMRDataToJSON(mmrData);
+    const upload = await this.depinStorage.uploadJSON(serializable, {
+      tags: { type: 'agent-mmr', agent: agentId, epoch: String(epochNumber) },
+    });
+    const newCid = upload.cid;
+
     // Update registry
-    this.agents.set(agentId, { mmr: agentData.mmr, ipfsCid: newCid });
+    this.agents.set(agentId, { mmr: agentData.mmr, depinCid: newCid });
 
-    // Pin the new data
-    await this.storage.pinAgentMMR(newCid);
+    console.log(`Updated agent ${agentId} epoch ${epochNumber}, DePIN CID: ${newCid} (${upload.provider})`);
 
-    // Optionally unpin old data
-    if (agentData.ipfsCid && agentData.ipfsCid !== newCid) {
-      try {
-        await this.storage.unpinAgentMMR(agentData.ipfsCid);
-      } catch (error) {
-        console.warn(`Failed to unpin old MMR data: ${agentData.ipfsCid}`);
-      }
-    }
-
-    console.log(`🔄 Updated agent ${agentId} epoch ${epochNumber}, new CID: ${newCid}`);
-    
-    return { root: newRoot, ipfsCid: newCid };
+    return { root: newRoot, depinCid: newCid };
   }
 
   /**
@@ -359,11 +376,11 @@ export class AgentMMRRegistry {
   }
 
   /**
-   * Get agent storage CID
+   * Get agent DePIN storage CID
    */
   getAgentCID(agentId: string): string | null {
     const agentData = this.agents.get(agentId);
-    return agentData?.ipfsCid || null;
+    return agentData?.depinCid || null;
   }
 
   /**
@@ -374,16 +391,68 @@ export class AgentMMRRegistry {
   }
 
   /**
-   * Check storage connectivity
+   * Check DePIN storage connectivity
    */
-  async checkIPFSConnection(): Promise<boolean> {
-    return await this.storage.isConnected();
+  async checkStorageHealth(): Promise<boolean> {
+    return await this.depinStorage.isHealthy();
   }
 
   /**
-   * Get storage manager for direct access
+   * Check storage connectivity (backward-compatible alias)
    */
-  getStorageManager(): IPFSStorageManager {
-    return this.storage;
+  async checkIPFSConnection(): Promise<boolean> {
+    return await this.checkStorageHealth();
   }
+
+  /**
+   * Get the underlying DePIN storage provider
+   */
+  getDepinStorage(): IDepinStorage {
+    return this.depinStorage;
+  }
+}
+
+// =============================================================================
+// SERIALIZATION HELPERS
+// =============================================================================
+
+/**
+ * Serialize StoredMMRData for JSON upload to DePIN storage.
+ * Converts Buffer fields to base64 strings.
+ */
+function serializeMMRDataToJSON(data: StoredMMRData): Record<string, unknown> {
+  return {
+    agentId: data.agentId,
+    mmrState: {
+      ...data.mmrState,
+      peaks: data.mmrState.peaks.map((p: Buffer) => p.toString('base64')),
+      nodes: Array.from(data.mmrState.nodes.entries()).map(([k, v]: [number, Buffer]) => [k, v.toString('base64')]),
+    },
+    rootHistory: data.rootHistory.map(r => ({
+      ...r,
+      root: r.root.toString('base64'),
+    })),
+    lastUpdated: data.lastUpdated,
+    version: data.version,
+  };
+}
+
+/**
+ * Deserialize StoredMMRData from DePIN storage raw bytes.
+ * Converts base64 strings back to Buffers.
+ */
+function deserializeMMRData(raw: Buffer): StoredMMRData {
+  const parsed = JSON.parse(raw.toString());
+  return {
+    ...parsed,
+    mmrState: {
+      ...parsed.mmrState,
+      peaks: parsed.mmrState.peaks.map((p: string) => Buffer.from(p, 'base64')),
+      nodes: new Map(parsed.mmrState.nodes.map(([k, v]: [number, string]) => [k, Buffer.from(v, 'base64')])),
+    },
+    rootHistory: parsed.rootHistory.map((r: any) => ({
+      ...r,
+      root: Buffer.from(r.root, 'base64'),
+    })),
+  };
 }

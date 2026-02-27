@@ -54,8 +54,8 @@ program
 
 // MMR Commands
 program
-  .command('mmr:init <agentId> [ipfsCid]')
-  .description('Initialize MMR for an agent')
+  .command('mmr:init <agentId> [depinCid]')
+  .description('Initialize MMR for an agent (optionally load from DePIN storage CID)')
   .action(mmrCommands.initAgent);
 
 program
@@ -94,9 +94,9 @@ program
   .action(mmrCommands.verifyAgent);
 
 program
-  .command('mmr:ipfs')
-  .description('Check IPFS connectivity')
-  .action(mmrCommands.checkIPFS);
+  .command('mmr:storage')
+  .description('Check DePIN storage connectivity')
+  .action(mmrCommands.checkStorage);
 
 program
   .command('mmr:demo')

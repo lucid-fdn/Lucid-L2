@@ -38,6 +38,7 @@ tags:
   - name: Compute
   - name: Health
   - name: Agents
+  - name: Shares
 
 paths:
   # ===========================================================================
@@ -276,6 +277,92 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PassportStatsResponse'
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  # ===========================================================================
+  # Share Tokens
+  # ===========================================================================
+  /v1/passports/{passport_id}/token/launch:
+    post:
+      tags: [Shares]
+      operationId: lucid_launch_share_token
+      summary: Launch a share token for a passport
+      x-speakeasy-mcp:
+        name: lucid_launch_share_token
+        description: Create and launch a share token (SPL) for fractional ownership of a passport.
+      parameters:
+        - in: path
+          name: passport_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenLaunchRequest'
+      responses:
+        '201':
+          description: Token launched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenLaunchResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/passports/{passport_id}/token:
+    get:
+      tags: [Shares]
+      operationId: lucid_get_share_token
+      summary: Get share token info for a passport
+      x-speakeasy-mcp:
+        name: lucid_get_share_token
+        description: Get token info (mint, supply, holders) for a passport's share token.
+      parameters:
+        - in: path
+          name: passport_id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenInfo'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/passports/{passport_id}/token/airdrop:
+    post:
+      tags: [Shares]
+      operationId: lucid_trigger_revenue_airdrop
+      summary: Trigger revenue airdrop for share token holders
+      x-speakeasy-mcp:
+        name: lucid_trigger_revenue_airdrop
+        description: Snapshot token holders and distribute SOL proportionally based on holdings.
+      parameters:
+        - in: path
+          name: passport_id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AirdropRequest'
+      responses:
+        '200':
+          description: Airdrop executed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AirdropResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
   /v1/models:
@@ -1637,7 +1724,7 @@ paths:
                   epochNumber: { type: integer }
                   vectorCount: { type: integer }
                   mmrRoot: { type: string }
-                  ipfsCid: { type: string }
+                  depinCid: { type: string }
                   transactionSignature: { type: string }
                   gasCost: { $ref: '#/components/schemas/GasCost' }
                   message: { type: string }
@@ -1677,7 +1764,7 @@ paths:
                         agentId: { type: string }
                         epochNumber: { type: integer }
                         mmrRoot: { type: string }
-                        ipfsCid: { type: string }
+                        depinCid: { type: string }
                         transactionSignature: { type: string }
                         gasCost: { $ref: '#/components/schemas/GasCost' }
                   totalGasCost: { $ref: '#/components/schemas/GasCost' }
@@ -2243,6 +2330,11 @@ components:
           additionalProperties: true
           nullable: true
         metadata_hash: { type: string, nullable: true }
+        depin_metadata_cid: { type: string, nullable: true, description: 'DePIN storage CID for metadata' }
+        depin_provider: { type: string, nullable: true, description: 'DePIN provider used (arweave, lighthouse, mock)' }
+        nft_mint: { type: string, nullable: true, description: 'NFT mint address (Solana base58 or EVM 0x)' }
+        nft_chain: { type: string, nullable: true, description: 'Chain where NFT was minted' }
+        share_token_mint: { type: string, nullable: true, description: 'Share token SPL mint address' }
         created_at: { type: integer }
         updated_at: { type: integer }
         on_chain:
@@ -3036,7 +3128,7 @@ components:
       required: [agentId]
       properties:
         agentId: { type: string }
-        ipfsCid: { type: string }
+        depinCid: { type: string }
 
     AgentEpochRequest:
       type: object
@@ -3121,3 +3213,63 @@ components:
           type: string
           enum: [n8n, langgraph]
         dryRun: { type: boolean }
+
+    # =========================================================================
+    # Share Token schemas
+    # =========================================================================
+    TokenLaunchRequest:
+      type: object
+      required: [name, symbol, totalSupply]
+      properties:
+        name: { type: string, description: 'Token name (e.g., "Llama 3.1 Share")' }
+        symbol: { type: string, description: 'Token symbol (e.g., "LLAMA")' }
+        totalSupply: { type: integer, minimum: 1, description: 'Total token supply' }
+        decimals: { type: integer, minimum: 0, maximum: 18, default: 6, description: 'Token decimals' }
+
+    TokenLaunchResponse:
+      type: object
+      required: [mint, txSignature, totalSupply, provider]
+      properties:
+        mint: { type: string, description: 'SPL token mint address' }
+        txSignature: { type: string, description: 'Transaction signature' }
+        totalSupply: { type: integer }
+        provider: { type: string, description: 'Token launcher provider used' }
+
+    TokenInfo:
+      type: object
+      required: [mint, passportId, name, symbol, totalSupply, decimals]
+      properties:
+        mint: { type: string, description: 'SPL token mint address' }
+        passportId: { type: string }
+        name: { type: string }
+        symbol: { type: string }
+        totalSupply: { type: integer }
+        decimals: { type: integer }
+        holders: { type: integer, description: 'Number of unique token holders' }
+
+    AirdropRequest:
+      type: object
+      required: [amountLamports]
+      properties:
+        amountLamports: { type: integer, minimum: 1, description: 'SOL amount in lamports to distribute' }
+
+    AirdropResponse:
+      type: object
+      required: [passportId, tokenMint, totalDistributed, holders, distributions, txSignatures]
+      properties:
+        passportId: { type: string }
+        tokenMint: { type: string }
+        totalDistributed: { type: integer, description: 'Total lamports distributed' }
+        holders: { type: integer, description: 'Number of holders who received airdrop' }
+        distributions:
+          type: array
+          items:
+            type: object
+            properties:
+              holder: { type: string }
+              balance: { type: number }
+              share: { type: number }
+              amountLamports: { type: integer }
+        txSignatures:
+          type: array
+          items: { type: string }

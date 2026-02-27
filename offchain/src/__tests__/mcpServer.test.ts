@@ -2,7 +2,7 @@
  * Tests for PR7: MCP Server Implementation
  */
 import { LucidMcpServer, getMcpServer, resetMcpServer } from '../mcp/mcpServer';
-import { getComputeRegistry } from '../services/computeRegistry';
+import { getComputeRegistry } from '../services/compute/computeRegistry';
 
 describe('MCP Server', () => {
   let server: LucidMcpServer;

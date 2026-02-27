@@ -14,12 +14,12 @@ import {
   getEpochsReadyForFinalization,
   getEpochStats,
   Epoch,
-} from '../services/epochService';
+} from '../services/receipt/epochService';
 import {
   commitEpochRoot,
   checkAnchoringHealth,
   AnchorResult,
-} from '../services/anchoringService';
+} from '../services/receipt/anchoringService';
 
 // =============================================================================
 // CONFIGURATION

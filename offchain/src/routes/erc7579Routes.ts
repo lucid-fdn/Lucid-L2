@@ -5,7 +5,7 @@
  */
 
 import { Router } from 'express';
-import { getERC7579Service } from '../services/erc7579Service';
+import { getERC7579Service } from '../services/identity/erc7579Service';
 
 export const erc7579Router = Router();
 

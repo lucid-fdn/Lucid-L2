@@ -5,7 +5,7 @@
  */
 
 import { Router } from 'express';
-import { getZkMLService } from '../services/zkmlService';
+import { getZkMLService } from '../services/zkml/zkmlService';
 
 export const zkmlRouter = Router();
 

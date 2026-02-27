@@ -4,12 +4,12 @@
  * Provides MCP-compatible tool and resource interfaces for Lucid operations.
  */
 
-import { evaluatePolicy } from '../services/policyEngine';
-import { matchComputeForModel } from '../services/matchingEngine';
-import { getComputeRegistry } from '../services/computeRegistry';
-import { createReceipt } from '../services/receiptService';
+import { evaluatePolicy } from '../services/compute/policyEngine';
+import { matchComputeForModel } from '../services/passport/matchingEngine';
+import { getComputeRegistry } from '../services/compute/computeRegistry';
+import { createReceipt } from '../services/receipt/receiptService';
 import { getReceiptTree } from '../utils/merkleTree';
-import { calculatePayoutSplit } from '../services/payoutService';
+import { calculatePayoutSplit } from '../services/finance/payoutService';
 
 // =============================================================================
 // Types

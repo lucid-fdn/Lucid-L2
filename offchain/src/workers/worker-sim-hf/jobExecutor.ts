@@ -16,8 +16,8 @@ import {
   verifyJobHash, 
   createReceiptFromJobResult,
   ExtendedSignedReceipt,
-} from '../../services/receiptService';
-import { addReceiptToEpoch } from '../../services/epochService';
+} from '../../services/receipt/receiptService';
+import { addReceiptToEpoch } from '../../services/receipt/epochService';
 import type {
   JobRequest,
   JobResult,

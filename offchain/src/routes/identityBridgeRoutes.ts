@@ -6,7 +6,7 @@
  */
 
 import { Router } from 'express';
-import { getIdentityBridgeService } from '../services/identityBridgeService';
+import { getIdentityBridgeService } from '../services/identity/identityBridgeService';
 
 export const identityBridgeRouter = Router();
 

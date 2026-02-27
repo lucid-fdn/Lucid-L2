@@ -4,7 +4,7 @@ import { AnchorProvider, Program, Wallet, setProvider, Idl } from '@coral-xyz/an
 import * as fs from 'fs';
 import path from 'path';
 import { getRPC_URL, getCOMMITMENT, getPROGRAM_ID } from '../utils/config';
-import { execSync } from 'child_process';
+import { getSolanaKeypair } from './keypair';
 
 // Cache the program instance to avoid re-initialization issues
 let cachedProgram: Program | null = null;
@@ -81,13 +81,7 @@ export function getConnection(): Connection {
 }
 
 export function getKeypair(): Keypair {
-  // Use the same method as working scripts - get from solana config
-
-  const configOutput = execSync('solana config get', { encoding: 'utf8' });
-  const keypairMatch = configOutput.match(/Keypair Path: (.+)/);
-  const configPath = keypairMatch[1].trim();
-  const keypairData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  return Keypair.fromSecretKey(new Uint8Array(keypairData));
+  return getSolanaKeypair();
 }
 
 export async function deriveEpochPDA(authority: PublicKey, programId: PublicKey) {

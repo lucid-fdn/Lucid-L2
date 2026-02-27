@@ -1,4 +1,4 @@
-import { getMMRService, AgentEpochData } from '../services/mmrService';
+import { getMMRService, AgentEpochData } from '../services/receipt/mmrService';
 
 /**
  * MMR CLI Commands
@@ -7,22 +7,22 @@ import { getMMRService, AgentEpochData } from '../services/mmrService';
  * agent initialization, epoch processing, and proof generation.
  */
 
-export async function initAgent(agentId: string, ipfsCid?: string): Promise<void> {
-  console.log(`🚀 Initializing MMR for agent: ${agentId}`);
-  
+export async function initAgent(agentId: string, depinCid?: string): Promise<void> {
+  console.log(`Initializing MMR for agent: ${agentId}`);
+
   try {
     const mmrService = getMMRService();
-    const agent = await mmrService.initializeAgent(agentId, ipfsCid);
-    
-    console.log(`✅ Agent ${agentId} initialized successfully`);
+    const agent = await mmrService.initializeAgent(agentId, depinCid);
+
+    console.log(`Agent ${agentId} initialized successfully`);
     console.log(`   MMR Size: ${agent.getSize()}`);
     console.log(`   Current Root: ${agent.getCurrentRoot().toString('hex')}`);
-    
-    const ipfsConnected = await mmrService.checkIPFSConnection();
-    console.log(`   IPFS Connected: ${ipfsConnected ? '✅' : '❌'}`);
-    
+
+    const storageHealthy = await mmrService.checkStorageHealth();
+    console.log(`   DePIN Storage: ${storageHealthy ? 'healthy' : 'unreachable'}`);
+
   } catch (error) {
-    console.error('❌ Failed to initialize agent:', error);
+    console.error('Failed to initialize agent:', error);
     process.exit(1);
   }
 }
@@ -45,9 +45,9 @@ export async function processEpoch(agentId: string, vectors: string[], epochNumb
     
     const result = await mmrService.processAgentEpoch(epochData);
     
-    console.log(`✅ Epoch ${epoch} processed successfully`);
+    console.log(`Epoch ${epoch} processed successfully`);
     console.log(`   MMR Root: ${result.mmrRoot.toString('hex')}`);
-    console.log(`   IPFS CID: ${result.ipfsCid}`);
+    console.log(`   DePIN CID: ${result.depinCid}`);
     console.log(`   Transaction: ${result.transactionSignature}`);
     console.log(`   Gas Cost: ${result.gasCost.total} LUCID (${result.gasCost.iGas} iGas + ${result.gasCost.mGas} mGas)`);
     
@@ -103,7 +103,7 @@ export async function getAgentStats(agentId: string): Promise<void> {
     console.log(`   MMR Size: ${stats.mmrSize}`);
     console.log(`   Total Epochs: ${stats.totalEpochs}`);
     console.log(`   Current Root: ${stats.currentRoot}`);
-    console.log(`   IPFS CID: ${stats.ipfsCid || 'Not stored'}`);
+    console.log(`   DePIN CID: ${stats.depinCid || 'Not stored'}`);
     console.log(`   Last Updated: ${stats.lastUpdated ? new Date(stats.lastUpdated).toISOString() : 'Never'}`);
     
   } catch (error) {
@@ -156,12 +156,12 @@ export async function listAgents(): Promise<void> {
         console.log(`   ${agentId}:`);
         console.log(`     Epochs: ${stats.totalEpochs}`);
         console.log(`     MMR Size: ${stats.mmrSize}`);
-        console.log(`     IPFS: ${stats.ipfsCid ? '✅' : '❌'}`);
+        console.log(`     DePIN: ${stats.depinCid ? 'stored' : 'not stored'}`);
       }
     }
-    
+
   } catch (error) {
-    console.error('❌ Failed to list agents:', error);
+    console.error('Failed to list agents:', error);
     process.exit(1);
   }
 }
@@ -196,30 +196,30 @@ export async function verifyAgent(agentId: string): Promise<void> {
   }
 }
 
-export async function checkIPFS(): Promise<void> {
-  console.log(`🌐 Checking IPFS connectivity`);
-  
+export async function checkStorage(): Promise<void> {
+  console.log(`Checking DePIN storage connectivity`);
+
   try {
     const mmrService = getMMRService();
-    const connected = await mmrService.checkIPFSConnection();
-    
-    console.log(`${connected ? '✅' : '❌'} IPFS Status: ${connected ? 'Connected' : 'Disconnected'}`);
-    
-    if (connected) {
-      const storage = mmrService['registry'].getStorageManager();
-      const nodeInfo = await storage.getNodeInfo();
-      if (nodeInfo) {
-        console.log(`   Storage Dir: ${nodeInfo.storageDir}`);
-        console.log(`   Total Files: ${nodeInfo.totalFiles}`);
-        console.log(`   Type: ${nodeInfo.type}`);
-      }
+    const healthy = await mmrService.checkStorageHealth();
+
+    console.log(`DePIN Storage: ${healthy ? 'healthy' : 'unreachable'}`);
+
+    if (healthy) {
+      const depinStorage = mmrService['registry'].getDepinStorage();
+      console.log(`   Provider: ${depinStorage.providerName}`);
     }
-    
+
   } catch (error) {
-    console.error('❌ Failed to check IPFS:', error);
+    console.error('Failed to check DePIN storage:', error);
     process.exit(1);
   }
 }
+
+/**
+ * @deprecated Use checkStorage() instead
+ */
+export const checkIPFS = checkStorage;
 
 // Demo function to showcase MMR functionality
 export async function runDemo(): Promise<void> {
@@ -266,7 +266,7 @@ export async function runDemo(): Promise<void> {
     if (stats) {
       console.log(`   Total epochs: ${stats.totalEpochs}`);
       console.log(`   MMR size: ${stats.mmrSize}`);
-      console.log(`   IPFS CID: ${stats.ipfsCid}`);
+      console.log(`   DePIN CID: ${stats.depinCid}`);
     }
     
     console.log(`\n✅ Demo completed successfully!`);

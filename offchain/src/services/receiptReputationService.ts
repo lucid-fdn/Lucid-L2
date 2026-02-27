@@ -12,8 +12,8 @@
  *   Consistency (0.15) — 1 - coefficient of variation of latencies
  */
 
-import { listReceipts, listExtendedReceipts, verifyReceipt } from './receiptService';
-import type { SignedReceipt, ExtendedSignedReceipt } from './receiptService';
+import { listReceipts, listExtendedReceipts, verifyReceipt } from './receipt/receiptService';
+import type { SignedReceipt, ExtendedSignedReceipt } from './receipt/receiptService';
 import { blockchainAdapterFactory } from '../blockchain/BlockchainAdapterFactory';
 
 // =============================================================================

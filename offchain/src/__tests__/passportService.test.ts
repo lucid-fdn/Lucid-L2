@@ -2,7 +2,7 @@
 // Tests for Passport Store, Manager, and Routes
 
 import { PassportStore, resetPassportStore } from '../storage/passportStore';
-import { PassportManager, resetPassportManager } from '../services/passportManager';
+import { PassportManager, resetPassportManager } from '../services/passport/passportManager';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -422,7 +422,7 @@ describe('PassportManager', () => {
 
     it('should reject format=api passport when model not in TrustGate catalog', async () => {
       const originalFetch = global.fetch;
-      const { _resetTrustGateCatalogCache } = require('../services/passportManager');
+      const { _resetTrustGateCatalogCache } = require('../services/passport/passportManager');
       _resetTrustGateCatalogCache();
 
       global.fetch = jest.fn().mockResolvedValueOnce({
@@ -456,7 +456,7 @@ describe('PassportManager', () => {
 
     it('should accept format=api passport when model IS in TrustGate catalog', async () => {
       const originalFetch = global.fetch;
-      const { _resetTrustGateCatalogCache } = require('../services/passportManager');
+      const { _resetTrustGateCatalogCache } = require('../services/passport/passportManager');
       _resetTrustGateCatalogCache();
 
       global.fetch = jest.fn().mockResolvedValueOnce({
@@ -486,7 +486,7 @@ describe('PassportManager', () => {
 
     it('should allow downloadable model even when not in TrustGate catalog', async () => {
       const originalFetch = global.fetch;
-      const { _resetTrustGateCatalogCache } = require('../services/passportManager');
+      const { _resetTrustGateCatalogCache } = require('../services/passport/passportManager');
       _resetTrustGateCatalogCache();
 
       global.fetch = jest.fn().mockResolvedValueOnce({
@@ -729,20 +729,25 @@ describe('PassportManager', () => {
   });
 
   describe('tool/dataset/agent passports', () => {
-    it('should create tool passport with basic metadata', async () => {
+    it('should create tool passport with valid ToolMeta schema', async () => {
       const result = await manager.createPassport({
         type: 'tool',
         owner: VALID_OWNER,
         metadata: {
-          tool_name: 'web-scraper',
+          schema_version: '2.0',
+          tool_passport_id: 'placeholder_id',  // overwritten after creation
+          protocol: 'openapi',
+          name: 'Web Scraper',
           description: 'Scrapes web pages',
-          version: '1.0.0',
+          operations: [{ name: 'scrape_url', description: 'Scrape a URL' }],
         },
         name: 'Web Scraper Tool',
       });
 
       expect(result.ok).toBe(true);
       expect(result.data!.type).toBe('tool');
+      // tool_passport_id is auto-assigned to match passport_id
+      expect(result.data!.metadata.tool_passport_id).toBe(result.data!.passport_id);
     });
 
     it('should create dataset passport with basic metadata', async () => {
@@ -761,19 +766,26 @@ describe('PassportManager', () => {
       expect(result.data!.type).toBe('dataset');
     });
 
-    it('should create agent passport with basic metadata', async () => {
+    it('should create agent passport with valid AgentMeta schema', async () => {
       const result = await manager.createPassport({
         type: 'agent',
         owner: VALID_OWNER,
         metadata: {
-          agent_name: 'code-assistant',
-          capabilities: ['code-generation', 'debugging'],
+          schema_version: '2.0',
+          agent_passport_id: 'placeholder_id',  // overwritten after creation
+          workflow_type: 'single',
+          model_passport_ids: ['mdl_test_model'],
+          name: 'Code Assistant',
+          description: 'Assists with code generation and debugging',
+          capabilities: ['code-execution', 'multi-turn'],
         },
         name: 'Code Assistant Agent',
       });
 
       expect(result.ok).toBe(true);
       expect(result.data!.type).toBe('agent');
+      // agent_passport_id is auto-assigned to match passport_id
+      expect(result.data!.metadata.agent_passport_id).toBe(result.data!.passport_id);
     });
   });
 });

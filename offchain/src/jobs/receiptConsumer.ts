@@ -12,7 +12,7 @@
  * stays in Lucid-L2.
  */
 
-import { createReceipt } from '../services/receiptService'
+import { createReceipt } from '../services/receipt/receiptService'
 
 // ---------------------------------------------------------------------------
 // Types

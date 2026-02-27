@@ -15,8 +15,8 @@ import {
   evmCaip10,
   isSolanaCaip10,
   isEvmCaip10,
-} from '../services/caip10';
-import { IdentityBridgeService } from '../services/identityBridgeService';
+} from '../services/identity/caip10';
+import { IdentityBridgeService } from '../services/identity/identityBridgeService';
 
 // =============================================================================
 // CAIP-10 Utilities

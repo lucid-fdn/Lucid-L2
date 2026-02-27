@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucidlayer.ai/schemas/passport/2.0/ToolMeta.schema.json",
+  "title": "Lucid Tool Metadata v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tool_passport_id", "protocol", "operations"],
+  "properties": {
+
+    "schema_version": { "type": "string", "enum": ["1.0", "2.0"] },
+    "tool_passport_id": { "type": "string", "minLength": 10 },
+
+    "name": { "type": "string", "description": "Human-readable tool name (e.g., GitHub, Slack, Web Search)" },
+    "description": { "type": "string", "description": "What the tool does" },
+    "provider": { "type": "string", "description": "Tool provider (e.g., github, slack, google, custom)" },
+
+    "protocol": {
+      "type": "string",
+      "enum": ["mcp", "openapi", "graphql", "grpc", "websocket", "custom"],
+      "description": "Integration protocol"
+    },
+
+    "category": {
+      "type": "string",
+      "enum": ["code", "data", "communication", "search", "finance", "storage", "compute", "analytics", "security", "other"],
+      "description": "Tool category for discovery and filtering"
+    },
+
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "description": "Operation identifier (e.g., search_code, send_message)" },
+          "description": { "type": "string", "description": "What this operation does" },
+          "idempotent": { "type": "boolean", "default": false, "description": "Whether repeated calls produce the same result" },
+          "side_effects": { "type": "boolean", "default": true, "description": "Whether the operation modifies external state" }
+        }
+      },
+      "description": "Available operations / tool functions"
+    },
+
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["none", "api_key", "oauth2", "bearer", "byok", "lucid_managed"],
+          "description": "Authentication mode"
+        },
+        "oauth_scopes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Required OAuth scopes (if oauth2)"
+        }
+      },
+      "description": "Authentication requirements"
+    },
+
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "base_url": { "type": "string", "description": "Base URL for the tool API" },
+        "mcp_transport": {
+          "type": "string",
+          "enum": ["stdio", "sse", "streamable-http"],
+          "description": "MCP transport type (if protocol=mcp)"
+        },
+        "health_url": { "type": "string", "description": "Health check endpoint" }
+      },
+      "description": "Connection details"
+    },
+
+    "pricing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "per_call": { "type": "number", "minimum": 0, "description": "USD per API call" },
+        "per_month": { "type": "number", "minimum": 0, "description": "USD monthly subscription" },
+        "currency": { "type": "string", "default": "usd" },
+        "free_tier": { "type": "boolean", "default": false }
+      },
+      "description": "Provider-declared pricing"
+    },
+
+    "rate_limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "requests_per_minute": { "type": "integer", "minimum": 1 },
+        "requests_per_day": { "type": "integer", "minimum": 1 }
+      },
+      "description": "Provider-declared rate limits"
+    },
+
+    "infrastructure": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "regions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Available regions (e.g., global, us-east-1)"
+        },
+        "data_residency": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Where data is processed/stored"
+        }
+      },
+      "description": "Provider-declared infrastructure"
+    },
+
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Discovery tags (e.g., ['code', 'github', 'version-control'])"
+    }
+  }
+}

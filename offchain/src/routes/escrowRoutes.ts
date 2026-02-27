@@ -5,7 +5,7 @@
  */
 
 import { Router } from 'express';
-import { getEscrowService } from '../services/escrowService';
+import { getEscrowService } from '../services/finance/escrowService';
 
 export const escrowRouter = Router();
 

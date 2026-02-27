@@ -1,4 +1,4 @@
-import { evaluatePolicy } from '../services/policyEngine';
+import { evaluatePolicy } from '../services/compute/policyEngine';
 
 describe('policyEngine.evaluatePolicy', () => {
   test('allows when regions overlap and no constraints violated', () => {

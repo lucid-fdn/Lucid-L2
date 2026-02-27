@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucidlayer.ai/schemas/passport/2.0/AgentMeta.schema.json",
+  "title": "Lucid Agent Metadata v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "agent_passport_id", "workflow_type", "model_passport_ids"],
+  "properties": {
+
+    "schema_version": { "type": "string", "enum": ["1.0", "2.0"] },
+    "agent_passport_id": { "type": "string", "minLength": 10 },
+
+    "name": { "type": "string", "description": "Human-readable agent name (e.g., Code Review Agent)" },
+    "description": { "type": "string", "description": "What the agent does" },
+    "provider": { "type": "string", "description": "Agent creator (e.g., lucid, user wallet, org name)" },
+
+    "workflow_type": {
+      "type": "string",
+      "enum": ["single", "chain", "dag", "loop", "hierarchical", "custom"],
+      "description": "Orchestration pattern"
+    },
+
+    "category": {
+      "type": "string",
+      "enum": ["coding", "research", "data-analysis", "content", "customer-support", "finance", "devops", "security", "general", "other"],
+      "description": "Agent category for discovery"
+    },
+
+    "model_passport_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" },
+      "description": "Model passport IDs this agent uses — verifiable cross-reference"
+    },
+
+    "tool_passport_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [],
+      "description": "Tool passport IDs this agent can invoke — verifiable cross-reference"
+    },
+
+    "sub_agent_passport_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "default": [],
+      "description": "Nested agent passport IDs (for multi-agent workflows)"
+    },
+
+    "framework": {
+      "type": "string",
+      "enum": ["langchain", "langgraph", "crewai", "autogen", "openai-assistants", "vercel-ai", "custom"],
+      "description": "Agent framework"
+    },
+
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["streaming", "human-in-the-loop", "memory", "multi-turn", "file-upload", "code-execution", "web-browsing"]
+      },
+      "description": "Agent capabilities"
+    },
+
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_steps": { "type": "integer", "minimum": 1, "description": "Maximum execution steps before termination" },
+        "timeout_seconds": { "type": "integer", "minimum": 1, "description": "Maximum execution time" }
+      },
+      "description": "Execution guardrails"
+    },
+
+    "pricing": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "per_run": { "type": "number", "minimum": 0, "description": "USD per agent run (flat fee component)" },
+        "per_step": { "type": "number", "minimum": 0, "description": "USD per step (usage-based component)" },
+        "currency": { "type": "string", "default": "usd" },
+        "free_tier": { "type": "boolean", "default": false }
+      },
+      "description": "Provider-declared pricing (on top of underlying model/tool costs)"
+    },
+
+    "endpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "invoke_url": { "type": "string", "description": "URL to invoke the agent" },
+        "stream_url": { "type": "string", "description": "URL for streaming execution" },
+        "health_url": { "type": "string", "description": "Health check endpoint" }
+      },
+      "description": "API endpoints"
+    },
+
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Discovery tags (e.g., ['coding', 'review', 'github'])"
+    }
+  }
+}

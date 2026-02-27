@@ -1,7 +1,7 @@
 import request from 'supertest';
 import express from 'express';
 import { lucidLayerRouter } from '../routes/lucidLayerRoutes';
-import { getComputeRegistry } from '../services/computeRegistry';
+import { getComputeRegistry } from '../services/compute/computeRegistry';
 
 describe('/v1/route', () => {
   const app = express();

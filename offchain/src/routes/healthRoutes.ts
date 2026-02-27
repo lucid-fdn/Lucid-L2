@@ -374,4 +374,4 @@ async function getSystemStats(): Promise<any> {
   }
 }
 
-export default router;
+export const healthRouter = router;

@@ -39,18 +39,19 @@ printEnvironmentStatus();
 import './protocols/adapters';
 
 // Import OAuth routes
-import oauthRoutes from './routes/oauthRoutes';
-import oauthResourcesRoutes from './routes/oauthResourcesRoutes';
-import healthRoutes from './routes/healthRoutes';
-import hyperliquidRoutes from './routes/hyperliquidRoutes';
-import solanaRoutes from './routes/solanaRoutes';
+import { oauthRouter } from './routes/oauthRoutes';
+import { oauthResourcesRouter } from './routes/oauthResourcesRoutes';
+import { healthRouter } from './routes/healthRoutes';
+import { hyperliquidRouter } from './routes/hyperliquidRoutes';
+import { solanaRouter } from './routes/solanaRoutes';
 import { lucidLayerRouter } from './routes/lucidLayerRoutes';
 import { passportRouter } from './routes/passportRoutes';
-import { getPassportManager } from './services/passportManager';
-import { getPassportSyncService } from './services/passportSyncService';
+import { shareRouter } from './routes/shareRoutes';
+import { getPassportManager } from './services/passport/passportManager';
+import { getPassportSyncService } from './services/passport/passportSyncService';
 import { initReceiptConsumer, startReceiptConsumer, stopReceiptConsumer } from './jobs/receiptConsumer';
 import pool from './lib/db/pool';
-import { setAnchoringConfig, setAuthorityKeypair } from './services/anchoringService';
+import { setAnchoringConfig, setAuthorityKeypair } from './services/receipt/anchoringService';
 import { getKeypair } from './solana/client';
 import { blockchainAdapterFactory } from './blockchain/BlockchainAdapterFactory';
 import { EVMAdapter } from './blockchain/evm/EVMAdapter';
@@ -175,18 +176,21 @@ app.use('/', lucidLayerRouter);
 // Mount Passport CRUD routes (LucidLayer Phase 1)
 app.use('/', passportRouter);
 
+// Mount Share Token routes (fractional ownership)
+app.use('/', shareRouter);
+
 // Mount OAuth routes for Nango integration
-app.use('/api/oauth', oauthRoutes);
-app.use('/api/oauth', oauthResourcesRoutes);
+app.use('/api/oauth', oauthRouter);
+app.use('/api/oauth', oauthResourcesRouter);
 
 // Mount Hyperliquid trading routes
-app.use('/api/hyperliquid', hyperliquidRoutes);
+app.use('/api/hyperliquid', hyperliquidRouter);
 
 // Mount Solana blockchain routes
-app.use('/api/solana', solanaRoutes);
+app.use('/api/solana', solanaRouter);
 
 // Mount health check routes
-app.use('/health', healthRoutes);
+app.use('/health', healthRouter);
 
 // Mount Identity Bridge routes (CAIP-10 cross-chain identity)
 app.use('/', identityBridgeRouter);

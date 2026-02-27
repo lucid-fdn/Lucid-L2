@@ -49,13 +49,13 @@ describe('TBAService', () => {
   // and deterministic behavior without actual RPC calls
 
   it('imports successfully', async () => {
-    const { TBAService, getTBAService } = await import('../services/tbaService');
+    const { TBAService, getTBAService } = await import('../services/identity/tbaService');
     expect(TBAService).toBeDefined();
     expect(getTBAService).toBeDefined();
   });
 
   it('singleton returns same instance', async () => {
-    const { getTBAService } = await import('../services/tbaService');
+    const { getTBAService } = await import('../services/identity/tbaService');
     const a = getTBAService();
     const b = getTBAService();
     expect(a).toBe(b);
@@ -63,7 +63,7 @@ describe('TBAService', () => {
 
   describe('TBA resolution', () => {
     it('returns null for chain without ERC-6551 config', async () => {
-      const { getTBAService } = await import('../services/tbaService');
+      const { getTBAService } = await import('../services/identity/tbaService');
       const service = getTBAService();
 
       // solana-devnet has no ERC-6551 config
@@ -72,7 +72,7 @@ describe('TBAService', () => {
     });
 
     it('returns null for unknown chain', async () => {
-      const { getTBAService } = await import('../services/tbaService');
+      const { getTBAService } = await import('../services/identity/tbaService');
       const service = getTBAService();
 
       const result = await service.resolveTBAForAgent('nonexistent-chain', '1');
