@@ -3,7 +3,7 @@
 
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { INFTProvider, MintResult, NFTMetadata } from './INFTProvider';
-import { SolanaPassportClient } from '../../chain/blockchain/solana/SolanaPassportClient';
+import { SolanaPassportClient } from '../../passport/nft/solana-token2022';
 import { getSolanaKeypair } from '../../chain/solana/keypair';
 
 export class Token2022Provider implements INFTProvider {
