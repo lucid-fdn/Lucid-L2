@@ -52,7 +52,9 @@ import { getPassportManager } from '../../engine/src/passport/passportManager';
 import { getPassportSyncService } from '../../engine/src/passport/passportSyncService';
 import { initReceiptConsumer, startReceiptConsumer, stopReceiptConsumer } from '../../engine/src/jobs/receiptConsumer';
 import pool from '../../engine/src/db/pool';
-import { setAnchoringConfig, setAuthorityKeypair } from '../../engine/src/receipt/anchoringService';
+import { setAnchoringConfig, setAuthorityKeypair, commitEpochRoot } from '../../engine/src/receipt/anchoringService';
+import { startAnchoringJob, setAnchoringJobConfig } from '../../engine/src/jobs/anchoringJob';
+import { setAnchorCallback, startAutoFinalization } from '../../engine/src/receipt/epochService';
 import { getKeypair } from '../../engine/src/chain/solana/client';
 import { blockchainAdapterFactory } from '../../engine/src/chain/blockchain/BlockchainAdapterFactory';
 import { EVMAdapter } from '../../engine/src/chain/blockchain/evm/EVMAdapter';
@@ -318,6 +320,28 @@ try {
   console.log(`   Network: ${network}`);
   console.log(`   Authority: ${keypair.publicKey.toBase58()}`);
   console.log(`   Mock Mode: ${process.env.ANCHORING_MOCK_MODE === 'true'}`);
+  // Start anchoring pipeline (job + auto-finalization)
+  if (process.env.ANCHORING_MOCK_MODE !== 'true') {
+    // Wire epoch auto-finalization to anchoring service
+    setAnchorCallback(async (epoch_id: string) => {
+      const result = await commitEpochRoot(epoch_id);
+      return { success: result.success, error: result.error };
+    });
+
+    // Start periodic anchoring job (every 10 min by default)
+    setAnchoringJobConfig({
+      enabled: true,
+      interval_ms: parseInt(process.env.ANCHORING_JOB_INTERVAL_MS || '600000'),
+    });
+    startAnchoringJob();
+
+    // Start auto-finalization scheduler (every 60s by default)
+    startAutoFinalization(parseInt(process.env.EPOCH_FINALIZATION_INTERVAL_MS || '60000'));
+
+    console.log('⚓ Anchoring pipeline started (job + auto-finalization)');
+  } else {
+    console.log('⚓ Anchoring pipeline skipped (mock mode)');
+  }
 } catch (err) {
   console.warn('⚠️ Anchoring Service not configured (Solana keypair not available):', err instanceof Error ? err.message : err);
   console.warn('   Epoch anchoring will not work until a keypair is configured.');

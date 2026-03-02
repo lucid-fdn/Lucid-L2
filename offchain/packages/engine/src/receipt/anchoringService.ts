@@ -1,10 +1,10 @@
 /**
  * Anchoring Service - Commits MMR roots to Solana blockchain.
- * 
+ *
  * Uses the thought-epoch program to anchor epoch roots on-chain.
  * This provides cryptographic proof that receipts existed at a specific time.
- * 
- * Program ID: J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c
+ *
+ * Program ID: 8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6 (devnet)
  */
 import {
   Connection,
@@ -29,13 +29,12 @@ import { getReceipt, SignedReceipt } from './receiptService';
 // CONFIGURATION
 // =============================================================================
 
-// thought-epoch program IDs per network
-// NOTE: J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c is the LIVE deployed program on devnet
+// thought-epoch program IDs per network — must match Anchor.toml
 const THOUGHT_EPOCH_PROGRAM_IDS: Record<string, string> = {
-  localnet: 'J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c',
-  devnet: 'J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c', // LIVE on devnet!
-  testnet: 'J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c', // Use same for testnet
-  mainnet: 'J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c', // Update when deployed to mainnet
+  localnet: '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6',
+  devnet: '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6',
+  testnet: '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6',
+  mainnet: '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6', // Update when deployed to mainnet
 };
 
 // Get program ID based on configured network

@@ -5,6 +5,7 @@ import { v4 as uuid } from 'uuid';
 import { getPassportManager } from '../../../engine/src/passport/passportManager';
 import { matchComputeForModel, MatchResult } from '../compute/matchingEngine';
 import { createReceipt, RunReceiptInput } from '../../../engine/src/receipt/receiptService';
+import { addReceiptToEpoch } from '../../../engine/src/receipt/epochService';
 import { getComputeRegistry } from '../compute/computeRegistry';
 import {
   executeInference,
@@ -499,7 +500,7 @@ export async function executeInferenceRequest(
 
     // 2. Get compute catalog
     const compute_catalog = await getComputeCatalog(request);
-    
+
     // 3. Match compute using policy
     const policy = request.policy || DEFAULT_POLICY;
     const { match, explain } = matchComputeForModel({
@@ -508,7 +509,7 @@ export async function executeInferenceRequest(
       compute_catalog,
       require_live_healthy: true,
     });
-    
+
     if (!match) {
       // Dual-path: if TrustGate path is available, fall back to it
       if (hasApiPath) {
@@ -1002,6 +1003,8 @@ function createReceiptAsync(input: RunReceiptInput): void {
   setImmediate(() => {
     try {
       createReceipt(input);
+      // Wire receipt into current epoch for anchoring
+      addReceiptToEpoch(input.run_id!);
       console.log(`📝 Receipt created for run ${input.run_id}`);
     } catch (error) {
       console.error(`Failed to create receipt for run ${input.run_id}:`, error);

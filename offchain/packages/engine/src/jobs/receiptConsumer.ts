@@ -13,6 +13,7 @@
  */
 
 import { createReceipt } from '../receipt/receiptService'
+import { addReceiptToEpoch } from '../receipt/epochService'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -156,6 +157,9 @@ async function pollOnce(): Promise<number> {
           tokens_out: row.tokens_out ?? 0,
           ttft_ms: 0, // Not tracked via TrustGate side-channel
         })
+
+        // Wire receipt into current epoch for anchoring
+        addReceiptToEpoch(receipt.run_id)
 
         // Mark as processed
         await queryFn!(
