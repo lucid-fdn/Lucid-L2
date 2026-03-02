@@ -1,0 +1,82 @@
+name: SDK CI
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "sdk/**"
+  pull_request:
+    branches: [master, main]
+    paths:
+      - "sdk/**"
+
+jobs:
+  sdk-ci:
+    name: Lint, Test & Build SDK Packages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Cache npm dependencies for all three SDK packages
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-sdk-${{ hashFiles('sdk/raijin-labs-lucid-ai-typescript/package-lock.json', 'sdk/lucid-react/package-lock.json', 'sdk/lucid-ai/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-sdk-
+
+      # -------------------------------------------------------
+      # Install dependencies for all three packages
+      # -------------------------------------------------------
+      - name: Install @lucid/sdk dependencies
+        working-directory: sdk/raijin-labs-lucid-ai-typescript
+        run: npm install
+
+      - name: Install @lucid/react dependencies
+        working-directory: sdk/lucid-react
+        run: npm install
+
+      - name: Install @lucid/ai dependencies
+        working-directory: sdk/lucid-ai
+        run: npm install
+
+      # -------------------------------------------------------
+      # @lucid/sdk — lint, test, build (must complete before dependents)
+      # -------------------------------------------------------
+      - name: Lint @lucid/sdk
+        working-directory: sdk/raijin-labs-lucid-ai-typescript
+        run: npm run lint
+
+      - name: Test @lucid/sdk
+        working-directory: sdk/raijin-labs-lucid-ai-typescript
+        run: npm run test
+
+      - name: Build @lucid/sdk
+        working-directory: sdk/raijin-labs-lucid-ai-typescript
+        run: npm run build
+
+      # -------------------------------------------------------
+      # @lucid/react — test & build (depends on @lucid/sdk build)
+      # -------------------------------------------------------
+      - name: Test @lucid/react
+        working-directory: sdk/lucid-react
+        run: npm run test
+
+      - name: Build @lucid/react
+        working-directory: sdk/lucid-react
+        run: npm run build
+
+      # -------------------------------------------------------
+      # @lucid/ai — build (depends on @lucid/sdk build)
+      # -------------------------------------------------------
+      - name: Build @lucid/ai
+        working-directory: sdk/lucid-ai
+        run: npm run build
