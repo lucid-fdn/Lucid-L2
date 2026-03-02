@@ -66,7 +66,7 @@ This document provides a comprehensive analysis of the LucidLayer SDK and MCP (M
 │                          Solana Blockchain (Devnet)                         │
 ├─────────────────────────────────┬───────────────────────────────────────────┤
 │  lucid-passports Program        │  thought-epoch Program                    │
-│  38yaXUezrbLyLDnAQ5jqFXPiFurr8q │  J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6  │
+│  38yaXUezrbLyLDnAQ5jqFXPiFurr8q │  8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23E  │
 │  ┌─────────────────────────┐    │  ┌────────────────────────────────────┐   │
 │  │ register_passport       │    │  │ commit_epoch (MMR root)            │   │
 │  │ update_passport         │    │  │ commit_epochs (batch)              │   │
@@ -103,7 +103,7 @@ This document provides a comprehensive analysis of the LucidLayer SDK and MCP (M
 
 | Property | Value |
 |----------|-------|
-| **Program ID** | `J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c` |
+| **Program ID** | `8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6` |
 | **Network** | Devnet |
 | **Verified TX** | `jfDvAwznAtY7tGNd6kMgQgJGT3Dv6T5atGvJQJ53HFcjN8vjMm5wknYFk5P11Mq6gja1LqPDyXLYMFegvPEngmy` |
 
@@ -563,7 +563,7 @@ RPC_URL=https://api.devnet.solana.com
 
 # Program IDs (defaults to deployed programs)
 PASSPORT_PROGRAM_ID=38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW
-THOUGHT_EPOCH_PROGRAM_ID=J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c
+THOUGHT_EPOCH_PROGRAM_ID=8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6
 
 # Anchoring (optional - auto-loads from solana config)
 # SOLANA_KEYPAIR_PATH=/path/to/keypair.json

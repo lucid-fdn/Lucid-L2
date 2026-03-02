@@ -74,6 +74,50 @@ Before any of these contracts matter:
 4. **Real zkML circuits** — EZKL integration producing actual Groth16 proofs (zkML)
 5. **Demand signal** — Users asking for trustless on-chain enforcement vs. trusting the backend
 
+---
+
+## Developer Experience — Future @lucid/react Hooks
+
+`@lucid/react` currently ships `useChat`, `usePassport`, and `useEscrow`. These hooks are useful but the real DX wins come later when the platform stabilizes. Below are hooks worth building when the time is right.
+
+### useStreamingChat
+
+Token-by-token SSE streaming display. The current `useChat` waits for the full response — streaming shows tokens as they arrive, which is the #1 expected UX for chat interfaces.
+
+**When to build:** When the backend SSE streaming endpoint is fully wired and stable.
+
+### `<LucidChat />` Drop-in Component
+
+A pre-built, styled chat UI component. Developers drop it into their app with zero code — model selector, message list, input box, streaming indicator all included. Similar to Vercel's `ai/react` chat component.
+
+**When to build:** When Lucid has a design system or component library. Requires streaming to work well.
+
+### useWalletAuth
+
+Bridges wallet connection (Solana or EVM) with Lucid API authentication. Connect wallet, sign a message, get a session token, auto-set the API key on the SDK. Currently developers would have to manually implement this flow.
+
+**When to build:** When the auth system (Privy, session signers, wallet-based auth) is finalized and stable.
+
+### useReceiptVerify
+
+One-line cryptographic receipt verification. Takes a receipt ID, fetches it, verifies the Ed25519 signature and MMR inclusion proof, returns verified/invalid. This is unique to Lucid and the verification protocol is complex enough that wrapping it saves real developer time.
+
+**When to build:** When the receipt format and verification protocol are stable (no more breaking changes).
+
+### useLucidModel (Vercel AI SDK bridge)
+
+Returns a Vercel AI SDK-compatible model object from a model name: `const model = useLucidModel('deepseek-v3')`. Works directly with Vercel's `useChat` and `useCompletion` hooks, so developers already using the AI SDK can plug in Lucid models without changing their code.
+
+**When to build:** When the `@lucid/ai` provider is stable and the AI SDK version compatibility is locked down.
+
+### useModels
+
+Fetches available models with filters (type, availability, capabilities). Every app that lets users pick a model needs this. Returns typed model list with loading/error states.
+
+**When to build:** Low-effort, could be built anytime. Most useful when model catalog is populated with real models.
+
+---
+
 ## Original Plan Reference
 
 The full design for these features is in `docs/plans/` and the active plan file. The offchain implementations are in:

@@ -9,7 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
-const PROGRAM_ID = new PublicKey('J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c');
+const PROGRAM_ID = new PublicKey('8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6');
 const RPC_URL = 'https://api.devnet.solana.com';
 
 // The IDL for thought-epoch program

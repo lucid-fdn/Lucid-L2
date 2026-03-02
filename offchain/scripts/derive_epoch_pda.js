@@ -1,6 +1,6 @@
 // offchain/scripts/derive_epoch_pda.js
 // Usage: node offchain/scripts/derive_epoch_pda.js <PROGRAM_ID> <AUTHORITY_PUBKEY>
-// Example: node offchain/scripts/derive_epoch_pda.js J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c D12Q1MiGbnB6hWDsHrgc3kMNvKCi5rAUkFEukyHcxWxn
+// Example: node offchain/scripts/derive_epoch_pda.js 8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6 D12Q1MiGbnB6hWDsHrgc3kMNvKCi5rAUkFEukyHcxWxn
 const { PublicKey, Connection } = require("@solana/web3.js");
 
 async function main() {

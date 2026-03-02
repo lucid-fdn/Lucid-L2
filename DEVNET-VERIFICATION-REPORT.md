@@ -19,7 +19,7 @@
 
 ### 1. Programme Thought-Epoch ✅
 
-**Program ID:** `J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c`
+**Program ID:** `8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6`
 
 ```bash
 Program Details:
@@ -127,7 +127,7 @@ System Status:
 LUCID_MINT: '8FJLRcc681GxefHgsPg32ZdGAveQNTFLVy5GgmotiimG'  // ✅ Correct
 API_URL: 'http://localhost:3001'  // ⚠️ À changer pour EC2
 NETWORK: 'devnet'  // ✅ Correct
-PROGRAM_ID: 'J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c'  // ✅ Correct
+PROGRAM_ID: '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6'  // ✅ Correct
 ```
 
 **Action Requise:**

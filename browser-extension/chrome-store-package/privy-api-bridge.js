@@ -11,14 +11,14 @@ class PrivyAPIBridge {
         this.networkConfigs = {
             devnet: {
                 rpcUrl: 'https://api.devnet.solana.com',
-                programId: 'GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo',
+                programId: '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6',
                 lucidMint: 'FevHSnbJ3567nxaJoCBZMmdR6SKwB9xsTZgdFGJ9WoHQ',
                 environment: 'devnet'
             },
             testnet: {
                 rpcUrl: 'https://api.testnet.solana.com',
                 // Program/mint may differ on testnet; using devnet values as placeholders for balance queries
-                programId: 'J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c',
+                programId: '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6',
                 lucidMint: '8FJLRcc681GxefHgsPg32ZdGAveQNTFLVy5GgmotiimG',
                 environment: 'testnet'
             }

@@ -11,7 +11,7 @@ Status: **READY FOR TESTING**
 ## **Core Infrastructure - DEPLOYED ✅**
 
 ### **1. On-Chain Components (Solana Devnet)**
-- **thought-epoch Program**: `J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c`
+- **thought-epoch Program**: `8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6`
   - Deployment Status: ✅ **LIVE ON DEVNET**
   - Transaction: `3Z8QXULqF3jwBtffsES4R42rPNhyqMNkSuu3hrkRfLKJpjLeJQaaowfDz3UYTRoNgPfB7FHy2mXhpaGDnqBakzeN`
   - Functions: `commit_epoch()`, `commit_epochs()` (batch processing)
@@ -83,7 +83,7 @@ Status: **READY FOR TESTING**
 {
   rpcUrl: 'https://api.devnet.solana.com',
   commitment: 'confirmed', 
-  programId: 'J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c',
+  programId: '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6',
   lucidMint: '8FJLRcc681GxefHgsPg32ZdGAveQNTFLVy5GgmotiimG',
   environment: 'devnet'
 }
@@ -189,7 +189,7 @@ npm run dev
 ### **Devnet Infrastructure:**
 ```
 Network: Solana Devnet (https://api.devnet.solana.com)
-Program: J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c
+Program: 8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6
 LUCID:   8FJLRcc681GxefHgsPg32ZdGAveQNTFLVy5GgmotiimG
 Wallet:  CDUauc4hYqPjBqZzhytmXd8DG4pjiwNjPn3cpCWNpToa
 API:     http://localhost:3001

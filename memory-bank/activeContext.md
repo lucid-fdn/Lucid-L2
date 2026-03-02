@@ -125,7 +125,7 @@
 - **Token Balance**: 999,977 LUCID remaining (23 LUCID consumed in testing) ✅
 
 ## Latest Test Results (January 7, 2025)
-- **Program ID**: `GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo` ✅
+- **Program ID**: `8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6` ✅
 - **LUCID Mint**: `7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9` ✅
 - **MMR Demo Results**: ✅ FULLY OPERATIONAL
   - **Agent Initialization**: `demo-agent` created successfully

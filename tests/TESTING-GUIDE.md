@@ -141,7 +141,7 @@ anchor deploy --provider.cluster devnet
 
 ```bash
 # Check thought-epoch deployment
-solana program show GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo --url devnet
+solana program show 8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6 --url devnet
 
 # Verify program IDs match Anchor.toml
 ```

@@ -42,7 +42,7 @@ async function main() {
   
   // Ensure metadata has address
   if (!idlJson.metadata) idlJson.metadata = {};
-  idlJson.metadata.address = idlJson.address || 'J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c';
+  idlJson.metadata.address = idlJson.address || '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6';
   
   const program = new Program(idlJson as Idl, provider);
   console.log('✅ Program loaded');

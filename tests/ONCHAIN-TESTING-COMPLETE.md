@@ -81,7 +81,7 @@ A production-ready, comprehensive testing infrastructure for all Lucid L2 Solana
 
 ### 1. Thought-Epoch Program
 **Location**: `programs/thought-epoch/`
-**Deployed**: `GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo` (devnet)
+**Deployed**: `8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6` (devnet)
 
 **Test Coverage**:
 - Single epoch commitment
@@ -197,7 +197,7 @@ solana airdrop 2
 solana balance
 
 # Verify programs are deployed
-solana program show GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo --url devnet
+solana program show 8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6 --url devnet
 ```
 
 ### 2. Run Tests

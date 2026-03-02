@@ -11,7 +11,7 @@ echo "  LUCID THOUGHT-EPOCH DEVNET TEST"
 echo "======================================"
 echo ""
 
-PROGRAM_ID="J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c"
+PROGRAM_ID="8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6"
 AUTHORITY="D12Q1MiGbnB6hWDsHrgc3kMNvKCi5rAUkFEukyHcxWxn"
 RPC_URL="https://api.devnet.solana.com"
 

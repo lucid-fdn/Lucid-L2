@@ -8,7 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-const PROGRAM_ID = new PublicKey('J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c');
+const PROGRAM_ID = new PublicKey('8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6');
 const RPC_URL = 'https://api.devnet.solana.com';
 
 // Compute Anchor instruction discriminator

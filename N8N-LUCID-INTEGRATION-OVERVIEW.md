@@ -395,7 +395,7 @@ Both systems use the same config file:
 
 // Core Lucid configs (existing)
 export const LUCID_MINT = '7cBsSHBB4nSVQy6ceUvmrA8Z2ks8Me8AjxSUqvJ2q1S9';
-export const PROGRAM_ID = 'GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo';
+export const PROGRAM_ID = '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6';
 
 // LLM Proxy (existing)
 export const LLM_PROXY_URL = 'http://localhost:8001';

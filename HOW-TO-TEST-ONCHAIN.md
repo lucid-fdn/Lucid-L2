@@ -5,7 +5,7 @@
 ### What's Actually Working
 
 **Thought-Epoch Program** ✅
-- **Deployed to Devnet**: `GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo`
+- **Deployed to Devnet**: `8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6`
 - **Test exists**: `tests/commit-epoch.js`
 - **Status**: WORKING
 
@@ -49,10 +49,10 @@ anchor test --skip-build --skip-deploy --skip-local-validator
 
 ```bash
 # Check program exists on devnet
-solana program show GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo --url devnet
+solana program show 8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6 --url devnet
 
 # Should show:
-# Program Id: GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo
+# Program Id: 8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6
 # Owner: BPFLoaderUpgradeab1e11111111111111111111111
 # ProgramData Address: ...
 # Authority: <your wallet>
@@ -68,7 +68,7 @@ cd Lucid-L2
 node -e "
 const anchor = require('@coral-xyz/anchor');
 const provider = anchor.AnchorProvider.local();
-const programId = new anchor.web3.PublicKey('GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo');
+const programId = new anchor.web3.PublicKey('8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6');
 anchor.web3.PublicKey.findProgramAddress(
   [Buffer.from('epoch'), provider.wallet.publicKey.toBuffer()],
   programId
@@ -153,7 +153,7 @@ anchor test --skip-build --skip-deploy --skip-local-validator
 Use this checklist to verify each onchain component is working:
 
 ### Thought-Epoch ✅
-- [ ] Program deployed to devnet: `GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo`
+- [ ] Program deployed to devnet: `8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6`
 - [ ] Can query program: `solana program show <ID> --url devnet`
 - [ ] Test passes: `anchor test --skip-build --skip-deploy --skip-local-validator`
 - [ ] Can commit single epoch
@@ -189,7 +189,7 @@ Use this checklist to verify each onchain component is working:
 
 ```bash
 # Thought-Epoch
-solana program show GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo --url devnet
+solana program show 8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6 --url devnet
 
 # Gas-Utils (after deployment)
 solana program show <GAS_UTILS_ID> --url devnet
@@ -252,7 +252,7 @@ anchor test --skip-build --skip-deploy --skip-local-validator
 
 1. **Check program exists**:
 ```bash
-solana program show GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo --url devnet
+solana program show 8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6 --url devnet
 ```
 
 2. **Run a manual transaction**:

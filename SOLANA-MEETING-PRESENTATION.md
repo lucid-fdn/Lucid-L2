@@ -83,7 +83,7 @@ We provide cryptographic proof that specific AI-processed thoughts were committe
 
 ### Smart Contract (Deployed on Devnet)
 ```
-Program ID: J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c
+Program ID: 8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6
 Framework:  Anchor (Rust)
 Features:   PDA architecture, batch operations, 400k compute units
 ```

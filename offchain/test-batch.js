@@ -7,7 +7,7 @@ async function testBatch() {
   anchor.setProvider(provider);
 
   // Load the program
-  const programId = new PublicKey('GdbWhvXLg55ACeauwTPB4rXpcgHxjKyT6YuTGeH5orCo');
+  const programId = new PublicKey('8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6');
   const idl = require('../target/idl/thought_epoch.json');
   const program = new anchor.Program(idl, programId, provider);
 

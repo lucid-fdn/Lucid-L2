@@ -739,7 +739,7 @@ Browser Extension → Lucid API (3001) → FlowSpec DSL endpoints
 
 #### Solana Program Live on Devnet ✅ VERIFIED
 **Objective**: Verify thought-epoch program is deployed and working on Solana devnet
-- ✅ **Program Deployed**: `J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c` LIVE on devnet
+- ✅ **Program Deployed**: `8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6` LIVE on devnet
 - ✅ **Authority Balance**: 11.98 SOL (D12Q1MiGbnB6hWDsHrgc3kMNvKCi5rAUkFEukyHcxWxn)
 - ✅ **API Authority**: 6.89 SOL (5bLeLteNyJkqhYn9qyRbV9s3QAeZ6UYEmhRVwgAbjBc9)
 - ✅ **Direct Transaction Test**: Successfully committed MMR root to blockchain
@@ -760,7 +760,7 @@ Authority match:    ✅
 - `offchain/test-solana-direct.mjs` - Direct JavaScript test for Solana program
 
 #### Fixes Applied ✅
-- **anchoringService.ts**: Fixed program ID to use `J1JNYJB41UeyyR3qYFjwxZ2RsD71JRm3ULYZG6bLhm3c` for all networks
+- **anchoringService.ts**: Fixed program ID to use `8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6` for all networks
 - **Discriminator**: Computed correct Anchor discriminator `8c003eba49b4c9b3` for `commit_epoch` instruction
 
 #### API Receipt System Verification ✅
