@@ -1,0 +1,20 @@
+[package]
+name = "lucid-zkml-verifier"
+version = "0.1.0"
+description = "ZkML verification program for Lucid protocol — Groth16 proofs with model registry and bloom filter dedup"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "lucid_zkml_verifier"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.31.1"
+anchor-spl = "0.31.1"

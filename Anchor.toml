@@ -7,21 +7,30 @@ wallet  = "/home/admin/.config/solana/id.json"
 
 [programs.localnet]
 thought_epoch = "8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6"
-gas_utils = "11111111111111111111111111111111"
+gas_utils = "FsQ828An5fAebEVFxGcmKwuqa143hd56pwyjKtBTEtA4"
 lucid_passports = "38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW"
+lucid_agent_wallet = "FWyyVHyohvkdHsuKnPwC7bKNCu4VYPgW9yhFgNLEpTZK"
+lucid_zkml_verifier = "2MrEN2op3Ht6EeY9T9v3A48a8g3wCKXCVb6dcpXupvuy"
 
 [programs.devnet]
 thought_epoch = "8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6"
-gas_utils = "11111111111111111111111111111111"
+gas_utils = "FsQ828An5fAebEVFxGcmKwuqa143hd56pwyjKtBTEtA4"
 lucid_passports = "38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW"
+lucid_agent_wallet = "FWyyVHyohvkdHsuKnPwC7bKNCu4VYPgW9yhFgNLEpTZK"
+lucid_zkml_verifier = "2MrEN2op3Ht6EeY9T9v3A48a8g3wCKXCVb6dcpXupvuy"
 
 [programs.mainnet]
 thought_epoch = "11111111111111111111111111111111"
-gas_utils = "11111111111111111111111111111111"
+gas_utils = "FsQ828An5fAebEVFxGcmKwuqa143hd56pwyjKtBTEtA4"
 lucid_passports = "11111111111111111111111111111111"
+lucid_agent_wallet = "FWyyVHyohvkdHsuKnPwC7bKNCu4VYPgW9yhFgNLEpTZK"
+lucid_zkml_verifier = "2MrEN2op3Ht6EeY9T9v3A48a8g3wCKXCVb6dcpXupvuy"
 
 [workspace]
 members = [
     "programs/thought-epoch",
-    "programs/lucid-passports"
+    "programs/lucid-passports",
+    "programs/gas-utils",
+    "programs/lucid-agent-wallet",
+    "programs/lucid-zkml-verifier"
 ]
