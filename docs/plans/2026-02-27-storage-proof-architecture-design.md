@@ -1084,7 +1084,10 @@ Clean rule: **Engine = truth only. Gateway Lite = basic edge + control. Gateway 
 - `packages/engine/src/storage/depin/` → `engine/storage/` (DePIN providers)
 - `packages/engine/src/passport/passportManager.ts`, `passportStore.ts`, `passportSyncService.ts` → `engine/passport/`
 - `packages/engine/src/crypto/mmr.ts`, `signing.ts`, `hash.ts`, `canonicalJson.ts`, `schemaValidator.ts` → `engine/crypto/`
-- `solana/`, `blockchain/` → `engine/chain/`
+- `solana/`, `blockchain/` → `engine/chains/` (thin adapter layer; feature-specific chain code in `identity/`, `passport/`)
+- `blockchain/evm/erc6551/` → `engine/identity/tba/` (ERC-6551 TBA client)
+- `blockchain/evm/erc8004/` → `engine/identity/registries/` (ERC-8004 Identity/Validation/Reputation)
+- `blockchain/solana/SolanaPassportClient` → `engine/passport/nft/` (Token-2022 NFT minting)
 - `nft/`, `shares/` → `engine/assets/`
 - `services/finance/payoutService.ts`, `paymentGateService.ts` → `engine/finance/`
 - `jobs/` → `engine/jobs/`
@@ -1482,11 +1485,13 @@ Lucid-L2/
 │   │   │   ├── merkleTree.ts           #     Merkle tree (legacy)
 │   │   │   └── schemaValidator.ts      #     AJV schema validation
 │   │   │
-│   │   ├── chain/                      #   BLOCKCHAIN ADAPTERS
-│   │   │   ├── solana/                 #     Solana (Anchor client, gas, keypair)
-│   │   │   ├── evm/                    #     EVM (viem adapter)
-│   │   │   ├── IBlockchainAdapter.ts   #     Chain-agnostic interface
-│   │   │   └── factory.ts             #     BlockchainAdapterFactory
+│   │   ├── chains/                     #   THIN ADAPTER LAYER (feature-first)
+│   │   │   ├── adapter-interface.ts    #     IBlockchainAdapter
+│   │   │   ├── factory.ts             #     BlockchainAdapterFactory singleton
+│   │   │   ├── configs.ts             #     CHAIN_CONFIGS (14 EVM + 2 Solana)
+│   │   │   ├── types.ts               #     ChainConfig, ChainType, TxReceipt
+│   │   │   ├── evm/adapter.ts         #     EVMAdapter (generic blockchain ops)
+│   │   │   └── solana/                #     SolanaAdapter, client, gas, keypair
 │   │   │
 │   │   ├── assets/                     #   NFT + SHARE TOKEN PROVIDERS
 │   │   │   ├── nft/                    #     INFTProvider → Token2022, Metaplex, EVM, Mock
@@ -1498,10 +1503,14 @@ Lucid-L2/
 │   │   │   ├── escrowService.ts        #     Cross-chain escrow
 │   │   │   └── disputeService.ts       #     EVM dispute resolution
 │   │   │
-│   │   ├── identity/                   #   CROSS-CHAIN IDENTITY
+│   │   ├── identity/                   #   CROSS-CHAIN IDENTITY (feature-first)
+│   │   │   ├── tba/                    #     ERC-6551 TBA client + ABIs
+│   │   │   ├── registries/             #     ERC-8004 Identity/Validation/Reputation + ABIs
 │   │   │   ├── identityBridgeService.ts
 │   │   │   ├── crossChainBridgeService.ts
-│   │   │   ├── tbaService.ts           #     Token-Bound Accounts
+│   │   │   ├── tbaService.ts           #     Token-Bound Accounts (uses tba/evm-registry-client)
+│   │   │   ├── erc7579Service.ts       #     Smart account modules
+│   │   │   ├── paymasterService.ts     #     ERC-4337 Paymaster
 │   │   │   └── caip10.ts              #     CAIP-10 format helpers
 │   │   │
 │   │   └── jobs/                       #   BACKGROUND JOBS
