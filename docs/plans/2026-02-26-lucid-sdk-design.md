@@ -1,7 +1,7 @@
 # Lucid SDK Design — Product-First Multi-Chain AI Infrastructure
 
-**Date:** 2026-02-26
-**Status:** Design
+**Date:** 2026-02-26 (updated 2026-03-02)
+**Status:** Design (approved, ready for implementation)
 **Goal:** 300% ahead of competition — make verifiable AI as easy as Stripe made payments
 
 ---
@@ -558,3 +558,87 @@ docs.lucid.foundation/
 | Agent memory | N/A | `lucid.memory.*` with MMR proofs |
 
 **The moat:** No other SDK gives you verifiable AI inference with one function call. `lucid.inference.chat()` returns a cryptographic receipt provable on-chain. Stripe made payments trustless. Lucid makes AI trustless.
+
+---
+
+## Backend Mapping (offchain monorepo, updated 2026-03-02)
+
+The backend was restructured into a feature-first monorepo (`refactor/monorepo-packages`, merged to master). The SDK packages map 1:1 to internal services:
+
+### SDK ↔ Backend Service Mapping
+
+| SDK Package | Backend Location | Internal Service |
+|---|---|---|
+| `@lucid/core` | `engine/chains/` | `IBlockchainAdapter`, `BlockchainAdapterFactory`, `CHAIN_CONFIGS` |
+| `@lucid/passports` | `engine/passport/` | `PassportManager`, `PassportSyncService`, `PassportService` |
+| `@lucid/escrow` | `engine/finance/` | `EscrowService`, `DisputeService`, `PayoutService` |
+| `@lucid/receipts` | `engine/receipt/` | `ReceiptService`, `EpochService`, `AnchoringService`, `MmrService` |
+| `@lucid/inference` | `gateway-lite/inference/` | `ExecutionGateway`, `ComputeClient`, `ContentService` |
+| `@lucid/memory` | `engine/crypto/mmr.ts` + `engine/receipt/mmrService.ts` | MMR append/prove/verify |
+| `@lucid/paymaster` | `engine/identity/paymasterService.ts` | `PaymasterService` (ERC-4337) |
+| `@lucid/react` | N/A (new) | Wraps all product clients as React hooks |
+| `@lucid/ai` | `sdk/raijin-labs-lucid-ai-typescript/src/ai.ts` | Existing `createLucidProvider()` |
+
+### Chain Abstraction Reuse
+
+The SDK's chain layer wraps the existing backend abstractions:
+
+```
+SDK @lucid/core/chains    →  engine/chains/configs.ts    (15+ chain configs with deployed addresses)
+SDK @lucid/core/adapters  →  engine/chains/evm/adapter.ts (EVMAdapter, viem-based)
+                          →  engine/chains/solana/adapter.ts (SolanaAdapter, web3.js-based)
+                          →  engine/chains/factory.ts    (BlockchainAdapterFactory singleton)
+                          →  engine/chains/adapter-interface.ts (IBlockchainAdapter)
+```
+
+### Feature-Owned Contract Code
+
+Real on-chain interaction logic lives in feature directories (not in generic chain adapters):
+
+| Feature | Code Location | Contracts/ABIs |
+|---|---|---|
+| ERC-8004 Identity Registry | `engine/identity/registries/evm-identity.ts` | `abis/IdentityRegistry.json` |
+| ERC-8004 Validation Registry | `engine/identity/registries/evm-validation.ts` | `abis/ValidationRegistry.json` |
+| ERC-8004 Reputation Registry | `engine/identity/registries/evm-reputation.ts` | `abis/ReputationRegistry.json` |
+| ERC-6551 TBA | `engine/identity/tba/evm-registry-client.ts` | `abis/ERC6551Registry.json` |
+| Solana Passport NFT | `engine/passport/nft/solana-token2022.ts` | SPL Token-2022 program |
+| ERC-7579 Modules | `engine/identity/erc7579Service.ts` | Phase 3 contracts |
+| Paymaster (ERC-4337) | `engine/identity/paymasterService.ts` | `contracts/src/LucidPaymaster.sol` |
+
+### EVM Contract Addresses (Deployed)
+
+**Ethereum Sepolia:**
+- Lucid Token: `0x060f76F82325B98bC595954F6b8c88083B43b379`
+- LucidValidator: `0x2f3F68fEF35D39711F78Ce75c5a7fbA35f80500e`
+- LucidEscrow: `0x3Aff9d80Cd91Fb9C4fE475155e60e9C473F55088`
+- LucidArbitration: `0x3D29D5dDAe2da5E571C015EfAbdfCab9A1B0F9BA`
+- LucidPaymaster: `0xafDcb7f7D75784076eC1f62DB13F7651A73789A2`
+- ZkMLVerifier: `0xd69Ce5E5AA5a68D55413766320b520eeA3fdFf98`
+- Modules: Policy `0x1be6...`, Payout `0xAec0...`, Receipt `0x7695...`
+
+**Base Sepolia:**
+- Lucid Token: `0x17F583fc59b745E24C5078b9C8e4577b866cD7fc`
+- LucidValidator: `0x7695cd6F97d1434A2Ab5f778C6B02898385b14cc`
+- LucidEscrow: `0x060f76F82325B98bC595954F6b8c88083B43b379`
+- LucidArbitration: `0xc93b3E60503cAD1FEc11209F374A67D2886c6BA5`
+- LucidPaymaster: `0xd2671c81a7169E66Aa9B0db5D0bF865Cfd6868bD`
+- ZkMLVerifier: `0xAA663967159E18A3Da2A8277FDDa35C0389e1462`
+- Modules: Policy `0xe026...`, Payout `0x5164...`, Receipt `0x00b8...`
+
+### Passport API Updates (from monorepo branch)
+
+New endpoints added during restructuring (not yet in `openapi.yaml`):
+
+```typescript
+// New passport operations to include in @lucid/passports:
+await lucid.passports.updatePricing('passport_abc', { perToken: '0.001', currency: 'LUCID' });
+await lucid.passports.updateEndpoints('passport_abc', [{ url: 'https://...', type: 'inference' }]);
+```
+
+### Receipt Proof Wire Format Update
+
+The receipt proof response field was renamed in the restructuring:
+- **Before:** `{ siblings: string[], root: string, directions: number[] }`
+- **After:** `{ proof: string[], root: string, leaf: string, directions: number[] }`
+
+The SDK must use the new field names (`proof` not `siblings`, new `leaf` field).
