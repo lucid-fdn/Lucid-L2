@@ -17,6 +17,7 @@ import {
   Hooks,
   SDKInitHook,
 } from "./types.js";
+import { initHooks } from "./registration.js";
 
 export class SDKHooks implements Hooks {
   sdkInitHooks: SDKInitHook[] = [];
@@ -27,6 +28,7 @@ export class SDKHooks implements Hooks {
 
   constructor() {
     const presetHooks: Array<Hook> = [];
+    initHooks(this);
 
     for (const hook of presetHooks) {
       if ("sdkInit" in hook) {
