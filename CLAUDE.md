@@ -133,26 +133,30 @@ offchain/
   package.json                        # npm workspaces: ["packages/*"]
   tsconfig.base.json                  # Shared compiler options
   packages/
-    engine/src/                       # @lucid-l2/engine — truth library (79 files)
+    engine/src/                       # @lucid-l2/engine — truth library
       config/                         # config.ts, paths.ts (PATHS helper)
       crypto/                         # hash, signing, canonicalJson, mmr, merkleTree, schemaValidator
       db/                             # pool.ts (PostgreSQL singleton)
       receipt/                        # receiptService, epochService, anchoringService, mmrService
       storage/                        # passportStore, identityStore, searchQueryBuilder
         depin/                        # IDepinStorage → Arweave, Lighthouse, Mock
-      chain/
-        solana/                       # client, gas, keypair
-        blockchain/                   # BlockchainAdapterFactory, chains, types
-          evm/                        # EVMAdapter, erc6551/, erc8004/
-          solana/                     # SolanaAdapter, SolanaPassportClient
+      chains/                         # THIN adapter layer (feature-first, chain code in features)
+        factory.ts, adapter-interface.ts, configs.ts, types.ts
+        evm/                          # EVMAdapter (generic blockchain ops only)
+        solana/                       # SolanaAdapter, client, gas, keypair
       assets/
         nft/                          # INFTProvider → Token2022, MetaplexCore, EVM, Mock
         shares/                       # ITokenLauncher → DirectMint, Genesis, Mock
       passport/                       # passportManager, passportService, passportSyncService
+        nft/                          # SolanaPassportClient (Token-2022 NFT minting)
       finance/                        # payoutService, paymentGateService, escrowService, disputeService
-      identity/                       # identityBridgeService, tbaService, caip10, erc7579, paymaster
+      identity/                       # identityBridgeService, caip10, crossChainBridge
+        tba/                          # ERC-6551 TBA client + ABIs
+        registries/                   # ERC-8004 Identity/Validation/Reputation clients + ABIs
+        erc7579, paymaster
       jobs/                           # anchoringJob, receiptConsumer, revenueAirdrop
       types/                          # fluidCompute, lucid_passports
+      chain/                          # Re-export proxies (backward compat → chains/)
     gateway-lite/src/                 # @lucid-l2/gateway-lite — Express server (105 files)
       index.ts                        # Server entry point (Express app, startup sequence)
       api.ts                          # /api router (2553 lines, will be split later)

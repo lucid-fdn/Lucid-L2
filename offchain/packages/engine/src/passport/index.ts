@@ -6,3 +6,6 @@ export type { MatchResult } from '../../../../src/services/passport/matchingEngi
 export { MODEL_CATALOG } from '../../../../src/services/passport/modelCatalog';
 export { getPassportSyncService, PassportSyncService } from './passportSyncService';
 export { getPassportService } from './passportService';
+
+// Passport NFT minting
+export { SolanaPassportClient } from './nft/solana-token2022';

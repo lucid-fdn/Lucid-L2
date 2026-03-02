@@ -38,7 +38,7 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID
 } from '@solana/spl-token';
 
-export class SolanaAdapter extends BaseProtocolAdapter {
+export class SolanaProtocolAdapter extends BaseProtocolAdapter {
   private connection: Connection | null = null;
   private keypair: Keypair | null = null;
 

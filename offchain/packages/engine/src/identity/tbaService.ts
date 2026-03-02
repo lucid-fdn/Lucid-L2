@@ -7,7 +7,7 @@
 
 import { blockchainAdapterFactory } from '../chain/blockchain/BlockchainAdapterFactory';
 import { CHAIN_CONFIGS } from '../chain/blockchain/chains';
-import { ERC6551RegistryClient, ERC6551_REGISTRY_ADDRESS } from '../chain/blockchain/evm/erc6551/ERC6551RegistryClient';
+import { ERC6551RegistryClient, ERC6551_REGISTRY_ADDRESS } from './tba/evm-registry-client';
 import { EVMAdapter } from '../chain/blockchain/evm/EVMAdapter';
 
 export interface TBAInfo {

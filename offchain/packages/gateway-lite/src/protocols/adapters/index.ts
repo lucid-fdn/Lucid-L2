@@ -8,7 +8,7 @@
 import { protocolRegistry } from '../ProtocolRegistry';
 import { HyperliquidAdapter } from './hyperliquid';
 import { PrivyAdapter } from './privy';
-import { SolanaAdapter } from './solana';
+import { SolanaProtocolAdapter } from './solana';
 
 // =============================================================================
 // Auto-register all adapters
@@ -22,7 +22,7 @@ export function registerAllAdapters(): void {
   protocolRegistry.register(new PrivyAdapter());
 
   // Register Solana
-  protocolRegistry.register(new SolanaAdapter());
+  protocolRegistry.register(new SolanaProtocolAdapter());
 
   // Future protocols will be registered here:
   // protocolRegistry.register(new PolymarketAdapter());
@@ -38,4 +38,4 @@ registerAllAdapters();
 // Re-export for convenience
 export { HyperliquidAdapter } from './hyperliquid';
 export { PrivyAdapter } from './privy';
-export { SolanaAdapter } from './solana';
+export { SolanaProtocolAdapter, SolanaAdapter } from './solana';
