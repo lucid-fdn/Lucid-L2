@@ -26,6 +26,7 @@
     "lint": "eslint --cache --max-warnings=0 src",
     "build": "tshy",
     "test": "vitest run",
+    "postgen": "node scripts/patch-hooks.mjs",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
