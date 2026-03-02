@@ -11,6 +11,7 @@
  */
 import { v4 as uuid } from 'uuid';
 import { getMmrRoot, getMmrLeafCount, listReceipts, SignedReceipt } from './receiptService';
+import pool from '../db/pool';
 
 // =============================================================================
 // TYPES
@@ -108,6 +109,105 @@ export function getEpochConfig(): EpochConfig {
 }
 
 // =============================================================================
+// DATABASE PERSISTENCE (write-through, non-blocking)
+// =============================================================================
+
+async function persistEpochToDb(epoch: Epoch): Promise<void> {
+  try {
+    await pool.query(
+      `INSERT INTO epochs (epoch_id, epoch_index, project_id, status, mmr_root, leaf_count, start_leaf_index, end_leaf_index, chain_tx, error, finalized_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       ON CONFLICT (epoch_id) DO UPDATE SET
+         status = EXCLUDED.status,
+         mmr_root = EXCLUDED.mmr_root,
+         leaf_count = EXCLUDED.leaf_count,
+         end_leaf_index = EXCLUDED.end_leaf_index,
+         chain_tx = EXCLUDED.chain_tx,
+         error = EXCLUDED.error,
+         finalized_at = EXCLUDED.finalized_at`,
+      [
+        epoch.epoch_id,
+        epoch.epoch_index,
+        epoch.project_id || null,
+        epoch.status,
+        epoch.mmr_root,
+        epoch.leaf_count,
+        epoch.start_leaf_index,
+        epoch.end_leaf_index || null,
+        epoch.chain_tx || null,
+        epoch.error || null,
+        epoch.finalized_at ? new Date(epoch.finalized_at * 1000) : null,
+      ]
+    );
+  } catch (err) {
+    console.warn('[EpochService] DB persist failed (non-blocking):', err instanceof Error ? err.message : err);
+  }
+}
+
+async function persistEpochReceiptToDb(epoch_id: string, receipt_hash: string): Promise<void> {
+  try {
+    await pool.query(
+      `INSERT INTO epoch_receipts (epoch_id, receipt_hash) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+      [epoch_id, receipt_hash]
+    );
+  } catch (err) {
+    console.warn('[EpochService] DB epoch_receipt persist failed (non-blocking):', err instanceof Error ? err.message : err);
+  }
+}
+
+export async function loadEpochsFromDb(): Promise<number> {
+  try {
+    const result = await pool.query(
+      `SELECT epoch_id, epoch_index, project_id, status, mmr_root, leaf_count,
+              start_leaf_index, end_leaf_index, chain_tx, error,
+              EXTRACT(EPOCH FROM created_at)::integer as created_at_unix,
+              EXTRACT(EPOCH FROM finalized_at)::integer as finalized_at_unix
+       FROM epochs WHERE status IN ('open', 'anchoring')
+       ORDER BY epoch_index ASC`
+    );
+
+    let loaded = 0;
+    for (const row of result.rows) {
+      // Load receipt run_ids for this epoch
+      const receiptsResult = await pool.query(
+        `SELECT r.run_id FROM epoch_receipts er JOIN receipts r ON er.receipt_hash = r.receipt_hash WHERE er.epoch_id = $1`,
+        [row.epoch_id]
+      );
+
+      const epoch: Epoch = {
+        epoch_id: row.epoch_id,
+        epoch_index: row.epoch_index,
+        project_id: row.project_id || undefined,
+        status: row.status,
+        mmr_root: row.mmr_root,
+        leaf_count: row.leaf_count,
+        created_at: row.created_at_unix,
+        finalized_at: row.finalized_at_unix || undefined,
+        start_leaf_index: row.start_leaf_index,
+        end_leaf_index: row.end_leaf_index || undefined,
+        chain_tx: row.chain_tx || undefined,
+        error: row.error || undefined,
+        receipt_run_ids: receiptsResult.rows.map((r: any) => r.run_id),
+      };
+
+      epochStore.set(epoch.epoch_id, epoch);
+      if (epoch.status === 'open') {
+        const activeKey = getActiveKey(epoch.project_id);
+        activeEpochs.set(activeKey, epoch);
+      }
+      if (epoch.epoch_index > epochIndexCounter) {
+        epochIndexCounter = epoch.epoch_index;
+      }
+      loaded++;
+    }
+    return loaded;
+  } catch (err) {
+    console.warn('[EpochService] DB load failed (continuing with in-memory):', err instanceof Error ? err.message : err);
+    return 0;
+  }
+}
+
+// =============================================================================
 // EPOCH LIFECYCLE
 // =============================================================================
 
@@ -148,6 +248,9 @@ export function createEpoch(project_id?: string): Epoch {
   // Set as active epoch
   const activeKey = getActiveKey(project_id);
   activeEpochs.set(activeKey, epoch);
+
+  // Persist to DB (non-blocking)
+  persistEpochToDb(epoch).catch(() => {});
 
   return epoch;
 }
@@ -248,6 +351,9 @@ export function addReceiptToEpoch(run_id: string, project_id?: string): void {
 
   // Update MMR root snapshot
   epoch.mmr_root = getMmrRoot();
+
+  // Persist to DB (non-blocking)
+  persistEpochToDb(epoch).catch(() => {});
 }
 
 /**
@@ -312,6 +418,9 @@ export function prepareEpochForFinalization(epoch_id: string): Epoch | null {
     activeEpochs.delete(activeKey);
   }
 
+  // Persist to DB (non-blocking)
+  persistEpochToDb(epoch).catch(() => {});
+
   return epoch;
 }
 
@@ -337,7 +446,10 @@ export function finalizeEpoch(
   epoch.status = 'anchored';
   epoch.chain_tx = chain_tx;
   epoch.mmr_root = final_root;
-  
+
+  // Persist to DB (non-blocking)
+  persistEpochToDb(epoch).catch(() => {});
+
   return epoch;
 }
 
@@ -357,7 +469,10 @@ export function failEpoch(epoch_id: string, error: string): Epoch | null {
 
   epoch.status = 'failed';
   epoch.error = error;
-  
+
+  // Persist to DB (non-blocking)
+  persistEpochToDb(epoch).catch(() => {});
+
   return epoch;
 }
 

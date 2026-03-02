@@ -18,6 +18,7 @@ import { canonicalSha256Hex } from '../crypto/hash';
 import { validateWithSchema } from '../crypto/schemaValidator';
 import { signMessage, verifySignature, getOrchestratorPublicKey } from '../crypto/signing';
 import { getReceiptTree, MerkleTree, MerkleProof } from '../crypto/merkleTree';
+import pool from '../db/pool';
 import type {
   ExecutionMode,
   ExtendedRunReceiptInput,
@@ -341,9 +342,90 @@ const receiptStore = new Map<string, SignedReceipt>();
 // Idempotency store: maps idempotency key -> run_id
 const idempotencyStore = new Map<string, string>();
 
+// ============================================================================
+// DATABASE PERSISTENCE (write-through, non-blocking)
+// ============================================================================
+
+async function persistReceiptToDb(receipt: SignedReceipt): Promise<void> {
+  try {
+    await pool.query(
+      `INSERT INTO receipts (receipt_hash, signature, signer_pubkey, signer_type, body, run_id, anchor_chain, anchor_tx, anchor_root, anchor_epoch_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       ON CONFLICT (receipt_hash) DO NOTHING`,
+      [
+        receipt.receipt_hash,
+        receipt.receipt_signature,
+        receipt.signer_pubkey,
+        receipt.signer_type,
+        JSON.stringify({
+          schema_version: receipt.schema_version,
+          run_id: receipt.run_id,
+          timestamp: receipt.timestamp,
+          trace_id: receipt.trace_id,
+          policy_hash: receipt.policy_hash,
+          model_passport_id: receipt.model_passport_id,
+          compute_passport_id: receipt.compute_passport_id,
+          runtime: receipt.runtime,
+          metrics: receipt.metrics,
+        }),
+        receipt.run_id,
+        receipt.anchor?.chain || null,
+        receipt.anchor?.tx || null,
+        receipt.anchor?.root || null,
+        receipt.anchor?.epoch_id || null,
+      ]
+    );
+  } catch (err) {
+    console.warn('[ReceiptService] DB persist failed (non-blocking):', err instanceof Error ? err.message : err);
+  }
+}
+
+async function loadReceiptFromDb(run_id: string): Promise<SignedReceipt | null> {
+  try {
+    const result = await pool.query(
+      `SELECT receipt_hash, signature, signer_pubkey, signer_type, body, run_id,
+              anchor_chain, anchor_tx, anchor_root, anchor_epoch_id
+       FROM receipts WHERE run_id = $1 LIMIT 1`,
+      [run_id]
+    );
+    if (result.rows.length === 0) return null;
+    const row = result.rows[0];
+    const body = row.body;
+    return {
+      ...body,
+      receipt_hash: row.receipt_hash,
+      receipt_signature: row.signature,
+      signer_pubkey: row.signer_pubkey,
+      signer_type: row.signer_type,
+      ...(row.anchor_chain ? {
+        anchor: {
+          chain: row.anchor_chain,
+          tx: row.anchor_tx,
+          root: row.anchor_root,
+          epoch_id: row.anchor_epoch_id,
+        }
+      } : {}),
+    } as SignedReceipt;
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * Get a receipt by run_id with DB fallback (async).
+ */
+export async function getReceiptAsync(run_id: string): Promise<SignedReceipt | null> {
+  // Try in-memory first
+  const inMemory = receiptStore.get(run_id) || null;
+  if (inMemory) return inMemory;
+
+  // Fall back to DB
+  return loadReceiptFromDb(run_id);
+}
+
 /**
  * Extract the receipt body (the canonical preimage for hashing).
- * 
+ *
  * IMPORTANT: This defines the exact data that gets hashed.
  * Any change here will break existing receipts.
  */
@@ -487,6 +569,9 @@ export function createReceipt(input: RunReceiptInput, idempotencyKey?: string): 
   if (idempotencyKey) {
     idempotencyStore.set(idempotencyKey, run_id);
   }
+
+  // Persist to DB (non-blocking)
+  persistReceiptToDb(signed).catch(() => {});
 
   return signed;
 }
