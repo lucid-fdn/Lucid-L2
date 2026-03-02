@@ -1,4 +1,2 @@
-export * from './types';
-export type { IBlockchainAdapter } from './IBlockchainAdapter';
-export { BlockchainAdapterFactory, blockchainAdapterFactory } from './BlockchainAdapterFactory';
-export { CHAIN_CONFIGS, getChainConfig, getEVMChains, getSolanaChains } from './chains';
+// PROXY — real implementation moved to @lucid-l2/engine
+export * from '../../packages/engine/src/chain/blockchain/index';

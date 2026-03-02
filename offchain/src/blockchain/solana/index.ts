@@ -1,3 +1,2 @@
-export { SolanaAdapter } from './SolanaAdapter';
-export { SolanaPassportClient } from './SolanaPassportClient';
-export * from './types';
+// PROXY — real implementation moved to @lucid-l2/engine
+export * from '../../../packages/engine/src/chain/blockchain/solana/index';

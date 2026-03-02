@@ -1,5 +1,2 @@
-export { getHFBridgeService, HFBridgeService } from './hfBridgeService';
-export { getHFSyncOrchestrator } from './hfSyncOrchestrator';
-export { getDeprecationDetector } from './deprecationDetector';
-export { getSyncStateManager, SyncStateManager } from './syncStateManager';
-export type { SyncState, AssetIndexEntry } from './syncStateManager';
+// PROXY — real implementation moved to @lucid-l2/gateway-lite
+export * from '../../../packages/gateway-lite/src/integrations/hf/index';

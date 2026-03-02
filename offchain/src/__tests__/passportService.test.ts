@@ -750,20 +750,24 @@ describe('PassportManager', () => {
       expect(result.data!.metadata.tool_passport_id).toBe(result.data!.passport_id);
     });
 
-    it('should create dataset passport with basic metadata', async () => {
+    it('should create dataset passport with valid DatasetMeta schema', async () => {
       const result = await manager.createPassport({
         type: 'dataset',
         owner: VALID_OWNER,
         metadata: {
-          dataset_name: 'imagenet-subset',
-          size_gb: 50,
+          schema_version: '1.0',
+          dataset_passport_id: 'placeholder_id',
           format: 'parquet',
+          name: 'ImageNet Subset',
+          size_bytes: 53687091200,
+          record_count: 1500000,
         },
         name: 'ImageNet Subset',
       });
 
       expect(result.ok).toBe(true);
       expect(result.data!.type).toBe('dataset');
+      expect(result.data!.metadata.dataset_passport_id).toBe(result.data!.passport_id);
     });
 
     it('should create agent passport with valid AgentMeta schema', async () => {

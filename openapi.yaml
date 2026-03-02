@@ -2868,6 +2868,7 @@ components:
       properties:
         run_id: { type: string }
         receipt_hash: { type: string }
+        leaf: { type: string, description: 'The leaf hash (receipt_hash) at leaf_index' }
         leaf_index: { type: integer }
         proof:
           type: array
@@ -3228,8 +3229,9 @@ components:
 
     TokenLaunchResponse:
       type: object
-      required: [mint, txSignature, totalSupply, provider]
+      required: [success, mint, txSignature, totalSupply, provider]
       properties:
+        success: { type: boolean }
         mint: { type: string, description: 'SPL token mint address' }
         txSignature: { type: string, description: 'Transaction signature' }
         totalSupply: { type: integer }
@@ -3237,8 +3239,9 @@ components:
 
     TokenInfo:
       type: object
-      required: [mint, passportId, name, symbol, totalSupply, decimals]
+      required: [success, mint, passportId, name, symbol, totalSupply, decimals]
       properties:
+        success: { type: boolean }
         mint: { type: string, description: 'SPL token mint address' }
         passportId: { type: string }
         name: { type: string }
@@ -3255,8 +3258,9 @@ components:
 
     AirdropResponse:
       type: object
-      required: [passportId, tokenMint, totalDistributed, holders, distributions, txSignatures]
+      required: [success, passportId, tokenMint, totalDistributed, holders, distributions, txSignatures]
       properties:
+        success: { type: boolean }
         passportId: { type: string }
         tokenMint: { type: string }
         totalDistributed: { type: integer, description: 'Total lamports distributed' }

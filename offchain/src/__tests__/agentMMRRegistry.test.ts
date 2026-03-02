@@ -57,9 +57,10 @@ class InMemoryMockStorage implements IDepinStorage {
 // Mock getEvolvingStorage so the default constructor path is testable
 // =============================================================================
 
+// Mock both the proxy path and the engine path — engine path delegates to proxy
+// so all spies share the same instances
 jest.mock('../storage/depin', () => {
-  const original = jest.requireActual('../storage/depin/IDepinStorage');
-  const mockInstance: IDepinStorage = {
+  const mockInstance = {
     providerName: 'jest-mock',
     uploadJSON: jest.fn(async (data: unknown) => ({
       cid: 'mock-cid-default',
@@ -79,13 +80,13 @@ jest.mock('../storage/depin', () => {
     getUrl: jest.fn((cid: string) => `mock://${cid}`),
   };
   return {
-    ...original,
     getEvolvingStorage: jest.fn(() => mockInstance),
     getPermanentStorage: jest.fn(() => mockInstance),
     resetDepinStorage: jest.fn(),
     __mockInstance: mockInstance,
   };
 });
+jest.mock('../../packages/engine/src/storage/depin', () => require('../storage/depin'));
 
 // =============================================================================
 // TESTS

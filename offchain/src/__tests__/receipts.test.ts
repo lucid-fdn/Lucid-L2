@@ -68,7 +68,7 @@ describe('receipts pipeline', () => {
     expect(r.body.proof).toBeDefined();
     expect(r.body.proof.leaf).toMatch(/^[0-9a-f]{64}$/);
     expect(r.body.proof.root).toMatch(/^[0-9a-f]{64}$/);
-    expect(Array.isArray(r.body.proof.siblings)).toBe(true);
+    expect(Array.isArray(r.body.proof.proof)).toBe(true);
     expect(Array.isArray(r.body.proof.directions)).toBe(true);
   });
 

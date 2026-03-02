@@ -124,19 +124,73 @@ ToolMeta and AgentMeta schemas wired into passport creation. `TYPE_SCHEMA_MAP` i
 - `tool` → `ToolMeta.schema.json`, `agent` → `AgentMeta.schema.json`
 - `dataset` → no schema (basic validation only)
 
+## Offchain Codebase Structure (monorepo, restructured 2026-03-01)
+
+Two-package monorepo: `@lucid-l2/engine` (truth library, no HTTP) + `@lucid-l2/gateway-lite` (thin Express server). Dependency direction: gateway-lite → engine (OK), engine → gateway-lite (FORBIDDEN, ESLint-enforced). Re-export proxy files in `src/` ensure backward compatibility during migration.
+
+```
+offchain/
+  package.json                        # npm workspaces: ["packages/*"]
+  tsconfig.base.json                  # Shared compiler options
+  packages/
+    engine/src/                       # @lucid-l2/engine — truth library
+      config/                         # config.ts, paths.ts (PATHS helper)
+      crypto/                         # hash, signing, canonicalJson, mmr, merkleTree, schemaValidator
+      db/                             # pool.ts (PostgreSQL singleton)
+      receipt/                        # receiptService, epochService, anchoringService, mmrService
+      storage/                        # passportStore, identityStore, searchQueryBuilder
+        depin/                        # IDepinStorage → Arweave, Lighthouse, Mock
+      chains/                         # THIN adapter layer (feature-first, chain code in features)
+        factory.ts, adapter-interface.ts, configs.ts, types.ts
+        evm/                          # EVMAdapter (generic blockchain ops only)
+        solana/                       # SolanaAdapter, client, gas, keypair
+      assets/
+        nft/                          # INFTProvider → Token2022, MetaplexCore, EVM, Mock
+        shares/                       # ITokenLauncher → DirectMint, Genesis, Mock
+      passport/                       # passportManager, passportService, passportSyncService
+        nft/                          # SolanaPassportClient (Token-2022 NFT minting)
+      finance/                        # payoutService, paymentGateService, escrowService, disputeService
+      identity/                       # identityBridgeService, caip10, crossChainBridge
+        tba/                          # ERC-6551 TBA client + ABIs
+        registries/                   # ERC-8004 Identity/Validation/Reputation clients + ABIs
+        erc7579, paymaster
+      jobs/                           # anchoringJob, receiptConsumer, revenueAirdrop
+      types/                          # fluidCompute, lucid_passports
+      chain/                          # Re-export proxies (backward compat → chains/)
+    gateway-lite/src/                 # @lucid-l2/gateway-lite — Express server (105 files)
+      index.ts                        # Server entry point (Express app, startup sequence)
+      api.ts                          # /api router (2553 lines, will be split later)
+      compute/                        # computeRegistry, policyEngine, matchingEngine, modelCatalog
+      inference/                      # executionGateway, computeClient, contentService
+      agent/                          # agentOrchestrator, agentPlanner, executorRouter
+      reputation/                     # IReputationAlgorithm, algorithms/, aggregator
+      routes/                         # 27 route files (receipt, epoch, matching, passport, etc.)
+      middleware/                     # adminAuth, hmacAuth, privyAuth, x402
+      providers/                      # llm, mock, openai, router
+      protocols/                      # BaseProtocolAdapter, ProtocolRegistry, adapters/
+      integrations/
+        hf/                           # hfBridgeService, hfSyncOrchestrator, deprecationDetector
+        n8n/                          # n8nNodeIndexer, elasticsearchService, n8nGateway
+        oauth/                        # nangoService, providerProfileService
+        mcp/                          # mcpRegistry, mcpTypes
+        mcp-server/                   # mcpServer (MCP tool server)
+        zkml/                         # zkmlService, zkmlTypes
+        flowspec/                     # flowspecService, n8nCompiler
+        hyperliquid/                  # tradingService
+      services/                       # rewardService, sessionSignerService
+      lib/auth/                       # sessionService
+      lib/observability/              # sentry, tracing
+  src/                                # Re-export proxies (backward compat, will be removed)
+    index.ts                          # Delegates to packages/gateway-lite/src/index.ts
+    utils/, services/, routes/, ...   # Proxy files: export * from '../../packages/...'
+    _archive/                         # Dead code quarantine
+```
+
 ## Key Files
 ```
 programs/thought-epoch/         # Anchor program: commit_epoch, commit_epochs, commit_epoch_v2
 programs/lucid-passports/       # Anchor program: passport registry + payment gates
 programs/gas-utils/             # Anchor program: token burn/split
-offchain/src/index.ts           # Express server entry
-offchain/src/storage/depin/     # DePIN storage (IDepinStorage, Arweave, Lighthouse, Mock)
-offchain/src/nft/               # NFT providers (INFTProvider, Token2022, Metaplex, EVM, Mock)
-offchain/src/shares/            # Token launchers (ITokenLauncher, DirectMint, Genesis, Mock)
-offchain/src/jobs/              # Background jobs (revenueAirdrop.ts)
-offchain/src/utils/mmr.ts       # MerkleTree + AgentMMR classes
-offchain/src/solana/gas.ts      # Dual-gas transaction building
-offchain/src/utils/config.ts    # Gas rates, program IDs, network config
 schemas/                        # JSON schemas (ModelMeta, ComputeMeta, ToolMeta, AgentMeta, etc.)
 infrastructure/migrations/      # Supabase SQL migrations
 sdk/                            # Auto-generated TypeScript + Python SDKs

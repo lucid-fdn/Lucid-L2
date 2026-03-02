@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucidlayer.ai/schemas/passport/2.0/DatasetMeta.schema.json",
+  "title": "Lucid Dataset Metadata v2",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "dataset_passport_id", "format"],
+  "properties": {
+
+    "schema_version": { "type": "string", "enum": ["1.0", "2.0"] },
+    "dataset_passport_id": { "type": "string", "minLength": 10 },
+
+    "name": { "type": "string", "description": "Human-readable dataset name" },
+    "description": { "type": "string", "description": "What this dataset contains" },
+    "provider": { "type": "string", "description": "Dataset creator or organization" },
+
+    "format": {
+      "type": "string",
+      "enum": ["parquet", "csv", "json", "jsonl", "hdf5", "arrow", "sqlite", "custom"],
+      "description": "Primary file format"
+    },
+
+    "size_bytes": { "type": "number", "minimum": 0, "description": "Total dataset size in bytes" },
+    "record_count": { "type": "integer", "minimum": 0, "description": "Number of records/rows" },
+
+    "columns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string", "description": "Column data type (string, int, float, embedding, etc.)" },
+          "description": { "type": "string" }
+        },
+        "additionalProperties": false
+      },
+      "description": "Column definitions for tabular datasets"
+    },
+
+    "source": { "type": "string", "description": "Origin of the dataset (URL, organization, or description)" },
+    "license": { "type": "string", "description": "SPDX license identifier (e.g., MIT, CC-BY-4.0, proprietary)" },
+    "content_hash": { "type": "string", "description": "SHA-256 hash of dataset contents for integrity verification" },
+
+    "modality": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["text", "image", "audio", "video", "tabular", "embedding", "multimodal"] },
+      "description": "Data modalities present in the dataset"
+    },
+
+    "languages": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "ISO 639-1 language codes (e.g., ['en', 'fr', 'ja'])"
+    },
+
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Discovery tags"
+    },
+
+    "version": { "type": "string", "description": "Dataset version (semver recommended)" },
+
+    "splits": {
+      "type": "object",
+      "properties": {
+        "train": { "type": "integer", "minimum": 0 },
+        "validation": { "type": "integer", "minimum": 0 },
+        "test": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": { "type": "integer", "minimum": 0 },
+      "description": "Record counts per split"
+    },
+
+    "pricing": {
+      "type": "object",
+      "properties": {
+        "access_type": { "type": "string", "enum": ["free", "paid", "subscription"] },
+        "price_per_query": { "type": "number", "minimum": 0 },
+        "billing_model": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+
+    "endpoints": {
+      "type": "object",
+      "properties": {
+        "download_url": { "type": "string", "format": "uri" },
+        "query_url": { "type": "string", "format": "uri" },
+        "api_base_url": { "type": "string", "format": "uri" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

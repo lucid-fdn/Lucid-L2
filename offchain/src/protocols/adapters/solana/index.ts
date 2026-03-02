@@ -1,7 +1,2 @@
-/**
- * Solana Protocol Adapter - Exports
- */
-
-export { SolanaAdapter } from './SolanaAdapter';
-export * from './types';
-export * from './operations';
+// PROXY — real implementation moved to @lucid-l2/gateway-lite
+export * from '../../../../packages/gateway-lite/src/protocols/adapters/solana/index';

@@ -43,6 +43,9 @@ jest.mock('../services/passport/passportManager', () => ({
     getPendingSync: mockGetPendingSync,
   }),
 }));
+// Dual-path: gateway-lite routes + executionGateway import from engine
+jest.mock('../../packages/engine/src/passport/passportManager', () =>
+  require('../services/passport/passportManager'));
 
 // Compute registry mock
 const mockGetLiveState = jest.fn<(id: string) => any>();
@@ -57,6 +60,9 @@ jest.mock('../services/compute/computeRegistry', () => ({
     },
   }),
 }));
+// Dual-path: gateway-lite routes + executionGateway import from gateway-lite compute
+jest.mock('../../packages/gateway-lite/src/compute/computeRegistry', () =>
+  require('../services/compute/computeRegistry'));
 
 // Receipt service mock
 const mockCreateReceipt = jest.fn<() => any>();
@@ -74,6 +80,9 @@ jest.mock('../services/receipt/receiptService', () => ({
   getExtendedReceipt: jest.fn(),
   verifyExtendedReceipt: jest.fn(() => true),
 }));
+// Dual-path: gateway-lite routes + executionGateway import from engine
+jest.mock('../../packages/engine/src/receipt/receiptService', () =>
+  require('../services/receipt/receiptService'));
 
 // Mock other services used by lucidLayerRoutes
 jest.mock('../services/receipt/epochService', () => ({
@@ -86,6 +95,9 @@ jest.mock('../services/receipt/epochService', () => ({
   retryEpoch: jest.fn(),
   getAllEpochs: jest.fn(() => []),
 }));
+// Dual-path: gateway-lite epochRoutes + receiptRoutes import from engine
+jest.mock('../../packages/engine/src/receipt/epochService', () =>
+  require('../services/receipt/epochService'));
 
 jest.mock('../services/receipt/anchoringService', () => ({
   commitEpochRoot: jest.fn(),
@@ -94,14 +106,23 @@ jest.mock('../services/receipt/anchoringService', () => ({
   getAnchorTransaction: jest.fn(),
   checkAnchoringHealth: jest.fn(() => ({ healthy: true })),
 }));
+// Dual-path: gateway-lite epochRoutes imports from engine
+jest.mock('../../packages/engine/src/receipt/anchoringService', () =>
+  require('../services/receipt/anchoringService'));
 
 jest.mock('../blockchain/BlockchainAdapterFactory', () => ({
   blockchainAdapterFactory: { getAdapter: jest.fn() },
 }));
+// Dual-path: gateway-lite crossChainRoutes imports from engine
+jest.mock('../../packages/engine/src/chain/blockchain/BlockchainAdapterFactory', () =>
+  require('../blockchain/BlockchainAdapterFactory'));
 
 jest.mock('../blockchain/chains', () => ({
   CHAIN_CONFIGS: {},
 }));
+// Dual-path: gateway-lite crossChainRoutes imports from engine
+jest.mock('../../packages/engine/src/chain/blockchain/chains', () =>
+  require('../blockchain/chains'));
 
 jest.mock('../services/finance/payoutService', () => ({
   calculatePayoutSplit: jest.fn(),
@@ -110,6 +131,9 @@ jest.mock('../services/finance/payoutService', () => ({
   storePayout: jest.fn(),
   verifyPayoutSplit: jest.fn(),
 }));
+// Dual-path: gateway-lite payoutRoutes + crossChainRoutes import from engine
+jest.mock('../../packages/engine/src/finance/payoutService', () =>
+  require('../services/finance/payoutService'));
 
 // Now import the modules that depend on the mocks
 import { passportRouter } from '../routes/passportRoutes';

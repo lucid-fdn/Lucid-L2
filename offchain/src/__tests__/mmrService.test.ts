@@ -10,7 +10,7 @@ import { createHash } from 'crypto';
 // Mock Solana dependencies BEFORE importing MMRService
 // =============================================================================
 
-jest.mock('../solana/client', () => ({
+const solanaClientMock = {
   initSolana: jest.fn(() => ({
     methods: {
       commitEpoch: jest.fn(() => ({
@@ -23,18 +23,24 @@ jest.mock('../solana/client', () => ({
   getKeypair: jest.fn(() => ({
     publicKey: { toBase58: () => 'MockPublicKey11111111111111111111111111111111' },
   })),
-}));
+};
 
-jest.mock('../solana/gas', () => ({
+const solanaGasMock = {
   calculateGasCost: jest.fn((type: string, count: number) => ({
     iGas: type === 'single' ? 1 : 2,
     mGas: count * 5,
     total: (type === 'single' ? 1 : 2) + count * 5,
   })),
-}));
+};
+
+// Mock both proxy paths and engine paths (engine code uses different import paths)
+jest.mock('../solana/client', () => solanaClientMock);
+jest.mock('../../packages/engine/src/chain/solana/client', () => solanaClientMock);
+jest.mock('../solana/gas', () => solanaGasMock);
+jest.mock('../../packages/engine/src/chain/solana/gas', () => solanaGasMock);
 
 // Mock the DePIN storage so AgentMMRRegistry uses in-memory storage
-jest.mock('../storage/depin', () => {
+function createDepinMock() {
   const { createHash: ch } = require('crypto');
   const store = new Map<string, Buffer>();
 
@@ -65,7 +71,11 @@ jest.mock('../storage/depin', () => {
     __mockStorage: mockStorage,
     __store: store,
   };
-});
+}
+
+const depinMock = createDepinMock();
+jest.mock('../storage/depin', () => depinMock);
+jest.mock('../../packages/engine/src/storage/depin', () => depinMock);
 
 import { MMRService, getMMRService, MMRCommitResult, AgentEpochData } from '../services/receipt/mmrService';
 

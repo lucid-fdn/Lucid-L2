@@ -1,7 +1,2 @@
-/**
- * Hyperliquid Protocol Adapter - Exports
- */
-
-export { HyperliquidAdapter } from './HyperliquidAdapter';
-export * from './types';
-export * from './operations';
+// PROXY — real implementation moved to @lucid-l2/gateway-lite
+export * from '../../../../packages/gateway-lite/src/protocols/adapters/hyperliquid/index';

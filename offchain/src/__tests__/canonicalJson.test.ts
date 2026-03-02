@@ -3,9 +3,10 @@ import path from 'path';
 import { canonicalJson } from '../utils/canonicalJson';
 import { canonicalSha256Hex } from '../utils/hash';
 import { validateWithSchema } from '../utils/schemaValidator';
+import { PATHS } from '../utils/paths';
 
 function goldenDir(): string {
-  return path.resolve(__dirname, '../../../schemas/golden');
+  return PATHS.GOLDEN_DIR;
 }
 
 describe('RFC8785 canonical JSON + schema validation', () => {

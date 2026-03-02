@@ -1,0 +1,70 @@
+[
+  {
+    "type": "function",
+    "name": "requestValidation",
+    "inputs": [
+      { "name": "agentTokenId", "type": "uint256", "internalType": "uint256" },
+      { "name": "receiptHash", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "metadata", "type": "bytes", "internalType": "bytes" }
+    ],
+    "outputs": [
+      { "name": "validationId", "type": "uint256", "internalType": "uint256" }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "submitResult",
+    "inputs": [
+      { "name": "validationId", "type": "uint256", "internalType": "uint256" },
+      { "name": "valid", "type": "bool", "internalType": "bool" },
+      { "name": "evidence", "type": "bytes", "internalType": "bytes" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "getValidation",
+    "inputs": [
+      { "name": "validationId", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [
+      { "name": "agentTokenId", "type": "uint256", "internalType": "uint256" },
+      { "name": "validator", "type": "address", "internalType": "address" },
+      { "name": "receiptHash", "type": "bytes32", "internalType": "bytes32" },
+      { "name": "valid", "type": "bool", "internalType": "bool" },
+      { "name": "timestamp", "type": "uint256", "internalType": "uint256" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getValidationCount",
+    "inputs": [
+      { "name": "agentTokenId", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [
+      { "name": "", "type": "uint256", "internalType": "uint256" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "ValidationRequested",
+    "inputs": [
+      { "name": "validationId", "type": "uint256", "indexed": true },
+      { "name": "agentTokenId", "type": "uint256", "indexed": true },
+      { "name": "requester", "type": "address", "indexed": true }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "ValidationCompleted",
+    "inputs": [
+      { "name": "validationId", "type": "uint256", "indexed": true },
+      { "name": "validator", "type": "address", "indexed": true },
+      { "name": "valid", "type": "bool", "indexed": false }
+    ]
+  }
+]

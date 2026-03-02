@@ -1,3 +1,2 @@
-export { getN8nNodeIndexer } from './n8nNodeIndexer';
-export { getElasticsearchService } from './elasticsearchService';
-export type { N8nNode } from './elasticsearchService';
+// PROXY — real implementation moved to @lucid-l2/gateway-lite
+export * from '../../../packages/gateway-lite/src/integrations/n8n/index';

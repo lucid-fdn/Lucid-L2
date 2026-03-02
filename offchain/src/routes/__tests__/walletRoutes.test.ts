@@ -4,9 +4,31 @@ import walletRoutes, { __setSessionSignerServiceForTests } from '../walletRoutes
 import { protocolManager } from '../../services/protocolManager';
 import { SessionSignerService } from '../../services/sessionSignerService';
 
-// Mock dependencies
-jest.mock('../../services/protocolManager');
-jest.mock('../../services/sessionSignerService');
+// Mock dependencies — explicit factories because auto-mock doesn't traverse proxy re-exports
+jest.mock('../../services/protocolManager', () => ({
+  protocolManager: {
+    execute: jest.fn(),
+    setCredentialService: jest.fn(),
+  },
+  ProtocolManager: jest.fn(),
+}));
+jest.mock('../../services/sessionSignerService', () => {
+  const SessionSignerService = jest.fn().mockImplementation(() => ({
+    canSign: jest.fn(),
+    updateUsage: jest.fn(),
+    logTransaction: jest.fn(),
+    createSessionSigner: jest.fn(),
+    revokeSessionSigner: jest.fn(),
+    listSessionSigners: jest.fn(),
+  }));
+  return { SessionSignerService };
+});
+// Dual-path: gateway-lite walletRoutes imports from ../protocols/protocolManager
+jest.mock('../../../packages/gateway-lite/src/protocols/protocolManager', () =>
+  require('../../services/protocolManager'));
+// Dual-path: gateway-lite walletRoutes imports from ../services/sessionSignerService
+jest.mock('../../../packages/gateway-lite/src/services/sessionSignerService', () =>
+  require('../../services/sessionSignerService'));
 
 describe('Wallet Routes', () => {
   let app: express.Application;
