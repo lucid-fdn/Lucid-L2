@@ -379,6 +379,16 @@
    - Complete Memory Map and data staking
    - Enterprise-grade security and compliance
 
+4. **Phase 12 - Trustless Agent Economy** (deferred from Phase 3 plan):
+   - On-chain escrow contracts (LucidEscrow.sol) — trustless fund holding for agent-to-agent jobs
+   - Automated dispute resolution (LucidArbitration.sol) — on-chain arbitration with evidence + appeals
+   - ERC-4337 Paymaster (LucidPaymaster.sol) — agents pay gas in $LUCID instead of ETH
+   - ERC-7579 smart account modules — installable Policy, Payout, Receipt modules for any compatible wallet
+   - zkML proof integration (ZkMLVerifier.sol) — cryptographic verification of model inference on-chain
+   - **Prerequisite**: Requires active agent economy, $LUCID token live, and real demand for trustless execution
+   - **Current state**: Offchain services exist and are tested (559 tests), but Solidity contracts deferred until on-chain enforcement is needed
+   - **See**: `docs/FUTURE_FEATURES.md` for full details
+
 ## Current Status
 ### ✅ Phase 8.3 Complete - Advanced mGas Rewards System
 - **RewardSystem Implementation**: Complete with all 8 achievements and quality assessment
