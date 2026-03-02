@@ -7,6 +7,9 @@
     "sourceDialects": [
       "@lucid/sdk/source"
     ],
+    "exclude": [
+      "src/__tests__/**"
+    ],
     "exports": {
       ".": "./src/index.ts",
       "./package.json": "./package.json",
@@ -22,6 +25,7 @@
   "scripts": {
     "lint": "eslint --cache --max-warnings=0 src",
     "build": "tshy",
+    "test": "vitest run",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
@@ -34,7 +38,8 @@
     "globals": "^15.14.0",
     "tshy": "^2.0.0",
     "typescript": "~5.8.3",
-    "typescript-eslint": "^8.26.0"
+    "typescript-eslint": "^8.26.0",
+    "vitest": "^4.0.18"
   },
   "dependencies": {
     "zod": "^3.25.65 || ^4.0.0"

@@ -13,6 +13,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
@@ -21,10 +22,18 @@
   },
   "devDependencies": {
     "@lucid/sdk": "file:../raijin-labs-lucid-ai-typescript",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.2.3",
+    "jsdom": "^28.1.0",
     "react": "^19.0.0",
-    "typescript": "~5.8.3"
+    "react-dom": "^19.2.4",
+    "typescript": "~5.8.3",
+    "vitest": "^4.0.18"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "license": "MIT"
 }

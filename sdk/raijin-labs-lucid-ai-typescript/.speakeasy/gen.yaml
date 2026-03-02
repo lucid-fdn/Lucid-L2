@@ -40,10 +40,12 @@ typescript:
     dependencies: {}
     devDependencies:
       '@ai-sdk/openai-compatible': ^0.1.0
+      vitest: ^3.0.0
     peerDependencies:
       '@ai-sdk/openai-compatible': '>=0.1.0'
   additionalPackageJSON: {}
-  additionalScripts: {}
+  additionalScripts:
+    test: vitest run
   alwaysIncludeInboundAndOutbound: false
   author: Speakeasy
   baseErrorName: LucidError
