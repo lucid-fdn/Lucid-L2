@@ -1,0 +1,30 @@
+{
+  "name": "@lucid/react",
+  "version": "0.1.0",
+  "description": "React hooks for the Lucid SDK",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "@lucid/sdk": "*",
+    "react": ">=18"
+  },
+  "devDependencies": {
+    "@lucid/sdk": "file:../raijin-labs-lucid-ai-typescript",
+    "@types/react": "^19.0.0",
+    "react": "^19.0.0",
+    "typescript": "~5.8.3"
+  },
+  "files": ["dist"],
+  "license": "MIT"
+}
