@@ -5,7 +5,7 @@ Not ready
 ## Example Usage
 
 ```typescript
-import { ServiceUnavailableError } from "raijin-labs-lucid-ai/models/errors";
+import { ServiceUnavailableError } from "@lucid/sdk/models/errors";
 
 // No examples available for this model
 ```

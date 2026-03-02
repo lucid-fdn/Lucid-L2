@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { LucidVerifyReceiptByHashRequest } from "raijin-labs-lucid-ai/models/operations";
+import { LucidVerifyReceiptByHashRequest } from "@lucid/sdk/models/operations";
 
 let value: LucidVerifyReceiptByHashRequest = {
   receiptHash: "<value>",

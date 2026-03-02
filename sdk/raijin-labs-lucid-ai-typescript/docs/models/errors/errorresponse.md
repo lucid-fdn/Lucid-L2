@@ -5,7 +5,7 @@ Bad Request
 ## Example Usage
 
 ```typescript
-import { ErrorResponse } from "raijin-labs-lucid-ai/models/errors";
+import { ErrorResponse } from "@lucid/sdk/models/errors";
 
 // No examples available for this model
 ```

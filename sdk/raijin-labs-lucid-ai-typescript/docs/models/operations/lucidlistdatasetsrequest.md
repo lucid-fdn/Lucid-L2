@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { LucidListDatasetsRequest } from "raijin-labs-lucid-ai/models/operations";
+import { LucidListDatasetsRequest } from "@lucid/sdk/models/operations";
 
 let value: LucidListDatasetsRequest = {};
 ```

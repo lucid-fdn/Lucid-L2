@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { AgentPlanRequest } from "raijin-labs-lucid-ai/models";
+import { AgentPlanRequest } from "@lucid/sdk/models";
 
 let value: AgentPlanRequest = {
   goal: "<value>",

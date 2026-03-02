@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { LucidCommitEpochRootRequest } from "raijin-labs-lucid-ai/models/operations";
+import { LucidCommitEpochRootRequest } from "@lucid/sdk/models/operations";
 
 let value: LucidCommitEpochRootRequest = {};
 ```

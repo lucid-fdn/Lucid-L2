@@ -10,7 +10,7 @@ mkdir samples
 npm install --ignore-scripts
 npm install -g ts-node --ignore-scripts
 npm link
-npm link raijin-labs-lucid-ai
+npm link @lucid/sdk
 TS_CONFIG_CONTENT=$(cat <<EOL
 {
   "compilerOptions": {

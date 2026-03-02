@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { EpochsReadyResponseEpoch } from "raijin-labs-lucid-ai/models";
+import { EpochsReadyResponseEpoch } from "@lucid/sdk/models";
 
 let value: EpochsReadyResponseEpoch = {};
 ```

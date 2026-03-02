@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { InferenceResult } from "raijin-labs-lucid-ai/models";
+import { InferenceResult } from "@lucid/sdk/models";
 
 let value: InferenceResult = {
   success: true,

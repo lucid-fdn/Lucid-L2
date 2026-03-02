@@ -5,7 +5,7 @@ Alive
 ## Example Usage
 
 ```typescript
-import { CheckLivenessResponse } from "raijin-labs-lucid-ai/models/operations";
+import { CheckLivenessResponse } from "@lucid/sdk/models/operations";
 
 let value: CheckLivenessResponse = {
   status: "alive",

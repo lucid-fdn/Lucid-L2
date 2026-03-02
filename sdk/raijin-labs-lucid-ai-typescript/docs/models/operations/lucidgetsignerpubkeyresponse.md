@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { LucidGetSignerPubkeyResponse } from "raijin-labs-lucid-ai/models/operations";
+import { LucidGetSignerPubkeyResponse } from "@lucid/sdk/models/operations";
 
 let value: LucidGetSignerPubkeyResponse = {
   success: false,

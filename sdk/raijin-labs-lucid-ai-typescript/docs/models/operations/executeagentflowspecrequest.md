@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { ExecuteAgentFlowspecRequest } from "raijin-labs-lucid-ai/models/operations";
+import { ExecuteAgentFlowspecRequest } from "@lucid/sdk/models/operations";
 
 let value: ExecuteAgentFlowspecRequest = {
   flowspec: {

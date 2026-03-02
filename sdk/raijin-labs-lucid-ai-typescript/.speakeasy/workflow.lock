@@ -1,9 +1,9 @@
-speakeasyVersion: 1.698.0
+speakeasyVersion: 1.737.0
 sources:
     LucidLayer API:
         sourceNamespace: lucid-layer-api
-        sourceRevisionDigest: sha256:5ee73f9e2c46e3fd957fd5fac245e15de1c064458c1e9e7d74d5df01a81dedb6
-        sourceBlobDigest: sha256:42aac0780953dd6faab26dd26cac5f57965274e09e2fe7ecf04dd739f9625f97
+        sourceRevisionDigest: sha256:592545e12e41fe3e7c9d6128aa66ba0495937cee530dd8c21f5b90988946bb74
+        sourceBlobDigest: sha256:1e37861eaeed379812c231c203be1cc97baed98543c05f475cc966111433d061
         tags:
             - latest
             - 0.2.0
@@ -11,10 +11,10 @@ targets:
     raijin-labs-lucid-ai:
         source: LucidLayer API
         sourceNamespace: lucid-layer-api
-        sourceRevisionDigest: sha256:5ee73f9e2c46e3fd957fd5fac245e15de1c064458c1e9e7d74d5df01a81dedb6
-        sourceBlobDigest: sha256:42aac0780953dd6faab26dd26cac5f57965274e09e2fe7ecf04dd739f9625f97
+        sourceRevisionDigest: sha256:592545e12e41fe3e7c9d6128aa66ba0495937cee530dd8c21f5b90988946bb74
+        sourceBlobDigest: sha256:1e37861eaeed379812c231c203be1cc97baed98543c05f475cc966111433d061
         codeSamplesNamespace: lucid-layer-api-typescript-code-samples
-        codeSamplesRevisionDigest: sha256:f81635d5ba566e0ed1e9c5f76fb8ff76a7f47d450ddc7289e299cc867c69df64
+        codeSamplesRevisionDigest: sha256:d612bea71fd77336b08bf5dabb8a2ba62982d6c7d286499168d17eed9e5e5e2d
 workflow:
     workflowVersion: 1.0.0
     speakeasyVersion: latest

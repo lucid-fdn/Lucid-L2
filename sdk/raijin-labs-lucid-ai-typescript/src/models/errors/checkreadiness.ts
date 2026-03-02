@@ -5,7 +5,7 @@
 import * as z from "zod/v4-mini";
 import * as types from "../../types/primitives.js";
 import * as models from "../index.js";
-import { RaijinLabsLucidAiError } from "./raijinlabslucidaierror.js";
+import { LucidError } from "./luciderror.js";
 
 /**
  * Not ready
@@ -20,7 +20,7 @@ export type ServiceUnavailableErrorData = {
 /**
  * Not ready
  */
-export class ServiceUnavailableError extends RaijinLabsLucidAiError {
+export class ServiceUnavailableError extends LucidError {
   status?: string | undefined;
   timestamp?: Date | undefined;
   error?: string | undefined;

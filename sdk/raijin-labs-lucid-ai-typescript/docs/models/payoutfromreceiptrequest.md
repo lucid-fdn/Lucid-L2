@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { PayoutFromReceiptRequest } from "raijin-labs-lucid-ai/models";
+import { PayoutFromReceiptRequest } from "@lucid/sdk/models";
 
 let value: PayoutFromReceiptRequest = {
   runId: "<id>",

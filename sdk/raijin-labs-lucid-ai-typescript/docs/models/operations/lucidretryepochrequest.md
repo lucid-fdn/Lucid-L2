@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { LucidRetryEpochRequest } from "raijin-labs-lucid-ai/models/operations";
+import { LucidRetryEpochRequest } from "@lucid/sdk/models/operations";
 
 let value: LucidRetryEpochRequest = {
   epochId: "<id>",

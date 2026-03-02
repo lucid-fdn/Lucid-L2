@@ -5,16 +5,32 @@
 import * as z from "zod/v4-mini";
 import { remap as remap$ } from "../../lib/primitives.js";
 import { safeParse } from "../../lib/schemas.js";
+import { ClosedEnum } from "../../types/enums.js";
 import { Result as SafeParseResult } from "../../types/fp.js";
 import * as types from "../../types/primitives.js";
 import { SDKValidationError } from "../errors/sdkvalidationerror.js";
 import * as models from "../index.js";
 
+/**
+ * Tri-state filter: 'true' returns only models that can serve inference (healthy compute or API-hosted), 'false' returns only unavailable models (missing compute), omit for all models
+ */
+export const Available = {
+  True: "true",
+  False: "false",
+} as const;
+/**
+ * Tri-state filter: 'true' returns only models that can serve inference (healthy compute or API-hosted), 'false' returns only unavailable models (missing compute), omit for all models
+ */
+export type Available = ClosedEnum<typeof Available>;
+
 export type LucidSearchModelsRequest = {
   runtime?: string | undefined;
   format?: string | undefined;
   maxVram?: number | undefined;
-  available?: string | undefined;
+  /**
+   * Tri-state filter: 'true' returns only models that can serve inference (healthy compute or API-hosted), 'false' returns only unavailable models (missing compute), omit for all models
+   */
+  available?: Available | undefined;
   owner?: string | undefined;
   tags?: string | undefined;
   search?: string | undefined;
@@ -30,6 +46,11 @@ export type LucidSearchModelsResponse = {
   models: Array<models.Passport>;
   pagination: models.Pagination;
 };
+
+/** @internal */
+export const Available$outboundSchema: z.ZodMiniEnum<typeof Available> = z.enum(
+  Available,
+);
 
 /** @internal */
 export type LucidSearchModelsRequest$Outbound = {
@@ -53,7 +74,7 @@ export const LucidSearchModelsRequest$outboundSchema: z.ZodMiniType<
     runtime: z.optional(z.string()),
     format: z.optional(z.string()),
     maxVram: z.optional(z.int()),
-    available: z.optional(z.string()),
+    available: z.optional(Available$outboundSchema),
     owner: z.optional(z.string()),
     tags: z.optional(z.string()),
     search: z.optional(z.string()),

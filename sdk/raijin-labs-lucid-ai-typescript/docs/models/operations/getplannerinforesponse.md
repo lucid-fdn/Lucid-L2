@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { GetPlannerInfoResponse } from "raijin-labs-lucid-ai/models/operations";
+import { GetPlannerInfoResponse } from "@lucid/sdk/models/operations";
 
 let value: GetPlannerInfoResponse = {
   success: true,

@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { ReceiptHashVerificationEpoch } from "raijin-labs-lucid-ai/models";
+import { ReceiptHashVerificationEpoch } from "@lucid/sdk/models";
 
 let value: ReceiptHashVerificationEpoch = {};
 ```

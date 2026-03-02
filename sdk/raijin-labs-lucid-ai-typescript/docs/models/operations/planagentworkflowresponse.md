@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { PlanAgentWorkflowResponse } from "raijin-labs-lucid-ai/models/operations";
+import { PlanAgentWorkflowResponse } from "@lucid/sdk/models/operations";
 
 let value: PlanAgentWorkflowResponse = {
   success: false,

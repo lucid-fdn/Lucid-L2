@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { ExecuteAgentFlowspecResponse } from "raijin-labs-lucid-ai/models/operations";
+import { ExecuteAgentFlowspecResponse } from "@lucid/sdk/models/operations";
 
 let value: ExecuteAgentFlowspecResponse = {
   success: false,

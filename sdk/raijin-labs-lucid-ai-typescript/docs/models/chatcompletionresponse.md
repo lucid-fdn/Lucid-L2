@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { ChatCompletionResponse } from "raijin-labs-lucid-ai/models";
+import { ChatCompletionResponse } from "@lucid/sdk/models";
 
 let value: ChatCompletionResponse = {
   id: "<id>",

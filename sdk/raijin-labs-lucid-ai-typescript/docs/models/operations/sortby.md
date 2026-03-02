@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { SortBy } from "raijin-labs-lucid-ai/models/operations";
+import { SortBy } from "@lucid/sdk/models/operations";
 
 let value: SortBy = "name";
 ```

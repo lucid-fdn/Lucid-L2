@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { Policy } from "raijin-labs-lucid-ai/models";
+import { Policy } from "@lucid/sdk/models";
 
 let value: Policy = {
   policyVersion: "<value>",

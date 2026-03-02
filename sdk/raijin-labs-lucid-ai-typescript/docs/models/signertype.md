@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { SignerType } from "raijin-labs-lucid-ai/models";
+import { SignerType } from "@lucid/sdk/models";
 
 let value: SignerType = "orchestrator";
 ```

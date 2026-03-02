@@ -3,12 +3,13 @@
  */
 
 import * as z from "zod/v4-mini";
-import { RaijinLabsLucidAiCore } from "../core.js";
+import { LucidSDKCore } from "../core.js";
 import { encodeJSON } from "../lib/encodings.js";
 import * as M from "../lib/matchers.js";
 import { compactMap } from "../lib/primitives.js";
 import { safeParse } from "../lib/schemas.js";
 import { RequestOptions } from "../lib/sdks.js";
+import { extractSecurity, resolveGlobalSecurity } from "../lib/security.js";
 import { pathToFunc } from "../lib/url.js";
 import {
   ConnectionError,
@@ -18,7 +19,7 @@ import {
   UnexpectedClientError,
 } from "../models/errors/httpclienterrors.js";
 import * as errors from "../models/errors/index.js";
-import { RaijinLabsLucidAiError } from "../models/errors/raijinlabslucidaierror.js";
+import { LucidError } from "../models/errors/luciderror.js";
 import { ResponseValidationError } from "../models/errors/responsevalidationerror.js";
 import { SDKValidationError } from "../models/errors/sdkvalidationerror.js";
 import * as models from "../models/index.js";
@@ -30,14 +31,14 @@ import { Result } from "../types/fp.js";
  * Process an epoch for an agent
  */
 export function agentsProcessAgentEpoch(
-  client: RaijinLabsLucidAiCore,
+  client: LucidSDKCore,
   request: models.AgentEpochRequest,
   options?: RequestOptions,
 ): APIPromise<
   Result<
     operations.ProcessAgentEpochResponse,
     | errors.ErrorResponse
-    | RaijinLabsLucidAiError
+    | LucidError
     | ResponseValidationError
     | ConnectionError
     | RequestAbortedError
@@ -55,7 +56,7 @@ export function agentsProcessAgentEpoch(
 }
 
 async function $do(
-  client: RaijinLabsLucidAiCore,
+  client: LucidSDKCore,
   request: models.AgentEpochRequest,
   options?: RequestOptions,
 ): Promise<
@@ -63,7 +64,7 @@ async function $do(
     Result<
       operations.ProcessAgentEpochResponse,
       | errors.ErrorResponse
-      | RaijinLabsLucidAiError
+      | LucidError
       | ResponseValidationError
       | ConnectionError
       | RequestAbortedError
@@ -93,15 +94,19 @@ async function $do(
     Accept: "application/json",
   }));
 
+  const secConfig = await extractSecurity(client._options.bearerAuth);
+  const securityInput = secConfig == null ? {} : { bearerAuth: secConfig };
+  const requestSecurity = resolveGlobalSecurity(securityInput);
+
   const context = {
     options: client._options,
     baseURL: options?.serverURL ?? client._baseURL ?? "",
     operationID: "process_agent_epoch",
     oAuth2Scopes: null,
 
-    resolvedSecurity: null,
+    resolvedSecurity: requestSecurity,
 
-    securitySource: null,
+    securitySource: client._options.bearerAuth,
     retryConfig: options?.retries
       || client._options.retryConfig
       || { strategy: "none" },
@@ -109,6 +114,7 @@ async function $do(
   };
 
   const requestRes = client._createRequest(context, {
+    security: requestSecurity,
     method: "POST",
     baseURL: options?.serverURL,
     path: path,
@@ -140,7 +146,7 @@ async function $do(
   const [result] = await M.match<
     operations.ProcessAgentEpochResponse,
     | errors.ErrorResponse
-    | RaijinLabsLucidAiError
+    | LucidError
     | ResponseValidationError
     | ConnectionError
     | RequestAbortedError

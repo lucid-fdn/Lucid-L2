@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { TagMatch } from "raijin-labs-lucid-ai/models/operations";
+import { TagMatch } from "@lucid/sdk/models/operations";
 
 let value: TagMatch = "any";
 ```

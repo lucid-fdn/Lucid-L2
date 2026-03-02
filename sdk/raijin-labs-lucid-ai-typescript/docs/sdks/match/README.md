@@ -16,12 +16,12 @@ Evaluate policy against compute/model meta
 
 <!-- UsageSnippet language="typescript" operationID="lucid_match_explain" method="post" path="/v1/match/explain" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.match.explain({});
+  const result = await lucidSDK.match.explain({});
 
   console.log(result);
 }
@@ -34,15 +34,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { matchExplain } from "raijin-labs-lucid-ai/funcs/matchExplain.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { matchExplain } from "@lucid/sdk/funcs/matchExplain.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await matchExplain(raijinLabsLucidAi, {});
+  const res = await matchExplain(lucidSDK, {});
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -69,11 +69,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## compute
 
@@ -83,12 +83,12 @@ Match compute for model
 
 <!-- UsageSnippet language="typescript" operationID="lucid_match" method="post" path="/v1/match" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.match.compute({});
+  const result = await lucidSDK.match.compute({});
 
   console.log(result);
 }
@@ -101,15 +101,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { matchCompute } from "raijin-labs-lucid-ai/funcs/matchCompute.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { matchCompute } from "@lucid/sdk/funcs/matchCompute.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await matchCompute(raijinLabsLucidAi, {});
+  const res = await matchCompute(lucidSDK, {});
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -136,11 +136,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 422                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 422                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## planRoute
 
@@ -150,12 +150,12 @@ Plan a route (match + resolve endpoint)
 
 <!-- UsageSnippet language="typescript" operationID="lucid_route" method="post" path="/v1/route" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.match.planRoute({});
+  const result = await lucidSDK.match.planRoute({});
 
   console.log(result);
 }
@@ -168,15 +168,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { matchPlanRoute } from "raijin-labs-lucid-ai/funcs/matchPlanRoute.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { matchPlanRoute } from "@lucid/sdk/funcs/matchPlanRoute.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await matchPlanRoute(raijinLabsLucidAi, {});
+  const res = await matchPlanRoute(lucidSDK, {});
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -203,8 +203,8 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 422                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 422                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |

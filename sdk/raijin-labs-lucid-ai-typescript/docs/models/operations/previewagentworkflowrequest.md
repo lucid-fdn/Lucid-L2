@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { PreviewAgentWorkflowRequest } from "raijin-labs-lucid-ai/models/operations";
+import { PreviewAgentWorkflowRequest } from "@lucid/sdk/models/operations";
 
 let value: PreviewAgentWorkflowRequest = {
   goal: "<value>",

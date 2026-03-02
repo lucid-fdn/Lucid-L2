@@ -29,8 +29,10 @@ Route groups:
 <!-- $toc-max-depth=2 -->
 * [raijin-labs-lucid-ai](#raijin-labs-lucid-ai)
   * [SDK Installation](#sdk-installation)
+  * [Vercel AI SDK Provider](#vercel-ai-sdk-provider)
   * [Requirements](#requirements)
   * [SDK Example Usage](#sdk-example-usage)
+  * [Authentication](#authentication)
   * [Available Resources and Operations](#available-resources-and-operations)
   * [Standalone functions](#standalone-functions)
   * [Retries](#retries)
@@ -47,8 +49,34 @@ Route groups:
 <!-- Start SDK Installation [installation] -->
 ## SDK Installation
 
+> [!TIP]
+> To finish publishing your SDK to npm and others you must [run your first generation action](https://www.speakeasy.com/docs/github-setup#step-by-step-guide).
+
+
+The SDK can be installed with either [npm](https://www.npmjs.com/), [pnpm](https://pnpm.io/), [bun](https://bun.sh/) or [yarn](https://classic.yarnpkg.com/en/) package managers.
+
+### NPM
+
 ```bash
-npm install raijin-labs-lucid-ai
+npm add <UNSET>
+```
+
+### PNPM
+
+```bash
+pnpm add <UNSET>
+```
+
+### Bun
+
+```bash
+bun add <UNSET>
+```
+
+### Yarn
+
+```bash
+yarn add <UNSET>
 ```
 
 > [!NOTE]
@@ -118,12 +146,12 @@ For supported JavaScript runtimes, please consult [RUNTIMES.md](RUNTIMES.md).
 ### Example
 
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.create({
+  const result = await lucidSDK.passports.create({
     type: "dataset",
     owner: "<value>",
     metadata: {
@@ -140,6 +168,44 @@ run();
 
 ```
 <!-- End SDK Example Usage [usage] -->
+
+<!-- Start Authentication [security] -->
+## Authentication
+
+### Per-Client Security Schemes
+
+This SDK supports the following security scheme globally:
+
+| Name         | Type | Scheme      | Environment Variable |
+| ------------ | ---- | ----------- | -------------------- |
+| `bearerAuth` | http | HTTP Bearer | `LUCID_BEARER_AUTH`  |
+
+To authenticate with the API the `bearerAuth` parameter must be set when initializing the SDK client instance. For example:
+```typescript
+import { LucidSDK } from "@lucid/sdk";
+
+const lucidSDK = new LucidSDK({
+  bearerAuth: process.env["LUCID_BEARER_AUTH"] ?? "",
+});
+
+async function run() {
+  const result = await lucidSDK.passports.create({
+    type: "dataset",
+    owner: "<value>",
+    metadata: {
+      "key": "<value>",
+      "key1": "<value>",
+      "key2": "<value>",
+    },
+  });
+
+  console.log(result);
+}
+
+run();
+
+```
+<!-- End Authentication [security] -->
 
 <!-- Start Available Resources and Operations [operations] -->
 ## Available Resources and Operations
@@ -175,6 +241,14 @@ run();
 * [heartbeat](docs/sdks/compute/README.md#heartbeat) - Submit compute node heartbeat
 * [getNodeHealth](docs/sdks/compute/README.md#getnodehealth) - Get compute node health
 
+### [Disputes](docs/sdks/disputes/README.md)
+
+* [open](docs/sdks/disputes/README.md#open) - Open a dispute on an escrow
+* [submitEvidence](docs/sdks/disputes/README.md#submitevidence) - Submit evidence for a dispute
+* [resolve](docs/sdks/disputes/README.md#resolve) - Resolve a dispute
+* [appeal](docs/sdks/disputes/README.md#appeal) - Appeal a dispute decision
+* [get](docs/sdks/disputes/README.md#get) - Get dispute details
+
 ### [Epochs](docs/sdks/epochs/README.md)
 
 * [getCurrent](docs/sdks/epochs/README.md#getcurrent) - Get current epoch
@@ -190,6 +264,13 @@ run();
 * [listReady](docs/sdks/epochs/README.md#listready) - Get epochs ready for finalization
 * [getStats](docs/sdks/epochs/README.md#getstats) - Epoch statistics
 
+### [Escrow](docs/sdks/escrow/README.md)
+
+* [create](docs/sdks/escrow/README.md#create) - Create a time-locked escrow
+* [release](docs/sdks/escrow/README.md#release) - Release escrow with verified receipt
+* [dispute](docs/sdks/escrow/README.md#dispute) - Dispute an escrow
+* [get](docs/sdks/escrow/README.md#get) - Get escrow details
+
 ### [Health](docs/sdks/health/README.md)
 
 * [checkSystemHealth](docs/sdks/health/README.md#checksystemhealth) - Overall system health
@@ -200,11 +281,27 @@ run();
 * [checkNangoHealth](docs/sdks/health/README.md#checknangohealth) - Nango service health check
 * [getDetailedHealth](docs/sdks/health/README.md#getdetailedhealth) - Detailed health with statistics
 
+### [Identity](docs/sdks/identity/README.md)
+
+* [link](docs/sdks/identity/README.md#link) - Link addresses cross-chain
+* [resolve](docs/sdks/identity/README.md#resolve) - Resolve cross-chain identity
+* [get](docs/sdks/identity/README.md#get) - Resolve identity (GET)
+* [getChains](docs/sdks/identity/README.md#getchains) - Get linked chains for identity
+* [unlink](docs/sdks/identity/README.md#unlink) - Unlink a cross-chain address
+
 ### [Match](docs/sdks/match/README.md)
 
 * [explain](docs/sdks/match/README.md#explain) - Evaluate policy against compute/model meta
 * [compute](docs/sdks/match/README.md#compute) - Match compute for model
 * [planRoute](docs/sdks/match/README.md#planroute) - Plan a route (match + resolve endpoint)
+
+### [Modules](docs/sdks/modules/README.md)
+
+* [install](docs/sdks/modules/README.md#install) - Install module on smart account
+* [uninstall](docs/sdks/modules/README.md#uninstall) - Uninstall module from smart account
+* [configurePolicy](docs/sdks/modules/README.md#configurepolicy) - Configure policy module
+* [configurePayout](docs/sdks/modules/README.md#configurepayout) - Configure payout module
+* [list](docs/sdks/modules/README.md#list) - List installed modules
 
 ### [Passports](docs/sdks/passports/README.md)
 
@@ -220,6 +317,14 @@ run();
 * [lucidListTools](docs/sdks/passports/README.md#lucidlisttools) - List tool passports
 * [lucidListDatasets](docs/sdks/passports/README.md#lucidlistdatasets) - List dataset passports
 * [lucidListAgentPassports](docs/sdks/passports/README.md#lucidlistagentpassports) - List agent passports
+* [updatePricing](docs/sdks/passports/README.md#updatepricing) - Update passport pricing
+* [updateEndpoints](docs/sdks/passports/README.md#updateendpoints) - Update passport endpoint URLs
+
+### [Paymaster](docs/sdks/paymaster/README.md)
+
+* [sponsor](docs/sdks/paymaster/README.md#sponsor) - Sponsor a UserOp with $LUCID
+* [getRate](docs/sdks/paymaster/README.md#getrate) - Get LUCID/ETH exchange rate
+* [estimate](docs/sdks/paymaster/README.md#estimate) - Estimate gas cost in $LUCID
 
 ### [Payouts](docs/sdks/payouts/README.md)
 
@@ -242,6 +347,24 @@ run();
 
 * [inference](docs/sdks/run/README.md#inference) - Run inference (optionally streaming via SSE)
 * [chatCompletions](docs/sdks/run/README.md#chatcompletions) - OpenAI-compatible chat completions
+
+### [Shares](docs/sdks/shares/README.md)
+
+* [lucidLaunchShareToken](docs/sdks/shares/README.md#lucidlaunchsharetoken) - Launch a share token for a passport
+* [lucidGetShareToken](docs/sdks/shares/README.md#lucidgetsharetoken) - Get share token info for a passport
+* [lucidTriggerRevenueAirdrop](docs/sdks/shares/README.md#lucidtriggerrevenueairdrop) - Trigger revenue airdrop for share token holders
+
+### [Tba](docs/sdks/tba/README.md)
+
+* [create](docs/sdks/tba/README.md#create) - Create TBA for passport NFT
+* [get](docs/sdks/tba/README.md#get) - Get TBA address
+
+### [ZkML](docs/sdks/zkml/README.md)
+
+* [prove](docs/sdks/zkml/README.md#prove) - Generate zkML proof
+* [verify](docs/sdks/zkml/README.md#verify) - Verify zkML proof
+* [registerModel](docs/sdks/zkml/README.md#registermodel) - Register model circuit
+* [listModels](docs/sdks/zkml/README.md#listmodels) - List registered model circuits
 
 </details>
 <!-- End Available Resources and Operations [operations] -->
@@ -283,6 +406,11 @@ To read more about standalone functions, check [FUNCTIONS.md](./FUNCTIONS.md).
 - [`computeGetNodeHealth`](docs/sdks/compute/README.md#getnodehealth) - Get compute node health
 - [`computeHeartbeat`](docs/sdks/compute/README.md#heartbeat) - Submit compute node heartbeat
 - [`computeSearchCompute`](docs/sdks/compute/README.md#searchcompute) - Search compute passports
+- [`disputesAppeal`](docs/sdks/disputes/README.md#appeal) - Appeal a dispute decision
+- [`disputesGet`](docs/sdks/disputes/README.md#get) - Get dispute details
+- [`disputesOpen`](docs/sdks/disputes/README.md#open) - Open a dispute on an escrow
+- [`disputesResolve`](docs/sdks/disputes/README.md#resolve) - Resolve a dispute
+- [`disputesSubmitEvidence`](docs/sdks/disputes/README.md#submitevidence) - Submit evidence for a dispute
 - [`epochsCommitRoot`](docs/sdks/epochs/README.md#commitroot) - Commit epoch root
 - [`epochsCommitRootsBatch`](docs/sdks/epochs/README.md#commitrootsbatch) - Commit multiple epoch roots
 - [`epochsCreate`](docs/sdks/epochs/README.md#create) - Create epoch
@@ -295,6 +423,10 @@ To read more about standalone functions, check [FUNCTIONS.md](./FUNCTIONS.md).
 - [`epochsListReady`](docs/sdks/epochs/README.md#listready) - Get epochs ready for finalization
 - [`epochsRetry`](docs/sdks/epochs/README.md#retry) - Retry failed epoch
 - [`epochsVerify`](docs/sdks/epochs/README.md#verify) - Verify epoch anchor
+- [`escrowCreate`](docs/sdks/escrow/README.md#create) - Create a time-locked escrow
+- [`escrowDispute`](docs/sdks/escrow/README.md#dispute) - Dispute an escrow
+- [`escrowGet`](docs/sdks/escrow/README.md#get) - Get escrow details
+- [`escrowRelease`](docs/sdks/escrow/README.md#release) - Release escrow with verified receipt
 - [`healthCheckDatabaseHealth`](docs/sdks/health/README.md#checkdatabasehealth) - Database health check
 - [`healthCheckLiveness`](docs/sdks/health/README.md#checkliveness) - Liveness probe
 - [`healthCheckNangoHealth`](docs/sdks/health/README.md#checknangohealth) - Nango service health check
@@ -302,9 +434,19 @@ To read more about standalone functions, check [FUNCTIONS.md](./FUNCTIONS.md).
 - [`healthCheckRedisHealth`](docs/sdks/health/README.md#checkredishealth) - Redis health check
 - [`healthCheckSystemHealth`](docs/sdks/health/README.md#checksystemhealth) - Overall system health
 - [`healthGetDetailedHealth`](docs/sdks/health/README.md#getdetailedhealth) - Detailed health with statistics
+- [`identityGet`](docs/sdks/identity/README.md#get) - Resolve identity (GET)
+- [`identityGetChains`](docs/sdks/identity/README.md#getchains) - Get linked chains for identity
+- [`identityLink`](docs/sdks/identity/README.md#link) - Link addresses cross-chain
+- [`identityResolve`](docs/sdks/identity/README.md#resolve) - Resolve cross-chain identity
+- [`identityUnlink`](docs/sdks/identity/README.md#unlink) - Unlink a cross-chain address
 - [`matchCompute`](docs/sdks/match/README.md#compute) - Match compute for model
 - [`matchExplain`](docs/sdks/match/README.md#explain) - Evaluate policy against compute/model meta
 - [`matchPlanRoute`](docs/sdks/match/README.md#planroute) - Plan a route (match + resolve endpoint)
+- [`modulesConfigurePayout`](docs/sdks/modules/README.md#configurepayout) - Configure payout module
+- [`modulesConfigurePolicy`](docs/sdks/modules/README.md#configurepolicy) - Configure policy module
+- [`modulesInstall`](docs/sdks/modules/README.md#install) - Install module on smart account
+- [`modulesList`](docs/sdks/modules/README.md#list) - List installed modules
+- [`modulesUninstall`](docs/sdks/modules/README.md#uninstall) - Uninstall module from smart account
 - [`passportsCreate`](docs/sdks/passports/README.md#create) - Create a passport
 - [`passportsDelete`](docs/sdks/passports/README.md#delete) - Delete a passport (soft delete)
 - [`passportsGet`](docs/sdks/passports/README.md#get) - Get a passport
@@ -317,6 +459,11 @@ To read more about standalone functions, check [FUNCTIONS.md](./FUNCTIONS.md).
 - [`passportsSearchModels`](docs/sdks/passports/README.md#searchmodels) - Search model passports
 - [`passportsSync`](docs/sdks/passports/README.md#sync) - Trigger on-chain sync for a passport
 - [`passportsUpdate`](docs/sdks/passports/README.md#update) - Update a passport
+- [`passportsUpdateEndpoints`](docs/sdks/passports/README.md#updateendpoints) - Update passport endpoint URLs
+- [`passportsUpdatePricing`](docs/sdks/passports/README.md#updatepricing) - Update passport pricing
+- [`paymasterEstimate`](docs/sdks/paymaster/README.md#estimate) - Estimate gas cost in $LUCID
+- [`paymasterGetRate`](docs/sdks/paymaster/README.md#getrate) - Get LUCID/ETH exchange rate
+- [`paymasterSponsor`](docs/sdks/paymaster/README.md#sponsor) - Sponsor a UserOp with $LUCID
 - [`payoutsCalculate`](docs/sdks/payouts/README.md#calculate) - Calculate payout split
 - [`payoutsCreateFromReceipt`](docs/sdks/payouts/README.md#createfromreceipt) - Create payout from receipt token data
 - [`payoutsGet`](docs/sdks/payouts/README.md#get) - Get payout by run_id
@@ -330,6 +477,15 @@ To read more about standalone functions, check [FUNCTIONS.md](./FUNCTIONS.md).
 - [`receiptsVerify`](docs/sdks/receipts/README.md#verify) - Verify a receipt (hash + signature + inclusion)
 - [`runChatCompletions`](docs/sdks/run/README.md#chatcompletions) - OpenAI-compatible chat completions
 - [`runInference`](docs/sdks/run/README.md#inference) - Run inference (optionally streaming via SSE)
+- [`sharesLucidGetShareToken`](docs/sdks/shares/README.md#lucidgetsharetoken) - Get share token info for a passport
+- [`sharesLucidLaunchShareToken`](docs/sdks/shares/README.md#lucidlaunchsharetoken) - Launch a share token for a passport
+- [`sharesLucidTriggerRevenueAirdrop`](docs/sdks/shares/README.md#lucidtriggerrevenueairdrop) - Trigger revenue airdrop for share token holders
+- [`tbaCreate`](docs/sdks/tba/README.md#create) - Create TBA for passport NFT
+- [`tbaGet`](docs/sdks/tba/README.md#get) - Get TBA address
+- [`zkMLListModels`](docs/sdks/zkml/README.md#listmodels) - List registered model circuits
+- [`zkMLProve`](docs/sdks/zkml/README.md#prove) - Generate zkML proof
+- [`zkMLRegisterModel`](docs/sdks/zkml/README.md#registermodel) - Register model circuit
+- [`zkMLVerify`](docs/sdks/zkml/README.md#verify) - Verify zkML proof
 
 </details>
 <!-- End Standalone functions [standalone-funcs] -->
@@ -341,12 +497,12 @@ Some of the endpoints in this SDK support retries.  If you use the SDK without a
 
 To change the default retry strategy for a single API call, simply provide a retryConfig object to the call:
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.create({
+  const result = await lucidSDK.passports.create({
     type: "dataset",
     owner: "<value>",
     metadata: {
@@ -376,9 +532,9 @@ run();
 
 If you'd like to override the default retry strategy for all operations that support retries, you can provide a retryConfig at SDK initialization:
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi({
+const lucidSDK = new LucidSDK({
   retryConfig: {
     strategy: "backoff",
     backoff: {
@@ -392,7 +548,7 @@ const raijinLabsLucidAi = new RaijinLabsLucidAi({
 });
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.create({
+  const result = await lucidSDK.passports.create({
     type: "dataset",
     owner: "<value>",
     metadata: {
@@ -413,7 +569,7 @@ run();
 <!-- Start Error Handling [errors] -->
 ## Error Handling
 
-[`RaijinLabsLucidAiError`](./src/models/errors/raijinlabslucidaierror.ts) is the base class for all HTTP error responses. It has the following properties:
+[`LucidError`](./src/models/errors/luciderror.ts) is the base class for all HTTP error responses. It has the following properties:
 
 | Property            | Type       | Description                                                                             |
 | ------------------- | ---------- | --------------------------------------------------------------------------------------- |
@@ -426,14 +582,14 @@ run();
 
 ### Example
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
-import * as errors from "raijin-labs-lucid-ai/models/errors";
+import { LucidSDK } from "@lucid/sdk";
+import * as errors from "@lucid/sdk/models/errors";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
   try {
-    const result = await raijinLabsLucidAi.passports.create({
+    const result = await lucidSDK.passports.create({
       type: "dataset",
       owner: "<value>",
       metadata: {
@@ -446,7 +602,7 @@ async function run() {
     console.log(result);
   } catch (error) {
     // The base class for HTTP error responses
-    if (error instanceof errors.RaijinLabsLucidAiError) {
+    if (error instanceof errors.LucidError) {
       console.log(error.message);
       console.log(error.statusCode);
       console.log(error.body);
@@ -470,7 +626,7 @@ run();
 
 ### Error Classes
 **Primary errors:**
-* [`RaijinLabsLucidAiError`](./src/models/errors/raijinlabslucidaierror.ts): The base class for HTTP error responses.
+* [`LucidError`](./src/models/errors/luciderror.ts): The base class for HTTP error responses.
   * [`ErrorResponse`](./src/models/errors/errorresponse.ts): Bad Request. *
 
 <details><summary>Less common errors (9)</summary>
@@ -485,10 +641,10 @@ run();
 * [`UnexpectedClientError`](./src/models/errors/httpclienterrors.ts): Unrecognised or unexpected error.
 
 
-**Inherit from [`RaijinLabsLucidAiError`](./src/models/errors/raijinlabslucidaierror.ts)**:
-* [`HealthCheckResultError`](./src/models/errors/healthcheckresulterror.ts): Healthy. Status code `503`. Applicable to 3 of 69 methods.*
-* [`SystemHealthError`](./src/models/errors/systemhealtherror.ts): Healthy. Status code `503`. Applicable to 1 of 69 methods.*
-* [`ServiceUnavailableError`](./src/models/errors/serviceunavailableerror.ts): Not ready. Status code `503`. Applicable to 1 of 69 methods.*
+**Inherit from [`LucidError`](./src/models/errors/luciderror.ts)**:
+* [`HealthCheckResultError`](./src/models/errors/healthcheckresulterror.ts): Healthy. Status code `503`. Applicable to 3 of 102 methods.*
+* [`SystemHealthError`](./src/models/errors/systemhealtherror.ts): Healthy. Status code `503`. Applicable to 1 of 102 methods.*
+* [`ServiceUnavailableError`](./src/models/errors/serviceunavailableerror.ts): Not ready. Status code `503`. Applicable to 1 of 102 methods.*
 * [`ResponseValidationError`](./src/models/errors/responsevalidationerror.ts): Type mismatch between the data returned from the server and the structure expected by the SDK. See `error.rawValue` for the raw value and `error.pretty()` for a nicely formatted multi-line string.
 
 </details>
@@ -503,14 +659,14 @@ run();
 
 The default server can be overridden globally by passing a URL to the `serverURL: string` optional parameter when initializing the SDK client instance. For example:
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi({
+const lucidSDK = new LucidSDK({
   serverURL: "https://api.lucid.foundation",
 });
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.create({
+  const result = await lucidSDK.passports.create({
     type: "dataset",
     owner: "<value>",
     metadata: {
@@ -541,19 +697,23 @@ The `HTTPClient` constructor takes an optional `fetcher` argument that can be
 used to integrate a third-party HTTP client or when writing tests to mock out
 the HTTP client and feed in fixtures.
 
-The following example shows how to use the `"beforeRequest"` hook to to add a
-custom header and a timeout to requests and how to use the `"requestError"` hook
-to log errors:
+The following example shows how to:
+- route requests through a proxy server using [undici](https://www.npmjs.com/package/undici)'s ProxyAgent
+- use the `"beforeRequest"` hook to add a custom header and a timeout to requests
+- use the `"requestError"` hook to log errors
 
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
-import { HTTPClient } from "raijin-labs-lucid-ai/lib/http";
+import { LucidSDK } from "@lucid/sdk";
+import { ProxyAgent } from "undici";
+import { HTTPClient } from "@lucid/sdk/lib/http";
+
+const dispatcher = new ProxyAgent("http://proxy.example.com:8080");
 
 const httpClient = new HTTPClient({
-  // fetcher takes a function that has the same signature as native `fetch`.
-  fetcher: (request) => {
-    return fetch(request);
-  }
+  // 'fetcher' takes a function that has the same signature as native 'fetch'.
+  fetcher: (input, init) =>
+    // 'dispatcher' is specific to undici and not part of the standard Fetch API.
+    fetch(input, { ...init, dispatcher } as RequestInit),
 });
 
 httpClient.addHook("beforeRequest", (request) => {
@@ -573,7 +733,7 @@ httpClient.addHook("requestError", (error, request) => {
   console.groupEnd();
 });
 
-const sdk = new RaijinLabsLucidAi({ httpClient: httpClient });
+const sdk = new LucidSDK({ httpClient: httpClient });
 ```
 <!-- End Custom HTTP Client [http-client] -->
 
@@ -588,12 +748,12 @@ You can pass a logger that matches `console`'s interface as an SDK option.
 > Beware that debug logging will reveal secrets, like API tokens in headers, in log messages printed to a console or files. It's recommended to use this feature only during local development and not in production.
 
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const sdk = new RaijinLabsLucidAi({ debugLogger: console });
+const sdk = new LucidSDK({ debugLogger: console });
 ```
 
-You can also enable a default debug logger by setting an environment variable `RAIJINLABSLUCIDAI_DEBUG` to true.
+You can also enable a default debug logger by setting an environment variable `LUCID_DEBUG` to true.
 <!-- End Debugging [debug] -->
 
 <!-- Placeholder for Future Speakeasy SDK Sections -->

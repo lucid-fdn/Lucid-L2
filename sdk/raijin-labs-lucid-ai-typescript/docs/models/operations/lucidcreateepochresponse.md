@@ -5,7 +5,7 @@ Created
 ## Example Usage
 
 ```typescript
-import { LucidCreateEpochResponse } from "raijin-labs-lucid-ai/models/operations";
+import { LucidCreateEpochResponse } from "@lucid/sdk/models/operations";
 
 let value: LucidCreateEpochResponse = {
   success: false,

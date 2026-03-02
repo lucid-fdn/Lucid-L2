@@ -5,7 +5,7 @@
 import * as z from "zod/v4-mini";
 import * as types from "../../types/primitives.js";
 import * as models from "../index.js";
-import { RaijinLabsLucidAiError } from "./raijinlabslucidaierror.js";
+import { LucidError } from "./luciderror.js";
 
 export type HealthCheckResultErrorData = {
   status: models.HealthCheckResultStatus;
@@ -14,7 +14,7 @@ export type HealthCheckResultErrorData = {
   details?: { [k: string]: any } | undefined;
 };
 
-export class HealthCheckResultError extends RaijinLabsLucidAiError {
+export class HealthCheckResultError extends LucidError {
   status: models.HealthCheckResultStatus;
   latency?: number | undefined;
   error?: string | undefined;

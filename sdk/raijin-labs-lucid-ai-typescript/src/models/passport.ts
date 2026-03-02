@@ -31,6 +31,26 @@ export type Passport = {
   status: PassportStatus;
   metadata?: { [k: string]: any } | null | undefined;
   metadataHash?: string | null | undefined;
+  /**
+   * DePIN storage CID for metadata
+   */
+  depinMetadataCid?: string | null | undefined;
+  /**
+   * DePIN provider used (arweave, lighthouse, mock)
+   */
+  depinProvider?: string | null | undefined;
+  /**
+   * NFT mint address (Solana base58 or EVM 0x)
+   */
+  nftMint?: string | null | undefined;
+  /**
+   * Chain where NFT was minted
+   */
+  nftChain?: string | null | undefined;
+  /**
+   * Share token SPL mint address
+   */
+  shareTokenMint?: string | null | undefined;
   createdAt: number;
   updatedAt: number;
   onChain?: OnChain | null | undefined;
@@ -73,6 +93,11 @@ export const Passport$inboundSchema: z.ZodMiniType<Passport, unknown> = z.pipe(
     status: PassportStatus$inboundSchema,
     metadata: z.optional(z.nullable(z.record(z.string(), z.any()))),
     metadata_hash: z.optional(z.nullable(types.string())),
+    depin_metadata_cid: z.optional(z.nullable(types.string())),
+    depin_provider: z.optional(z.nullable(types.string())),
+    nft_mint: z.optional(z.nullable(types.string())),
+    nft_chain: z.optional(z.nullable(types.string())),
+    share_token_mint: z.optional(z.nullable(types.string())),
     created_at: types.number(),
     updated_at: types.number(),
     on_chain: z.optional(z.nullable(z.lazy(() => OnChain$inboundSchema))),
@@ -81,6 +106,11 @@ export const Passport$inboundSchema: z.ZodMiniType<Passport, unknown> = z.pipe(
     return remap$(v, {
       "passport_id": "passportId",
       "metadata_hash": "metadataHash",
+      "depin_metadata_cid": "depinMetadataCid",
+      "depin_provider": "depinProvider",
+      "nft_mint": "nftMint",
+      "nft_chain": "nftChain",
+      "share_token_mint": "shareTokenMint",
       "created_at": "createdAt",
       "updated_at": "updatedAt",
       "on_chain": "onChain",

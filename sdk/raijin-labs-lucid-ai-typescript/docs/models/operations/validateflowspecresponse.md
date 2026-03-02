@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { ValidateFlowspecResponse } from "raijin-labs-lucid-ai/models/operations";
+import { ValidateFlowspecResponse } from "@lucid/sdk/models/operations";
 
 let value: ValidateFlowspecResponse = {
   success: false,

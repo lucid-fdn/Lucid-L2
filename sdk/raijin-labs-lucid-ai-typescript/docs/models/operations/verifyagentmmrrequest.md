@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { VerifyAgentMmrRequest } from "raijin-labs-lucid-ai/models/operations";
+import { VerifyAgentMmrRequest } from "@lucid/sdk/models/operations";
 
 let value: VerifyAgentMmrRequest = {
   agentId: "<id>",

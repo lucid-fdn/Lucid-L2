@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { VerifyAgentMmrResponse } from "raijin-labs-lucid-ai/models/operations";
+import { VerifyAgentMmrResponse } from "@lucid/sdk/models/operations";
 
 let value: VerifyAgentMmrResponse = {
   success: false,

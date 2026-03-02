@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { Pagination } from "raijin-labs-lucid-ai/models";
+import { Pagination } from "@lucid/sdk/models";
 
 let value: Pagination = {
   total: 271635,

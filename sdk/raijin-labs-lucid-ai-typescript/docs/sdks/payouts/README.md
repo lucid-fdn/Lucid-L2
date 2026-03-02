@@ -17,12 +17,12 @@ Calculate payout split
 
 <!-- UsageSnippet language="typescript" operationID="lucid_calculate_payout" method="post" path="/v1/payouts/calculate" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.payouts.calculate({
+  const result = await lucidSDK.payouts.calculate({
     runId: "<id>",
     totalAmountLamports: 721074,
     computeWallet: "<value>",
@@ -39,15 +39,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { payoutsCalculate } from "raijin-labs-lucid-ai/funcs/payoutsCalculate.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { payoutsCalculate } from "@lucid/sdk/funcs/payoutsCalculate.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await payoutsCalculate(raijinLabsLucidAi, {
+  const res = await payoutsCalculate(lucidSDK, {
     runId: "<id>",
     totalAmountLamports: 721074,
     computeWallet: "<value>",
@@ -78,11 +78,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## createFromReceipt
 
@@ -92,12 +92,12 @@ Create payout from receipt token data
 
 <!-- UsageSnippet language="typescript" operationID="lucid_payout_from_receipt" method="post" path="/v1/payouts/from-receipt" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.payouts.createFromReceipt({
+  const result = await lucidSDK.payouts.createFromReceipt({
     runId: "<id>",
     tokensIn: 844317,
     tokensOut: 600261,
@@ -116,15 +116,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { payoutsCreateFromReceipt } from "raijin-labs-lucid-ai/funcs/payoutsCreateFromReceipt.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { payoutsCreateFromReceipt } from "@lucid/sdk/funcs/payoutsCreateFromReceipt.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await payoutsCreateFromReceipt(raijinLabsLucidAi, {
+  const res = await payoutsCreateFromReceipt(lucidSDK, {
     runId: "<id>",
     tokensIn: 844317,
     tokensOut: 600261,
@@ -157,11 +157,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## get
 
@@ -171,12 +171,12 @@ Get payout by run_id
 
 <!-- UsageSnippet language="typescript" operationID="lucid_get_payout" method="get" path="/v1/payouts/{run_id}" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.payouts.get({
+  const result = await lucidSDK.payouts.get({
     runId: "<id>",
   });
 
@@ -191,15 +191,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { payoutsGet } from "raijin-labs-lucid-ai/funcs/payoutsGet.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { payoutsGet } from "@lucid/sdk/funcs/payoutsGet.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await payoutsGet(raijinLabsLucidAi, {
+  const res = await payoutsGet(lucidSDK, {
     runId: "<id>",
   });
   if (res.ok) {
@@ -228,11 +228,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 404                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 404                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## verify
 
@@ -242,12 +242,12 @@ Verify payout split
 
 <!-- UsageSnippet language="typescript" operationID="lucid_verify_payout" method="get" path="/v1/payouts/{run_id}/verify" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.payouts.verify({
+  const result = await lucidSDK.payouts.verify({
     runId: "<id>",
   });
 
@@ -262,15 +262,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { payoutsVerify } from "raijin-labs-lucid-ai/funcs/payoutsVerify.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { payoutsVerify } from "@lucid/sdk/funcs/payoutsVerify.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await payoutsVerify(raijinLabsLucidAi, {
+  const res = await payoutsVerify(lucidSDK, {
     runId: "<id>",
   });
   if (res.ok) {
@@ -299,8 +299,8 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 404                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 404                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |

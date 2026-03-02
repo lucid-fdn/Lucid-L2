@@ -1,5 +1,5 @@
 {
-  "name": "raijin-labs-lucid-ai-examples",
+  "name": "@lucid/sdk-examples",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -13,6 +13,6 @@
     "tsx": "^4.19.2"
   },
   "dependencies": {
-    "raijin-labs-lucid-ai": "file:.."
+    "@lucid/sdk": "file:.."
   }
 }

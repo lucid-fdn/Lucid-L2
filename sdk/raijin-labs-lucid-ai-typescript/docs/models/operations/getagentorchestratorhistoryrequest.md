@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { GetAgentOrchestratorHistoryRequest } from "raijin-labs-lucid-ai/models/operations";
+import { GetAgentOrchestratorHistoryRequest } from "@lucid/sdk/models/operations";
 
 let value: GetAgentOrchestratorHistoryRequest = {
   tenantId: "<id>",

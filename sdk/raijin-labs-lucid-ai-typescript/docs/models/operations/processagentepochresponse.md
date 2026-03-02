@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { ProcessAgentEpochResponse } from "raijin-labs-lucid-ai/models/operations";
+import { ProcessAgentEpochResponse } from "@lucid/sdk/models/operations";
 
 let value: ProcessAgentEpochResponse = {
   success: false,
@@ -25,7 +25,7 @@ let value: ProcessAgentEpochResponse = {
 | `epochNumber`                             | *number*                                  | :heavy_check_mark:                        | N/A                                       |
 | `vectorCount`                             | *number*                                  | :heavy_check_mark:                        | N/A                                       |
 | `mmrRoot`                                 | *string*                                  | :heavy_check_mark:                        | N/A                                       |
-| `ipfsCid`                                 | *string*                                  | :heavy_minus_sign:                        | N/A                                       |
+| `depinCid`                                | *string*                                  | :heavy_minus_sign:                        | N/A                                       |
 | `transactionSignature`                    | *string*                                  | :heavy_minus_sign:                        | N/A                                       |
 | `gasCost`                                 | [models.GasCost](../../models/gascost.md) | :heavy_minus_sign:                        | N/A                                       |
 | `message`                                 | *string*                                  | :heavy_minus_sign:                        | N/A                                       |

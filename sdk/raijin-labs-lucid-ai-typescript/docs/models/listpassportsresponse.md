@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { ListPassportsResponse } from "raijin-labs-lucid-ai/models";
+import { ListPassportsResponse } from "@lucid/sdk/models";
 
 let value: ListPassportsResponse = {
   success: false,

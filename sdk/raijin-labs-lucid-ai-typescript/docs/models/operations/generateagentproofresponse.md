@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { GenerateAgentProofResponse } from "raijin-labs-lucid-ai/models/operations";
+import { GenerateAgentProofResponse } from "@lucid/sdk/models/operations";
 
 let value: GenerateAgentProofResponse = {
   success: false,

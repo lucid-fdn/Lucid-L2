@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { GasCost } from "raijin-labs-lucid-ai/models";
+import { GasCost } from "@lucid/sdk/models";
 
 let value: GasCost = {
   iGas: 317163,

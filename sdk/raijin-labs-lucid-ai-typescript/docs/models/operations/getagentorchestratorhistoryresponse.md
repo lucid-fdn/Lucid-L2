@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { GetAgentOrchestratorHistoryResponse } from "raijin-labs-lucid-ai/models/operations";
+import { GetAgentOrchestratorHistoryResponse } from "@lucid/sdk/models/operations";
 
 let value: GetAgentOrchestratorHistoryResponse = {
   success: false,

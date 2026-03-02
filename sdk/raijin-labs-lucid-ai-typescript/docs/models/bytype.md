@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { ByType } from "raijin-labs-lucid-ai/models";
+import { ByType } from "@lucid/sdk/models";
 
 let value: ByType = {};
 ```

@@ -5,7 +5,7 @@ Ready
 ## Example Usage
 
 ```typescript
-import { CheckReadinessResponse } from "raijin-labs-lucid-ai/models/operations";
+import { CheckReadinessResponse } from "@lucid/sdk/models/operations";
 
 let value: CheckReadinessResponse = {
   status: "<value>",

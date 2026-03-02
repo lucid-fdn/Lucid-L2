@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { ProcessAgentBatchEpochsResponse } from "raijin-labs-lucid-ai/models/operations";
+import { ProcessAgentBatchEpochsResponse } from "@lucid/sdk/models/operations";
 
 let value: ProcessAgentBatchEpochsResponse = {
   success: true,

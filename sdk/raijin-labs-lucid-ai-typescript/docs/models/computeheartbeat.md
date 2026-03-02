@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { ComputeHeartbeat } from "raijin-labs-lucid-ai/models";
+import { ComputeHeartbeat } from "@lucid/sdk/models";
 
 let value: ComputeHeartbeat = {
   computePassportId: "<id>",

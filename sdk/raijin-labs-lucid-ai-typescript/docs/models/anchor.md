@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { Anchor } from "raijin-labs-lucid-ai/models";
+import { Anchor } from "@lucid/sdk/models";
 
 let value: Anchor = {};
 ```

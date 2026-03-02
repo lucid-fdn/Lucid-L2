@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { ReceiptHashVerification } from "raijin-labs-lucid-ai/models";
+import { ReceiptHashVerification } from "@lucid/sdk/models";
 
 let value: ReceiptHashVerification = {
   success: true,

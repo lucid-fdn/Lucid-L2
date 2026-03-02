@@ -50,7 +50,6 @@ export interface LucidProviderSettings {
  * `generateObject`, `streamObject`, and any other Vercel AI SDK function.
  */
 export function createLucidProvider(options: LucidProviderSettings = {}) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const env = typeof globalThis !== "undefined" ? (globalThis as any).process?.env : undefined;
   const apiKey = options.apiKey ?? env?.LUCID_API_KEY ?? "";
 

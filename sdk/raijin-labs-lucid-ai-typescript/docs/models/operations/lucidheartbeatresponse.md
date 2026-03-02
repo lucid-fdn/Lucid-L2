@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { LucidHeartbeatResponse } from "raijin-labs-lucid-ai/models/operations";
+import { LucidHeartbeatResponse } from "@lucid/sdk/models/operations";
 
 let value: LucidHeartbeatResponse = {};
 ```

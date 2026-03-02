@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { OnChain } from "raijin-labs-lucid-ai/models";
+import { OnChain } from "@lucid/sdk/models";
 
 let value: OnChain = {};
 ```

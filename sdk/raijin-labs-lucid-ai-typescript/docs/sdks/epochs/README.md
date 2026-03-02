@@ -25,12 +25,12 @@ Get current epoch
 
 <!-- UsageSnippet language="typescript" operationID="lucid_get_current_epoch" method="get" path="/v1/epochs/current" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.epochs.getCurrent();
+  const result = await lucidSDK.epochs.getCurrent();
 
   console.log(result);
 }
@@ -43,15 +43,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { epochsGetCurrent } from "raijin-labs-lucid-ai/funcs/epochsGetCurrent.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { epochsGetCurrent } from "@lucid/sdk/funcs/epochsGetCurrent.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await epochsGetCurrent(raijinLabsLucidAi);
+  const res = await epochsGetCurrent(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -78,10 +78,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## list
 
@@ -91,12 +91,12 @@ List epochs
 
 <!-- UsageSnippet language="typescript" operationID="lucid_list_epochs" method="get" path="/v1/epochs" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.epochs.list();
+  const result = await lucidSDK.epochs.list();
 
   console.log(result);
 }
@@ -109,15 +109,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { epochsList } from "raijin-labs-lucid-ai/funcs/epochsList.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { epochsList } from "@lucid/sdk/funcs/epochsList.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await epochsList(raijinLabsLucidAi);
+  const res = await epochsList(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -144,10 +144,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## create
 
@@ -157,12 +157,12 @@ Create epoch
 
 <!-- UsageSnippet language="typescript" operationID="lucid_create_epoch" method="post" path="/v1/epochs" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.epochs.create({});
+  const result = await lucidSDK.epochs.create({});
 
   console.log(result);
 }
@@ -175,15 +175,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { epochsCreate } from "raijin-labs-lucid-ai/funcs/epochsCreate.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { epochsCreate } from "@lucid/sdk/funcs/epochsCreate.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await epochsCreate(raijinLabsLucidAi, {});
+  const res = await epochsCreate(lucidSDK, {});
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -210,10 +210,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## get
 
@@ -223,12 +223,12 @@ Get epoch
 
 <!-- UsageSnippet language="typescript" operationID="lucid_get_epoch" method="get" path="/v1/epochs/{epoch_id}" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.epochs.get({
+  const result = await lucidSDK.epochs.get({
     epochId: "<id>",
   });
 
@@ -243,15 +243,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { epochsGet } from "raijin-labs-lucid-ai/funcs/epochsGet.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { epochsGet } from "@lucid/sdk/funcs/epochsGet.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await epochsGet(raijinLabsLucidAi, {
+  const res = await epochsGet(lucidSDK, {
     epochId: "<id>",
   });
   if (res.ok) {
@@ -280,11 +280,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 404                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 404                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## retry
 
@@ -294,12 +294,12 @@ Retry failed epoch
 
 <!-- UsageSnippet language="typescript" operationID="lucid_retry_epoch" method="post" path="/v1/epochs/{epoch_id}/retry" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.epochs.retry({
+  const result = await lucidSDK.epochs.retry({
     epochId: "<id>",
   });
 
@@ -314,15 +314,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { epochsRetry } from "raijin-labs-lucid-ai/funcs/epochsRetry.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { epochsRetry } from "@lucid/sdk/funcs/epochsRetry.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await epochsRetry(raijinLabsLucidAi, {
+  const res = await epochsRetry(lucidSDK, {
     epochId: "<id>",
   });
   if (res.ok) {
@@ -351,11 +351,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## verify
 
@@ -365,12 +365,12 @@ Verify epoch anchor
 
 <!-- UsageSnippet language="typescript" operationID="lucid_verify_epoch" method="get" path="/v1/epochs/{epoch_id}/verify" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.epochs.verify({
+  const result = await lucidSDK.epochs.verify({
     epochId: "<id>",
   });
 
@@ -385,15 +385,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { epochsVerify } from "raijin-labs-lucid-ai/funcs/epochsVerify.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { epochsVerify } from "@lucid/sdk/funcs/epochsVerify.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await epochsVerify(raijinLabsLucidAi, {
+  const res = await epochsVerify(lucidSDK, {
     epochId: "<id>",
   });
   if (res.ok) {
@@ -422,10 +422,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## getTransaction
 
@@ -435,12 +435,12 @@ Get epoch anchoring transaction
 
 <!-- UsageSnippet language="typescript" operationID="lucid_get_epoch_transaction" method="get" path="/v1/epochs/{epoch_id}/transaction" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.epochs.getTransaction({
+  const result = await lucidSDK.epochs.getTransaction({
     epochId: "<id>",
   });
 
@@ -455,15 +455,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { epochsGetTransaction } from "raijin-labs-lucid-ai/funcs/epochsGetTransaction.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { epochsGetTransaction } from "@lucid/sdk/funcs/epochsGetTransaction.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await epochsGetTransaction(raijinLabsLucidAi, {
+  const res = await epochsGetTransaction(lucidSDK, {
     epochId: "<id>",
   });
   if (res.ok) {
@@ -492,11 +492,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 404                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 404                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## commitRoot
 
@@ -506,12 +506,12 @@ Commit epoch root
 
 <!-- UsageSnippet language="typescript" operationID="lucid_commit_epoch_root" method="post" path="/v1/receipts/commit-root" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.epochs.commitRoot({});
+  const result = await lucidSDK.epochs.commitRoot({});
 
   console.log(result);
 }
@@ -524,15 +524,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { epochsCommitRoot } from "raijin-labs-lucid-ai/funcs/epochsCommitRoot.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { epochsCommitRoot } from "@lucid/sdk/funcs/epochsCommitRoot.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await epochsCommitRoot(raijinLabsLucidAi, {});
+  const res = await epochsCommitRoot(lucidSDK, {});
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -559,11 +559,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500, 503                             | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500, 503                 | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## commitRootsBatch
 
@@ -573,12 +573,12 @@ Commit multiple epoch roots
 
 <!-- UsageSnippet language="typescript" operationID="lucid_commit_epoch_roots_batch" method="post" path="/v1/receipts/commit-roots-batch" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.epochs.commitRootsBatch({
+  const result = await lucidSDK.epochs.commitRootsBatch({
     epochIds: [
       "<value 1>",
     ],
@@ -595,15 +595,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { epochsCommitRootsBatch } from "raijin-labs-lucid-ai/funcs/epochsCommitRootsBatch.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { epochsCommitRootsBatch } from "@lucid/sdk/funcs/epochsCommitRootsBatch.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await epochsCommitRootsBatch(raijinLabsLucidAi, {
+  const res = await epochsCommitRootsBatch(lucidSDK, {
     epochIds: [
       "<value 1>",
     ],
@@ -634,11 +634,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## getAnchoringHealth
 
@@ -648,12 +648,12 @@ Anchoring service health
 
 <!-- UsageSnippet language="typescript" operationID="lucid_get_anchoring_health" method="get" path="/v1/anchoring/health" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.epochs.getAnchoringHealth();
+  const result = await lucidSDK.epochs.getAnchoringHealth();
 
   console.log(result);
 }
@@ -666,15 +666,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { epochsGetAnchoringHealth } from "raijin-labs-lucid-ai/funcs/epochsGetAnchoringHealth.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { epochsGetAnchoringHealth } from "@lucid/sdk/funcs/epochsGetAnchoringHealth.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await epochsGetAnchoringHealth(raijinLabsLucidAi);
+  const res = await epochsGetAnchoringHealth(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -700,10 +700,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500, 503                             | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500, 503                 | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## listReady
 
@@ -713,12 +713,12 @@ Get epochs ready for finalization
 
 <!-- UsageSnippet language="typescript" operationID="lucid_list_epochs_ready" method="get" path="/v1/epochs/ready" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.epochs.listReady();
+  const result = await lucidSDK.epochs.listReady();
 
   console.log(result);
 }
@@ -731,15 +731,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { epochsListReady } from "raijin-labs-lucid-ai/funcs/epochsListReady.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { epochsListReady } from "@lucid/sdk/funcs/epochsListReady.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await epochsListReady(raijinLabsLucidAi);
+  const res = await epochsListReady(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -765,10 +765,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## getStats
 
@@ -778,12 +778,12 @@ Epoch statistics
 
 <!-- UsageSnippet language="typescript" operationID="lucid_get_epoch_stats" method="get" path="/v1/epochs/stats" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.epochs.getStats();
+  const result = await lucidSDK.epochs.getStats();
 
   console.log(result);
 }
@@ -796,15 +796,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { epochsGetStats } from "raijin-labs-lucid-ai/funcs/epochsGetStats.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { epochsGetStats } from "@lucid/sdk/funcs/epochsGetStats.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await epochsGetStats(raijinLabsLucidAi);
+  const res = await epochsGetStats(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -830,7 +830,7 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |

@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { PreferredExecutor } from "raijin-labs-lucid-ai/models";
+import { PreferredExecutor } from "@lucid/sdk/models";
 
 let value: PreferredExecutor = "langgraph";
 ```

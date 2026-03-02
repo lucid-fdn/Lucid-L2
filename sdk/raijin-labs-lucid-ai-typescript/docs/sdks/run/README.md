@@ -15,12 +15,12 @@ Run inference (optionally streaming via SSE)
 
 <!-- UsageSnippet language="typescript" operationID="lucid_run_inference" method="post" path="/v1/run/inference" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.run.inference({});
+  const result = await lucidSDK.run.inference({});
 
   console.log(result);
 }
@@ -33,15 +33,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { runInference } from "raijin-labs-lucid-ai/funcs/runInference.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { runInference } from "@lucid/sdk/funcs/runInference.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await runInference(raijinLabsLucidAi, {});
+  const res = await runInference(lucidSDK, {});
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -68,11 +68,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 422                                  | application/json                     |
-| errors.ErrorResponse                 | 500, 503                             | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 422                      | application/json         |
+| errors.ErrorResponse     | 500, 503                 | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## chatCompletions
 
@@ -82,12 +82,12 @@ OpenAI-compatible chat completions
 
 <!-- UsageSnippet language="typescript" operationID="lucid_chat_completions" method="post" path="/v1/chat/completions" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.run.chatCompletions({
+  const result = await lucidSDK.run.chatCompletions({
     model: "Alpine",
     messages: [],
   });
@@ -103,15 +103,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { runChatCompletions } from "raijin-labs-lucid-ai/funcs/runChatCompletions.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { runChatCompletions } from "@lucid/sdk/funcs/runChatCompletions.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await runChatCompletions(raijinLabsLucidAi, {
+  const res = await runChatCompletions(lucidSDK, {
     model: "Alpine",
     messages: [],
   });
@@ -141,8 +141,8 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |

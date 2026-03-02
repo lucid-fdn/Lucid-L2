@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { Usage } from "raijin-labs-lucid-ai/models";
+import { Usage } from "@lucid/sdk/models";
 
 let value: Usage = {
   promptTokens: 979796,

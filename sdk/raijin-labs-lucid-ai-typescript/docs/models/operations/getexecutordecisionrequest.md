@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { GetExecutorDecisionRequest } from "raijin-labs-lucid-ai/models/operations";
+import { GetExecutorDecisionRequest } from "@lucid/sdk/models/operations";
 
 let value: GetExecutorDecisionRequest = {
   flowspec: {

@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { LucidCommitEpochRootsBatchRequest } from "raijin-labs-lucid-ai/models/operations";
+import { LucidCommitEpochRootsBatchRequest } from "@lucid/sdk/models/operations";
 
 let value: LucidCommitEpochRootsBatchRequest = {
   epochIds: [

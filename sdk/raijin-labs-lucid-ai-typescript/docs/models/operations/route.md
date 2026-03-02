@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { Route } from "raijin-labs-lucid-ai/models/operations";
+import { Route } from "@lucid/sdk/models/operations";
 
 let value: Route = {};
 ```

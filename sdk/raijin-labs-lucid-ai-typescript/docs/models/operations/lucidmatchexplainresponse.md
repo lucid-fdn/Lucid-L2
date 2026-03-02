@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { LucidMatchExplainResponse } from "raijin-labs-lucid-ai/models/operations";
+import { LucidMatchExplainResponse } from "@lucid/sdk/models/operations";
 
 let value: LucidMatchExplainResponse = {
   success: true,

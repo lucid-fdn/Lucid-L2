@@ -19,15 +19,15 @@ specific category of applications.
 ## Example
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { passportsCreate } from "raijin-labs-lucid-ai/funcs/passportsCreate.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { passportsCreate } from "@lucid/sdk/funcs/passportsCreate.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await passportsCreate(raijinLabsLucidAi, {
+  const res = await passportsCreate(lucidSDK, {
     type: "dataset",
     owner: "<value>",
     metadata: {

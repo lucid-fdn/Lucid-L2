@@ -13,7 +13,7 @@ export type ProcessAgentBatchEpochsResult = {
   agentId?: string | undefined;
   epochNumber?: number | undefined;
   mmrRoot?: string | undefined;
-  ipfsCid?: string | undefined;
+  depinCid?: string | undefined;
   transactionSignature?: string | undefined;
   gasCost?: models.GasCost | undefined;
 };
@@ -37,7 +37,7 @@ export const ProcessAgentBatchEpochsResult$inboundSchema: z.ZodMiniType<
   agentId: types.optional(types.string()),
   epochNumber: types.optional(types.number()),
   mmrRoot: types.optional(types.string()),
-  ipfsCid: types.optional(types.string()),
+  depinCid: types.optional(types.string()),
   transactionSignature: types.optional(types.string()),
   gasCost: types.optional(models.GasCost$inboundSchema),
 });

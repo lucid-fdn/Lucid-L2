@@ -1,11 +1,11 @@
 <!-- Start SDK Example Usage [usage] -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.create({
+  const result = await lucidSDK.passports.create({
     type: "dataset",
     owner: "<value>",
     metadata: {

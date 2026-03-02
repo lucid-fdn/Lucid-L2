@@ -5,18 +5,31 @@
 import { ClientSDK } from "../lib/sdks.js";
 import { Agents } from "./agents.js";
 import { Compute } from "./compute.js";
+import { Disputes } from "./disputes.js";
 import { Epochs } from "./epochs.js";
+import { Escrow } from "./escrow.js";
 import { Health } from "./health.js";
+import { Identity } from "./identity.js";
 import { Match } from "./match.js";
+import { Modules } from "./modules.js";
 import { Passports } from "./passports.js";
+import { Paymaster } from "./paymaster.js";
 import { Payouts } from "./payouts.js";
 import { Receipts } from "./receipts.js";
 import { Run } from "./run.js";
+import { Shares } from "./shares.js";
+import { Tba } from "./tba.js";
+import { ZkML } from "./zkml.js";
 
-export class RaijinLabsLucidAi extends ClientSDK {
+export class LucidSDK extends ClientSDK {
   private _passports?: Passports;
   get passports(): Passports {
     return (this._passports ??= new Passports(this._options));
+  }
+
+  private _shares?: Shares;
+  get shares(): Shares {
+    return (this._shares ??= new Shares(this._options));
   }
 
   private _compute?: Compute;
@@ -57,5 +70,40 @@ export class RaijinLabsLucidAi extends ClientSDK {
   private _agents?: Agents;
   get agents(): Agents {
     return (this._agents ??= new Agents(this._options));
+  }
+
+  private _escrow?: Escrow;
+  get escrow(): Escrow {
+    return (this._escrow ??= new Escrow(this._options));
+  }
+
+  private _disputes?: Disputes;
+  get disputes(): Disputes {
+    return (this._disputes ??= new Disputes(this._options));
+  }
+
+  private _paymaster?: Paymaster;
+  get paymaster(): Paymaster {
+    return (this._paymaster ??= new Paymaster(this._options));
+  }
+
+  private _identity?: Identity;
+  get identity(): Identity {
+    return (this._identity ??= new Identity(this._options));
+  }
+
+  private _tba?: Tba;
+  get tba(): Tba {
+    return (this._tba ??= new Tba(this._options));
+  }
+
+  private _modules?: Modules;
+  get modules(): Modules {
+    return (this._modules ??= new Modules(this._options));
+  }
+
+  private _zkML?: ZkML;
+  get zkML(): ZkML {
+    return (this._zkML ??= new ZkML(this._options));
   }
 }

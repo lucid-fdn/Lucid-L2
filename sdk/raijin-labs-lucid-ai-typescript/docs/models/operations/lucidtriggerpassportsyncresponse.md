@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { LucidTriggerPassportSyncResponse } from "raijin-labs-lucid-ai/models/operations";
+import { LucidTriggerPassportSyncResponse } from "@lucid/sdk/models/operations";
 
 let value: LucidTriggerPassportSyncResponse = {
   success: false,

@@ -5,7 +5,7 @@ Input fields for creating a receipt. The backend computes the hash, signature, a
 ## Example Usage
 
 ```typescript
-import { CreateReceiptRequest } from "raijin-labs-lucid-ai/models";
+import { CreateReceiptRequest } from "@lucid/sdk/models";
 
 let value: CreateReceiptRequest = {
   modelPassportId: "<id>",

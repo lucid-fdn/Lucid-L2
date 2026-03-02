@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { LucidGetEpochResponse } from "raijin-labs-lucid-ai/models/operations";
+import { LucidGetEpochResponse } from "@lucid/sdk/models/operations";
 
 let value: LucidGetEpochResponse = {
   success: true,

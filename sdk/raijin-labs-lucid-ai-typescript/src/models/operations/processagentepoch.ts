@@ -18,7 +18,7 @@ export type ProcessAgentEpochResponse = {
   epochNumber: number;
   vectorCount: number;
   mmrRoot: string;
-  ipfsCid?: string | undefined;
+  depinCid?: string | undefined;
   transactionSignature?: string | undefined;
   gasCost?: models.GasCost | undefined;
   message?: string | undefined;
@@ -34,7 +34,7 @@ export const ProcessAgentEpochResponse$inboundSchema: z.ZodMiniType<
   epochNumber: types.number(),
   vectorCount: types.number(),
   mmrRoot: types.string(),
-  ipfsCid: types.optional(types.string()),
+  depinCid: types.optional(types.string()),
   transactionSignature: types.optional(types.string()),
   gasCost: types.optional(models.GasCost$inboundSchema),
   message: types.optional(types.string()),

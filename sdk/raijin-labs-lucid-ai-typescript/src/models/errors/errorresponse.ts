@@ -5,7 +5,7 @@
 import * as z from "zod/v4-mini";
 import { remap as remap$ } from "../../lib/primitives.js";
 import * as types from "../../types/primitives.js";
-import { RaijinLabsLucidAiError } from "./raijinlabslucidaierror.js";
+import { LucidError } from "./luciderror.js";
 
 /**
  * Bad Request
@@ -21,7 +21,7 @@ export type ErrorResponseData = {
 /**
  * Bad Request
  */
-export class ErrorResponse extends RaijinLabsLucidAiError {
+export class ErrorResponse extends LucidError {
   success?: boolean | undefined;
   error?: string | undefined;
   errorCode?: string | undefined;

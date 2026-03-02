@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { LucidDeletePassportResponse } from "raijin-labs-lucid-ai/models/operations";
+import { LucidDeletePassportResponse } from "@lucid/sdk/models/operations";
 
 let value: LucidDeletePassportResponse = {
   success: false,

@@ -15,6 +15,9 @@ info:
 servers:
   - url: https://api.lucid.foundation
     description: Production server
+security:
+  - BearerAuth: []
+  - {}
 # Speakeasy MCP tool generation configuration
 x-speakeasy-mcp:
   scope-mapping:
@@ -22,7 +25,7 @@ x-speakeasy-mcp:
       scopes: [read]
     - pattern: "^(verify|check)"
       scopes: [read]
-    - pattern: "^(create|update|trigger|submit|commit|retry|run|calculate|init|process|plan|accomplish|execute|validate)"
+    - pattern: "^(create|update|trigger|submit|commit|retry|run|calculate|init|process|plan|accomplish|execute|validate|release|dispute|open|resolve|appeal|sponsor|estimate|link|unlink|install|uninstall|configure|prove|register|generate)"
       scopes: [write]
     - pattern: "^(delete)"
       scopes: [write, destructive]
@@ -36,6 +39,14 @@ tags:
   - name: Compute
   - name: Health
   - name: Agents
+  - name: Shares
+  - name: Escrow
+  - name: Disputes
+  - name: Paymaster
+  - name: Identity
+  - name: TBA
+  - name: Modules
+  - name: zkML
 paths:
   # ===========================================================================
   # Passports
@@ -278,6 +289,89 @@ paths:
                 $ref: '#/components/schemas/PassportStatsResponse'
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: getStats
+  # ===========================================================================
+  # Share Tokens
+  # ===========================================================================
+  /v1/passports/{passport_id}/token/launch:
+    post:
+      tags: [Shares]
+      operationId: lucid_launch_share_token
+      summary: Launch a share token for a passport
+      x-speakeasy-mcp:
+        name: lucid_launch_share_token
+        description: Create and launch a share token (SPL) for fractional ownership of a passport.
+      parameters:
+        - in: path
+          name: passport_id
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenLaunchRequest'
+      responses:
+        '201':
+          description: Token launched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenLaunchResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /v1/passports/{passport_id}/token:
+    get:
+      tags: [Shares]
+      operationId: lucid_get_share_token
+      summary: Get share token info for a passport
+      x-speakeasy-mcp:
+        name: lucid_get_share_token
+        description: Get token info (mint, supply, holders) for a passport's share token.
+      parameters:
+        - in: path
+          name: passport_id
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenInfo'
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /v1/passports/{passport_id}/token/airdrop:
+    post:
+      tags: [Shares]
+      operationId: lucid_trigger_revenue_airdrop
+      summary: Trigger revenue airdrop for share token holders
+      x-speakeasy-mcp:
+        name: lucid_trigger_revenue_airdrop
+        description: Snapshot token holders and distribute SOL proportionally based on holdings.
+      parameters:
+        - in: path
+          name: passport_id
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AirdropRequest'
+      responses:
+        '200':
+          description: Airdrop executed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AirdropResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
   /v1/models:
     get:
       tags: [Passports]
@@ -296,6 +390,10 @@ paths:
         - in: query
           name: max_vram
           schema: {type: integer}
+        - in: query
+          name: available
+          description: "Tri-state filter: 'true' returns only models that can serve inference (healthy compute or API-hosted), 'false' returns only unavailable models (missing compute), omit for all models"
+          schema: {type: string, enum: ['true', 'false']}
         - in: query
           name: owner
           schema: {type: string}
@@ -521,8 +619,8 @@ paths:
               type: object
               properties:
                 policy: {$ref: '#/components/schemas/Policy'}
-                compute_meta: {type: object, additionalProperties: true}
-                model_meta: {type: object, additionalProperties: true}
+                compute_meta: {$ref: '#/components/schemas/ComputeMeta'}
+                model_meta: {$ref: '#/components/schemas/ModelMeta'}
       responses:
         '200':
           description: OK
@@ -556,11 +654,11 @@ paths:
             schema:
               type: object
               properties:
-                model_meta: {type: object, additionalProperties: true}
+                model_meta: {$ref: '#/components/schemas/ModelMeta'}
                 policy: {$ref: '#/components/schemas/Policy'}
                 compute_catalog:
                   type: array
-                  items: {type: object, additionalProperties: true}
+                  items: {$ref: '#/components/schemas/ComputeMeta'}
                 require_live_healthy: {type: boolean, default: true}
       responses:
         '200':
@@ -592,11 +690,11 @@ paths:
             schema:
               type: object
               properties:
-                model_meta: {type: object, additionalProperties: true}
+                model_meta: {$ref: '#/components/schemas/ModelMeta'}
                 policy: {$ref: '#/components/schemas/Policy'}
                 compute_catalog:
                   type: array
-                  items: {type: object, additionalProperties: true}
+                  items: {$ref: '#/components/schemas/ComputeMeta'}
                 request_id: {type: string}
                 require_live_healthy: {type: boolean, default: true}
       responses:
@@ -1622,7 +1720,7 @@ paths:
                   epochNumber: {type: integer}
                   vectorCount: {type: integer}
                   mmrRoot: {type: string}
-                  ipfsCid: {type: string}
+                  depinCid: {type: string}
                   transactionSignature: {type: string}
                   gasCost: {$ref: '#/components/schemas/GasCost'}
                   message: {type: string}
@@ -1661,7 +1759,7 @@ paths:
                         agentId: {type: string}
                         epochNumber: {type: integer}
                         mmrRoot: {type: string}
-                        ipfsCid: {type: string}
+                        depinCid: {type: string}
                         transactionSignature: {type: string}
                         gasCost: {$ref: '#/components/schemas/GasCost'}
                   totalGasCost: {$ref: '#/components/schemas/GasCost'}
@@ -2143,6 +2241,804 @@ paths:
                   message: {type: string}
         '400': {$ref: '#/components/responses/BadRequest'}
         '500': {$ref: '#/components/responses/InternalServerError'}
+  # ===========================================================================
+  # v2 Escrow
+  # ===========================================================================
+  /v2/escrow/create:
+    post:
+      tags: [Escrow]
+      operationId: lucid_create_escrow
+      summary: Create a time-locked escrow
+      x-speakeasy-mcp:
+        name: lucid_create_escrow
+        description: Create a time-locked escrow for agent-to-agent transactions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEscrowRequest'
+      responses:
+        '200':
+          description: Escrow created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: create
+  /v2/escrow/release:
+    post:
+      tags: [Escrow]
+      operationId: lucid_release_escrow
+      summary: Release escrow with verified receipt
+      x-speakeasy-mcp:
+        name: lucid_release_escrow
+        description: Release escrow funds to beneficiary after receipt verification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseEscrowRequest'
+      responses:
+        '200':
+          description: Escrow released
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: release
+  /v2/escrow/dispute:
+    post:
+      tags: [Escrow]
+      operationId: lucid_dispute_escrow
+      summary: Dispute an escrow
+      x-speakeasy-mcp:
+        name: lucid_dispute_escrow
+        description: Dispute an active escrow, freezing funds for arbitration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisputeEscrowRequest'
+      responses:
+        '200':
+          description: Escrow disputed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: dispute
+  /v2/escrow/{chainId}/{escrowId}:
+    get:
+      tags: [Escrow]
+      operationId: lucid_get_escrow
+      summary: Get escrow details
+      x-speakeasy-mcp:
+        name: lucid_get_escrow
+        description: Get details of a specific escrow by chain and ID.
+      parameters:
+        - name: chainId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: escrowId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Escrow details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetEscrowResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: get
+  # ===========================================================================
+  # v2 Disputes
+  # ===========================================================================
+  /v2/disputes/open:
+    post:
+      tags: [Disputes]
+      operationId: lucid_open_dispute
+      summary: Open a dispute on an escrow
+      x-speakeasy-mcp:
+        name: lucid_open_dispute
+        description: Open a dispute on an active escrow, starting the evidence phase.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OpenDisputeRequest'
+      responses:
+        '200':
+          description: Dispute opened
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: open
+  /v2/disputes/{disputeId}/evidence:
+    post:
+      tags: [Disputes]
+      operationId: lucid_submit_evidence
+      summary: Submit evidence for a dispute
+      x-speakeasy-mcp:
+        name: lucid_submit_evidence
+        description: Submit evidence (receipt hash, MMR proof) for an open dispute.
+      parameters:
+        - name: disputeId
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitEvidenceRequest'
+      responses:
+        '200':
+          description: Evidence submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: submitEvidence
+  /v2/disputes/{disputeId}/resolve:
+    post:
+      tags: [Disputes]
+      operationId: lucid_resolve_dispute
+      summary: Resolve a dispute
+      x-speakeasy-mcp:
+        name: lucid_resolve_dispute
+        description: Trigger automated resolution of a dispute based on submitted evidence.
+      parameters:
+        - name: disputeId
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chainId]
+              properties:
+                chainId: {type: string}
+      responses:
+        '200':
+          description: Dispute resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: resolve
+  /v2/disputes/{disputeId}/appeal:
+    post:
+      tags: [Disputes]
+      operationId: lucid_appeal_dispute
+      summary: Appeal a dispute decision
+      x-speakeasy-mcp:
+        name: lucid_appeal_dispute
+        description: Appeal a dispute resolution (requires staking LUCID).
+      parameters:
+        - name: disputeId
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [chainId]
+              properties:
+                chainId: {type: string}
+      responses:
+        '200':
+          description: Appeal submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: appeal
+  /v2/disputes/{chainId}/{disputeId}:
+    get:
+      tags: [Disputes]
+      operationId: lucid_get_dispute
+      summary: Get dispute details
+      x-speakeasy-mcp:
+        name: lucid_get_dispute
+        description: Get details of a specific dispute.
+      parameters:
+        - name: chainId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: disputeId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Dispute details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetDisputeResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: get
+  # ===========================================================================
+  # v2 Paymaster (ERC-4337 gas abstraction)
+  # ===========================================================================
+  /v2/paymaster/sponsor:
+    post:
+      tags: [Paymaster]
+      operationId: lucid_sponsor_user_op
+      summary: Sponsor a UserOp with $LUCID
+      x-speakeasy-mcp:
+        name: lucid_sponsor_user_op
+        description: Sponsor an ERC-4337 UserOperation, paying gas in $LUCID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SponsorUserOpRequest'
+      responses:
+        '200':
+          description: UserOp sponsored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: sponsor
+  /v2/paymaster/rate/{chainId}:
+    get:
+      tags: [Paymaster]
+      operationId: lucid_get_paymaster_rate
+      summary: Get LUCID/ETH exchange rate
+      x-speakeasy-mcp:
+        name: lucid_get_paymaster_rate
+        description: Get the current LUCID per ETH exchange rate for gas sponsoring.
+      parameters:
+        - name: chainId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Exchange rate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymasterRateResponse'
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: getRate
+  /v2/paymaster/estimate:
+    post:
+      tags: [Paymaster]
+      operationId: lucid_estimate_gas_lucid
+      summary: Estimate gas cost in $LUCID
+      x-speakeasy-mcp:
+        name: lucid_estimate_gas_lucid
+        description: Estimate how much $LUCID a UserOperation will cost.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EstimateGasRequest'
+      responses:
+        '200':
+          description: Gas estimate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: estimate
+  # ===========================================================================
+  # v2 Identity (cross-chain)
+  # ===========================================================================
+  /v2/identity/link:
+    post:
+      tags: [Identity]
+      operationId: lucid_link_identity
+      summary: Link addresses cross-chain
+      x-speakeasy-mcp:
+        name: lucid_link_identity
+        description: Link a new address to an existing cross-chain identity.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LinkIdentityRequest'
+      responses:
+        '200':
+          description: Identity linked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityLinkResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: link
+  /v2/identity/resolve:
+    post:
+      tags: [Identity]
+      operationId: lucid_resolve_identity
+      summary: Resolve cross-chain identity
+      x-speakeasy-mcp:
+        name: lucid_resolve_identity
+        description: Resolve a CAIP-10 address to its cross-chain identity graph.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveIdentityRequest'
+      responses:
+        '200':
+          description: Identity resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: resolve
+    get:
+      tags: [Identity]
+      operationId: lucid_get_identity
+      summary: Resolve identity (GET)
+      x-speakeasy-mcp:
+        name: lucid_get_identity
+        description: Resolve a CAIP-10 address via query parameter.
+      parameters:
+        - name: caip10
+          in: query
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Identity resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: get
+  /v2/identity/chains:
+    get:
+      tags: [Identity]
+      operationId: lucid_get_identity_chains
+      summary: Get linked chains for identity
+      x-speakeasy-mcp:
+        name: lucid_get_identity_chains
+        description: Get all chains linked to a CAIP-10 address.
+      parameters:
+        - name: caip10
+          in: query
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Linked chains
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityChainsResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: getChains
+  /v2/identity/unlink:
+    post:
+      tags: [Identity]
+      operationId: lucid_unlink_identity
+      summary: Unlink a cross-chain address
+      x-speakeasy-mcp:
+        name: lucid_unlink_identity
+        description: Remove a linked address from a cross-chain identity.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnlinkIdentityRequest'
+      responses:
+        '200':
+          description: Identity unlinked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: unlink
+  # ===========================================================================
+  # v2 TBA (Token Bound Accounts)
+  # ===========================================================================
+  /v2/tba/create:
+    post:
+      tags: [TBA]
+      operationId: lucid_create_tba
+      summary: Create TBA for passport NFT
+      x-speakeasy-mcp:
+        name: lucid_create_tba
+        description: Create an ERC-6551 Token Bound Account for a passport NFT.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTBARequest'
+      responses:
+        '200':
+          description: TBA created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTBAResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: create
+  /v2/tba/{chainId}/{tokenId}:
+    get:
+      tags: [TBA]
+      operationId: lucid_get_tba
+      summary: Get TBA address
+      x-speakeasy-mcp:
+        name: lucid_get_tba
+        description: Get the Token Bound Account address for a token.
+      parameters:
+        - name: chainId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: tokenId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: tokenContract
+          in: query
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: TBA info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetTBAResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: get
+  # ===========================================================================
+  # v2 ERC-7579 Modules
+  # ===========================================================================
+  /v2/modules/install:
+    post:
+      tags: [Modules]
+      operationId: lucid_install_module
+      summary: Install module on smart account
+      x-speakeasy-mcp:
+        name: lucid_install_module
+        description: Install an ERC-7579 module on a smart account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstallModuleRequest'
+      responses:
+        '200':
+          description: Module installed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: install
+  /v2/modules/uninstall:
+    post:
+      tags: [Modules]
+      operationId: lucid_uninstall_module
+      summary: Uninstall module from smart account
+      x-speakeasy-mcp:
+        name: lucid_uninstall_module
+        description: Uninstall an ERC-7579 module from a smart account.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UninstallModuleRequest'
+      responses:
+        '200':
+          description: Module uninstalled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: uninstall
+  /v2/modules/policy/configure:
+    post:
+      tags: [Modules]
+      operationId: lucid_configure_policy_module
+      summary: Configure policy module
+      x-speakeasy-mcp:
+        name: lucid_configure_policy_module
+        description: Set allowed policy hashes on the LucidPolicyModule.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigurePolicyRequest'
+      responses:
+        '200':
+          description: Policy configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: configurePolicy
+  /v2/modules/payout/configure:
+    post:
+      tags: [Modules]
+      operationId: lucid_configure_payout_module
+      summary: Configure payout module
+      x-speakeasy-mcp:
+        name: lucid_configure_payout_module
+        description: Set revenue split on the LucidPayoutModule.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfigurePayoutRequest'
+      responses:
+        '200':
+          description: Payout configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: configurePayout
+  /v2/modules/{chainId}/{account}:
+    get:
+      tags: [Modules]
+      operationId: lucid_list_modules
+      summary: List installed modules
+      x-speakeasy-mcp:
+        name: lucid_list_modules
+        description: List ERC-7579 modules installed on a smart account.
+      parameters:
+        - name: chainId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: account
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Installed modules
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListModulesResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: list
+  # ===========================================================================
+  # v2 zkML
+  # ===========================================================================
+  /v2/zkml/prove:
+    post:
+      tags: [zkML]
+      operationId: lucid_generate_zkml_proof
+      summary: Generate zkML proof
+      x-speakeasy-mcp:
+        name: lucid_generate_zkml_proof
+        description: Generate a zkML proof for model inference verification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateZkMLProofRequest'
+      responses:
+        '200':
+          description: Proof generated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: {type: boolean}
+                  proof: {$ref: '#/components/schemas/ZkMLProof'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: prove
+  /v2/zkml/verify:
+    post:
+      tags: [zkML]
+      operationId: lucid_verify_zkml_proof
+      summary: Verify zkML proof
+      x-speakeasy-mcp:
+        name: lucid_verify_zkml_proof
+        description: Verify a zkML proof (offchain first, then onchain if valid).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyZkMLProofRequest'
+      responses:
+        '200':
+          description: Verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ZkMLVerifyResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: verify
+  /v2/zkml/register-model:
+    post:
+      tags: [zkML]
+      operationId: lucid_register_zkml_model
+      summary: Register model circuit
+      x-speakeasy-mcp:
+        name: lucid_register_zkml_model
+        description: Register a model's Groth16 verifying key for onchain proof verification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterZkMLModelRequest'
+      responses:
+        '200':
+          description: Model registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: registerModel
+  /v2/zkml/models/{chainId}:
+    get:
+      tags: [zkML]
+      operationId: lucid_list_zkml_models
+      summary: List registered model circuits
+      x-speakeasy-mcp:
+        name: lucid_list_zkml_models
+        description: List all registered zkML model circuits on a chain.
+      parameters:
+        - name: chainId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Model circuits
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListZkMLModelsResponse'
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: listModels
+  # ===========================================================================
+  # Passport PATCH sub-routes
+  # ===========================================================================
+  /v1/passports/{passport_id}/pricing:
+    patch:
+      tags: [Passports]
+      operationId: lucid_update_passport_pricing
+      summary: Update passport pricing
+      x-speakeasy-mcp:
+        name: lucid_update_passport_pricing
+        description: Update pricing fields on a passport.
+      parameters:
+        - name: passport_id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: X-Owner-Address
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePassportPricingRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPassportResponse'
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: updatePricing
+  /v1/passports/{passport_id}/endpoints:
+    patch:
+      tags: [Passports]
+      operationId: lucid_update_passport_endpoints
+      summary: Update passport endpoint URLs
+      x-speakeasy-mcp:
+        name: lucid_update_passport_endpoints
+        description: Update endpoint URLs on a passport.
+      parameters:
+        - name: passport_id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: X-Owner-Address
+          in: header
+          required: false
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePassportEndpointsRequest'
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetPassportResponse'
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+      x-speakeasy-name-override: updateEndpoints
 # =============================================================================
 # Components
 # =============================================================================
@@ -2178,6 +3074,11 @@ components:
       content:
         application/json:
           schema: {$ref: '#/components/schemas/ErrorResponse'}
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Lucid API key (lk_live_... or lk_test_...)
   schemas:
     # =========================================================================
     # Passport schemas
@@ -2208,6 +3109,11 @@ components:
           additionalProperties: true
           nullable: true
         metadata_hash: {type: string, nullable: true}
+        depin_metadata_cid: {type: string, nullable: true, description: 'DePIN storage CID for metadata'}
+        depin_provider: {type: string, nullable: true, description: 'DePIN provider used (arweave, lighthouse, mock)'}
+        nft_mint: {type: string, nullable: true, description: 'NFT mint address (Solana base58 or EVM 0x)'}
+        nft_chain: {type: string, nullable: true, description: 'Chain where NFT was minted'}
+        share_token_mint: {type: string, nullable: true, description: 'Share token SPL mint address'}
         created_at: {type: integer}
         updated_at: {type: integer}
         on_chain:
@@ -2313,6 +3219,190 @@ components:
           properties:
             store_inputs: {type: boolean}
             redact_pii: {type: boolean}
+    # =========================================================================
+    # ComputeMeta / ModelMeta schemas  (mirror schemas/*.schema.json)
+    # =========================================================================
+    ComputeHardware:
+      type: object
+      required: [gpu, vram_gb]
+      properties:
+        gpu: {type: string, description: "GPU model (e.g. 'NVIDIA-A100-40GB')"}
+        vram_gb: {type: integer, minimum: 0, description: GPU VRAM in gigabytes}
+        arch: {type: string, description: "GPU architecture (e.g. 'ampere', 'hopper')"}
+        gpu_count: {type: integer, minimum: 1, default: 1}
+        cpu_cores: {type: integer, minimum: 1}
+        memory_gb: {type: integer, minimum: 1, description: System RAM in gigabytes}
+    ComputeRuntime:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          enum: [vllm, tgi, tensorrt, hf-inference-api, openai-compatible, custom]
+        version: {type: string}
+        image: {type: string, description: Docker image reference}
+    ComputeCapabilities:
+      type: object
+      properties:
+        supports_streaming: {type: boolean, default: true}
+        supports_attestation: {type: boolean, default: false}
+        supports_cc_on: {type: boolean, default: false}
+        inference_types:
+          type: array
+          items:
+            type: string
+            enum: [text-generation, chat-completion, embeddings, image-generation, speech-to-text]
+    ComputeEndpoints:
+      type: object
+      required: [inference_url]
+      properties:
+        inference_url: {type: string, description: URL for inference requests}
+        quote_url: {type: string, format: uri}
+        jobs_url: {type: string, format: uri}
+        health_url: {type: string, format: uri}
+        metrics_url: {type: string, format: uri}
+    ComputeWorker:
+      type: object
+      required: [worker_id, status]
+      properties:
+        worker_id: {type: string}
+        status:
+          type: string
+          enum: [online, offline, degraded, draining]
+        last_heartbeat: {type: integer, description: Unix timestamp of last heartbeat}
+    ComputeMeta:
+      type: object
+      description: >-
+        Metadata for a compute provider passport. Validated against schemas/ComputeMeta.schema.json (additionalProperties: false).
+      required: [schema_version, compute_passport_id, provider_type, regions, hardware, runtimes, endpoints]
+      properties:
+        schema_version: {type: string, enum: ['1.0']}
+        compute_passport_id: {type: string, minLength: 10}
+        provider_type:
+          type: string
+          enum: [depin, cloud, onprem, managed]
+        execution_mode:
+          type: string
+          enum: [byo_runtime, managed_endpoint]
+        operator_pubkey:
+          type: string
+          pattern: '^[a-f0-9]{64}$'
+          description: ed25519 public key (hex) of the provider operator
+        regions:
+          type: array
+          items: {type: string}
+          minItems: 1
+        residency_supported: {type: boolean, default: false}
+        hardware: {$ref: '#/components/schemas/ComputeHardware'}
+        gpu_fingerprint:
+          type: string
+          nullable: true
+          description: "GPU hardware fingerprint. Must be null for managed_endpoint mode."
+        runtime_hash:
+          type: string
+          nullable: true
+          pattern: '^sha256:[a-f0-9]{64}$'
+          description: "Docker image digest. Must be null for managed_endpoint mode."
+        runtimes:
+          type: array
+          items: {$ref: '#/components/schemas/ComputeRuntime'}
+          minItems: 1
+        capabilities: {$ref: '#/components/schemas/ComputeCapabilities'}
+        network:
+          type: object
+          properties:
+            p95_ms_estimate: {type: integer, minimum: 0}
+            bandwidth: {type: string}
+        limits:
+          type: object
+          properties:
+            max_context: {type: integer, minimum: 0}
+            max_batch: {type: integer, minimum: 0}
+            max_input_tokens: {type: integer, minimum: 1}
+            max_output_tokens: {type: integer, minimum: 1}
+            requests_per_minute: {type: integer, minimum: 1}
+        pricing:
+          type: object
+          properties:
+            price_per_1k_tokens_estimate: {type: number, minimum: 0}
+            price_per_minute_estimate: {type: number, minimum: 0}
+            per_input_token: {type: number, minimum: 0}
+            per_output_token: {type: number, minimum: 0}
+            currency:
+              type: string
+              enum: [lamports, usd_cents, credits]
+        endpoints: {$ref: '#/components/schemas/ComputeEndpoints'}
+        workers:
+          type: array
+          items: {$ref: '#/components/schemas/ComputeWorker'}
+        sla:
+          type: object
+          properties:
+            tier:
+              type: string
+              enum: [best-effort, standard, premium, enterprise]
+            uptime_target: {type: number, minimum: 0, maximum: 100}
+        policy_tags:
+          type: array
+          items: {type: string}
+          description: "Tags for matching (e.g. 'hipaa', 'gdpr', 'no-logging')"
+        metadata:
+          type: object
+          additionalProperties: true
+    ModelRequirements:
+      type: object
+      properties:
+        min_vram_gb: {type: integer, minimum: 0}
+        gpu_classes:
+          type: array
+          items: {type: string}
+        cuda_min: {type: string}
+    ModelMeta:
+      type: object
+      description: >-
+        Metadata for a model passport. Validated against schemas/ModelMeta.schema.json (additionalProperties: false).
+      required: [schema_version, model_passport_id, format, runtime_recommended]
+      properties:
+        schema_version: {type: string, enum: ['1.0']}
+        model_passport_id: {type: string, minLength: 10}
+        format:
+          type: string
+          enum: [safetensors, gguf, api]
+        runtime_recommended:
+          type: string
+          enum: [vllm, tgi, tensorrt, trustgate, openai]
+        name: {type: string}
+        description: {type: string}
+        provider: {type: string, description: "Provider name (e.g. trustgate, openai)"}
+        base:
+          type: string
+          enum: [hf, openai, anthropic, google, cohere, custom_endpoint]
+          default: hf
+        hf:
+          type: object
+          properties:
+            repo_id: {type: string}
+            revision: {type: string}
+        context_length: {type: integer, minimum: 1}
+        quantizations:
+          type: array
+          items:
+            type: string
+            enum: [fp16, int8, awq, gptq, gguf_q4]
+        requirements: {$ref: '#/components/schemas/ModelRequirements'}
+        endpoints:
+          type: object
+          properties:
+            openai_compat_base_url: {type: string}
+            auth_mode:
+              type: string
+              enum: [byok, lucid_key, none]
+              default: none
+        artifacts:
+          type: array
+          items: {type: string}
+        weights_uri: {type: string}
+        weights_hash: {type: string}
     # =========================================================================
     # Chat / Inference schemas
     # =========================================================================
@@ -2530,6 +3620,7 @@ components:
       properties:
         run_id: {type: string}
         receipt_hash: {type: string}
+        leaf: {type: string, description: 'The leaf hash (receipt_hash) at leaf_index'}
         leaf_index: {type: integer}
         proof:
           type: array
@@ -2776,7 +3867,7 @@ components:
       required: [agentId]
       properties:
         agentId: {type: string}
-        ipfsCid: {type: string}
+        depinCid: {type: string}
     AgentEpochRequest:
       type: object
       required: [agentId, vectors]
@@ -2853,3 +3944,367 @@ components:
           type: string
           enum: [n8n, langgraph]
         dryRun: {type: boolean}
+    # =========================================================================
+    # Share Token schemas
+    # =========================================================================
+    TokenLaunchRequest:
+      type: object
+      required: [name, symbol, totalSupply]
+      properties:
+        name: {type: string, description: 'Token name (e.g., "Llama 3.1 Share")'}
+        symbol: {type: string, description: 'Token symbol (e.g., "LLAMA")'}
+        totalSupply: {type: integer, minimum: 1, description: 'Total token supply'}
+        decimals: {type: integer, minimum: 0, maximum: 18, default: 6, description: 'Token decimals'}
+    TokenLaunchResponse:
+      type: object
+      required: [success, mint, txSignature, totalSupply, provider]
+      properties:
+        success: {type: boolean}
+        mint: {type: string, description: 'SPL token mint address'}
+        txSignature: {type: string, description: 'Transaction signature'}
+        totalSupply: {type: integer}
+        provider: {type: string, description: 'Token launcher provider used'}
+    TokenInfo:
+      type: object
+      required: [success, mint, passportId, name, symbol, totalSupply, decimals]
+      properties:
+        success: {type: boolean}
+        mint: {type: string, description: 'SPL token mint address'}
+        passportId: {type: string}
+        name: {type: string}
+        symbol: {type: string}
+        totalSupply: {type: integer}
+        decimals: {type: integer}
+        holders: {type: integer, description: 'Number of unique token holders'}
+    AirdropRequest:
+      type: object
+      required: [amountLamports]
+      properties:
+        amountLamports: {type: integer, minimum: 1, description: 'SOL amount in lamports to distribute'}
+    AirdropResponse:
+      type: object
+      required: [success, passportId, tokenMint, totalDistributed, holders, distributions, txSignatures]
+      properties:
+        success: {type: boolean}
+        passportId: {type: string}
+        tokenMint: {type: string}
+        totalDistributed: {type: integer, description: 'Total lamports distributed'}
+        holders: {type: integer, description: 'Number of holders who received airdrop'}
+        distributions:
+          type: array
+          items:
+            type: object
+            properties:
+              holder: {type: string}
+              balance: {type: number}
+              share: {type: number}
+              amountLamports: {type: integer}
+        txSignatures:
+          type: array
+          items: {type: string}
+    # =========================================================================
+    # v2 Escrow
+    # =========================================================================
+    EscrowStatus:
+      type: string
+      enum: [Created, Released, Refunded, Disputed]
+    CreateEscrowRequest:
+      type: object
+      required: [chainId, beneficiary, token, amount, duration]
+      properties:
+        chainId: {type: string, description: "Chain identifier (e.g. 'base', 'ethereum-sepolia')"}
+        beneficiary: {type: string, description: "Beneficiary address"}
+        token: {type: string, description: "ERC-20 token address"}
+        amount: {type: string, description: "Amount in token base units"}
+        duration: {type: integer, description: "Escrow duration in seconds"}
+        expectedReceiptHash: {type: string, description: "Optional expected receipt hash for auto-release"}
+    ReleaseEscrowRequest:
+      type: object
+      required: [chainId, escrowId, receiptHash, signature, signerPubkey]
+      properties:
+        chainId: {type: string}
+        escrowId: {type: string}
+        receiptHash: {type: string}
+        signature: {type: string}
+        signerPubkey: {type: string}
+    DisputeEscrowRequest:
+      type: object
+      required: [chainId, escrowId, reason]
+      properties:
+        chainId: {type: string}
+        escrowId: {type: string}
+        reason: {type: string}
+    EscrowInfo:
+      type: object
+      properties:
+        escrowId: {type: string}
+        depositor: {type: string}
+        beneficiary: {type: string}
+        token: {type: string}
+        amount: {type: string}
+        createdAt: {type: string}
+        expiresAt: {type: string}
+        expectedReceiptHash: {type: string}
+        status: {$ref: '#/components/schemas/EscrowStatus'}
+    GetEscrowResponse:
+      type: object
+      required: [success]
+      properties:
+        success: {type: boolean}
+        escrow: {$ref: '#/components/schemas/EscrowInfo'}
+    # =========================================================================
+    # v2 Disputes
+    # =========================================================================
+    DisputeStatus:
+      type: string
+      enum: [Open, EvidencePhase, Resolved, Appealed]
+    OpenDisputeRequest:
+      type: object
+      required: [chainId, escrowId, reason]
+      properties:
+        chainId: {type: string}
+        escrowId: {type: string}
+        reason: {type: string}
+    SubmitEvidenceRequest:
+      type: object
+      required: [chainId]
+      properties:
+        chainId: {type: string}
+        receiptHash: {type: string}
+        mmrRoot: {type: string}
+        mmrProof: {type: string}
+        description: {type: string}
+    DisputeInfo:
+      type: object
+      properties:
+        disputeId: {type: string}
+        escrowId: {type: string}
+        status: {$ref: '#/components/schemas/DisputeStatus'}
+        reason: {type: string}
+        createdAt: {type: string}
+        resolvedAt: {type: string}
+        resolution: {type: string}
+    GetDisputeResponse:
+      type: object
+      required: [success]
+      properties:
+        success: {type: boolean}
+        dispute: {$ref: '#/components/schemas/DisputeInfo'}
+    # =========================================================================
+    # v2 Paymaster
+    # =========================================================================
+    SponsorUserOpRequest:
+      type: object
+      required: [chainId, userOp]
+      properties:
+        chainId: {type: string}
+        userOp:
+          type: object
+          description: ERC-4337 UserOperation struct
+    EstimateGasRequest:
+      type: object
+      required: [chainId, userOp]
+      properties:
+        chainId: {type: string}
+        userOp:
+          type: object
+          description: ERC-4337 UserOperation struct
+    PaymasterRateResponse:
+      type: object
+      required: [success]
+      properties:
+        success: {type: boolean}
+        exchangeRate: {type: number, description: "LUCID per ETH rate"}
+        chainId: {type: string}
+    # =========================================================================
+    # v2 Identity
+    # =========================================================================
+    LinkIdentityRequest:
+      type: object
+      required: [primaryCaip10, linkedCaip10]
+      properties:
+        primaryCaip10: {type: string, description: "Primary CAIP-10 address"}
+        linkedCaip10: {type: string, description: "Address to link"}
+        proof: {type: string, description: "Optional ownership proof"}
+    ResolveIdentityRequest:
+      type: object
+      required: [caip10]
+      properties:
+        caip10: {type: string}
+    UnlinkIdentityRequest:
+      type: object
+      required: [primaryCaip10, linkedCaip10]
+      properties:
+        primaryCaip10: {type: string}
+        linkedCaip10: {type: string}
+    IdentityLink:
+      type: object
+      properties:
+        linkId: {type: string}
+        primaryCaip10: {type: string}
+        linkedCaip10: {type: string}
+        createdAt: {type: string}
+    IdentityLinkResponse:
+      type: object
+      required: [success]
+      properties:
+        success: {type: boolean}
+        link: {$ref: '#/components/schemas/IdentityLink'}
+    IdentityChainsResponse:
+      type: object
+      required: [success]
+      properties:
+        success: {type: boolean}
+        caip10: {type: string}
+        chains:
+          type: array
+          items: {type: string}
+    # =========================================================================
+    # v2 TBA (Token Bound Accounts)
+    # =========================================================================
+    CreateTBARequest:
+      type: object
+      required: [chainId, tokenContract, tokenId]
+      properties:
+        chainId: {type: string}
+        tokenContract: {type: string, description: "NFT contract address"}
+        tokenId: {type: string, description: "NFT token ID"}
+    TBAInfo:
+      type: object
+      properties:
+        address: {type: string, description: "TBA contract address"}
+        chainId: {type: string}
+        tokenContract: {type: string}
+        tokenId: {type: string}
+    GetTBAResponse:
+      type: object
+      required: [success]
+      properties:
+        success: {type: boolean}
+        tba: {$ref: '#/components/schemas/TBAInfo'}
+    # =========================================================================
+    # v2 ERC-7579 Modules
+    # =========================================================================
+    InstallModuleRequest:
+      type: object
+      required: [chainId, account, moduleType, moduleAddress]
+      properties:
+        chainId: {type: string}
+        account: {type: string, description: "Smart account address"}
+        moduleType: {type: string, description: "Module type (validator, executor)"}
+        moduleAddress: {type: string, description: "Module contract address"}
+        initData: {type: string, description: "Optional init calldata (hex)"}
+    UninstallModuleRequest:
+      type: object
+      required: [chainId, account, moduleType, moduleAddress]
+      properties:
+        chainId: {type: string}
+        account: {type: string}
+        moduleType: {type: string}
+        moduleAddress: {type: string}
+    ConfigurePolicyRequest:
+      type: object
+      required: [chainId, account, policyHashes]
+      properties:
+        chainId: {type: string}
+        account: {type: string}
+        policyHashes:
+          type: array
+          items: {type: string}
+    ConfigurePayoutRequest:
+      type: object
+      required: [chainId, account, recipients, basisPoints]
+      properties:
+        chainId: {type: string}
+        account: {type: string}
+        recipients:
+          type: array
+          items: {type: string}
+        basisPoints:
+          type: array
+          items: {type: integer}
+          description: "Must sum to 10000"
+    ListModulesResponse:
+      type: object
+      required: [success]
+      properties:
+        success: {type: boolean}
+        modules: {type: object, description: "Installed modules by type"}
+    # =========================================================================
+    # v2 zkML
+    # =========================================================================
+    GenerateZkMLProofRequest:
+      type: object
+      required: [modelId, inputHash, outputHash, policyHash]
+      properties:
+        modelId: {type: string}
+        inputHash: {type: string}
+        outputHash: {type: string}
+        policyHash: {type: string}
+    VerifyZkMLProofRequest:
+      type: object
+      required: [chainId, proof, receiptHash]
+      properties:
+        chainId: {type: string}
+        proof: {type: object, description: "Groth16 proof (a, b, c points)"}
+        receiptHash: {type: string}
+    RegisterZkMLModelRequest:
+      type: object
+      required: [chainId, modelHash, verifyingKey]
+      properties:
+        chainId: {type: string}
+        modelHash: {type: string}
+        verifyingKey: {type: string, description: "Groth16 verifying key (hex)"}
+    ZkMLProof:
+      type: object
+      properties:
+        proof: {type: object}
+        publicInputs:
+          type: array
+          items: {type: string}
+        modelCircuitHash: {type: string}
+        verified: {type: boolean}
+    ZkMLVerifyResponse:
+      type: object
+      required: [success]
+      properties:
+        success: {type: boolean}
+        valid: {type: boolean}
+        stage:
+          type: string
+          enum: [offchain, onchain]
+        error: {type: string}
+    ListZkMLModelsResponse:
+      type: object
+      required: [success]
+      properties:
+        success: {type: boolean}
+        models: {type: object}
+    # =========================================================================
+    # Passport PATCH sub-routes
+    # =========================================================================
+    UpdatePassportPricingRequest:
+      type: object
+      properties:
+        price_per_request: {type: number}
+        billing_model: {type: string}
+        revenue_split:
+          type: object
+          properties:
+            compute_bps: {type: integer}
+            model_bps: {type: integer}
+            protocol_bps: {type: integer}
+    UpdatePassportEndpointsRequest:
+      type: object
+      properties:
+        inference_url: {type: string, format: uri}
+        health_url: {type: string, format: uri}
+        api_base_url: {type: string, format: uri}
+    # =========================================================================
+    # Shared
+    # =========================================================================
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success: {type: boolean}

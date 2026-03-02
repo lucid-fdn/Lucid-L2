@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { HealthCheckResultError } from "raijin-labs-lucid-ai/models/errors";
+import { HealthCheckResultError } from "@lucid/sdk/models/errors";
 
 // No examples available for this model
 ```

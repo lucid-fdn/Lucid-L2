@@ -14,6 +14,8 @@ import { passportsLucidListTools } from "../funcs/passportsLucidListTools.js";
 import { passportsSearchModels } from "../funcs/passportsSearchModels.js";
 import { passportsSync } from "../funcs/passportsSync.js";
 import { passportsUpdate } from "../funcs/passportsUpdate.js";
+import { passportsUpdateEndpoints } from "../funcs/passportsUpdateEndpoints.js";
+import { passportsUpdatePricing } from "../funcs/passportsUpdatePricing.js";
 import { ClientSDK, RequestOptions } from "../lib/sdks.js";
 import * as models from "../models/index.js";
 import * as operations from "../models/operations/index.js";
@@ -178,6 +180,34 @@ export class Passports extends ClientSDK {
     options?: RequestOptions,
   ): Promise<operations.LucidListAgentPassportsResponse> {
     return unwrapAsync(passportsLucidListAgentPassports(
+      this,
+      request,
+      options,
+    ));
+  }
+
+  /**
+   * Update passport pricing
+   */
+  async updatePricing(
+    request: operations.LucidUpdatePassportPricingRequest,
+    options?: RequestOptions,
+  ): Promise<models.GetPassportResponse> {
+    return unwrapAsync(passportsUpdatePricing(
+      this,
+      request,
+      options,
+    ));
+  }
+
+  /**
+   * Update passport endpoint URLs
+   */
+  async updateEndpoints(
+    request: operations.LucidUpdatePassportEndpointsRequest,
+    options?: RequestOptions,
+  ): Promise<models.GetPassportResponse> {
+    return unwrapAsync(passportsUpdateEndpoints(
       this,
       request,
       options,

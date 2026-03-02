@@ -5,18 +5,18 @@
 import dotenv from "dotenv";
 dotenv.config();
 /**
- * Example usage of the raijin-labs-lucid-ai SDK
+ * Example usage of the @lucid/sdk SDK
  *
  * To run this example from the examples directory:
  * npm run build && npx tsx passportsCreate.example.ts
  */
 
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function main() {
-  const result = await raijinLabsLucidAi.passports.create({
+  const result = await lucidSDK.passports.create({
     type: "dataset",
     owner: "<value>",
     metadata: {

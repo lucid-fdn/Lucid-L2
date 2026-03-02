@@ -16,6 +16,8 @@
 * [lucidListTools](#lucidlisttools) - List tool passports
 * [lucidListDatasets](#lucidlistdatasets) - List dataset passports
 * [lucidListAgentPassports](#lucidlistagentpassports) - List agent passports
+* [updatePricing](#updatepricing) - Update passport pricing
+* [updateEndpoints](#updateendpoints) - Update passport endpoint URLs
 
 ## create
 
@@ -25,12 +27,12 @@ Create a passport
 
 <!-- UsageSnippet language="typescript" operationID="lucid_create_passport" method="post" path="/v1/passports" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.create({
+  const result = await lucidSDK.passports.create({
     type: "dataset",
     owner: "<value>",
     metadata: {
@@ -51,15 +53,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { passportsCreate } from "raijin-labs-lucid-ai/funcs/passportsCreate.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { passportsCreate } from "@lucid/sdk/funcs/passportsCreate.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await passportsCreate(raijinLabsLucidAi, {
+  const res = await passportsCreate(lucidSDK, {
     type: "dataset",
     owner: "<value>",
     metadata: {
@@ -94,11 +96,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400, 422                             | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400, 422                 | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## list
 
@@ -108,12 +110,12 @@ List passports
 
 <!-- UsageSnippet language="typescript" operationID="lucid_list_passports" method="get" path="/v1/passports" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.list();
+  const result = await lucidSDK.passports.list();
 
   console.log(result);
 }
@@ -126,15 +128,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { passportsList } from "raijin-labs-lucid-ai/funcs/passportsList.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { passportsList } from "@lucid/sdk/funcs/passportsList.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await passportsList(raijinLabsLucidAi);
+  const res = await passportsList(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -161,10 +163,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## get
 
@@ -174,12 +176,12 @@ Get a passport
 
 <!-- UsageSnippet language="typescript" operationID="lucid_get_passport" method="get" path="/v1/passports/{passport_id}" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.get({
+  const result = await lucidSDK.passports.get({
     passportId: "<id>",
   });
 
@@ -194,15 +196,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { passportsGet } from "raijin-labs-lucid-ai/funcs/passportsGet.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { passportsGet } from "@lucid/sdk/funcs/passportsGet.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await passportsGet(raijinLabsLucidAi, {
+  const res = await passportsGet(lucidSDK, {
     passportId: "<id>",
   });
   if (res.ok) {
@@ -231,11 +233,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 404                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 404                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## update
 
@@ -245,12 +247,12 @@ Update a passport
 
 <!-- UsageSnippet language="typescript" operationID="lucid_update_passport" method="patch" path="/v1/passports/{passport_id}" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.update({
+  const result = await lucidSDK.passports.update({
     passportId: "<id>",
     body: {},
   });
@@ -266,15 +268,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { passportsUpdate } from "raijin-labs-lucid-ai/funcs/passportsUpdate.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { passportsUpdate } from "@lucid/sdk/funcs/passportsUpdate.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await passportsUpdate(raijinLabsLucidAi, {
+  const res = await passportsUpdate(lucidSDK, {
     passportId: "<id>",
     body: {},
   });
@@ -304,11 +306,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400, 403, 404                        | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400, 403, 404            | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## delete
 
@@ -318,12 +320,12 @@ Delete a passport (soft delete)
 
 <!-- UsageSnippet language="typescript" operationID="lucid_delete_passport" method="delete" path="/v1/passports/{passport_id}" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.delete({
+  const result = await lucidSDK.passports.delete({
     passportId: "<id>",
   });
 
@@ -338,15 +340,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { passportsDelete } from "raijin-labs-lucid-ai/funcs/passportsDelete.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { passportsDelete } from "@lucid/sdk/funcs/passportsDelete.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await passportsDelete(raijinLabsLucidAi, {
+  const res = await passportsDelete(lucidSDK, {
     passportId: "<id>",
   });
   if (res.ok) {
@@ -375,11 +377,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 403, 404                             | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 403, 404                 | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## sync
 
@@ -389,12 +391,12 @@ Trigger on-chain sync for a passport
 
 <!-- UsageSnippet language="typescript" operationID="lucid_trigger_passport_sync" method="post" path="/v1/passports/{passport_id}/sync" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.sync({
+  const result = await lucidSDK.passports.sync({
     passportId: "<id>",
   });
 
@@ -409,15 +411,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { passportsSync } from "raijin-labs-lucid-ai/funcs/passportsSync.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { passportsSync } from "@lucid/sdk/funcs/passportsSync.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await passportsSync(raijinLabsLucidAi, {
+  const res = await passportsSync(lucidSDK, {
     passportId: "<id>",
   });
   if (res.ok) {
@@ -446,11 +448,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 404                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 404                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## listPendingSync
 
@@ -460,12 +462,12 @@ Get passports pending sync
 
 <!-- UsageSnippet language="typescript" operationID="lucid_list_passports_pending_sync" method="get" path="/v1/passports/pending-sync" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.listPendingSync();
+  const result = await lucidSDK.passports.listPendingSync();
 
   console.log(result);
 }
@@ -478,15 +480,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { passportsListPendingSync } from "raijin-labs-lucid-ai/funcs/passportsListPendingSync.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { passportsListPendingSync } from "@lucid/sdk/funcs/passportsListPendingSync.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await passportsListPendingSync(raijinLabsLucidAi);
+  const res = await passportsListPendingSync(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -512,10 +514,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## getStats
 
@@ -525,12 +527,12 @@ Passport statistics
 
 <!-- UsageSnippet language="typescript" operationID="lucid_get_passport_stats" method="get" path="/v1/passports/stats" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.getStats();
+  const result = await lucidSDK.passports.getStats();
 
   console.log(result);
 }
@@ -543,15 +545,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { passportsGetStats } from "raijin-labs-lucid-ai/funcs/passportsGetStats.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { passportsGetStats } from "@lucid/sdk/funcs/passportsGetStats.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await passportsGetStats(raijinLabsLucidAi);
+  const res = await passportsGetStats(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -577,10 +579,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## searchModels
 
@@ -590,12 +592,12 @@ Search model passports
 
 <!-- UsageSnippet language="typescript" operationID="lucid_search_models" method="get" path="/v1/models" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.searchModels();
+  const result = await lucidSDK.passports.searchModels();
 
   console.log(result);
 }
@@ -608,15 +610,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { passportsSearchModels } from "raijin-labs-lucid-ai/funcs/passportsSearchModels.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { passportsSearchModels } from "@lucid/sdk/funcs/passportsSearchModels.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await passportsSearchModels(raijinLabsLucidAi);
+  const res = await passportsSearchModels(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -643,10 +645,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## lucidListTools
 
@@ -656,12 +658,12 @@ List tool passports
 
 <!-- UsageSnippet language="typescript" operationID="lucid_list_tools" method="get" path="/v1/tools" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.lucidListTools();
+  const result = await lucidSDK.passports.lucidListTools();
 
   console.log(result);
 }
@@ -674,15 +676,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { passportsLucidListTools } from "raijin-labs-lucid-ai/funcs/passportsLucidListTools.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { passportsLucidListTools } from "@lucid/sdk/funcs/passportsLucidListTools.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await passportsLucidListTools(raijinLabsLucidAi);
+  const res = await passportsLucidListTools(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -709,10 +711,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## lucidListDatasets
 
@@ -722,12 +724,12 @@ List dataset passports
 
 <!-- UsageSnippet language="typescript" operationID="lucid_list_datasets" method="get" path="/v1/datasets" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.lucidListDatasets();
+  const result = await lucidSDK.passports.lucidListDatasets();
 
   console.log(result);
 }
@@ -740,15 +742,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { passportsLucidListDatasets } from "raijin-labs-lucid-ai/funcs/passportsLucidListDatasets.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { passportsLucidListDatasets } from "@lucid/sdk/funcs/passportsLucidListDatasets.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await passportsLucidListDatasets(raijinLabsLucidAi);
+  const res = await passportsLucidListDatasets(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -775,10 +777,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## lucidListAgentPassports
 
@@ -788,12 +790,12 @@ List agent passports
 
 <!-- UsageSnippet language="typescript" operationID="lucid_list_agent_passports" method="get" path="/v1/agents" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.passports.lucidListAgentPassports();
+  const result = await lucidSDK.passports.lucidListAgentPassports();
 
   console.log(result);
 }
@@ -806,15 +808,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { passportsLucidListAgentPassports } from "raijin-labs-lucid-ai/funcs/passportsLucidListAgentPassports.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { passportsLucidListAgentPassports } from "@lucid/sdk/funcs/passportsLucidListAgentPassports.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await passportsLucidListAgentPassports(raijinLabsLucidAi);
+  const res = await passportsLucidListAgentPassports(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -841,7 +843,153 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
+
+## updatePricing
+
+Update passport pricing
+
+### Example Usage
+
+<!-- UsageSnippet language="typescript" operationID="lucid_update_passport_pricing" method="patch" path="/v1/passports/{passport_id}/pricing" -->
+```typescript
+import { LucidSDK } from "@lucid/sdk";
+
+const lucidSDK = new LucidSDK();
+
+async function run() {
+  const result = await lucidSDK.passports.updatePricing({
+    passportId: "<id>",
+    body: {},
+  });
+
+  console.log(result);
+}
+
+run();
+```
+
+### Standalone function
+
+The standalone function version of this method:
+
+```typescript
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { passportsUpdatePricing } from "@lucid/sdk/funcs/passportsUpdatePricing.js";
+
+// Use `LucidSDKCore` for best tree-shaking performance.
+// You can create one instance of it to use across an application.
+const lucidSDK = new LucidSDKCore();
+
+async function run() {
+  const res = await passportsUpdatePricing(lucidSDK, {
+    passportId: "<id>",
+    body: {},
+  });
+  if (res.ok) {
+    const { value: result } = res;
+    console.log(result);
+  } else {
+    console.log("passportsUpdatePricing failed:", res.error);
+  }
+}
+
+run();
+```
+
+### Parameters
+
+| Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `request`                                                                                                                                                                      | [operations.LucidUpdatePassportPricingRequest](../../models/operations/lucidupdatepassportpricingrequest.md)                                                                   | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
+| `options`                                                                                                                                                                      | RequestOptions                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                             | Used to set various options for making HTTP requests.                                                                                                                          |
+| `options.fetchOptions`                                                                                                                                                         | [RequestInit](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options)                                                                                        | :heavy_minus_sign:                                                                                                                                                             | Options that are passed to the underlying HTTP request. This can be used to inject extra headers for examples. All `Request` options, except `method` and `body`, are allowed. |
+| `options.retries`                                                                                                                                                              | [RetryConfig](../../lib/utils/retryconfig.md)                                                                                                                                  | :heavy_minus_sign:                                                                                                                                                             | Enables retrying HTTP requests under certain failure conditions.                                                                                                               |
+
+### Response
+
+**Promise\<[models.GetPassportResponse](../../models/getpassportresponse.md)\>**
+
+### Errors
+
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 403, 404                 | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
+
+## updateEndpoints
+
+Update passport endpoint URLs
+
+### Example Usage
+
+<!-- UsageSnippet language="typescript" operationID="lucid_update_passport_endpoints" method="patch" path="/v1/passports/{passport_id}/endpoints" -->
+```typescript
+import { LucidSDK } from "@lucid/sdk";
+
+const lucidSDK = new LucidSDK();
+
+async function run() {
+  const result = await lucidSDK.passports.updateEndpoints({
+    passportId: "<id>",
+    body: {},
+  });
+
+  console.log(result);
+}
+
+run();
+```
+
+### Standalone function
+
+The standalone function version of this method:
+
+```typescript
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { passportsUpdateEndpoints } from "@lucid/sdk/funcs/passportsUpdateEndpoints.js";
+
+// Use `LucidSDKCore` for best tree-shaking performance.
+// You can create one instance of it to use across an application.
+const lucidSDK = new LucidSDKCore();
+
+async function run() {
+  const res = await passportsUpdateEndpoints(lucidSDK, {
+    passportId: "<id>",
+    body: {},
+  });
+  if (res.ok) {
+    const { value: result } = res;
+    console.log(result);
+  } else {
+    console.log("passportsUpdateEndpoints failed:", res.error);
+  }
+}
+
+run();
+```
+
+### Parameters
+
+| Parameter                                                                                                                                                                      | Type                                                                                                                                                                           | Required                                                                                                                                                                       | Description                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `request`                                                                                                                                                                      | [operations.LucidUpdatePassportEndpointsRequest](../../models/operations/lucidupdatepassportendpointsrequest.md)                                                               | :heavy_check_mark:                                                                                                                                                             | The request object to use for the request.                                                                                                                                     |
+| `options`                                                                                                                                                                      | RequestOptions                                                                                                                                                                 | :heavy_minus_sign:                                                                                                                                                             | Used to set various options for making HTTP requests.                                                                                                                          |
+| `options.fetchOptions`                                                                                                                                                         | [RequestInit](https://developer.mozilla.org/en-US/docs/Web/API/Request/Request#options)                                                                                        | :heavy_minus_sign:                                                                                                                                                             | Options that are passed to the underlying HTTP request. This can be used to inject extra headers for examples. All `Request` options, except `method` and `body`, are allowed. |
+| `options.retries`                                                                                                                                                              | [RetryConfig](../../lib/utils/retryconfig.md)                                                                                                                                  | :heavy_minus_sign:                                                                                                                                                             | Enables retrying HTTP requests under certain failure conditions.                                                                                                               |
+
+### Response
+
+**Promise\<[models.GetPassportResponse](../../models/getpassportresponse.md)\>**
+
+### Errors
+
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 403, 404                 | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |

@@ -16,12 +16,12 @@ Search compute passports
 
 <!-- UsageSnippet language="typescript" operationID="lucid_search_compute" method="get" path="/v1/compute" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.compute.searchCompute();
+  const result = await lucidSDK.compute.searchCompute();
 
   console.log(result);
 }
@@ -34,15 +34,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { computeSearchCompute } from "raijin-labs-lucid-ai/funcs/computeSearchCompute.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { computeSearchCompute } from "@lucid/sdk/funcs/computeSearchCompute.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await computeSearchCompute(raijinLabsLucidAi);
+  const res = await computeSearchCompute(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -69,10 +69,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## heartbeat
 
@@ -82,12 +82,12 @@ Submit compute node heartbeat
 
 <!-- UsageSnippet language="typescript" operationID="lucid_heartbeat" method="post" path="/v1/compute/nodes/heartbeat" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.compute.heartbeat({
+  const result = await lucidSDK.compute.heartbeat({
     computePassportId: "<id>",
     status: "healthy",
   });
@@ -103,15 +103,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { computeHeartbeat } from "raijin-labs-lucid-ai/funcs/computeHeartbeat.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { computeHeartbeat } from "@lucid/sdk/funcs/computeHeartbeat.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await computeHeartbeat(raijinLabsLucidAi, {
+  const res = await computeHeartbeat(lucidSDK, {
     computePassportId: "<id>",
     status: "healthy",
   });
@@ -141,11 +141,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## getNodeHealth
 
@@ -155,12 +155,12 @@ Get compute node health
 
 <!-- UsageSnippet language="typescript" operationID="lucid_get_health" method="get" path="/v1/compute/nodes/{computePassportId}/health" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.compute.getNodeHealth({
+  const result = await lucidSDK.compute.getNodeHealth({
     computePassportId: "<id>",
   });
 
@@ -175,15 +175,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { computeGetNodeHealth } from "raijin-labs-lucid-ai/funcs/computeGetNodeHealth.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { computeGetNodeHealth } from "@lucid/sdk/funcs/computeGetNodeHealth.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await computeGetNodeHealth(raijinLabsLucidAi, {
+  const res = await computeGetNodeHealth(lucidSDK, {
     computePassportId: "<id>",
   });
   if (res.ok) {
@@ -212,7 +212,7 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500, 503                             | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500, 503                 | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |

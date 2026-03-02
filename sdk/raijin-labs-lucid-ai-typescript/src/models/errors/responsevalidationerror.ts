@@ -3,10 +3,10 @@
  */
 
 import * as z from "zod/v4/core";
-import { RaijinLabsLucidAiError } from "./raijinlabslucidaierror.js";
+import { LucidError } from "./luciderror.js";
 import { formatZodError } from "./sdkvalidationerror.js";
 
-export class ResponseValidationError extends RaijinLabsLucidAiError {
+export class ResponseValidationError extends LucidError {
   /**
    * The raw value that failed validation.
    */

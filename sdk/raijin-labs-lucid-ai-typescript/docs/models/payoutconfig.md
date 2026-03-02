@@ -5,7 +5,7 @@ Payout split configuration (basis points, must sum to 10000)
 ## Example Usage
 
 ```typescript
-import { PayoutConfig } from "raijin-labs-lucid-ai/models";
+import { PayoutConfig } from "@lucid/sdk/models";
 
 let value: PayoutConfig = {};
 ```

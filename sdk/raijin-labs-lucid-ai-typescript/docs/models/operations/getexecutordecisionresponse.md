@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { GetExecutorDecisionResponse } from "raijin-labs-lucid-ai/models/operations";
+import { GetExecutorDecisionResponse } from "@lucid/sdk/models/operations";
 
 let value: GetExecutorDecisionResponse = {
   success: false,

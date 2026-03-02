@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { AgentAccomplishRequest } from "raijin-labs-lucid-ai/models";
+import { AgentAccomplishRequest } from "@lucid/sdk/models";
 
 let value: AgentAccomplishRequest = {
   goal: "<value>",

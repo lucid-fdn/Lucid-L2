@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { LucidGetAnchoringHealthResponse } from "raijin-labs-lucid-ai/models/operations";
+import { LucidGetAnchoringHealthResponse } from "@lucid/sdk/models/operations";
 
 let value: LucidGetAnchoringHealthResponse = {
   success: true,

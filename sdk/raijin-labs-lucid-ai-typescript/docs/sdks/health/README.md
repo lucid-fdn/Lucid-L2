@@ -20,12 +20,12 @@ Overall system health
 
 <!-- UsageSnippet language="typescript" operationID="check_system_health" method="get" path="/health" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.health.checkSystemHealth();
+  const result = await lucidSDK.health.checkSystemHealth();
 
   console.log(result);
 }
@@ -38,15 +38,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { healthCheckSystemHealth } from "raijin-labs-lucid-ai/funcs/healthCheckSystemHealth.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { healthCheckSystemHealth } from "@lucid/sdk/funcs/healthCheckSystemHealth.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await healthCheckSystemHealth(raijinLabsLucidAi);
+  const res = await healthCheckSystemHealth(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -72,10 +72,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.SystemHealthError             | 503                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.SystemHealthError | 503                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## checkLiveness
 
@@ -85,12 +85,12 @@ Liveness probe
 
 <!-- UsageSnippet language="typescript" operationID="check_liveness" method="get" path="/health/live" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.health.checkLiveness();
+  const result = await lucidSDK.health.checkLiveness();
 
   console.log(result);
 }
@@ -103,15 +103,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { healthCheckLiveness } from "raijin-labs-lucid-ai/funcs/healthCheckLiveness.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { healthCheckLiveness } from "@lucid/sdk/funcs/healthCheckLiveness.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await healthCheckLiveness(raijinLabsLucidAi);
+  const res = await healthCheckLiveness(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -137,9 +137,9 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## checkReadiness
 
@@ -149,12 +149,12 @@ Readiness probe
 
 <!-- UsageSnippet language="typescript" operationID="check_readiness" method="get" path="/health/ready" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.health.checkReadiness();
+  const result = await lucidSDK.health.checkReadiness();
 
   console.log(result);
 }
@@ -167,15 +167,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { healthCheckReadiness } from "raijin-labs-lucid-ai/funcs/healthCheckReadiness.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { healthCheckReadiness } from "@lucid/sdk/funcs/healthCheckReadiness.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await healthCheckReadiness(raijinLabsLucidAi);
+  const res = await healthCheckReadiness(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -201,10 +201,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ServiceUnavailableError       | 503                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type                     | Status Code                    | Content Type                   |
+| ------------------------------ | ------------------------------ | ------------------------------ |
+| errors.ServiceUnavailableError | 503                            | application/json               |
+| errors.LucidDefaultError       | 4XX, 5XX                       | \*/\*                          |
 
 ## checkDatabaseHealth
 
@@ -214,12 +214,12 @@ Database health check
 
 <!-- UsageSnippet language="typescript" operationID="check_database_health" method="get" path="/health/database" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.health.checkDatabaseHealth();
+  const result = await lucidSDK.health.checkDatabaseHealth();
 
   console.log(result);
 }
@@ -232,15 +232,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { healthCheckDatabaseHealth } from "raijin-labs-lucid-ai/funcs/healthCheckDatabaseHealth.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { healthCheckDatabaseHealth } from "@lucid/sdk/funcs/healthCheckDatabaseHealth.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await healthCheckDatabaseHealth(raijinLabsLucidAi);
+  const res = await healthCheckDatabaseHealth(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -266,10 +266,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.HealthCheckResultError        | 503                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type                    | Status Code                   | Content Type                  |
+| ----------------------------- | ----------------------------- | ----------------------------- |
+| errors.HealthCheckResultError | 503                           | application/json              |
+| errors.LucidDefaultError      | 4XX, 5XX                      | \*/\*                         |
 
 ## checkRedisHealth
 
@@ -279,12 +279,12 @@ Redis health check
 
 <!-- UsageSnippet language="typescript" operationID="check_redis_health" method="get" path="/health/redis" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.health.checkRedisHealth();
+  const result = await lucidSDK.health.checkRedisHealth();
 
   console.log(result);
 }
@@ -297,15 +297,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { healthCheckRedisHealth } from "raijin-labs-lucid-ai/funcs/healthCheckRedisHealth.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { healthCheckRedisHealth } from "@lucid/sdk/funcs/healthCheckRedisHealth.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await healthCheckRedisHealth(raijinLabsLucidAi);
+  const res = await healthCheckRedisHealth(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -331,10 +331,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.HealthCheckResultError        | 503                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type                    | Status Code                   | Content Type                  |
+| ----------------------------- | ----------------------------- | ----------------------------- |
+| errors.HealthCheckResultError | 503                           | application/json              |
+| errors.LucidDefaultError      | 4XX, 5XX                      | \*/\*                         |
 
 ## checkNangoHealth
 
@@ -344,12 +344,12 @@ Nango service health check
 
 <!-- UsageSnippet language="typescript" operationID="check_nango_health" method="get" path="/health/nango" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.health.checkNangoHealth();
+  const result = await lucidSDK.health.checkNangoHealth();
 
   console.log(result);
 }
@@ -362,15 +362,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { healthCheckNangoHealth } from "raijin-labs-lucid-ai/funcs/healthCheckNangoHealth.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { healthCheckNangoHealth } from "@lucid/sdk/funcs/healthCheckNangoHealth.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await healthCheckNangoHealth(raijinLabsLucidAi);
+  const res = await healthCheckNangoHealth(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -396,10 +396,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.HealthCheckResultError        | 503                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type                    | Status Code                   | Content Type                  |
+| ----------------------------- | ----------------------------- | ----------------------------- |
+| errors.HealthCheckResultError | 503                           | application/json              |
+| errors.LucidDefaultError      | 4XX, 5XX                      | \*/\*                         |
 
 ## getDetailedHealth
 
@@ -409,12 +409,12 @@ Detailed health with statistics
 
 <!-- UsageSnippet language="typescript" operationID="get_detailed_health" method="get" path="/health/detailed" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.health.getDetailedHealth();
+  const result = await lucidSDK.health.getDetailedHealth();
 
   console.log(result);
 }
@@ -427,15 +427,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { healthGetDetailedHealth } from "raijin-labs-lucid-ai/funcs/healthGetDetailedHealth.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { healthGetDetailedHealth } from "@lucid/sdk/funcs/healthGetDetailedHealth.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await healthGetDetailedHealth(raijinLabsLucidAi);
+  const res = await healthGetDetailedHealth(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -461,7 +461,7 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |

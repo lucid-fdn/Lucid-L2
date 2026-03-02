@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { CheckExecutorHealthResponse } from "raijin-labs-lucid-ai/models/operations";
+import { CheckExecutorHealthResponse } from "@lucid/sdk/models/operations";
 
 let value: CheckExecutorHealthResponse = {
   success: false,

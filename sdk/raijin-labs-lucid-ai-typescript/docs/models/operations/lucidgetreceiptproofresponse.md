@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { LucidGetReceiptProofResponse } from "raijin-labs-lucid-ai/models/operations";
+import { LucidGetReceiptProofResponse } from "@lucid/sdk/models/operations";
 
 let value: LucidGetReceiptProofResponse = {
   success: true,

@@ -32,12 +32,12 @@ Initialize an AI agent
 
 <!-- UsageSnippet language="typescript" operationID="init_agent" method="post" path="/api/agents/init" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.initAgent({
+  const result = await lucidSDK.agents.initAgent({
     agentId: "<id>",
   });
 
@@ -52,15 +52,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsInitAgent } from "raijin-labs-lucid-ai/funcs/agentsInitAgent.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsInitAgent } from "@lucid/sdk/funcs/agentsInitAgent.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsInitAgent(raijinLabsLucidAi, {
+  const res = await agentsInitAgent(lucidSDK, {
     agentId: "<id>",
   });
   if (res.ok) {
@@ -89,11 +89,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## processAgentEpoch
 
@@ -103,12 +103,12 @@ Process an epoch for an agent
 
 <!-- UsageSnippet language="typescript" operationID="process_agent_epoch" method="post" path="/api/agents/epoch" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.processAgentEpoch({
+  const result = await lucidSDK.agents.processAgentEpoch({
     agentId: "<id>",
     vectors: [
       "<value 1>",
@@ -128,15 +128,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsProcessAgentEpoch } from "raijin-labs-lucid-ai/funcs/agentsProcessAgentEpoch.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsProcessAgentEpoch } from "@lucid/sdk/funcs/agentsProcessAgentEpoch.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsProcessAgentEpoch(raijinLabsLucidAi, {
+  const res = await agentsProcessAgentEpoch(lucidSDK, {
     agentId: "<id>",
     vectors: [
       "<value 1>",
@@ -170,11 +170,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## processAgentBatchEpochs
 
@@ -184,12 +184,12 @@ Process multiple epochs in batch
 
 <!-- UsageSnippet language="typescript" operationID="process_agent_batch_epochs" method="post" path="/api/agents/batch-epochs" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.processAgentBatchEpochs({
+  const result = await lucidSDK.agents.processAgentBatchEpochs({
     epochs: [],
   });
 
@@ -204,15 +204,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsProcessAgentBatchEpochs } from "raijin-labs-lucid-ai/funcs/agentsProcessAgentBatchEpochs.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsProcessAgentBatchEpochs } from "@lucid/sdk/funcs/agentsProcessAgentBatchEpochs.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsProcessAgentBatchEpochs(raijinLabsLucidAi, {
+  const res = await agentsProcessAgentBatchEpochs(lucidSDK, {
     epochs: [],
   });
   if (res.ok) {
@@ -241,11 +241,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## generateAgentProof
 
@@ -255,12 +255,12 @@ Generate proof of contribution
 
 <!-- UsageSnippet language="typescript" operationID="generate_agent_proof" method="post" path="/api/agents/proof" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.generateAgentProof({
+  const result = await lucidSDK.agents.generateAgentProof({
     agentId: "<id>",
     vectorText: "<value>",
     epochNumber: 73472,
@@ -277,15 +277,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsGenerateAgentProof } from "raijin-labs-lucid-ai/funcs/agentsGenerateAgentProof.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsGenerateAgentProof } from "@lucid/sdk/funcs/agentsGenerateAgentProof.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsGenerateAgentProof(raijinLabsLucidAi, {
+  const res = await agentsGenerateAgentProof(lucidSDK, {
     agentId: "<id>",
     vectorText: "<value>",
     epochNumber: 73472,
@@ -316,11 +316,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400, 404                             | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400, 404                 | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## getAgentStats
 
@@ -330,12 +330,12 @@ Get agent statistics
 
 <!-- UsageSnippet language="typescript" operationID="get_agent_stats" method="get" path="/api/agents/{agentId}/stats" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.getAgentStats({
+  const result = await lucidSDK.agents.getAgentStats({
     agentId: "<id>",
   });
 
@@ -350,15 +350,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsGetAgentStats } from "raijin-labs-lucid-ai/funcs/agentsGetAgentStats.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsGetAgentStats } from "@lucid/sdk/funcs/agentsGetAgentStats.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsGetAgentStats(raijinLabsLucidAi, {
+  const res = await agentsGetAgentStats(lucidSDK, {
     agentId: "<id>",
   });
   if (res.ok) {
@@ -387,11 +387,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 404                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 404                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## getAgentHistory
 
@@ -401,12 +401,12 @@ Get agent MMR root history
 
 <!-- UsageSnippet language="typescript" operationID="get_agent_history" method="get" path="/api/agents/{agentId}/history" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.getAgentHistory({
+  const result = await lucidSDK.agents.getAgentHistory({
     agentId: "<id>",
   });
 
@@ -421,15 +421,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsGetAgentHistory } from "raijin-labs-lucid-ai/funcs/agentsGetAgentHistory.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsGetAgentHistory } from "@lucid/sdk/funcs/agentsGetAgentHistory.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsGetAgentHistory(raijinLabsLucidAi, {
+  const res = await agentsGetAgentHistory(lucidSDK, {
     agentId: "<id>",
   });
   if (res.ok) {
@@ -458,10 +458,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## getAgentRoot
 
@@ -471,12 +471,12 @@ Get current MMR root for agent
 
 <!-- UsageSnippet language="typescript" operationID="get_agent_root" method="get" path="/api/agents/{agentId}/root" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.getAgentRoot({
+  const result = await lucidSDK.agents.getAgentRoot({
     agentId: "<id>",
   });
 
@@ -491,15 +491,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsGetAgentRoot } from "raijin-labs-lucid-ai/funcs/agentsGetAgentRoot.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsGetAgentRoot } from "@lucid/sdk/funcs/agentsGetAgentRoot.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsGetAgentRoot(raijinLabsLucidAi, {
+  const res = await agentsGetAgentRoot(lucidSDK, {
     agentId: "<id>",
   });
   if (res.ok) {
@@ -528,11 +528,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 404                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 404                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## verifyAgentMmr
 
@@ -542,12 +542,12 @@ Verify MMR integrity for agent
 
 <!-- UsageSnippet language="typescript" operationID="verify_agent_mmr" method="get" path="/api/agents/{agentId}/verify" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.verifyAgentMmr({
+  const result = await lucidSDK.agents.verifyAgentMmr({
     agentId: "<id>",
   });
 
@@ -562,15 +562,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsVerifyAgentMmr } from "raijin-labs-lucid-ai/funcs/agentsVerifyAgentMmr.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsVerifyAgentMmr } from "@lucid/sdk/funcs/agentsVerifyAgentMmr.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsVerifyAgentMmr(raijinLabsLucidAi, {
+  const res = await agentsVerifyAgentMmr(lucidSDK, {
     agentId: "<id>",
   });
   if (res.ok) {
@@ -599,10 +599,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## listAgents
 
@@ -612,12 +612,12 @@ List all registered agents
 
 <!-- UsageSnippet language="typescript" operationID="list_agents" method="get" path="/api/agents" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.listAgents();
+  const result = await lucidSDK.agents.listAgents();
 
   console.log(result);
 }
@@ -630,15 +630,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsListAgents } from "raijin-labs-lucid-ai/funcs/agentsListAgents.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsListAgents } from "@lucid/sdk/funcs/agentsListAgents.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsListAgents(raijinLabsLucidAi);
+  const res = await agentsListAgents(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -664,10 +664,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## planAgentWorkflow
 
@@ -677,12 +677,12 @@ Plan a workflow from a goal
 
 <!-- UsageSnippet language="typescript" operationID="plan_agent_workflow" method="post" path="/api/agents/plan" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.planAgentWorkflow({
+  const result = await lucidSDK.agents.planAgentWorkflow({
     goal: "<value>",
   });
 
@@ -697,15 +697,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsPlanAgentWorkflow } from "raijin-labs-lucid-ai/funcs/agentsPlanAgentWorkflow.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsPlanAgentWorkflow } from "@lucid/sdk/funcs/agentsPlanAgentWorkflow.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsPlanAgentWorkflow(raijinLabsLucidAi, {
+  const res = await agentsPlanAgentWorkflow(lucidSDK, {
     goal: "<value>",
   });
   if (res.ok) {
@@ -734,11 +734,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500, 503                             | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500, 503                 | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## accomplishAgentGoal
 
@@ -748,12 +748,12 @@ Plan and execute a workflow in one call
 
 <!-- UsageSnippet language="typescript" operationID="accomplish_agent_goal" method="post" path="/api/agents/accomplish" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.accomplishAgentGoal({
+  const result = await lucidSDK.agents.accomplishAgentGoal({
     goal: "<value>",
   });
 
@@ -768,15 +768,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsAccomplishAgentGoal } from "raijin-labs-lucid-ai/funcs/agentsAccomplishAgentGoal.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsAccomplishAgentGoal } from "@lucid/sdk/funcs/agentsAccomplishAgentGoal.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsAccomplishAgentGoal(raijinLabsLucidAi, {
+  const res = await agentsAccomplishAgentGoal(lucidSDK, {
     goal: "<value>",
   });
   if (res.ok) {
@@ -805,11 +805,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## previewAgentWorkflow
 
@@ -819,12 +819,12 @@ Preview a workflow without executing
 
 <!-- UsageSnippet language="typescript" operationID="preview_agent_workflow" method="post" path="/api/agents/accomplish/preview" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.previewAgentWorkflow({
+  const result = await lucidSDK.agents.previewAgentWorkflow({
     goal: "<value>",
   });
 
@@ -839,15 +839,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsPreviewAgentWorkflow } from "raijin-labs-lucid-ai/funcs/agentsPreviewAgentWorkflow.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsPreviewAgentWorkflow } from "@lucid/sdk/funcs/agentsPreviewAgentWorkflow.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsPreviewAgentWorkflow(raijinLabsLucidAi, {
+  const res = await agentsPreviewAgentWorkflow(lucidSDK, {
     goal: "<value>",
   });
   if (res.ok) {
@@ -876,11 +876,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## getAgentOrchestratorHistory
 
@@ -890,12 +890,12 @@ Get agent execution history for a tenant
 
 <!-- UsageSnippet language="typescript" operationID="get_agent_orchestrator_history" method="get" path="/api/agents/history/{tenantId}" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.getAgentOrchestratorHistory({
+  const result = await lucidSDK.agents.getAgentOrchestratorHistory({
     tenantId: "<id>",
   });
 
@@ -910,15 +910,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsGetAgentOrchestratorHistory } from "raijin-labs-lucid-ai/funcs/agentsGetAgentOrchestratorHistory.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsGetAgentOrchestratorHistory } from "@lucid/sdk/funcs/agentsGetAgentOrchestratorHistory.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsGetAgentOrchestratorHistory(raijinLabsLucidAi, {
+  const res = await agentsGetAgentOrchestratorHistory(lucidSDK, {
     tenantId: "<id>",
   });
   if (res.ok) {
@@ -947,11 +947,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## checkAgentOrchestratorHealth
 
@@ -961,12 +961,12 @@ Agent orchestrator health check
 
 <!-- UsageSnippet language="typescript" operationID="check_agent_orchestrator_health" method="get" path="/api/agents/orchestrator/health" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.checkAgentOrchestratorHealth();
+  const result = await lucidSDK.agents.checkAgentOrchestratorHealth();
 
   console.log(result);
 }
@@ -979,15 +979,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsCheckAgentOrchestratorHealth } from "raijin-labs-lucid-ai/funcs/agentsCheckAgentOrchestratorHealth.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsCheckAgentOrchestratorHealth } from "@lucid/sdk/funcs/agentsCheckAgentOrchestratorHealth.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsCheckAgentOrchestratorHealth(raijinLabsLucidAi);
+  const res = await agentsCheckAgentOrchestratorHealth(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -1013,10 +1013,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## executeAgentFlowspec
 
@@ -1026,12 +1026,12 @@ Execute a FlowSpec
 
 <!-- UsageSnippet language="typescript" operationID="execute_agent_flowspec" method="post" path="/api/agents/execute" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.executeAgentFlowspec({
+  const result = await lucidSDK.agents.executeAgentFlowspec({
     flowspec: {
       "key": "<value>",
       "key1": "<value>",
@@ -1053,15 +1053,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsExecuteAgentFlowspec } from "raijin-labs-lucid-ai/funcs/agentsExecuteAgentFlowspec.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsExecuteAgentFlowspec } from "@lucid/sdk/funcs/agentsExecuteAgentFlowspec.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsExecuteAgentFlowspec(raijinLabsLucidAi, {
+  const res = await agentsExecuteAgentFlowspec(lucidSDK, {
     flowspec: {
       "key": "<value>",
       "key1": "<value>",
@@ -1097,11 +1097,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## validateFlowspec
 
@@ -1111,12 +1111,12 @@ Validate a FlowSpec structure
 
 <!-- UsageSnippet language="typescript" operationID="validate_flowspec" method="post" path="/api/agents/validate" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.validateFlowspec({
+  const result = await lucidSDK.agents.validateFlowspec({
     "key": "<value>",
     "key1": "<value>",
   });
@@ -1132,15 +1132,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsValidateFlowspec } from "raijin-labs-lucid-ai/funcs/agentsValidateFlowspec.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsValidateFlowspec } from "@lucid/sdk/funcs/agentsValidateFlowspec.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsValidateFlowspec(raijinLabsLucidAi, {
+  const res = await agentsValidateFlowspec(lucidSDK, {
     "key": "<value>",
     "key1": "<value>",
   });
@@ -1170,11 +1170,11 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## getPlannerInfo
 
@@ -1184,12 +1184,12 @@ Get planner service info
 
 <!-- UsageSnippet language="typescript" operationID="get_planner_info" method="get" path="/api/agents/planner/info" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.getPlannerInfo();
+  const result = await lucidSDK.agents.getPlannerInfo();
 
   console.log(result);
 }
@@ -1202,15 +1202,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsGetPlannerInfo } from "raijin-labs-lucid-ai/funcs/agentsGetPlannerInfo.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsGetPlannerInfo } from "@lucid/sdk/funcs/agentsGetPlannerInfo.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsGetPlannerInfo(raijinLabsLucidAi);
+  const res = await agentsGetPlannerInfo(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -1236,10 +1236,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## checkExecutorHealth
 
@@ -1249,12 +1249,12 @@ Check executor health
 
 <!-- UsageSnippet language="typescript" operationID="check_executor_health" method="get" path="/api/agents/executor/health" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.checkExecutorHealth();
+  const result = await lucidSDK.agents.checkExecutorHealth();
 
   console.log(result);
 }
@@ -1267,15 +1267,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsCheckExecutorHealth } from "raijin-labs-lucid-ai/funcs/agentsCheckExecutorHealth.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsCheckExecutorHealth } from "@lucid/sdk/funcs/agentsCheckExecutorHealth.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsCheckExecutorHealth(raijinLabsLucidAi);
+  const res = await agentsCheckExecutorHealth(lucidSDK);
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -1301,10 +1301,10 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
 
 ## getExecutorDecision
 
@@ -1314,12 +1314,12 @@ Get executor decision for a FlowSpec
 
 <!-- UsageSnippet language="typescript" operationID="get_executor_decision" method="post" path="/api/agents/executor/decision" -->
 ```typescript
-import { RaijinLabsLucidAi } from "raijin-labs-lucid-ai";
+import { LucidSDK } from "@lucid/sdk";
 
-const raijinLabsLucidAi = new RaijinLabsLucidAi();
+const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await raijinLabsLucidAi.agents.getExecutorDecision({
+  const result = await lucidSDK.agents.getExecutorDecision({
     flowspec: {
       "key": "<value>",
       "key1": "<value>",
@@ -1338,15 +1338,15 @@ run();
 The standalone function version of this method:
 
 ```typescript
-import { RaijinLabsLucidAiCore } from "raijin-labs-lucid-ai/core.js";
-import { agentsGetExecutorDecision } from "raijin-labs-lucid-ai/funcs/agentsGetExecutorDecision.js";
+import { LucidSDKCore } from "@lucid/sdk/core.js";
+import { agentsGetExecutorDecision } from "@lucid/sdk/funcs/agentsGetExecutorDecision.js";
 
-// Use `RaijinLabsLucidAiCore` for best tree-shaking performance.
+// Use `LucidSDKCore` for best tree-shaking performance.
 // You can create one instance of it to use across an application.
-const raijinLabsLucidAi = new RaijinLabsLucidAiCore();
+const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await agentsGetExecutorDecision(raijinLabsLucidAi, {
+  const res = await agentsGetExecutorDecision(lucidSDK, {
     flowspec: {
       "key": "<value>",
       "key1": "<value>",
@@ -1379,8 +1379,8 @@ run();
 
 ### Errors
 
-| Error Type                           | Status Code                          | Content Type                         |
-| ------------------------------------ | ------------------------------------ | ------------------------------------ |
-| errors.ErrorResponse                 | 400                                  | application/json                     |
-| errors.ErrorResponse                 | 500                                  | application/json                     |
-| errors.RaijinLabsLucidAiDefaultError | 4XX, 5XX                             | \*/\*                                |
+| Error Type               | Status Code              | Content Type             |
+| ------------------------ | ------------------------ | ------------------------ |
+| errors.ErrorResponse     | 400                      | application/json         |
+| errors.ErrorResponse     | 500                      | application/json         |
+| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |

@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { AgentBatchEpochsRequest } from "raijin-labs-lucid-ai/models";
+import { AgentBatchEpochsRequest } from "@lucid/sdk/models";
 
 let value: AgentBatchEpochsRequest = {
   epochs: [],

@@ -5,7 +5,7 @@ Accepted
 ## Example Usage
 
 ```typescript
-import { LucidCommitEpochRootsBatchResponse } from "raijin-labs-lucid-ai/models/operations";
+import { LucidCommitEpochRootsBatchResponse } from "@lucid/sdk/models/operations";
 
 let value: LucidCommitEpochRootsBatchResponse = {
   success: true,

@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { InclusionProof } from "raijin-labs-lucid-ai/models";
+import { InclusionProof } from "@lucid/sdk/models";
 
 let value: InclusionProof = {};
 ```

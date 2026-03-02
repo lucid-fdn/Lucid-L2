@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { PayoutRecipient } from "raijin-labs-lucid-ai/models";
+import { PayoutRecipient } from "@lucid/sdk/models";
 
 let value: PayoutRecipient = {
   role: "<value>",

@@ -1,6 +1,6 @@
-# raijin-labs-lucid-ai Examples
+# @lucid/sdk Examples
 
-This directory contains example scripts demonstrating how to use the raijin-labs-lucid-ai SDK.
+This directory contains example scripts demonstrating how to use the @lucid/sdk SDK.
 
 ## Prerequisites
 

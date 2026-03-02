@@ -5,7 +5,7 @@ OK
 ## Example Usage
 
 ```typescript
-import { AccomplishAgentGoalResponse } from "raijin-labs-lucid-ai/models/operations";
+import { AccomplishAgentGoalResponse } from "@lucid/sdk/models/operations";
 
 let value: AccomplishAgentGoalResponse = {
   success: false,

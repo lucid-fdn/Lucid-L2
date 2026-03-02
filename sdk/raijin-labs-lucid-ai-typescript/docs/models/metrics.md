@@ -3,7 +3,7 @@
 ## Example Usage
 
 ```typescript
-import { Metrics } from "raijin-labs-lucid-ai/models";
+import { Metrics } from "@lucid/sdk/models";
 
 let value: Metrics = {
   ttftMs: 597543,
