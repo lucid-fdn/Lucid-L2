@@ -3,7 +3,7 @@ generation:
   devContainers:
     enabled: true
     schemaPath: .speakeasy/out.openapi.yaml
-  sdkClassName: RaijinLabsLucidAi
+  sdkClassName: LucidSDK
   maintainOpenAPIOrder: true
   usageSnippets:
     optionalPropertyRendering: withExample
@@ -42,15 +42,15 @@ typescript:
   additionalScripts: {}
   alwaysIncludeInboundAndOutbound: false
   author: Speakeasy
-  baseErrorName: RaijinLabsLucidAiError
+  baseErrorName: LucidError
   clientServerStatusCodesAsErrors: true
   constFieldsAlwaysOptional: false
-  defaultErrorName: RaijinLabsLucidAiDefaultError
+  defaultErrorName: LucidDefaultError
   enableCustomCodeRegions: false
   enableMCPServer: false
   enableReactQuery: false
   enumFormat: union
-  envVarPrefix: RAIJINLABSLUCIDAI
+  envVarPrefix: LUCID
   exportZodModelNamespace: false
   flatAdditionalProperties: true
   flattenGlobalSecurity: true
@@ -78,7 +78,7 @@ typescript:
   moduleFormat: dual
   multipartArrayFormat: standard
   outputModelSuffix: output
-  packageName: raijin-labs-lucid-ai
+  packageName: '@lucid/sdk'
   preApplyUnionDiscriminators: true
   preserveModelFieldNames: false
   responseFormat: flat
