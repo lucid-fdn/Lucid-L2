@@ -86,6 +86,26 @@ export interface ChainConfig {
 
   /** ZkMLVerifier contract address */
   zkmlVerifier?: string;
+
+  /** EpochRegistry contract address (EVM epoch storage) */
+  epochRegistry?: string;
+
+  // ---- Solana Program IDs (only for Solana chains) ----
+
+  /** thought-epoch program ID */
+  thoughtEpochProgram?: string;
+
+  /** gas-utils program ID */
+  gasUtilsProgram?: string;
+
+  /** lucid-agent-wallet program ID */
+  agentWalletProgram?: string;
+
+  /** lucid-zkml-verifier program ID */
+  zkmlVerifierProgram?: string;
+
+  /** lucid-passports program ID */
+  passportsProgram?: string;
 }
 
 // =============================================================================

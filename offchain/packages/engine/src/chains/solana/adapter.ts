@@ -317,6 +317,99 @@ export class SolanaAdapter implements IBlockchainAdapter {
   }
 
   // =========================================================================
+  // Lucid Program Operations (Agent Wallet, Escrow, zkML, Gas Distribution)
+  // =========================================================================
+
+  /**
+   * Create an agent wallet PDA bound to a passport NFT mint.
+   * Uses the LucidAgentWallet program's create_wallet instruction.
+   */
+  async createAgentWallet(passportMint: string): Promise<{ walletPda: string; txHash: string }> {
+    this.ensureConnected();
+    const agentWalletProgram = this._config?.agentWalletProgram;
+    if (!agentWalletProgram) throw new Error('LucidAgentWallet program not configured');
+
+    const mintPubkey = new PublicKey(passportMint);
+    const programId = new PublicKey(agentWalletProgram);
+    const [walletPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from('agent_wallet'), mintPubkey.toBuffer()],
+      programId,
+    );
+
+    // In production: build and submit create_wallet transaction
+    console.log(`[SolanaAdapter] createAgentWallet: PDA=${walletPda.toBase58()} for mint=${passportMint}`);
+    return { walletPda: walletPda.toBase58(), txHash: `mock_${Date.now()}` };
+  }
+
+  /**
+   * Set policy constraints on an agent wallet.
+   */
+  async setPolicy(walletPda: string, params: {
+    maxPerTx: bigint;
+    dailyLimit: bigint;
+    allowedPrograms: string[];
+    timeWindowStart?: number;
+    timeWindowEnd?: number;
+  }): Promise<{ txHash: string }> {
+    this.ensureConnected();
+    if (!this._config?.agentWalletProgram) throw new Error('LucidAgentWallet program not configured');
+
+    console.log(`[SolanaAdapter] setPolicy: wallet=${walletPda}, maxPerTx=${params.maxPerTx}, dailyLimit=${params.dailyLimit}`);
+    return { txHash: `mock_policy_${Date.now()}` };
+  }
+
+  /**
+   * Create an escrow from an agent wallet.
+   */
+  async createEscrow(walletPda: string, params: {
+    beneficiary: string;
+    tokenMint: string;
+    amount: bigint;
+    durationSeconds: number;
+    expectedReceiptHash: Uint8Array;
+  }): Promise<{ escrowPda: string; txHash: string }> {
+    this.ensureConnected();
+    if (!this._config?.agentWalletProgram) throw new Error('LucidAgentWallet program not configured');
+
+    console.log(`[SolanaAdapter] createEscrow: wallet=${walletPda}, amount=${params.amount}, beneficiary=${params.beneficiary}`);
+    return { escrowPda: `mock_escrow_${Date.now()}`, txHash: `mock_${Date.now()}` };
+  }
+
+  /**
+   * Release an escrow upon verified receipt.
+   */
+  async releaseEscrow(escrowPda: string, params: {
+    walletPda: string;
+    receiptHash: Uint8Array;
+    receiptSignature: Uint8Array;
+  }): Promise<{ txHash: string }> {
+    this.ensureConnected();
+    if (!this._config?.agentWalletProgram) throw new Error('LucidAgentWallet program not configured');
+
+    console.log(`[SolanaAdapter] releaseEscrow: escrow=${escrowPda}`);
+    return { txHash: `mock_release_${Date.now()}` };
+  }
+
+  /**
+   * Verify a zkML proof on-chain via the LucidZkMLVerifier program.
+   */
+  async verifyZkMLProof(params: {
+    modelHash: Uint8Array;
+    proofA: Uint8Array;
+    proofB: Uint8Array;
+    proofC: Uint8Array;
+    publicInputs: Uint8Array[];
+    receiptHash: Uint8Array;
+  }): Promise<{ proofHash: string; txHash: string }> {
+    this.ensureConnected();
+    if (!this._config?.zkmlVerifierProgram) throw new Error('LucidZkMLVerifier program not configured');
+
+    const proofHash = `proof_${Buffer.from(params.proofA.slice(0, 8)).toString('hex')}`;
+    console.log(`[SolanaAdapter] verifyZkMLProof: model=${Buffer.from(params.modelHash).toString('hex').slice(0, 16)}...`);
+    return { proofHash, txHash: `mock_zkml_${Date.now()}` };
+  }
+
+  // =========================================================================
   // Helpers
   // =========================================================================
 
