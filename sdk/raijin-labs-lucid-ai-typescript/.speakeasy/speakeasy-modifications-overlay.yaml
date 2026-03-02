@@ -369,3 +369,221 @@ actions:
     x-speakeasy-metadata:
       created_at: 1769528419620
       type: user-edit
+  # v2 Escrow
+  - target: $["paths"]["/v2/escrow/create"]["post"]
+    update:
+      x-speakeasy-name-override: create
+    x-speakeasy-metadata:
+      after: sdk.escrow.create()
+      before: sdk.Escrow.lucid_create_escrow()
+      type: method-name
+  - target: $["paths"]["/v2/escrow/release"]["post"]
+    update:
+      x-speakeasy-name-override: release
+    x-speakeasy-metadata:
+      after: sdk.escrow.release()
+      before: sdk.Escrow.lucid_release_escrow()
+      type: method-name
+  - target: $["paths"]["/v2/escrow/dispute"]["post"]
+    update:
+      x-speakeasy-name-override: dispute
+    x-speakeasy-metadata:
+      after: sdk.escrow.dispute()
+      before: sdk.Escrow.lucid_dispute_escrow()
+      type: method-name
+  - target: $["paths"]["/v2/escrow/{chainId}/{escrowId}"]["get"]
+    update:
+      x-speakeasy-name-override: get
+    x-speakeasy-metadata:
+      after: sdk.escrow.get()
+      before: sdk.Escrow.lucid_get_escrow()
+      type: method-name
+  # v2 Disputes
+  - target: $["paths"]["/v2/disputes/open"]["post"]
+    update:
+      x-speakeasy-name-override: open
+    x-speakeasy-metadata:
+      after: sdk.disputes.open()
+      before: sdk.Disputes.lucid_open_dispute()
+      type: method-name
+  - target: $["paths"]["/v2/disputes/{disputeId}/evidence"]["post"]
+    update:
+      x-speakeasy-name-override: submitEvidence
+    x-speakeasy-metadata:
+      after: sdk.disputes.submitEvidence()
+      before: sdk.Disputes.lucid_submit_evidence()
+      type: method-name
+  - target: $["paths"]["/v2/disputes/{disputeId}/resolve"]["post"]
+    update:
+      x-speakeasy-name-override: resolve
+    x-speakeasy-metadata:
+      after: sdk.disputes.resolve()
+      before: sdk.Disputes.lucid_resolve_dispute()
+      type: method-name
+  - target: $["paths"]["/v2/disputes/{disputeId}/appeal"]["post"]
+    update:
+      x-speakeasy-name-override: appeal
+    x-speakeasy-metadata:
+      after: sdk.disputes.appeal()
+      before: sdk.Disputes.lucid_appeal_dispute()
+      type: method-name
+  - target: $["paths"]["/v2/disputes/{chainId}/{disputeId}"]["get"]
+    update:
+      x-speakeasy-name-override: get
+    x-speakeasy-metadata:
+      after: sdk.disputes.get()
+      before: sdk.Disputes.lucid_get_dispute()
+      type: method-name
+  # v2 Paymaster
+  - target: $["paths"]["/v2/paymaster/sponsor"]["post"]
+    update:
+      x-speakeasy-name-override: sponsor
+    x-speakeasy-metadata:
+      after: sdk.paymaster.sponsor()
+      before: sdk.Paymaster.lucid_sponsor_user_op()
+      type: method-name
+  - target: $["paths"]["/v2/paymaster/rate/{chainId}"]["get"]
+    update:
+      x-speakeasy-name-override: getRate
+    x-speakeasy-metadata:
+      after: sdk.paymaster.getRate()
+      before: sdk.Paymaster.lucid_get_paymaster_rate()
+      type: method-name
+  - target: $["paths"]["/v2/paymaster/estimate"]["post"]
+    update:
+      x-speakeasy-name-override: estimate
+    x-speakeasy-metadata:
+      after: sdk.paymaster.estimate()
+      before: sdk.Paymaster.lucid_estimate_gas_lucid()
+      type: method-name
+  # v2 Identity
+  - target: $["paths"]["/v2/identity/link"]["post"]
+    update:
+      x-speakeasy-name-override: link
+    x-speakeasy-metadata:
+      after: sdk.identity.link()
+      before: sdk.Identity.lucid_link_identity()
+      type: method-name
+  - target: $["paths"]["/v2/identity/resolve"]["post"]
+    update:
+      x-speakeasy-name-override: resolve
+    x-speakeasy-metadata:
+      after: sdk.identity.resolve()
+      before: sdk.Identity.lucid_resolve_identity()
+      type: method-name
+  - target: $["paths"]["/v2/identity/resolve"]["get"]
+    update:
+      x-speakeasy-name-override: get
+    x-speakeasy-metadata:
+      after: sdk.identity.get()
+      before: sdk.Identity.lucid_get_identity()
+      type: method-name
+  - target: $["paths"]["/v2/identity/chains"]["get"]
+    update:
+      x-speakeasy-name-override: getChains
+    x-speakeasy-metadata:
+      after: sdk.identity.getChains()
+      before: sdk.Identity.lucid_get_identity_chains()
+      type: method-name
+  - target: $["paths"]["/v2/identity/unlink"]["post"]
+    update:
+      x-speakeasy-name-override: unlink
+    x-speakeasy-metadata:
+      after: sdk.identity.unlink()
+      before: sdk.Identity.lucid_unlink_identity()
+      type: method-name
+  # v2 TBA
+  - target: $["paths"]["/v2/tba/create"]["post"]
+    update:
+      x-speakeasy-name-override: create
+    x-speakeasy-metadata:
+      after: sdk.tba.create()
+      before: sdk.Tba.lucid_create_tba()
+      type: method-name
+  - target: $["paths"]["/v2/tba/{chainId}/{tokenId}"]["get"]
+    update:
+      x-speakeasy-name-override: get
+    x-speakeasy-metadata:
+      after: sdk.tba.get()
+      before: sdk.Tba.lucid_get_tba()
+      type: method-name
+  # v2 Modules
+  - target: $["paths"]["/v2/modules/install"]["post"]
+    update:
+      x-speakeasy-name-override: install
+    x-speakeasy-metadata:
+      after: sdk.modules.install()
+      before: sdk.Modules.lucid_install_module()
+      type: method-name
+  - target: $["paths"]["/v2/modules/uninstall"]["post"]
+    update:
+      x-speakeasy-name-override: uninstall
+    x-speakeasy-metadata:
+      after: sdk.modules.uninstall()
+      before: sdk.Modules.lucid_uninstall_module()
+      type: method-name
+  - target: $["paths"]["/v2/modules/policy/configure"]["post"]
+    update:
+      x-speakeasy-name-override: configurePolicy
+    x-speakeasy-metadata:
+      after: sdk.modules.configurePolicy()
+      before: sdk.Modules.lucid_configure_policy_module()
+      type: method-name
+  - target: $["paths"]["/v2/modules/payout/configure"]["post"]
+    update:
+      x-speakeasy-name-override: configurePayout
+    x-speakeasy-metadata:
+      after: sdk.modules.configurePayout()
+      before: sdk.Modules.lucid_configure_payout_module()
+      type: method-name
+  - target: $["paths"]["/v2/modules/{chainId}/{account}"]["get"]
+    update:
+      x-speakeasy-name-override: list
+    x-speakeasy-metadata:
+      after: sdk.modules.list()
+      before: sdk.Modules.lucid_list_modules()
+      type: method-name
+  # v2 zkML
+  - target: $["paths"]["/v2/zkml/prove"]["post"]
+    update:
+      x-speakeasy-name-override: prove
+    x-speakeasy-metadata:
+      after: sdk.zkml.prove()
+      before: sdk.Zkml.lucid_generate_zkml_proof()
+      type: method-name
+  - target: $["paths"]["/v2/zkml/verify"]["post"]
+    update:
+      x-speakeasy-name-override: verify
+    x-speakeasy-metadata:
+      after: sdk.zkml.verify()
+      before: sdk.Zkml.lucid_verify_zkml_proof()
+      type: method-name
+  - target: $["paths"]["/v2/zkml/register-model"]["post"]
+    update:
+      x-speakeasy-name-override: registerModel
+    x-speakeasy-metadata:
+      after: sdk.zkml.registerModel()
+      before: sdk.Zkml.lucid_register_zkml_model()
+      type: method-name
+  - target: $["paths"]["/v2/zkml/models/{chainId}"]["get"]
+    update:
+      x-speakeasy-name-override: listModels
+    x-speakeasy-metadata:
+      after: sdk.zkml.listModels()
+      before: sdk.Zkml.lucid_list_zkml_models()
+      type: method-name
+  # Passport PATCH sub-routes
+  - target: $["paths"]["/v1/passports/{passport_id}/pricing"]["patch"]
+    update:
+      x-speakeasy-name-override: updatePricing
+    x-speakeasy-metadata:
+      after: sdk.passports.updatePricing()
+      before: sdk.Passports.lucid_update_passport_pricing()
+      type: method-name
+  - target: $["paths"]["/v1/passports/{passport_id}/endpoints"]["patch"]
+    update:
+      x-speakeasy-name-override: updateEndpoints
+    x-speakeasy-metadata:
+      after: sdk.passports.updateEndpoints()
+      before: sdk.Passports.lucid_update_passport_endpoints()
+      type: method-name
