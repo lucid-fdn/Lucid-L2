@@ -1,5 +1,2 @@
-export { getAgentOrchestrator, AgentOrchestrator } from './agentOrchestrator';
-export { getAgentPlanner, AgentPlannerService } from './agentPlanner';
-export type { PlanRequest, PlanResponse } from './agentPlanner';
-export { getExecutorRouter, ExecutorRouter } from './executorRouter';
-export type { ExecutorType } from './executorRouter';
+// PROXY — real implementation moved to @lucid-l2/gateway-lite
+export * from '../../../packages/gateway-lite/src/agent/index';

@@ -17,9 +17,10 @@ import { PassportManager, getPassportManager, resetPassportManager } from '../se
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { PATHS } from '../utils/paths';
 
 // Test data directory
-const TEST_DATA_DIR = path.join(__dirname, '../../data/test-search');
+const TEST_DATA_DIR = path.join(PATHS.OFFCHAIN_ROOT, 'data', 'test-search');
 
 describe('SearchQueryBuilder', () => {
   describe('Fluent API', () => {

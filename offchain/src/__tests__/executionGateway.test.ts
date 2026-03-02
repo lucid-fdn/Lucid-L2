@@ -16,6 +16,9 @@ jest.mock('../services/passport/passportManager', () => ({
     listPassports: mockListPassports,
   }),
 }));
+// Dual-path: executionGateway imports from ../../../engine/src/passport/passportManager
+jest.mock('../../packages/engine/src/passport/passportManager', () =>
+  require('../services/passport/passportManager'));
 
 // Mock computeRegistry
 const mockGetLiveState = jest.fn<(id: string) => any>();
@@ -30,12 +33,18 @@ jest.mock('../services/compute/computeRegistry', () => ({
     },
   }),
 }));
+// Dual-path: executionGateway imports from ../compute/computeRegistry (gateway-lite internal)
+jest.mock('../../packages/gateway-lite/src/compute/computeRegistry', () =>
+  require('../services/compute/computeRegistry'));
 
 // Mock receiptService
 const mockCreateReceipt = jest.fn<() => any>();
 jest.mock('../services/receipt/receiptService', () => ({
   createReceipt: mockCreateReceipt,
 }));
+// Dual-path: executionGateway imports from ../../../engine/src/receipt/receiptService
+jest.mock('../../packages/engine/src/receipt/receiptService', () =>
+  require('../services/receipt/receiptService'));
 
 import {
   executeInferenceRequest,

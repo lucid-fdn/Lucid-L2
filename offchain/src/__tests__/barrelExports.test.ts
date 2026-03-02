@@ -16,12 +16,18 @@ jest.mock('../solana/client', () => ({
   getConnection: jest.fn(),
   resetSolanaCache: jest.fn(),
 }));
+// Dual-path: engine mmrService imports from ../chain/solana/client
+jest.mock('../../packages/engine/src/chain/solana/client', () =>
+  require('../solana/client'));
 
 jest.mock('../solana/gas', () => ({
   calculateGasCost: jest.fn(() => ({ iGas: 0, mGas: 0, total: 0 })),
   makeComputeIx: jest.fn(),
   makeBurnIx: jest.fn(),
 }));
+// Dual-path: engine mmrService imports from ../chain/solana/gas
+jest.mock('../../packages/engine/src/chain/solana/gas', () =>
+  require('../solana/gas'));
 
 jest.mock('../storage/depin', () => ({
   getPermanentStorage: jest.fn(() => ({
@@ -44,6 +50,11 @@ jest.mock('../storage/depin', () => ({
   })),
   resetDepinStorage: jest.fn(),
 }));
+// Dual-path: engine storage module (both /index and bare directory forms)
+jest.mock('../../packages/engine/src/storage/depin/index', () =>
+  require('../storage/depin'));
+jest.mock('../../packages/engine/src/storage/depin', () =>
+  require('../storage/depin'));
 
 // Mock @nangohq/node which needs a secret key on construction (used by oauthRoutes)
 jest.mock('@nangohq/node', () => {
@@ -99,9 +110,15 @@ jest.mock('@nktkas/hyperliquid', () => ({
 jest.mock('../routes/oauthRoutes', () => ({
   oauthRouter: { __mock: true },
 }));
+// Dual-path: gateway-lite routes/index.ts imports ./oauthRoutes
+jest.mock('../../packages/gateway-lite/src/routes/oauthRoutes', () =>
+  require('../routes/oauthRoutes'));
 jest.mock('../routes/hyperliquidRoutes', () => ({
   hyperliquidRouter: { __mock: true },
 }));
+// Dual-path: gateway-lite routes/index.ts imports ./hyperliquidRoutes
+jest.mock('../../packages/gateway-lite/src/routes/hyperliquidRoutes', () =>
+  require('../routes/hyperliquidRoutes'));
 
 // =============================================================================
 // ROUTE BARREL

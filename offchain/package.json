@@ -1,6 +1,9 @@
 {
   "name": "lucid-offchain-mvp",
   "version": "0.1.0",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "start": "ts-node src/index.ts",
     "dev": "ts-node src/index.ts",
@@ -76,6 +79,7 @@
     "swagger-ui-express": "^5.0.1",
     "ts-jest": "^29.1.2",
     "ts-node": "^10.9.1",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.0.0"
   },
   "jest": {

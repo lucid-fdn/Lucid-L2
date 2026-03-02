@@ -19,4 +19,16 @@ export default [
       "@typescript-eslint/no-namespace": "off",
     },
   },
+  // Dependency boundary: engine must NEVER import from gateway-lite
+  {
+    files: ["packages/engine/**/*.ts"],
+    rules: {
+      "no-restricted-imports": ["error", {
+        patterns: [
+          { group: ["**/gateway-lite/**"], message: "Engine must not import from gateway-lite (dependency direction violation)." },
+          { group: ["@lucid-l2/gateway-lite*"], message: "Engine must not import from gateway-lite (dependency direction violation)." },
+        ],
+      }],
+    },
+  },
 ];

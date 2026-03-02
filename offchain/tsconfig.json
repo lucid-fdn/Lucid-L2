@@ -1,22 +1,16 @@
 {
+  "extends": "./tsconfig.base.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "CommonJS",
-    "rootDir": "src",
+    "rootDir": ".",
     "outDir": "dist",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "resolveJsonModule": true,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
     "baseUrl": ".",
     "paths": {
       "@lucid/passport": ["../../lucid-plateform-core/packages/passport/src"]
     }
   },
   "include": [
-    "src/**/*"
+    "src/**/*",
+    "packages/**/*"
   ],
- "exclude": ["node_modules", "dist", "scripts", "**/*.test.ts"]
+  "exclude": ["node_modules", "dist", "scripts", "**/*.test.ts"]
 }

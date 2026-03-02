@@ -19,12 +19,18 @@ jest.mock('../services/hf/syncStateManager', () => ({
   })),
   SyncStateManager: jest.fn(),
 }));
+// Dual-path: gateway-lite imports ./syncStateManager relative to its own file
+jest.mock('../../packages/gateway-lite/src/integrations/hf/syncStateManager', () =>
+  require('../services/hf/syncStateManager'));
 
 // Mock hfBridgeService
 jest.mock('../services/hf/hfBridgeService', () => ({
   getHFBridgeService: jest.fn(() => ({})),
   HFBridgeService: jest.fn(),
 }));
+// Dual-path: gateway-lite imports ./hfBridgeService relative to its own file
+jest.mock('../../packages/gateway-lite/src/integrations/hf/hfBridgeService', () =>
+  require('../services/hf/hfBridgeService'));
 
 // Mock passportSyncService
 const mockUpdatePassportStatus = jest.fn().mockResolvedValue('mock-tx-id');
@@ -34,6 +40,9 @@ jest.mock('../services/passport/passportSyncService', () => ({
   })),
   PassportSyncService: jest.fn(),
 }));
+// Dual-path: gateway-lite deprecationDetector imports from ../../../../engine/src/passport/passportSyncService
+jest.mock('../../packages/engine/src/passport/passportSyncService', () =>
+  require('../services/passport/passportSyncService'));
 
 describe('DeprecationDetector', () => {
   let DeprecationDetector: any;

@@ -1,5 +1,2 @@
-export type { IReputationAlgorithm, AlgorithmScore, ReputationContext } from './IReputationAlgorithm';
-export { ReputationAlgorithmRegistry, reputationAlgorithmRegistry } from './ReputationAlgorithmRegistry';
-export { ReceiptVolumeAlgorithm } from './algorithms/ReceiptVolumeAlgorithm';
-export { CrossChainWeightedAlgorithm } from './algorithms/CrossChainWeightedAlgorithm';
-export { StakeWeightedAlgorithm } from './algorithms/StakeWeightedAlgorithm';
+// PROXY — real implementation moved to @lucid-l2/gateway-lite
+export * from '../../../packages/gateway-lite/src/reputation/index';
