@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
-declare_id!("FWyyVHyohvkdHsuKnPwC7bKNCu4VYPgW9yhFgNLEpTZK");
+declare_id!("AJGpTWXbhvdYMxSah6GAKzykvfkYo2ViQpWGMbimQsph");
 
 // PDA seeds
 const AGENT_WALLET_SEED: &[u8] = b"agent_wallet";

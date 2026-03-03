@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { createReceipt, getReceipt, verifyReceiptHash, verifyReceipt, getReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey, listReceipts, listExtendedReceipts, getExtendedReceipt, verifyExtendedReceipt } from '../../../engine/src/receipt/receiptService';
-import { getAllEpochs } from '../../../engine/src/receipt/epochService';
+import { getAllEpochs, addReceiptToEpoch } from '../../../engine/src/receipt/epochService';
 
 export const receiptRouter = Router();
 
@@ -19,6 +19,7 @@ receiptRouter.post('/v1/receipts', async (req, res) => {
     }
 
     const receipt = createReceipt(input);
+    addReceiptToEpoch(receipt.run_id);
     return res.json({ success: true, receipt });
   } catch (error) {
     console.error('Error in POST /v1/receipts:', error);

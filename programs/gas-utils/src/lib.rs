@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Burn, Mint, Token, TokenAccount, Transfer};
 
 // This will be updated after deployment
-declare_id!("FsQ828An5fAebEVFxGcmKwuqa143hd56pwyjKtBTEtA4");
+declare_id!("EzuUhxtNAz1eRfAPypm6eAepe8fRQBrBPSo4Qcp1w3hm");
 
 const MAX_RECIPIENTS: usize = 10;
 

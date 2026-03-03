@@ -236,9 +236,9 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     explorerUrl: 'https://explorer.solana.com?cluster=devnet',
     nativeCurrency: { name: 'SOL', symbol: 'SOL', decimals: 9 },
     thoughtEpochProgram: process.env.THOUGHT_EPOCH_PROGRAM_ID || '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6',
-    gasUtilsProgram: process.env.GAS_UTILS_PROGRAM_ID || 'FsQ828An5fAebEVFxGcmKwuqa143hd56pwyjKtBTEtA4',
-    agentWalletProgram: process.env.AGENT_WALLET_PROGRAM_ID || 'FWyyVHyohvkdHsuKnPwC7bKNCu4VYPgW9yhFgNLEpTZK',
-    zkmlVerifierProgram: process.env.ZKML_VERIFIER_PROGRAM_ID || '2MrEN2op3Ht6EeY9T9v3A48a8g3wCKXCVb6dcpXupvuy',
+    gasUtilsProgram: process.env.GAS_UTILS_PROGRAM_ID || 'EzuUhxtNAz1eRfAPypm6eAepe8fRQBrBPSo4Qcp1w3hm',
+    agentWalletProgram: process.env.AGENT_WALLET_PROGRAM_ID || 'AJGpTWXbhvdYMxSah6GAKzykvfkYo2ViQpWGMbimQsph',
+    zkmlVerifierProgram: process.env.ZKML_VERIFIER_PROGRAM_ID || '69cJRFGWijD1FdapQ2vz7VP6x2jcXRQyBws9VzzPpqAN',
     passportsProgram: process.env.PASSPORTS_PROGRAM_ID || '38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW',
   },
 

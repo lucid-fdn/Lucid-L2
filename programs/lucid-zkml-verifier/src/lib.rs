@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("2MrEN2op3Ht6EeY9T9v3A48a8g3wCKXCVb6dcpXupvuy");
+declare_id!("69cJRFGWijD1FdapQ2vz7VP6x2jcXRQyBws9VzzPpqAN");
 
 // Constants
 const MAX_PUBLIC_INPUTS: usize = 8;
