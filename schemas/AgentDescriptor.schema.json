@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://lucidlayer.ai/schemas/passport/2.0/AgentDescriptor.schema.json",
+  "title": "Universal Agent Descriptor",
+  "description": "Runtime-agnostic definition for AI agent deployment, extending the Passport system",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["agent_config", "deployment_config"],
+  "properties": {
+    "agent_config": {
+      "type": "object",
+      "required": ["system_prompt", "model_passport_id"],
+      "properties": {
+        "system_prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100000,
+          "description": "System prompt defining agent behavior"
+        },
+        "model_passport_id": {
+          "type": "string",
+          "description": "Default LLM model passport ID"
+        },
+        "fallback_model_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Fallback model passport IDs"
+        },
+        "temperature": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2,
+          "default": 0.7
+        },
+        "max_tokens": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000000
+        },
+        "tool_passport_ids": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "MCP tool passport IDs"
+        },
+        "skill_slugs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "AgentSkills slugs (SKILL.md format)"
+        },
+        "mcp_servers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "MCPGate server references"
+        },
+        "autonomy_level": {
+          "type": "string",
+          "enum": ["supervised", "semi_autonomous", "fully_autonomous"],
+          "default": "supervised"
+        },
+        "stop_conditions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "value"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["max_steps", "max_cost_usd", "max_duration_ms", "goal_achieved", "human_stop"]
+              },
+              "value": {
+                "oneOf": [
+                  { "type": "number" },
+                  { "type": "string" }
+                ]
+              }
+            }
+          },
+          "default": [{ "type": "max_steps", "value": 50 }]
+        },
+        "guardrails": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["input_filter", "output_filter", "tool_approval", "budget_limit", "scope_restriction"]
+              },
+              "config": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          },
+          "default": []
+        },
+        "memory_enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "memory_provider": {
+          "type": "string",
+          "enum": ["supabase", "lighthouse", "redis"],
+          "default": "supabase"
+        },
+        "memory_window_size": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000,
+          "default": 20
+        },
+        "workflow_type": {
+          "type": "string",
+          "enum": ["single", "sequential", "parallel", "dag"],
+          "default": "single"
+        },
+        "sub_agents": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Passport IDs of sub-agents"
+        },
+        "handoff_rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from_agent", "to_agent", "condition"],
+            "properties": {
+              "from_agent": { "type": "string" },
+              "to_agent": { "type": "string" },
+              "condition": { "type": "string" }
+            }
+          }
+        },
+        "channels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["telegram", "discord", "whatsapp", "slack", "web", "a2a", "webhook"]
+              },
+              "config": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          },
+          "default": []
+        },
+        "a2a_enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "a2a_capabilities": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "wallet_config": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["crossmint", "erc6551", "squads", "custom"]
+        },
+        "chains": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["solana-devnet"]
+        },
+        "spending_limits": {
+          "type": "object",
+          "properties": {
+            "per_tx_usd": { "type": "number", "minimum": 0 },
+            "daily_usd": { "type": "number", "minimum": 0 }
+          }
+        },
+        "auto_fund": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "deployment_config": {
+      "type": "object",
+      "required": ["target"],
+      "properties": {
+        "target": {
+          "type": "object",
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["railway", "akash", "phala", "ionet", "vercel_edge", "docker", "aws_bedrock", "self_hosted"]
+            }
+          },
+          "additionalProperties": true
+        },
+        "replicas": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "auto_scale": {
+          "type": "boolean",
+          "default": false
+        },
+        "health_check_interval_ms": {
+          "type": "integer",
+          "minimum": 1000,
+          "default": 30000
+        },
+        "restart_policy": {
+          "type": "string",
+          "enum": ["always", "on_failure", "never"],
+          "default": "on_failure"
+        },
+        "env_vars": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "secrets": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "monetization": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "pricing_model": {
+          "type": "string",
+          "enum": ["free", "per_call", "subscription", "token_gated"],
+          "default": "free"
+        },
+        "price_per_call_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "share_token_mint": {
+          "type": "string",
+          "description": "SPL Token mint for revenue sharing"
+        },
+        "revenue_split": {
+          "type": "object",
+          "properties": {
+            "creator": { "type": "number", "minimum": 0, "maximum": 100 },
+            "compute": { "type": "number", "minimum": 0, "maximum": 100 },
+            "protocol": { "type": "number", "minimum": 0, "maximum": 100 }
+          }
+        }
+      }
+    },
+    "compliance": {
+      "type": "object",
+      "properties": {
+        "audit_all_actions": {
+          "type": "boolean",
+          "default": true
+        },
+        "require_human_approval": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": []
+        },
+        "data_retention_days": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 90
+        },
+        "eu_ai_act_category": {
+          "type": "string",
+          "enum": ["minimal", "limited", "high", "unacceptable"]
+        }
+      }
+    }
+  }
+}

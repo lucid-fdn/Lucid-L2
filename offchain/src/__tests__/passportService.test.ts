@@ -770,26 +770,24 @@ describe('PassportManager', () => {
       expect(result.data!.metadata.dataset_passport_id).toBe(result.data!.passport_id);
     });
 
-    it('should create agent passport with valid AgentMeta schema', async () => {
+    it('should create agent passport with valid AgentDescriptor schema', async () => {
       const result = await manager.createPassport({
         type: 'agent',
         owner: VALID_OWNER,
         metadata: {
-          schema_version: '2.0',
-          agent_passport_id: 'placeholder_id',  // overwritten after creation
-          workflow_type: 'single',
-          model_passport_ids: ['mdl_test_model'],
-          name: 'Code Assistant',
-          description: 'Assists with code generation and debugging',
-          capabilities: ['code-execution', 'multi-turn'],
+          agent_config: {
+            system_prompt: 'You are a code assistant that helps with debugging.',
+            model_passport_id: 'mdl_test_model',
+          },
+          deployment_config: {
+            target: { type: 'docker' },
+          },
         },
         name: 'Code Assistant Agent',
       });
 
       expect(result.ok).toBe(true);
       expect(result.data!.type).toBe('agent');
-      // agent_passport_id is auto-assigned to match passport_id
-      expect(result.data!.metadata.agent_passport_id).toBe(result.data!.passport_id);
     });
   });
 });

@@ -105,7 +105,7 @@ const TYPE_SCHEMA_MAP: Record<PassportType, SchemaId | null> = {
   compute: 'ComputeMeta',
   tool: 'ToolMeta',
   dataset: 'DatasetMeta',
-  agent: 'AgentMeta',
+  agent: 'AgentDescriptor',
 };
 
 /**
@@ -306,10 +306,12 @@ export class PassportManager {
         };
       }
     } else if (input.type === 'agent') {
-      if (!input.metadata.agent_passport_id) {
+      // AgentDescriptor schema uses agent_config.system_prompt as primary field
+      // Legacy metadata uses agent_passport_id — accept both formats
+      if (!input.metadata.agent_passport_id && !input.metadata.agent_config) {
         return {
           ok: false,
-          error: 'Agent metadata must include agent_passport_id',
+          error: 'Agent metadata must include agent_passport_id or agent_config',
         };
       }
     } else if (input.type === 'dataset') {

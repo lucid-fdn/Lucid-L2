@@ -5,7 +5,7 @@ import { PATHS } from '../config/paths';
 import addFormats from 'ajv-formats';
 import Ajv2020 from 'ajv/dist/2020.js';
 
-export type SchemaId = 'Policy' | 'ModelMeta' | 'ComputeMeta' | 'RunReceipt' | 'ToolMeta' | 'AgentMeta' | 'DatasetMeta';
+export type SchemaId = 'Policy' | 'ModelMeta' | 'ComputeMeta' | 'RunReceipt' | 'ToolMeta' | 'AgentMeta' | 'AgentDescriptor' | 'DatasetMeta';
 
 /** Validation result type - discriminated union */
 export type ValidationResult<T> =
@@ -19,6 +19,7 @@ const SCHEMA_FILES: Record<SchemaId, string> = {
   RunReceipt: 'RunReceipt.schema.json',
   ToolMeta: 'ToolMeta.schema.json',
   AgentMeta: 'AgentMeta.schema.json',
+  AgentDescriptor: 'AgentDescriptor.schema.json',
   DatasetMeta: 'DatasetMeta.schema.json',
 };
 

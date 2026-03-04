@@ -24,3 +24,7 @@ export { computeNodeRouter } from './computeNodeRoutes';
 export { payoutRouter } from './payoutRoutes';
 export { inferenceRouter } from './inferenceRoutes';
 export { crossChainRouter } from './crossChainRoutes';
+// Agent deployment pipeline routes
+export { agentDeployRouter } from './agentDeployRoutes';
+export { agentMarketplaceRouter } from './agentMarketplaceRoutes';
+export { a2aRouter } from './a2aRoutes';

@@ -75,6 +75,10 @@ import { disputeRouter } from './routes/disputeRoutes';
 import { paymasterRouter } from './routes/paymasterRoutes';
 import { erc7579Router } from './routes/erc7579Routes';
 import { zkmlRouter } from './routes/zkmlRoutes';
+// Agent deployment pipeline routes
+import { agentDeployRouter } from './routes/agentDeployRoutes';
+import { agentMarketplaceRouter } from './routes/agentMarketplaceRoutes';
+import { a2aRouter } from './routes/a2aRoutes';
 
 const app = express();
 
@@ -214,6 +218,11 @@ app.use('/', disputeRouter);
 app.use('/', paymasterRouter);
 app.use('/', erc7579Router);
 app.use('/', zkmlRouter);
+
+// Mount Agent Deployment pipeline routes
+app.use('/', agentDeployRouter);
+app.use('/', agentMarketplaceRouter);
+app.use('/', a2aRouter);
 
 // Register built-in reputation algorithms
 reputationAlgorithmRegistry.register(new ReceiptVolumeAlgorithm());
