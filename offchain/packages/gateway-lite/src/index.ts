@@ -157,6 +157,7 @@ app.use(
         // every endpoint and all error shapes.
         validateResponses: false,
         validateApiSpec: true,
+        ignorePaths: /^\/api\//,   // Legacy /api/* routes not in OpenAPI spec
       })
     );
   } catch (err) {
@@ -243,7 +244,7 @@ getPassportManager().init().then(async () => {
       await syncService.init();
       getPassportManager().setOnChainSyncHandler(syncService);
       console.log('🔗 Passport On-Chain Sync enabled');
-      console.log(`   Program ID: 38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW`);
+      console.log(`   Program ID: FhoemNdqwPMt8nmX4HT3WpSqUuqeAUXRb7WchAehmSaL`);
     } catch (err) {
       console.warn('⚠️ Passport On-Chain Sync not available:', err instanceof Error ? err.message : err);
       console.warn('   Passports will be stored offchain only.');

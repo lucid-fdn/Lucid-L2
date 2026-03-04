@@ -1,5 +1,2459 @@
 {
   "version": "1.0",
-  "last_updated": "2026-02-26T12:16:09Z",
-  "passports": {}
+  "last_updated": 1772558959654,
+  "passports": {
+    "passport_0453f2ce28fb469c8f924a19d23a8c1e": {
+      "passport_id": "passport_0453f2ce28fb469c8f924a19d23a8c1e",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_gpt-4o-mini",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "GPT-4o Mini",
+        "provider": "openai",
+        "api_model_id": "gpt-4o-mini",
+        "base": "openai",
+        "modality": [
+          "text",
+          "vision"
+        ],
+        "context_length": 128000,
+        "max_output_tokens": 16384,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2024-10",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "json_mode",
+          "vision",
+          "batch_api",
+          "fine_tuning"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.15,
+          "output_per_mtok": 0.6,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "global"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "strict",
+          "rate_limit_rpm": 30000
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "GPT-4o Mini",
+      "description": "Lucid Gateway — GPT-4o Mini by openai",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "openai",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "vision"
+      ],
+      "status": "active",
+      "created_at": 1772558955799,
+      "updated_at": 1772558955799
+    },
+    "passport_b2041093825449a98243e1fd9a39634d": {
+      "passport_id": "passport_b2041093825449a98243e1fd9a39634d",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_gpt-4o",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "GPT-4o",
+        "provider": "openai",
+        "api_model_id": "gpt-4o",
+        "base": "openai",
+        "modality": [
+          "text",
+          "vision"
+        ],
+        "context_length": 128000,
+        "max_output_tokens": 16384,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2024-10",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "json_mode",
+          "vision",
+          "batch_api",
+          "fine_tuning"
+        ],
+        "pricing": {
+          "input_per_mtok": 2.5,
+          "output_per_mtok": 10,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "global"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "strict",
+          "rate_limit_rpm": 10000
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "GPT-4o",
+      "description": "Lucid Gateway — GPT-4o by openai",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "openai",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "vision"
+      ],
+      "status": "active",
+      "created_at": 1772558955800,
+      "updated_at": 1772558955800
+    },
+    "passport_ca9b1f51cb9a40419542eedc54400c94": {
+      "passport_id": "passport_ca9b1f51cb9a40419542eedc54400c94",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_gpt-4_1-mini",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "GPT-4.1 Mini",
+        "provider": "openai",
+        "api_model_id": "gpt-4.1-mini",
+        "base": "openai",
+        "modality": [
+          "text",
+          "vision",
+          "code"
+        ],
+        "context_length": 1047576,
+        "max_output_tokens": 32768,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2025-01",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "json_mode",
+          "vision",
+          "batch_api"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.4,
+          "output_per_mtok": 1.6,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "global"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "strict",
+          "rate_limit_rpm": 30000
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "GPT-4.1 Mini",
+      "description": "Lucid Gateway — GPT-4.1 Mini by openai",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "openai",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "vision",
+        "code"
+      ],
+      "status": "active",
+      "created_at": 1772558955801,
+      "updated_at": 1772558955801
+    },
+    "passport_6ff53ef1831b4543a98e41e29984b113": {
+      "passport_id": "passport_6ff53ef1831b4543a98e41e29984b113",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_gpt-4_1",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "GPT-4.1",
+        "provider": "openai",
+        "api_model_id": "gpt-4.1",
+        "base": "openai",
+        "modality": [
+          "text",
+          "vision",
+          "code"
+        ],
+        "context_length": 1047576,
+        "max_output_tokens": 32768,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2025-01",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "json_mode",
+          "vision",
+          "batch_api"
+        ],
+        "pricing": {
+          "input_per_mtok": 2,
+          "output_per_mtok": 8,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "global"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "strict",
+          "rate_limit_rpm": 10000
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "GPT-4.1",
+      "description": "Lucid Gateway — GPT-4.1 by openai",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "openai",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "vision",
+        "code"
+      ],
+      "status": "active",
+      "created_at": 1772558955801,
+      "updated_at": 1772558955801
+    },
+    "passport_099a5113a1054e41b32486fc200bcc4b": {
+      "passport_id": "passport_099a5113a1054e41b32486fc200bcc4b",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_o3-mini",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "o3-mini",
+        "provider": "openai",
+        "api_model_id": "o3-mini",
+        "base": "openai",
+        "modality": [
+          "text",
+          "reasoning"
+        ],
+        "context_length": 200000,
+        "max_output_tokens": 100000,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2024-10",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "reasoning"
+        ],
+        "pricing": {
+          "input_per_mtok": 1.1,
+          "output_per_mtok": 4.4,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "global"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "strict"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "o3-mini",
+      "description": "Lucid Gateway — o3-mini by openai",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "openai",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "reasoning"
+      ],
+      "status": "active",
+      "created_at": 1772558955801,
+      "updated_at": 1772558955801
+    },
+    "passport_0e63a4e286f74d17a3afe57e756ad629": {
+      "passport_id": "passport_0e63a4e286f74d17a3afe57e756ad629",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_o1-mini",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "o1-mini",
+        "provider": "openai",
+        "api_model_id": "o1-mini",
+        "base": "openai",
+        "modality": [
+          "text",
+          "reasoning"
+        ],
+        "context_length": 128000,
+        "max_output_tokens": 65536,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2024-04",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "reasoning"
+        ],
+        "pricing": {
+          "input_per_mtok": 3,
+          "output_per_mtok": 12,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "global"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "strict"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "o1-mini",
+      "description": "Lucid Gateway — o1-mini by openai",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "openai",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "reasoning"
+      ],
+      "status": "active",
+      "created_at": 1772558955801,
+      "updated_at": 1772558955801
+    },
+    "passport_592c57379cab44ca9ace8e9f31297cfd": {
+      "passport_id": "passport_592c57379cab44ca9ace8e9f31297cfd",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_text-embedding-3-small",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Text Embedding 3 Small",
+        "provider": "openai",
+        "api_model_id": "text-embedding-3-small",
+        "base": "openai",
+        "modality": [
+          "embedding"
+        ],
+        "context_length": 8191,
+        "max_output_tokens": 0,
+        "architecture": "transformer",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "batch_api"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.02,
+          "output_per_mtok": 0,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "global"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "none"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Text Embedding 3 Small",
+      "description": "Lucid Gateway — Text Embedding 3 Small by openai",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "openai",
+        "lucid",
+        "lucid-gateway",
+        "embedding"
+      ],
+      "status": "active",
+      "created_at": 1772558955801,
+      "updated_at": 1772558955801
+    },
+    "passport_4ba37c5c8af74f7ebb8596d5bbb83d12": {
+      "passport_id": "passport_4ba37c5c8af74f7ebb8596d5bbb83d12",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_text-embedding-3-large",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Text Embedding 3 Large",
+        "provider": "openai",
+        "api_model_id": "text-embedding-3-large",
+        "base": "openai",
+        "modality": [
+          "embedding"
+        ],
+        "context_length": 8191,
+        "max_output_tokens": 0,
+        "architecture": "transformer",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "batch_api"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.13,
+          "output_per_mtok": 0,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "global"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "none"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Text Embedding 3 Large",
+      "description": "Lucid Gateway — Text Embedding 3 Large by openai",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "openai",
+        "lucid",
+        "lucid-gateway",
+        "embedding"
+      ],
+      "status": "active",
+      "created_at": 1772558955801,
+      "updated_at": 1772558955801
+    },
+    "passport_a034215d1fbf4726aa8e894ac6503153": {
+      "passport_id": "passport_a034215d1fbf4726aa8e894ac6503153",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_text-embedding-ada-002",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Text Embedding Ada 002",
+        "provider": "openai",
+        "api_model_id": "text-embedding-ada-002",
+        "base": "openai",
+        "modality": [
+          "embedding"
+        ],
+        "context_length": 8191,
+        "max_output_tokens": 0,
+        "architecture": "transformer",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "batch_api"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.1,
+          "output_per_mtok": 0,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "global"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "none"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Text Embedding Ada 002",
+      "description": "Lucid Gateway — Text Embedding Ada 002 by openai",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "openai",
+        "lucid",
+        "lucid-gateway",
+        "embedding"
+      ],
+      "status": "active",
+      "created_at": 1772558955801,
+      "updated_at": 1772558955801
+    },
+    "passport_285381acc8194a2a9fd2b054bc21f365": {
+      "passport_id": "passport_285381acc8194a2a9fd2b054bc21f365",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_claude-3-5-sonnet",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Claude 3.5 Sonnet",
+        "provider": "anthropic",
+        "api_model_id": "claude-3-5-sonnet",
+        "base": "anthropic",
+        "modality": [
+          "text",
+          "vision",
+          "code"
+        ],
+        "context_length": 200000,
+        "max_output_tokens": 8192,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2025-04",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "vision",
+          "batch_api"
+        ],
+        "pricing": {
+          "input_per_mtok": 3,
+          "output_per_mtok": 15,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "us-east-1",
+            "eu-west-1"
+          ],
+          "data_residency": [
+            "US",
+            "EU"
+          ],
+          "content_policy": "moderate"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Claude 3.5 Sonnet",
+      "description": "Lucid Gateway — Claude 3.5 Sonnet by anthropic",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "anthropic",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "vision",
+        "code"
+      ],
+      "status": "active",
+      "created_at": 1772558955802,
+      "updated_at": 1772558955802
+    },
+    "passport_a96a5c04e8eb46f08c0c57e6ab00e9ae": {
+      "passport_id": "passport_a96a5c04e8eb46f08c0c57e6ab00e9ae",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_claude-3-5-haiku",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Claude 3.5 Haiku",
+        "provider": "anthropic",
+        "api_model_id": "claude-3-5-haiku",
+        "base": "anthropic",
+        "modality": [
+          "text",
+          "vision"
+        ],
+        "context_length": 200000,
+        "max_output_tokens": 8192,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2025-04",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "vision",
+          "batch_api"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.8,
+          "output_per_mtok": 4,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "us-east-1",
+            "eu-west-1"
+          ],
+          "data_residency": [
+            "US",
+            "EU"
+          ],
+          "content_policy": "moderate"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Claude 3.5 Haiku",
+      "description": "Lucid Gateway — Claude 3.5 Haiku by anthropic",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "anthropic",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "vision"
+      ],
+      "status": "active",
+      "created_at": 1772558955802,
+      "updated_at": 1772558955802
+    },
+    "passport_aa28bbff53684761ae0394d46eb8eb29": {
+      "passport_id": "passport_aa28bbff53684761ae0394d46eb8eb29",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_claude-3-opus",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Claude 3 Opus",
+        "provider": "anthropic",
+        "api_model_id": "claude-3-opus",
+        "base": "anthropic",
+        "modality": [
+          "text",
+          "vision"
+        ],
+        "context_length": 200000,
+        "max_output_tokens": 4096,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2024-08",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "vision"
+        ],
+        "pricing": {
+          "input_per_mtok": 15,
+          "output_per_mtok": 75,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "us-east-1"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "moderate"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Claude 3 Opus",
+      "description": "Lucid Gateway — Claude 3 Opus by anthropic",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "anthropic",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "vision"
+      ],
+      "status": "active",
+      "created_at": 1772558955802,
+      "updated_at": 1772558955802
+    },
+    "passport_a01d15ece99049dbb1824f926c92034d": {
+      "passport_id": "passport_a01d15ece99049dbb1824f926c92034d",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_gemini-2_0-flash",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Gemini 2.0 Flash",
+        "provider": "google",
+        "api_model_id": "gemini-2.0-flash",
+        "base": "google",
+        "modality": [
+          "text",
+          "vision",
+          "audio",
+          "code"
+        ],
+        "context_length": 1048576,
+        "max_output_tokens": 8192,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2025-01",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "json_mode",
+          "vision",
+          "code_execution"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.1,
+          "output_per_mtok": 0.4,
+          "currency": "usd",
+          "free_tier": true
+        },
+        "infrastructure": {
+          "regions": [
+            "global"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "strict"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Gemini 2.0 Flash",
+      "description": "Lucid Gateway — Gemini 2.0 Flash by google",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "google",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "vision",
+        "audio",
+        "code"
+      ],
+      "status": "active",
+      "created_at": 1772558955802,
+      "updated_at": 1772558955802
+    },
+    "passport_1e4d4ea13ef744c2b0b3141919072fe8": {
+      "passport_id": "passport_1e4d4ea13ef744c2b0b3141919072fe8",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_gemini-1_5-flash",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Gemini 1.5 Flash",
+        "provider": "google",
+        "api_model_id": "gemini-1.5-flash",
+        "base": "google",
+        "modality": [
+          "text",
+          "vision",
+          "audio"
+        ],
+        "context_length": 1048576,
+        "max_output_tokens": 8192,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2024-05",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "json_mode",
+          "vision"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.075,
+          "output_per_mtok": 0.3,
+          "currency": "usd",
+          "free_tier": true
+        },
+        "infrastructure": {
+          "regions": [
+            "global"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "strict"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Gemini 1.5 Flash",
+      "description": "Lucid Gateway — Gemini 1.5 Flash by google",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "google",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "vision",
+        "audio"
+      ],
+      "status": "active",
+      "created_at": 1772558955802,
+      "updated_at": 1772558955802
+    },
+    "passport_dda8722716bb494d8084428ef484c321": {
+      "passport_id": "passport_dda8722716bb494d8084428ef484c321",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_gemini-1_5-pro",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Gemini 1.5 Pro",
+        "provider": "google",
+        "api_model_id": "gemini-1.5-pro",
+        "base": "google",
+        "modality": [
+          "text",
+          "vision",
+          "audio"
+        ],
+        "context_length": 2097152,
+        "max_output_tokens": 8192,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2024-05",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "json_mode",
+          "vision"
+        ],
+        "pricing": {
+          "input_per_mtok": 1.25,
+          "output_per_mtok": 5,
+          "currency": "usd",
+          "free_tier": true
+        },
+        "infrastructure": {
+          "regions": [
+            "global"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "strict"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Gemini 1.5 Pro",
+      "description": "Lucid Gateway — Gemini 1.5 Pro by google",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "google",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "vision",
+        "audio"
+      ],
+      "status": "active",
+      "created_at": 1772558955802,
+      "updated_at": 1772558955802
+    },
+    "passport_1b368fa97b8b4c7daa3c50dc73a0dc5d": {
+      "passport_id": "passport_1b368fa97b8b4c7daa3c50dc73a0dc5d",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_groq-llama-3_3-70b",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Llama 3.3 70B (Groq)",
+        "provider": "groq",
+        "api_model_id": "groq-llama-3.3-70b",
+        "base": "groq",
+        "modality": [
+          "text",
+          "code"
+        ],
+        "context_length": 128000,
+        "max_output_tokens": 32768,
+        "parameter_count": "70B",
+        "architecture": "transformer",
+        "knowledge_cutoff": "2024-12",
+        "license": "llama3.1",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "json_mode"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.59,
+          "output_per_mtok": 0.79,
+          "currency": "usd",
+          "free_tier": true
+        },
+        "infrastructure": {
+          "regions": [
+            "us-east-1"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "permissive"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Llama 3.3 70B (Groq)",
+      "description": "Lucid Gateway — Llama 3.3 70B (Groq) by groq",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "groq",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "code"
+      ],
+      "status": "active",
+      "created_at": 1772558955802,
+      "updated_at": 1772558955802
+    },
+    "passport_5b6b0e3fcb1142ce944aa064a07dfaa9": {
+      "passport_id": "passport_5b6b0e3fcb1142ce944aa064a07dfaa9",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_groq-llama-3_1-8b",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Llama 3.1 8B (Groq)",
+        "provider": "groq",
+        "api_model_id": "groq-llama-3.1-8b",
+        "base": "groq",
+        "modality": [
+          "text",
+          "code"
+        ],
+        "context_length": 128000,
+        "max_output_tokens": 8192,
+        "parameter_count": "8B",
+        "architecture": "transformer",
+        "knowledge_cutoff": "2024-07",
+        "license": "llama3.1",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "json_mode"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.05,
+          "output_per_mtok": 0.08,
+          "currency": "usd",
+          "free_tier": true
+        },
+        "infrastructure": {
+          "regions": [
+            "us-east-1"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "permissive"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Llama 3.1 8B (Groq)",
+      "description": "Lucid Gateway — Llama 3.1 8B (Groq) by groq",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "groq",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "code"
+      ],
+      "status": "active",
+      "created_at": 1772558955802,
+      "updated_at": 1772558955802
+    },
+    "passport_1c9f44ac66f54c11bf531ab158df6420": {
+      "passport_id": "passport_1c9f44ac66f54c11bf531ab158df6420",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_groq-mixtral-8x7b",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Mixtral 8x7B (Groq)",
+        "provider": "groq",
+        "api_model_id": "groq-mixtral-8x7b",
+        "base": "groq",
+        "modality": [
+          "text",
+          "code"
+        ],
+        "context_length": 32768,
+        "max_output_tokens": 4096,
+        "parameter_count": "46.7B",
+        "architecture": "moe",
+        "knowledge_cutoff": "2024-01",
+        "license": "apache-2.0",
+        "languages": [
+          "en",
+          "fr",
+          "de",
+          "es",
+          "it",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.24,
+          "output_per_mtok": 0.24,
+          "currency": "usd",
+          "free_tier": true
+        },
+        "infrastructure": {
+          "regions": [
+            "us-east-1"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "permissive"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Mixtral 8x7B (Groq)",
+      "description": "Lucid Gateway — Mixtral 8x7B (Groq) by groq",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "groq",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "code"
+      ],
+      "status": "active",
+      "created_at": 1772558955802,
+      "updated_at": 1772558955802
+    },
+    "passport_3c69698e0baf4e4c9d1785b2924d9970": {
+      "passport_id": "passport_3c69698e0baf4e4c9d1785b2924d9970",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_mistral-large",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Mistral Large",
+        "provider": "mistral",
+        "api_model_id": "mistral-large",
+        "base": "mistral",
+        "modality": [
+          "text",
+          "vision",
+          "code"
+        ],
+        "context_length": 128000,
+        "max_output_tokens": 4096,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2024-11",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "fr",
+          "de",
+          "es",
+          "it",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "json_mode",
+          "vision"
+        ],
+        "pricing": {
+          "input_per_mtok": 2,
+          "output_per_mtok": 6,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "eu-west-1",
+            "us-east-1"
+          ],
+          "data_residency": [
+            "EU",
+            "US"
+          ],
+          "content_policy": "moderate"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Mistral Large",
+      "description": "Lucid Gateway — Mistral Large by mistral",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "mistral",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "vision",
+        "code"
+      ],
+      "status": "active",
+      "created_at": 1772558955802,
+      "updated_at": 1772558955802
+    },
+    "passport_5ffb2fa0a40d4629af97e70ea95bc6fc": {
+      "passport_id": "passport_5ffb2fa0a40d4629af97e70ea95bc6fc",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_mistral-small",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Mistral Small",
+        "provider": "mistral",
+        "api_model_id": "mistral-small",
+        "base": "mistral",
+        "modality": [
+          "text",
+          "code"
+        ],
+        "context_length": 128000,
+        "max_output_tokens": 4096,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2024-11",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "fr",
+          "de",
+          "es",
+          "it",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "json_mode"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.1,
+          "output_per_mtok": 0.3,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "eu-west-1",
+            "us-east-1"
+          ],
+          "data_residency": [
+            "EU",
+            "US"
+          ],
+          "content_policy": "moderate"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Mistral Small",
+      "description": "Lucid Gateway — Mistral Small by mistral",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "mistral",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "code"
+      ],
+      "status": "active",
+      "created_at": 1772558955803,
+      "updated_at": 1772558955803
+    },
+    "passport_a2566a2a4360462582c7ab0fe1d6f561": {
+      "passport_id": "passport_a2566a2a4360462582c7ab0fe1d6f561",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_codestral",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Codestral",
+        "provider": "mistral",
+        "api_model_id": "codestral",
+        "base": "mistral",
+        "modality": [
+          "text",
+          "code"
+        ],
+        "context_length": 32768,
+        "max_output_tokens": 4096,
+        "parameter_count": "22B",
+        "architecture": "transformer",
+        "knowledge_cutoff": "2024-11",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "code_execution"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.3,
+          "output_per_mtok": 0.9,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "eu-west-1"
+          ],
+          "data_residency": [
+            "EU"
+          ],
+          "content_policy": "permissive"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Codestral",
+      "description": "Lucid Gateway — Codestral by mistral",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "mistral",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "code"
+      ],
+      "status": "active",
+      "created_at": 1772558955803,
+      "updated_at": 1772558955803
+    },
+    "passport_89bb60224d6743779659162df344bdee": {
+      "passport_id": "passport_89bb60224d6743779659162df344bdee",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_perplexity-sonar-small",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Perplexity Sonar",
+        "provider": "perplexity",
+        "api_model_id": "perplexity-sonar-small",
+        "base": "perplexity",
+        "modality": [
+          "text"
+        ],
+        "context_length": 127000,
+        "max_output_tokens": 4096,
+        "architecture": "transformer",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "web_search"
+        ],
+        "pricing": {
+          "input_per_mtok": 1,
+          "output_per_mtok": 1,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "us-east-1"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "moderate"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Perplexity Sonar",
+      "description": "Lucid Gateway — Perplexity Sonar by perplexity",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "perplexity",
+        "lucid",
+        "lucid-gateway",
+        "text"
+      ],
+      "status": "active",
+      "created_at": 1772558955803,
+      "updated_at": 1772558955803
+    },
+    "passport_127a34b8392d44ebac4655d8bd8afe63": {
+      "passport_id": "passport_127a34b8392d44ebac4655d8bd8afe63",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_perplexity-sonar-pro",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Perplexity Sonar Pro",
+        "provider": "perplexity",
+        "api_model_id": "perplexity-sonar-pro",
+        "base": "perplexity",
+        "modality": [
+          "text"
+        ],
+        "context_length": 200000,
+        "max_output_tokens": 8192,
+        "architecture": "transformer",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "web_search"
+        ],
+        "pricing": {
+          "input_per_mtok": 3,
+          "output_per_mtok": 15,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "us-east-1"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "moderate"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Perplexity Sonar Pro",
+      "description": "Lucid Gateway — Perplexity Sonar Pro by perplexity",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "perplexity",
+        "lucid",
+        "lucid-gateway",
+        "text"
+      ],
+      "status": "active",
+      "created_at": 1772558955803,
+      "updated_at": 1772558955803
+    },
+    "passport_aab8154a51224e859f3bbf9771c22475": {
+      "passport_id": "passport_aab8154a51224e859f3bbf9771c22475",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_grok-2",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Grok 2",
+        "provider": "xai",
+        "api_model_id": "grok-2",
+        "base": "xai",
+        "modality": [
+          "text",
+          "vision"
+        ],
+        "context_length": 131072,
+        "max_output_tokens": 4096,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2025-01",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "vision"
+        ],
+        "pricing": {
+          "input_per_mtok": 2,
+          "output_per_mtok": 10,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "us-east-1"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "permissive"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Grok 2",
+      "description": "Lucid Gateway — Grok 2 by xai",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "xai",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "vision"
+      ],
+      "status": "active",
+      "created_at": 1772558955803,
+      "updated_at": 1772558955803
+    },
+    "passport_2bf960355ec543e5996604af7c26a79c": {
+      "passport_id": "passport_2bf960355ec543e5996604af7c26a79c",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_grok-2-mini",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Grok 2 Mini",
+        "provider": "xai",
+        "api_model_id": "grok-2-mini",
+        "base": "xai",
+        "modality": [
+          "text"
+        ],
+        "context_length": 131072,
+        "max_output_tokens": 4096,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2025-01",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.3,
+          "output_per_mtok": 0.5,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "us-east-1"
+          ],
+          "data_residency": [
+            "US"
+          ],
+          "content_policy": "permissive"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Grok 2 Mini",
+      "description": "Lucid Gateway — Grok 2 Mini by xai",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "xai",
+        "lucid",
+        "lucid-gateway",
+        "text"
+      ],
+      "status": "active",
+      "created_at": 1772558955803,
+      "updated_at": 1772558955803
+    },
+    "passport_386330d3e34944f881999f8d0abd85bd": {
+      "passport_id": "passport_386330d3e34944f881999f8d0abd85bd",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_deepseek-chat",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "DeepSeek V3",
+        "provider": "deepseek",
+        "api_model_id": "deepseek-chat",
+        "base": "deepseek",
+        "modality": [
+          "text",
+          "code"
+        ],
+        "context_length": 128000,
+        "max_output_tokens": 8192,
+        "parameter_count": "671B",
+        "architecture": "moe",
+        "knowledge_cutoff": "2024-07",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "zh",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "json_mode"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.27,
+          "output_per_mtok": 1.1,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "cn-east-1"
+          ],
+          "data_residency": [
+            "CN"
+          ],
+          "content_policy": "strict"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "DeepSeek V3",
+      "description": "Lucid Gateway — DeepSeek V3 by deepseek",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "deepseek",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "code"
+      ],
+      "status": "active",
+      "created_at": 1772558955803,
+      "updated_at": 1772558955803
+    },
+    "passport_59bcec9230874a04ac18672181005d11": {
+      "passport_id": "passport_59bcec9230874a04ac18672181005d11",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_deepseek-reasoner",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "DeepSeek R1",
+        "provider": "deepseek",
+        "api_model_id": "deepseek-reasoner",
+        "base": "deepseek",
+        "modality": [
+          "text",
+          "reasoning",
+          "code"
+        ],
+        "context_length": 128000,
+        "max_output_tokens": 8192,
+        "parameter_count": "671B",
+        "architecture": "moe",
+        "knowledge_cutoff": "2024-07",
+        "license": "mit",
+        "languages": [
+          "en",
+          "zh",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "reasoning"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.55,
+          "output_per_mtok": 2.19,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "cn-east-1"
+          ],
+          "data_residency": [
+            "CN"
+          ],
+          "content_policy": "strict"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "DeepSeek R1",
+      "description": "Lucid Gateway — DeepSeek R1 by deepseek",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "deepseek",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "reasoning",
+        "code"
+      ],
+      "status": "active",
+      "created_at": 1772558955803,
+      "updated_at": 1772558955803
+    },
+    "passport_74bcb751d8a745c7b06ac6842e32a24c": {
+      "passport_id": "passport_74bcb751d8a745c7b06ac6842e32a24c",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_minimax-m2_1",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "MiniMax M2.1",
+        "provider": "minimax",
+        "api_model_id": "minimax-m2.1",
+        "base": "minimax",
+        "modality": [
+          "text",
+          "reasoning"
+        ],
+        "context_length": 1000000,
+        "max_output_tokens": 8192,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2025-01",
+        "license": "proprietary",
+        "languages": [
+          "en",
+          "zh",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools",
+          "reasoning"
+        ],
+        "pricing": {
+          "input_per_mtok": 0.5,
+          "output_per_mtok": 2,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "cn-east-1",
+            "us-east-1"
+          ],
+          "data_residency": [
+            "CN",
+            "US"
+          ],
+          "content_policy": "moderate"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "MiniMax M2.1",
+      "description": "Lucid Gateway — MiniMax M2.1 by minimax",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "minimax",
+        "lucid",
+        "lucid-gateway",
+        "text",
+        "reasoning"
+      ],
+      "status": "active",
+      "created_at": 1772558955803,
+      "updated_at": 1772558955803
+    },
+    "passport_fa7fae13cb15415395c5499c4a957072": {
+      "passport_id": "passport_fa7fae13cb15415395c5499c4a957072",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_kimi-moonshot-v1-8k",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Kimi Moonshot V1 8K",
+        "provider": "moonshot",
+        "api_model_id": "kimi-moonshot-v1-8k",
+        "base": "moonshot",
+        "modality": [
+          "text"
+        ],
+        "context_length": 8192,
+        "max_output_tokens": 2048,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2024-06",
+        "license": "proprietary",
+        "languages": [
+          "zh",
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools"
+        ],
+        "pricing": {
+          "input_per_mtok": 1.5,
+          "output_per_mtok": 2,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "cn-east-1"
+          ],
+          "data_residency": [
+            "CN"
+          ],
+          "content_policy": "strict"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Kimi Moonshot V1 8K",
+      "description": "Lucid Gateway — Kimi Moonshot V1 8K by moonshot",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "moonshot",
+        "lucid",
+        "lucid-gateway",
+        "text"
+      ],
+      "status": "active",
+      "created_at": 1772558955803,
+      "updated_at": 1772558955803
+    },
+    "passport_f981702d2ed643eb91232d719c660832": {
+      "passport_id": "passport_f981702d2ed643eb91232d719c660832",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_kimi-moonshot-v1-32k",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Kimi Moonshot V1 32K",
+        "provider": "moonshot",
+        "api_model_id": "kimi-moonshot-v1-32k",
+        "base": "moonshot",
+        "modality": [
+          "text"
+        ],
+        "context_length": 32768,
+        "max_output_tokens": 4096,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2024-06",
+        "license": "proprietary",
+        "languages": [
+          "zh",
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools"
+        ],
+        "pricing": {
+          "input_per_mtok": 3,
+          "output_per_mtok": 4,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "cn-east-1"
+          ],
+          "data_residency": [
+            "CN"
+          ],
+          "content_policy": "strict"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Kimi Moonshot V1 32K",
+      "description": "Lucid Gateway — Kimi Moonshot V1 32K by moonshot",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "moonshot",
+        "lucid",
+        "lucid-gateway",
+        "text"
+      ],
+      "status": "active",
+      "created_at": 1772558955803,
+      "updated_at": 1772558955803
+    },
+    "passport_a0a01a2ee5704383b4db8dd7a26dc03f": {
+      "passport_id": "passport_a0a01a2ee5704383b4db8dd7a26dc03f",
+      "type": "model",
+      "owner": "11111111111111111111111111111111",
+      "metadata": {
+        "schema_version": "2.0",
+        "model_passport_id": "passport_api_kimi-moonshot-v1-128k",
+        "format": "api",
+        "runtime_recommended": "trustgate",
+        "name": "Kimi Moonshot V1 128K",
+        "provider": "moonshot",
+        "api_model_id": "kimi-moonshot-v1-128k",
+        "base": "moonshot",
+        "modality": [
+          "text"
+        ],
+        "context_length": 131072,
+        "max_output_tokens": 4096,
+        "architecture": "transformer",
+        "knowledge_cutoff": "2024-06",
+        "license": "proprietary",
+        "languages": [
+          "zh",
+          "en",
+          "multilingual"
+        ],
+        "capabilities": [
+          "streaming",
+          "tools"
+        ],
+        "pricing": {
+          "input_per_mtok": 8.5,
+          "output_per_mtok": 8.5,
+          "currency": "usd",
+          "free_tier": false
+        },
+        "infrastructure": {
+          "regions": [
+            "cn-east-1"
+          ],
+          "data_residency": [
+            "CN"
+          ],
+          "content_policy": "strict"
+        },
+        "trust": {
+          "trust_score": 0,
+          "total_inferences": 0
+        },
+        "provenance": {
+          "created_by": "lucid-gateway"
+        },
+        "economics": {
+          "revenue_split": {
+            "compute_bps": 0,
+            "model_bps": 0,
+            "protocol_bps": 10000
+          },
+          "staking_required": false
+        }
+      },
+      "name": "Kimi Moonshot V1 128K",
+      "description": "Lucid Gateway — Kimi Moonshot V1 128K by moonshot",
+      "version": "2.0",
+      "tags": [
+        "auto-sync",
+        "api",
+        "moonshot",
+        "lucid",
+        "lucid-gateway",
+        "text"
+      ],
+      "status": "active",
+      "created_at": 1772558955804,
+      "updated_at": 1772558955804
+    }
+  }
 }

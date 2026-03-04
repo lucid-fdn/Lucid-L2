@@ -4,7 +4,7 @@
  * Uses the thought-epoch program to anchor epoch roots on-chain.
  * This provides cryptographic proof that receipts existed at a specific time.
  *
- * Program ID: 8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6 (devnet)
+ * Program ID: 9YhfaLoUZYLzu3xRQevRom4qj8oTf5TGpuoWptvStKDu (devnet)
  */
 import {
   Connection,
@@ -31,10 +31,10 @@ import { getReceipt, SignedReceipt } from './receiptService';
 
 // thought-epoch program IDs per network — must match Anchor.toml
 const THOUGHT_EPOCH_PROGRAM_IDS: Record<string, string> = {
-  localnet: '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6',
-  devnet: '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6',
-  testnet: '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6',
-  mainnet: '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6', // Update when deployed to mainnet
+  localnet: '9YhfaLoUZYLzu3xRQevRom4qj8oTf5TGpuoWptvStKDu',
+  devnet: '9YhfaLoUZYLzu3xRQevRom4qj8oTf5TGpuoWptvStKDu',
+  testnet: '9YhfaLoUZYLzu3xRQevRom4qj8oTf5TGpuoWptvStKDu',
+  mainnet: '9YhfaLoUZYLzu3xRQevRom4qj8oTf5TGpuoWptvStKDu', // Update when deployed to mainnet
 };
 
 // Get program ID based on configured network

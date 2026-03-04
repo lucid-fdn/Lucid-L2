@@ -277,7 +277,7 @@ pub struct RegisterModel<'info> {
         seeds = [b"model", model_hash.as_ref()],
         bump,
     )]
-    pub model: Account<'info, ModelCircuit>,
+    pub model: Box<Account<'info, ModelCircuit>>,
     #[account(mut)]
     pub owner: Signer<'info>,
     pub system_program: Program<'info, System>,
@@ -285,9 +285,9 @@ pub struct RegisterModel<'info> {
 
 #[derive(Accounts)]
 pub struct VerifyProof<'info> {
-    pub model: Account<'info, ModelCircuit>,
+    pub model: Box<Account<'info, ModelCircuit>>,
     #[account(mut)]
-    pub bloom: Account<'info, ProofBloomFilter>,
+    pub bloom: Box<Account<'info, ProofBloomFilter>>,
     #[account(mut)]
     pub verifier: Signer<'info>,
     /// Optional proof record PDA (for high-value proofs that need on-chain record)
@@ -298,14 +298,14 @@ pub struct VerifyProof<'info> {
 #[derive(Accounts)]
 pub struct VerifyBatch<'info> {
     #[account(mut)]
-    pub bloom: Account<'info, ProofBloomFilter>,
+    pub bloom: Box<Account<'info, ProofBloomFilter>>,
     #[account(mut)]
     pub verifier: Signer<'info>,
 }
 
 #[derive(Accounts)]
 pub struct CheckProof<'info> {
-    pub bloom: Account<'info, ProofBloomFilter>,
+    pub bloom: Box<Account<'info, ProofBloomFilter>>,
 }
 
 #[derive(Accounts)]
@@ -317,7 +317,7 @@ pub struct InitBloom<'info> {
         seeds = [b"bloom", authority.key().as_ref()],
         bump,
     )]
-    pub bloom: Account<'info, ProofBloomFilter>,
+    pub bloom: Box<Account<'info, ProofBloomFilter>>,
     #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,

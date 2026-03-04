@@ -3,7 +3,7 @@ use anchor_lang::system_program;
 use anchor_lang::solana_program::hash::hash as sha256;
 
 // Program ID - deployed to devnet
-declare_id!("38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW");
+declare_id!("FhoemNdqwPMt8nmX4HT3WpSqUuqeAUXRb7WchAehmSaL");
 
 /// Hash a slug to a fixed 32-byte seed (prevents PDA seed overflow for slugs > 32 bytes).
 fn slug_seed(slug: &str) -> [u8; 32] {

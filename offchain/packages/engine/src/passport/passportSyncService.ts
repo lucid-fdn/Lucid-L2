@@ -13,7 +13,7 @@ import { Passport, PassportType } from '../storage/passportStore';
 import { OnChainSyncHandler } from './passportManager';
 
 // Program ID - deployed to devnet on Jan 27, 2026
-const PASSPORT_PROGRAM_ID = process.env.PASSPORT_PROGRAM_ID || '38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW';
+const PASSPORT_PROGRAM_ID = process.env.PASSPORT_PROGRAM_ID || 'FhoemNdqwPMt8nmX4HT3WpSqUuqeAUXRb7WchAehmSaL';
 
 // Asset type mapping (offchain -> on-chain enum)
 const ASSET_TYPE_MAP: Record<PassportType, number> = {

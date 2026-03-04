@@ -21,13 +21,13 @@ export class ConfigurationManager {
     localnet: {
       rpcUrl: 'http://localhost:8899',
       commitment: 'processed',
-      programId: new PublicKey('8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6'),
+      programId: new PublicKey('9YhfaLoUZYLzu3xRQevRom4qj8oTf5TGpuoWptvStKDu'),
       lucidMint: new PublicKey('4sWEwy73f7ViLeuSYgBGRt9zZxH3VJ7SsBRitpBFCQSh')
     },
     devnet: {
       rpcUrl: 'https://api.devnet.solana.com',
       commitment: 'confirmed',
-      programId: new PublicKey('8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6'),
+      programId: new PublicKey('9YhfaLoUZYLzu3xRQevRom4qj8oTf5TGpuoWptvStKDu'),
       lucidMint: new PublicKey('79rh6D6ejAWKo1zRbBocpfnLiP5wu5HaJPkazDWsFuQm') // LUCID token created on devnet
     },
     testnet: {

@@ -8,7 +8,7 @@ import path from 'path';
 import { PATHS } from '../config/paths';
 import { getSolanaKeypair } from '../chain/solana/keypair';
 
-const PASSPORT_PROGRAM_ID = process.env.PASSPORT_PROGRAM_ID || '38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW';
+const PASSPORT_PROGRAM_ID = process.env.PASSPORT_PROGRAM_ID || 'FhoemNdqwPMt8nmX4HT3WpSqUuqeAUXRb7WchAehmSaL';
 
 /**
  * PaymentGateService — wraps on-chain payment gate instructions

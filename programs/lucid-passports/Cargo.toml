@@ -22,5 +22,5 @@ anchor-debug = []
 [dependencies]
 anchor-lang = "0.31.1"
 # Pin transitive deps to pre-edition2024 versions (compatible with Solana BPF toolchain cargo 1.84)
-blake3 = ">=1.3, <1.8"
+blake3 = ">=1.3, <1.6"
 constant_time_eq = ">=0.1, <0.4"

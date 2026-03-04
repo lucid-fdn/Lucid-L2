@@ -35,7 +35,7 @@ jest.mock('fs', () => ({
   readFileSync: jest.fn().mockImplementation((path: string) => {
     if (path.includes('lucid_passports.json')) {
       return JSON.stringify({
-        metadata: { address: '38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW' },
+        metadata: { address: 'FhoemNdqwPMt8nmX4HT3WpSqUuqeAUXRb7WchAehmSaL' },
         instructions: [],
         accounts: [],
       });
@@ -72,7 +72,7 @@ describe('PaymentGateService', () => {
 
     it('should create service with custom program ID', () => {
       const service = new PaymentGateService({
-        programId: '38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW',
+        programId: 'FhoemNdqwPMt8nmX4HT3WpSqUuqeAUXRb7WchAehmSaL',
       });
       expect(service).toBeDefined();
     });

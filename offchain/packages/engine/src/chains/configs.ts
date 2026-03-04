@@ -235,11 +235,11 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     isTestnet: true,
     explorerUrl: 'https://explorer.solana.com?cluster=devnet',
     nativeCurrency: { name: 'SOL', symbol: 'SOL', decimals: 9 },
-    thoughtEpochProgram: process.env.THOUGHT_EPOCH_PROGRAM_ID || '8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6',
+    thoughtEpochProgram: process.env.THOUGHT_EPOCH_PROGRAM_ID || '9YhfaLoUZYLzu3xRQevRom4qj8oTf5TGpuoWptvStKDu',
     gasUtilsProgram: process.env.GAS_UTILS_PROGRAM_ID || 'EzuUhxtNAz1eRfAPypm6eAepe8fRQBrBPSo4Qcp1w3hm',
     agentWalletProgram: process.env.AGENT_WALLET_PROGRAM_ID || 'AJGpTWXbhvdYMxSah6GAKzykvfkYo2ViQpWGMbimQsph',
     zkmlVerifierProgram: process.env.ZKML_VERIFIER_PROGRAM_ID || '69cJRFGWijD1FdapQ2vz7VP6x2jcXRQyBws9VzzPpqAN',
-    passportsProgram: process.env.PASSPORTS_PROGRAM_ID || '38yaXUezrbLyLDnAQ5jqFXPiFurr8qhw19gYnE6H9VsW',
+    passportsProgram: process.env.PASSPORTS_PROGRAM_ID || 'FhoemNdqwPMt8nmX4HT3WpSqUuqeAUXRb7WchAehmSaL',
   },
 
   'solana-mainnet': {
