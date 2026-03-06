@@ -11,8 +11,12 @@ import {
   Keypair,
   PublicKey,
   Transaction,
+  TransactionInstruction,
+  sendAndConfirmTransaction,
+  SystemProgram,
   type Commitment,
 } from '@solana/web3.js';
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import * as fs from 'fs';
 import bs58 from 'bs58';
 import type { IBlockchainAdapter } from '../adapter-interface';
@@ -29,7 +33,38 @@ import type {
   ReputationFeedback,
   ReputationData,
 } from '../types';
+import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter } from '../domain-interfaces';
 import { SolanaPassportClient } from '../../passport/nft/solana-token2022';
+
+// =============================================================================
+// ANCHOR INSTRUCTION DISCRIMINATORS
+// =============================================================================
+// First 8 bytes of sha256("global:<instruction_name>")
+
+const CREATE_WALLET_DISCRIMINATOR = Buffer.from([
+  0x52, 0xac, 0x80, 0x12, 0xa1, 0xcf, 0x58, 0x3f, // sha256("global:create_wallet")[0:8]
+]);
+
+const SET_POLICY_DISCRIMINATOR = Buffer.from([
+  0x28, 0x85, 0x0c, 0x9d, 0xeb, 0xca, 0x02, 0x84, // sha256("global:set_policy")[0:8]
+]);
+
+const CREATE_ESCROW_DISCRIMINATOR = Buffer.from([
+  0xfd, 0xd7, 0xa5, 0x74, 0x24, 0x6c, 0x44, 0x50, // sha256("global:create_escrow")[0:8]
+]);
+
+const RELEASE_ESCROW_DISCRIMINATOR = Buffer.from([
+  0x92, 0xfd, 0x81, 0xe9, 0x14, 0x91, 0xb5, 0xce, // sha256("global:release_escrow")[0:8]
+]);
+
+// PDA seeds (must match on-chain program)
+const AGENT_WALLET_SEED = Buffer.from('agent_wallet');
+const POLICY_SEED = Buffer.from('policy');
+const ESCROW_SEED = Buffer.from('escrow');
+
+// AgentWallet account layout offsets (after 8-byte Anchor discriminator):
+//   owner: Pubkey (32) | passport_mint: Pubkey (32) | nonce: u64 (8) | bump: u8 (1) | created_at: i64 (8)
+const WALLET_NONCE_OFFSET = 8 + 32 + 32; // = 72
 
 export class SolanaAdapter implements IBlockchainAdapter {
   readonly chainType: ChainType = 'solana';
@@ -41,10 +76,6 @@ export class SolanaAdapter implements IBlockchainAdapter {
   private _keypair: Keypair | null = null;
   private _passportClient: SolanaPassportClient | null = null;
   private _commitment: Commitment = 'confirmed';
-
-  // Local stores for validation/reputation (no on-chain registry on Solana yet)
-  private _validationStore = new Map<string, ValidationResult>();
-  private _reputationStore = new Map<string, ReputationData[]>();
 
   get chainId(): string {
     return this._chainId;
@@ -181,64 +212,28 @@ export class SolanaAdapter implements IBlockchainAdapter {
   // Validation Registry (local store — no on-chain registry on Solana yet)
   // =========================================================================
 
-  async submitValidation(params: ValidationSubmission): Promise<TxReceipt> {
+  async submitValidation(_params: ValidationSubmission): Promise<TxReceipt> {
     this.ensureConnected();
-
-    const validationId = `sol-val-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const result: ValidationResult = {
-      validationId,
-      agentTokenId: params.agentTokenId,
-      validator: this._keypair?.publicKey.toBase58() || 'unknown',
-      valid: params.valid,
-      timestamp: Math.floor(Date.now() / 1000),
-      metadata: params.metadata,
-    };
-
-    this._validationStore.set(validationId, result);
-
-    return {
-      hash: validationId,
-      chainId: this._chainId,
-      success: true,
-      statusMessage: 'Validation stored locally (no on-chain Solana registry)',
-    };
+    throw new Error('Validation/Reputation: DB persistence coming in Task 3');
   }
 
-  async getValidation(validationId: string): Promise<ValidationResult | null> {
+  async getValidation(_validationId: string): Promise<ValidationResult | null> {
     this.ensureConnected();
-    return this._validationStore.get(validationId) || null;
+    throw new Error('Validation/Reputation: DB persistence coming in Task 3');
   }
 
   // =========================================================================
   // Reputation Registry (local store — no on-chain registry on Solana yet)
   // =========================================================================
 
-  async submitReputation(params: ReputationFeedback): Promise<TxReceipt> {
+  async submitReputation(_params: ReputationFeedback): Promise<TxReceipt> {
     this.ensureConnected();
-
-    const record: ReputationData = {
-      from: this._keypair?.publicKey.toBase58() || 'unknown',
-      agentTokenId: params.agentTokenId,
-      score: params.score,
-      category: params.category,
-      timestamp: Math.floor(Date.now() / 1000),
-    };
-
-    const existing = this._reputationStore.get(params.agentTokenId) || [];
-    existing.push(record);
-    this._reputationStore.set(params.agentTokenId, existing);
-
-    return {
-      hash: `sol-rep-${Date.now()}`,
-      chainId: this._chainId,
-      success: true,
-      statusMessage: 'Reputation stored locally (no on-chain Solana registry)',
-    };
+    throw new Error('Validation/Reputation: DB persistence coming in Task 3');
   }
 
-  async readReputation(agentId: string): Promise<ReputationData[]> {
+  async readReputation(_agentId: string): Promise<ReputationData[]> {
     this.ensureConnected();
-    return this._reputationStore.get(agentId) || [];
+    throw new Error('Validation/Reputation: DB persistence coming in Task 3');
   }
 
   // =========================================================================
@@ -326,23 +321,54 @@ export class SolanaAdapter implements IBlockchainAdapter {
    */
   async createAgentWallet(passportMint: string): Promise<{ walletPda: string; txHash: string }> {
     this.ensureConnected();
+    if (!this._keypair || !this._connection) {
+      throw new Error('Keypair and connection required for transactions');
+    }
     const agentWalletProgram = this._config?.agentWalletProgram;
     if (!agentWalletProgram) throw new Error('LucidAgentWallet program not configured');
 
     const mintPubkey = new PublicKey(passportMint);
     const programId = new PublicKey(agentWalletProgram);
-    const [walletPda] = PublicKey.findProgramAddressSync(
-      [Buffer.from('agent_wallet'), mintPubkey.toBuffer()],
+    const [walletPda, bump] = PublicKey.findProgramAddressSync(
+      [AGENT_WALLET_SEED, mintPubkey.toBuffer()],
       programId,
     );
 
-    // In production: build and submit create_wallet transaction
-    console.log(`[SolanaAdapter] createAgentWallet: PDA=${walletPda.toBase58()} for mint=${passportMint}`);
-    return { walletPda: walletPda.toBase58(), txHash: `mock_${Date.now()}` };
+    // Instruction data: discriminator (8) + bump (1)
+    const data = Buffer.concat([
+      CREATE_WALLET_DISCRIMINATOR,
+      Buffer.from([bump]),
+    ]);
+
+    const instruction = new TransactionInstruction({
+      programId,
+      keys: [
+        { pubkey: walletPda, isSigner: false, isWritable: true },        // wallet (PDA, init)
+        { pubkey: mintPubkey, isSigner: false, isWritable: false },       // passport_mint
+        { pubkey: this._keypair.publicKey, isSigner: true, isWritable: true }, // owner (payer)
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
+      ],
+      data,
+    });
+
+    const transaction = new Transaction().add(instruction);
+    const signature = await sendAndConfirmTransaction(
+      this._connection,
+      transaction,
+      [this._keypair],
+      { commitment: this._commitment, maxRetries: 2 },
+    );
+
+    console.log(`[SolanaAdapter] createAgentWallet: PDA=${walletPda.toBase58()} tx=${signature}`);
+    return { walletPda: walletPda.toBase58(), txHash: signature };
   }
 
   /**
    * Set policy constraints on an agent wallet.
+   *
+   * On-chain signature:
+   *   set_policy(max_per_tx: u64, daily_limit: u64, allowed_programs: Vec<Pubkey>,
+   *              time_window_start: i64, time_window_end: i64)
    */
   async setPolicy(walletPda: string, params: {
     maxPerTx: bigint;
@@ -352,14 +378,80 @@ export class SolanaAdapter implements IBlockchainAdapter {
     timeWindowEnd?: number;
   }): Promise<{ txHash: string }> {
     this.ensureConnected();
+    if (!this._keypair || !this._connection) {
+      throw new Error('Keypair and connection required for transactions');
+    }
     if (!this._config?.agentWalletProgram) throw new Error('LucidAgentWallet program not configured');
 
-    console.log(`[SolanaAdapter] setPolicy: wallet=${walletPda}, maxPerTx=${params.maxPerTx}, dailyLimit=${params.dailyLimit}`);
-    return { txHash: `mock_policy_${Date.now()}` };
+    const programId = new PublicKey(this._config.agentWalletProgram);
+    const walletPubkey = new PublicKey(walletPda);
+
+    // Derive policy PDA: seeds = ["policy", wallet.key()]
+    const [policyPda] = PublicKey.findProgramAddressSync(
+      [POLICY_SEED, walletPubkey.toBuffer()],
+      programId,
+    );
+
+    // Serialize instruction data
+    const maxPerTxBuf = Buffer.alloc(8);
+    maxPerTxBuf.writeBigUInt64LE(BigInt(params.maxPerTx), 0);
+
+    const dailyLimitBuf = Buffer.alloc(8);
+    dailyLimitBuf.writeBigUInt64LE(BigInt(params.dailyLimit), 0);
+
+    // Vec<Pubkey>: 4-byte LE length prefix + N * 32-byte pubkeys
+    const allowedPubkeys = params.allowedPrograms.map(p => new PublicKey(p));
+    const vecLenBuf = Buffer.alloc(4);
+    vecLenBuf.writeUInt32LE(allowedPubkeys.length, 0);
+
+    const timeWindowStartBuf = Buffer.alloc(8);
+    timeWindowStartBuf.writeBigInt64LE(BigInt(params.timeWindowStart ?? 0), 0);
+
+    const timeWindowEndBuf = Buffer.alloc(8);
+    timeWindowEndBuf.writeBigInt64LE(BigInt(params.timeWindowEnd ?? 0), 0);
+
+    const data = Buffer.concat([
+      SET_POLICY_DISCRIMINATOR,
+      maxPerTxBuf,
+      dailyLimitBuf,
+      vecLenBuf,
+      ...allowedPubkeys.map(p => p.toBuffer()),
+      timeWindowStartBuf,
+      timeWindowEndBuf,
+    ]);
+
+    // Accounts per SetPolicy context (init_if_needed — requires system_program)
+    const instruction = new TransactionInstruction({
+      programId,
+      keys: [
+        { pubkey: policyPda, isSigner: false, isWritable: true },          // policy (PDA, init_if_needed)
+        { pubkey: walletPubkey, isSigner: false, isWritable: false },       // wallet (read-only, has_one = owner)
+        { pubkey: this._keypair.publicKey, isSigner: true, isWritable: true }, // owner (payer)
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
+      ],
+      data,
+    });
+
+    const transaction = new Transaction().add(instruction);
+    const signature = await sendAndConfirmTransaction(
+      this._connection,
+      transaction,
+      [this._keypair],
+      { commitment: this._commitment, maxRetries: 2 },
+    );
+
+    console.log(`[SolanaAdapter] setPolicy: wallet=${walletPda} tx=${signature}`);
+    return { txHash: signature };
   }
 
   /**
-   * Create an escrow from an agent wallet.
+   * Create a time-locked escrow from an agent wallet.
+   *
+   * On-chain signature:
+   *   create_escrow(amount: u64, duration_seconds: i64, expected_receipt_hash: [u8; 32])
+   *
+   * Reads the wallet account to obtain the current nonce for PDA derivation:
+   *   seeds = ["escrow", wallet.key(), nonce.to_le_bytes()]
    */
   async createEscrow(walletPda: string, params: {
     beneficiary: string;
@@ -369,14 +461,96 @@ export class SolanaAdapter implements IBlockchainAdapter {
     expectedReceiptHash: Uint8Array;
   }): Promise<{ escrowPda: string; txHash: string }> {
     this.ensureConnected();
+    if (!this._keypair || !this._connection) {
+      throw new Error('Keypair and connection required for transactions');
+    }
     if (!this._config?.agentWalletProgram) throw new Error('LucidAgentWallet program not configured');
 
-    console.log(`[SolanaAdapter] createEscrow: wallet=${walletPda}, amount=${params.amount}, beneficiary=${params.beneficiary}`);
-    return { escrowPda: `mock_escrow_${Date.now()}`, txHash: `mock_${Date.now()}` };
+    const programId = new PublicKey(this._config.agentWalletProgram);
+    const walletPubkey = new PublicKey(walletPda);
+    const beneficiaryPubkey = new PublicKey(params.beneficiary);
+    const tokenMintPubkey = new PublicKey(params.tokenMint);
+
+    // Read wallet account to get current nonce at offset 72 (8 disc + 32 owner + 32 mint)
+    const walletAccountInfo = await this._connection.getAccountInfo(walletPubkey);
+    if (!walletAccountInfo) {
+      throw new Error(`Agent wallet account not found: ${walletPda}`);
+    }
+    const nonce = walletAccountInfo.data.readBigUInt64LE(WALLET_NONCE_OFFSET);
+    const nonceBuf = Buffer.alloc(8);
+    nonceBuf.writeBigUInt64LE(nonce, 0);
+
+    // Derive escrow PDA: seeds = ["escrow", wallet.key(), nonce.to_le_bytes()]
+    const [escrowPda] = PublicKey.findProgramAddressSync(
+      [ESCROW_SEED, walletPubkey.toBuffer(), nonceBuf],
+      programId,
+    );
+
+    // Serialize instruction data
+    if (params.expectedReceiptHash.length !== 32) {
+      throw new Error('expectedReceiptHash must be exactly 32 bytes');
+    }
+    const amountBuf = Buffer.alloc(8);
+    amountBuf.writeBigUInt64LE(BigInt(params.amount), 0);
+
+    const durationBuf = Buffer.alloc(8);
+    durationBuf.writeBigInt64LE(BigInt(params.durationSeconds), 0);
+
+    const data = Buffer.concat([
+      CREATE_ESCROW_DISCRIMINATOR,
+      amountBuf,
+      durationBuf,
+      Buffer.from(params.expectedReceiptHash),
+    ]);
+
+    // Derive ATAs for depositor and escrow
+    const depositorAta = await getAssociatedTokenAddress(
+      tokenMintPubkey,
+      this._keypair.publicKey,
+    );
+    const escrowAta = await getAssociatedTokenAddress(
+      tokenMintPubkey,
+      walletPubkey,
+      true, // allowOwnerOffCurve — PDA-owned ATA
+    );
+
+    // Accounts per CreateEscrow context
+    const instruction = new TransactionInstruction({
+      programId,
+      keys: [
+        { pubkey: escrowPda, isSigner: false, isWritable: true },            // escrow (PDA, init)
+        { pubkey: walletPubkey, isSigner: false, isWritable: true },          // wallet (mut, has_one = owner)
+        { pubkey: this._keypair.publicKey, isSigner: true, isWritable: true }, // owner (payer)
+        { pubkey: beneficiaryPubkey, isSigner: false, isWritable: false },    // beneficiary
+        { pubkey: tokenMintPubkey, isSigner: false, isWritable: false },      // token_mint
+        { pubkey: depositorAta, isSigner: false, isWritable: true },          // depositor_ata
+        { pubkey: escrowAta, isSigner: false, isWritable: true },             // escrow_ata
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },     // token_program
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
+      ],
+      data,
+    });
+
+    const transaction = new Transaction().add(instruction);
+    const signature = await sendAndConfirmTransaction(
+      this._connection,
+      transaction,
+      [this._keypair],
+      { commitment: this._commitment, maxRetries: 2 },
+    );
+
+    console.log(`[SolanaAdapter] createEscrow: escrow=${escrowPda.toBase58()} tx=${signature}`);
+    return { escrowPda: escrowPda.toBase58(), txHash: signature };
   }
 
   /**
-   * Release an escrow upon verified receipt.
+   * Release escrow funds to the beneficiary upon verified receipt.
+   *
+   * On-chain signature:
+   *   release_escrow(receipt_hash: [u8; 32], receipt_signature: [u8; 64])
+   *
+   * The caller must provide the escrow ATA and beneficiary ATA. We derive
+   * them from the escrow account data read on-chain.
    */
   async releaseEscrow(escrowPda: string, params: {
     walletPda: string;
@@ -384,16 +558,84 @@ export class SolanaAdapter implements IBlockchainAdapter {
     receiptSignature: Uint8Array;
   }): Promise<{ txHash: string }> {
     this.ensureConnected();
+    if (!this._keypair || !this._connection) {
+      throw new Error('Keypair and connection required for transactions');
+    }
     if (!this._config?.agentWalletProgram) throw new Error('LucidAgentWallet program not configured');
 
-    console.log(`[SolanaAdapter] releaseEscrow: escrow=${escrowPda}`);
-    return { txHash: `mock_release_${Date.now()}` };
+    if (params.receiptHash.length !== 32) {
+      throw new Error('receiptHash must be exactly 32 bytes');
+    }
+    if (params.receiptSignature.length !== 64) {
+      throw new Error('receiptSignature must be exactly 64 bytes');
+    }
+
+    const programId = new PublicKey(this._config.agentWalletProgram);
+    const escrowPubkey = new PublicKey(escrowPda);
+    const walletPubkey = new PublicKey(params.walletPda);
+
+    // Read escrow account to get beneficiary (offset 8+32+32 = 72) and token_mint (offset 72+32 = 104)
+    const escrowAccountInfo = await this._connection.getAccountInfo(escrowPubkey);
+    if (!escrowAccountInfo) {
+      throw new Error(`Escrow account not found: ${escrowPda}`);
+    }
+    const escrowData = escrowAccountInfo.data;
+    // EscrowRecord layout: 8 disc | 32 wallet | 32 depositor | 32 beneficiary | 32 token_mint | ...
+    const beneficiaryPubkey = new PublicKey(escrowData.subarray(8 + 32 + 32, 8 + 32 + 32 + 32));
+    const tokenMintPubkey = new PublicKey(escrowData.subarray(8 + 32 + 32 + 32, 8 + 32 + 32 + 32 + 32));
+
+    // Derive ATAs
+    const escrowAta = await getAssociatedTokenAddress(
+      tokenMintPubkey,
+      walletPubkey,
+      true, // PDA-owned ATA
+    );
+    const beneficiaryAta = await getAssociatedTokenAddress(
+      tokenMintPubkey,
+      beneficiaryPubkey,
+    );
+
+    // Serialize instruction data: discriminator + receipt_hash (32) + receipt_signature (64)
+    const data = Buffer.concat([
+      RELEASE_ESCROW_DISCRIMINATOR,
+      Buffer.from(params.receiptHash),
+      Buffer.from(params.receiptSignature),
+    ]);
+
+    // Accounts per ReleaseEscrow context
+    const instruction = new TransactionInstruction({
+      programId,
+      keys: [
+        { pubkey: escrowPubkey, isSigner: false, isWritable: true },          // escrow (mut, has_one = wallet)
+        { pubkey: walletPubkey, isSigner: false, isWritable: false },          // wallet
+        { pubkey: this._keypair.publicKey, isSigner: true, isWritable: false }, // releaser (signer)
+        { pubkey: escrowAta, isSigner: false, isWritable: true },              // escrow_ata
+        { pubkey: beneficiaryAta, isSigner: false, isWritable: true },         // beneficiary_ata
+        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },      // token_program
+      ],
+      data,
+    });
+
+    const transaction = new Transaction().add(instruction);
+    const signature = await sendAndConfirmTransaction(
+      this._connection,
+      transaction,
+      [this._keypair],
+      { commitment: this._commitment, maxRetries: 2 },
+    );
+
+    console.log(`[SolanaAdapter] releaseEscrow: escrow=${escrowPda} tx=${signature}`);
+    return { txHash: signature };
   }
 
   /**
    * Verify a zkML proof on-chain via the LucidZkMLVerifier program.
+   *
+   * NOTE: Solana does not yet expose the alt_bn128 elliptic-curve syscalls
+   * required for on-chain Groth16 verification. Use the EVM chain adapter
+   * (which has a native precompile at 0x06-0x08) for zkML proof verification.
    */
-  async verifyZkMLProof(params: {
+  async verifyZkMLProof(_params: {
     modelHash: Uint8Array;
     proofA: Uint8Array;
     proofB: Uint8Array;
@@ -404,9 +646,25 @@ export class SolanaAdapter implements IBlockchainAdapter {
     this.ensureConnected();
     if (!this._config?.zkmlVerifierProgram) throw new Error('LucidZkMLVerifier program not configured');
 
-    const proofHash = `proof_${Buffer.from(params.proofA.slice(0, 8)).toString('hex')}`;
-    console.log(`[SolanaAdapter] verifyZkMLProof: model=${Buffer.from(params.modelHash).toString('hex').slice(0, 16)}...`);
-    return { proofHash, txHash: `mock_zkml_${Date.now()}` };
+    throw new Error(
+      'zkML verification not yet supported on Solana — alt_bn128 syscalls required. Use EVM chain.',
+    );
+  }
+
+  // =========================================================================
+  // Domain Sub-Adapters
+  // =========================================================================
+
+  epochs(): IEpochAdapter {
+    throw new Error('IEpochAdapter not yet implemented on Solana — see Task 7');
+  }
+
+  escrow(): IEscrowAdapter {
+    throw new Error('IEscrowAdapter not yet implemented on Solana — see Task 7');
+  }
+
+  passports(): IPassportAdapter {
+    throw new Error('IPassportAdapter not yet implemented on Solana — see Task 13');
   }
 
   // =========================================================================
