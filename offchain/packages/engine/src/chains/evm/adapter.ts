@@ -412,7 +412,162 @@ export class EVMAdapter implements IBlockchainAdapter {
   // =========================================================================
 
   epochs(): IEpochAdapter {
-    throw new Error('IEpochAdapter not yet implemented on EVM — see Task 7');
+    this.ensureConnected();
+
+    const registryAddress = this._config?.epochRegistry;
+    if (!registryAddress) {
+      throw new Error(`No EpochRegistry configured for chain ${this._chainId}`);
+    }
+    if (!this._walletClient || !this._account) {
+      throw new Error('Wallet required for epoch operations');
+    }
+
+    const publicClient = this._publicClient;
+    const walletClient = this._walletClient;
+    const chainId = this._chainId;
+    const address = registryAddress as `0x${string}`;
+    const self = this;
+
+    // Inline ABI snippets for the EpochRegistry contract
+    const commitEpochAbi = [
+      {
+        type: 'function' as const,
+        name: 'commitEpoch',
+        inputs: [
+          { name: 'agentId', type: 'bytes32' as const },
+          { name: 'mmrRoot', type: 'bytes32' as const },
+          { name: 'epochId', type: 'uint64' as const },
+          { name: 'leafCount', type: 'uint64' as const },
+          { name: 'mmrSize', type: 'uint64' as const },
+        ],
+        outputs: [],
+        stateMutability: 'nonpayable' as const,
+      },
+    ] as const;
+
+    const commitEpochBatchAbi = [
+      {
+        type: 'function' as const,
+        name: 'commitEpochBatch',
+        inputs: [
+          { name: 'agentIds', type: 'bytes32[]' as const },
+          { name: 'mmrRoots', type: 'bytes32[]' as const },
+          { name: 'epochIds', type: 'uint64[]' as const },
+          { name: 'leafCounts', type: 'uint64[]' as const },
+          { name: 'mmrSizes', type: 'uint64[]' as const },
+        ],
+        outputs: [],
+        stateMutability: 'nonpayable' as const,
+      },
+    ] as const;
+
+    const getEpochAbi = [
+      {
+        type: 'function' as const,
+        name: 'getEpoch',
+        inputs: [
+          { name: 'agentId', type: 'bytes32' as const },
+          { name: 'epochId', type: 'uint64' as const },
+        ],
+        outputs: [
+          { name: 'mmrRoot', type: 'bytes32' as const },
+          { name: 'leafCount', type: 'uint64' as const },
+          { name: 'mmrSize', type: 'uint64' as const },
+          { name: 'committedAt', type: 'uint64' as const },
+        ],
+        stateMutability: 'view' as const,
+      },
+    ] as const;
+
+    return {
+      async commitEpoch(
+        agentId: string,
+        root: string,
+        epochId: number,
+        leafCount: number,
+        mmrSize: number,
+      ): Promise<TxReceipt> {
+        const agentIdBytes = agentId.startsWith('0x')
+          ? (agentId as `0x${string}`)
+          : (`0x${agentId.padStart(64, '0')}` as `0x${string}`);
+        const rootBytes = root.startsWith('0x')
+          ? (root as `0x${string}`)
+          : (`0x${root}` as `0x${string}`);
+
+        const hash = await walletClient.writeContract({
+          address,
+          abi: commitEpochAbi,
+          functionName: 'commitEpoch',
+          args: [agentIdBytes, rootBytes, BigInt(epochId), BigInt(leafCount), BigInt(mmrSize)],
+        });
+
+        return self.waitForTx(hash);
+      },
+
+      async commitEpochBatch(
+        epochs: Array<{
+          agentId: string;
+          root: string;
+          epochId: number;
+          leafCount: number;
+          mmrSize: number;
+        }>,
+      ): Promise<TxReceipt> {
+        const agentIds = epochs.map(e => {
+          const id = e.agentId;
+          return id.startsWith('0x')
+            ? (id as `0x${string}`)
+            : (`0x${id.padStart(64, '0')}` as `0x${string}`);
+        });
+        const roots = epochs.map(e => {
+          const r = e.root;
+          return r.startsWith('0x')
+            ? (r as `0x${string}`)
+            : (`0x${r}` as `0x${string}`);
+        });
+        const epochIds = epochs.map(e => BigInt(e.epochId));
+        const leafCounts = epochs.map(e => BigInt(e.leafCount));
+        const mmrSizes = epochs.map(e => BigInt(e.mmrSize));
+
+        const hash = await walletClient.writeContract({
+          address,
+          abi: commitEpochBatchAbi,
+          functionName: 'commitEpochBatch',
+          args: [agentIds, roots, epochIds, leafCounts, mmrSizes],
+        });
+
+        return self.waitForTx(hash);
+      },
+
+      async verifyEpoch(
+        agentId: string,
+        epochId: number,
+        expectedRoot: string,
+      ): Promise<boolean> {
+        const agentIdBytes = agentId.startsWith('0x')
+          ? (agentId as `0x${string}`)
+          : (`0x${agentId.padStart(64, '0')}` as `0x${string}`);
+
+        const expectedRootNorm = expectedRoot.startsWith('0x')
+          ? expectedRoot.toLowerCase()
+          : `0x${expectedRoot}`.toLowerCase();
+
+        try {
+          const result = await publicClient.readContract({
+            address,
+            abi: getEpochAbi,
+            functionName: 'getEpoch',
+            args: [agentIdBytes, BigInt(epochId)],
+          });
+
+          // result is a tuple: [mmrRoot, leafCount, mmrSize, committedAt]
+          const onChainRoot = (result as readonly [string, bigint, bigint, bigint])[0].toLowerCase();
+          return onChainRoot === expectedRootNorm;
+        } catch {
+          return false;
+        }
+      },
+    };
   }
 
   escrow(): IEscrowAdapter {

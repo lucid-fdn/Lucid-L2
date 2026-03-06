@@ -767,7 +767,149 @@ export class SolanaAdapter implements IBlockchainAdapter {
   // =========================================================================
 
   epochs(): IEpochAdapter {
-    throw new Error('IEpochAdapter not yet implemented on Solana — see Task 7');
+    this.ensureConnected();
+    if (!this._keypair || !this._connection) {
+      throw new Error('Keypair and connection required for epoch operations');
+    }
+
+    const conn = this._connection;
+    const keypair = this._keypair;
+    const chainId = this._chainId;
+    const commitment = this._commitment;
+    const config = this._config;
+
+    return {
+      async commitEpoch(
+        agentId: string,
+        root: string,
+        epochId: number,
+        leafCount: number,
+        mmrSize: number,
+      ): Promise<TxReceipt> {
+        // Lazy import to avoid circular dependencies
+        const {
+          buildCommitEpochV2Instruction,
+          buildInitEpochV2Instruction,
+          deriveEpochRecordV2PDA,
+        } = await import('../../receipt/anchoringService');
+
+        const rootBuffer = Buffer.from(root, 'hex');
+        const timestamp = Math.floor(Date.now() / 1000);
+
+        // Check if PDA already exists to decide init vs commit
+        const [epochRecordPDA] = deriveEpochRecordV2PDA(keypair.publicKey);
+        const existingAccount = await conn.getAccountInfo(epochRecordPDA);
+
+        const instruction = existingAccount
+          ? buildCommitEpochV2Instruction(
+              keypair.publicKey, rootBuffer, agentId, epochId, leafCount, timestamp, mmrSize,
+            )
+          : buildInitEpochV2Instruction(
+              keypair.publicKey, rootBuffer, agentId, epochId, leafCount, timestamp, mmrSize,
+            );
+
+        const transaction = new Transaction().add(instruction);
+
+        try {
+          const signature = await sendAndConfirmTransaction(
+            conn,
+            transaction,
+            [keypair],
+            { commitment, maxRetries: 2 },
+          );
+
+          return {
+            hash: signature,
+            chainId,
+            success: true,
+            statusMessage: `Epoch ${epochId} committed for agent ${agentId}`,
+          };
+        } catch (error) {
+          return {
+            hash: '',
+            chainId,
+            success: false,
+            statusMessage: error instanceof Error ? error.message : 'commitEpoch failed',
+          };
+        }
+      },
+
+      async commitEpochBatch(
+        epochs: Array<{
+          agentId: string;
+          root: string;
+          epochId: number;
+          leafCount: number;
+          mmrSize: number;
+        }>,
+      ): Promise<TxReceipt> {
+        // Lazy import to avoid circular dependencies
+        const {
+          buildCommitEpochsInstruction,
+          buildInitEpochsInstruction,
+          deriveEpochBatchRecordPDA,
+        } = await import('../../receipt/anchoringService');
+
+        const rootBuffers = epochs.map(e => Buffer.from(e.root, 'hex'));
+
+        // Check if batch PDA already exists
+        const [batchPDA] = deriveEpochBatchRecordPDA(keypair.publicKey);
+        const existingBatch = await conn.getAccountInfo(batchPDA);
+
+        const instruction = existingBatch
+          ? buildCommitEpochsInstruction(keypair.publicKey, rootBuffers)
+          : buildInitEpochsInstruction(keypair.publicKey, rootBuffers);
+
+        const transaction = new Transaction().add(instruction);
+
+        try {
+          const signature = await sendAndConfirmTransaction(
+            conn,
+            transaction,
+            [keypair],
+            { commitment, maxRetries: 2 },
+          );
+
+          return {
+            hash: signature,
+            chainId,
+            success: true,
+            statusMessage: `Batch of ${epochs.length} epochs committed`,
+          };
+        } catch (error) {
+          return {
+            hash: '',
+            chainId,
+            success: false,
+            statusMessage: error instanceof Error ? error.message : 'commitEpochBatch failed',
+          };
+        }
+      },
+
+      async verifyEpoch(
+        agentId: string,
+        epochId: number,
+        expectedRoot: string,
+      ): Promise<boolean> {
+        // Lazy import to avoid circular dependencies
+        const { deriveEpochRecordV2PDA } = await import('../../receipt/anchoringService');
+
+        try {
+          const [epochRecordPDA] = deriveEpochRecordV2PDA(keypair.publicKey);
+          const accountInfo = await conn.getAccountInfo(epochRecordPDA);
+
+          if (!accountInfo) {
+            return false;
+          }
+
+          // Parse account data: skip 8-byte Anchor discriminator, root is bytes 8-40
+          const onChainRoot = accountInfo.data.subarray(8, 40).toString('hex');
+          return onChainRoot === expectedRoot;
+        } catch {
+          return false;
+        }
+      },
+    };
   }
 
   escrow(): IEscrowAdapter {
