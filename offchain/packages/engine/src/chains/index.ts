@@ -3,6 +3,7 @@ export type { IBlockchainAdapter } from './adapter-interface';
 export { BlockchainAdapterFactory, blockchainAdapterFactory } from './factory';
 export { CHAIN_CONFIGS, getChainConfig, getEVMChains, getSolanaChains } from './configs';
 export * from './types';
+export * from './domain-interfaces';
 
 // Chain-specific adapters
 export { EVMAdapter } from './evm/adapter';

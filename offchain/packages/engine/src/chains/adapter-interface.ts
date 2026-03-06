@@ -19,6 +19,14 @@ import type {
   ReputationData,
 } from './types';
 
+import type {
+  IEpochAdapter,
+  IEscrowAdapter,
+  IPassportAdapter,
+  IAgentWalletAdapter,
+  IGasAdapter,
+} from './domain-interfaces';
+
 export interface IBlockchainAdapter {
   /** Chain identifier (e.g. 'base', 'apechain') */
   readonly chainId: string;
@@ -84,4 +92,23 @@ export interface IBlockchainAdapter {
 
   /** Get transaction status by hash */
   getTransactionStatus(hash: string): Promise<TxReceipt>;
+
+  // =========================================================================
+  // Domain Sub-Adapters
+  // =========================================================================
+
+  /** Epoch commitment and verification */
+  epochs(): IEpochAdapter;
+
+  /** Escrow lifecycle (create, release, timeout, dispute) */
+  escrow(): IEscrowAdapter;
+
+  /** Passport anchoring, payment gates, and access control */
+  passports(): IPassportAdapter;
+
+  /** Agent PDA/smart-account wallet (optional — not all chains support this) */
+  agentWallet?(): IAgentWalletAdapter;
+
+  /** Gas collection and revenue splitting (optional) */
+  gas?(): IGasAdapter;
 }
