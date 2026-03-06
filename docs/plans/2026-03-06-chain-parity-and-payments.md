@@ -1239,10 +1239,22 @@ export interface VerifyResult {
 
 /**
  * Canonical JSON for signing (RFC 8785 — JCS).
- * Uses sorted keys, no undefined, deterministic output.
+ * Sorted keys, deterministic output. MUST match the canonicalJson used
+ * in gateway-core/src/crypto/ for tool_args_hash/result_hash signing.
+ * DO NOT use JSON.stringify() — key order is non-deterministic across JS engines.
  */
 function canonicalJson(obj: unknown): string {
-  return JSON.stringify(obj, (_, v) => v, 0);
+  if (obj === null || obj === undefined) return 'null';
+  if (typeof obj === 'boolean' || typeof obj === 'number') return JSON.stringify(obj);
+  if (typeof obj === 'string') return JSON.stringify(obj);
+  if (typeof obj === 'bigint') return obj.toString();
+  if (obj instanceof Date) return JSON.stringify(obj.toISOString());
+  if (Array.isArray(obj)) return '[' + obj.map(canonicalJson).join(',') + ']';
+  const sorted = Object.keys(obj as Record<string, unknown>).sort();
+  const entries = sorted
+    .filter(k => (obj as Record<string, unknown>)[k] !== undefined)
+    .map(k => JSON.stringify(k) + ':' + canonicalJson((obj as Record<string, unknown>)[k]));
+  return '{' + entries.join(',') + '}';
 }
 
 /**
@@ -1350,7 +1362,42 @@ git commit -m "feat(payments): add PaymentGrant type with Ed25519 signing and ve
 
 ```sql
 -- infrastructure/migrations/20260306_payment_events.sql
--- Payment events: per-call payment records for async settlement
+-- Payment events + grant budgets for async settlement and replay protection
+
+-- Grant spend tracking (replay-safe limits)
+CREATE TABLE IF NOT EXISTS grant_budgets (
+  grant_id TEXT PRIMARY KEY,
+  max_calls INTEGER NOT NULL,
+  max_usd NUMERIC(18,6) NOT NULL,
+  calls_used INTEGER NOT NULL DEFAULT 0,
+  usd_used NUMERIC(18,6) NOT NULL DEFAULT 0,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Atomic budget consume: returns TRUE if budget available, FALSE if exceeded
+CREATE OR REPLACE FUNCTION consume_grant_budget(
+  p_grant_id TEXT, p_delta_usd NUMERIC, p_delta_calls INTEGER
+) RETURNS BOOLEAN AS $$
+DECLARE v_ok BOOLEAN;
+BEGIN
+  -- Upsert on first use (grant_budgets populated lazily from PaymentGrant limits)
+  INSERT INTO grant_budgets (grant_id, max_calls, max_usd, expires_at)
+  VALUES (p_grant_id, 0, 0, NOW()) -- placeholder, real limits set by ensure_grant_budget()
+  ON CONFLICT (grant_id) DO NOTHING;
+
+  UPDATE grant_budgets
+  SET calls_used = calls_used + p_delta_calls,
+      usd_used = usd_used + p_delta_usd
+  WHERE grant_id = p_grant_id
+    AND calls_used + p_delta_calls <= max_calls
+    AND usd_used + p_delta_usd <= max_usd
+    AND expires_at > NOW()
+  RETURNING TRUE INTO v_ok;
+
+  RETURN COALESCE(v_ok, FALSE);
+END;
+$$ LANGUAGE plpgsql;
 
 CREATE TABLE IF NOT EXISTS payment_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1550,20 +1597,39 @@ export function requirePaymentAuth() {
           Buffer.from(grantHeader, 'base64').toString('utf8')
         );
 
+        // Step 1: Verify signature + expiry
         const result = verifyPaymentGrant(grant, TRUSTED_SIGNER);
-        if (result.valid) {
-          (req as any).paymentGrant = grant;
-          return next();
+        if (!result.valid) {
+          return res.status(402).json({ error: 'Invalid PaymentGrant', reason: result.reason });
         }
 
-        return res.status(402).json({
-          error: 'Invalid PaymentGrant',
-          reason: result.reason,
-        });
+        // Step 2: Atomic spend tracking (replay protection)
+        const { getPool } = await import('@lucid-l2/engine/db/pool');
+        const pool = getPool();
+
+        // Ensure grant budget exists (lazy init from grant limits)
+        await pool.query(
+          `INSERT INTO grant_budgets (grant_id, max_calls, max_usd, expires_at)
+           VALUES ($1, $2, $3, to_timestamp($4))
+           ON CONFLICT (grant_id) DO NOTHING`,
+          [grant.grant_id, grant.limits.max_calls, grant.limits.total_usd, grant.limits.expires_at]
+        );
+
+        // Consume budget atomically
+        const estimatedCostUsd = grant.scope.max_per_call_usd; // conservative: charge max per call
+        const { rows } = await pool.query(
+          'SELECT consume_grant_budget($1, $2, $3) as ok',
+          [grant.grant_id, estimatedCostUsd, 1]
+        );
+
+        if (!rows[0]?.ok) {
+          return res.status(402).json({ error: 'Grant budget exceeded or expired' });
+        }
+
+        (req as any).paymentGrant = grant;
+        return next();
       } catch {
-        return res.status(402).json({
-          error: 'Malformed PaymentGrant header',
-        });
+        return res.status(402).json({ error: 'Malformed PaymentGrant header' });
       }
     }
 

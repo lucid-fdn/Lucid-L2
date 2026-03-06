@@ -49,7 +49,11 @@ interface PaymentGrant {
 
 **Issued by:** platform-core (TrustGate/MCPGate policy engine) or self-issued by agents with on-chain escrow backing.
 
-**Verified by:** Gateway middleware. Check signature, check expiry, check limits, proceed. No DB call, no RPC call.
+**Verified by:** Gateway middleware. Check signature, check expiry, then **atomic spend tracking** (consume_grant_budget) to enforce limits. Requires DB/Redis for grant budget state.
+
+**Signing:** Ed25519 over `SHA-256(canonicalJson(payload))` — must use sorted-key canonical JSON (RFC 8785 / JCS), NOT `JSON.stringify()`. Reuse `canonicalSha256Hex()` from `gateway-core/src/crypto/`.
+
+**Replay protection:** Signed grants can be replayed up to their limits. Gateway must track `(grant_id → calls_used, usd_used)` atomically per request. Pattern: `consume_grant_budget(grant_id, delta_usd, delta_calls)` — decrement atomically, reject if exceeded.
 
 ### AccessReceipt (on-chain, trustless)
 
@@ -96,6 +100,8 @@ These are layers of the same system, not alternatives. Each adds convenience on 
 **Where:** Lucid-L2 repo (OSS). Contracts + adapter layer.
 
 **Trade-off:** Requires gas, takes seconds (block confirmation), but zero trust assumptions.
+
+**IMPORTANT: Access windows, NOT per-call.** On-chain `payForAccess(passportId, duration)` buys a time window (e.g., 1 hour, 1 day). It is NOT designed for per-call payment — that would be too slow and too expensive. Per-call metering happens off-chain via PaymentGrant spend tracking. On-chain is for deposit/access primitives: pay once for N minutes of quota.
 
 ### Layer 2: x402 Facilitator (convenience, hosted)
 
@@ -249,6 +255,41 @@ Upgrade path:
 
 ## 6. DB Schema Extensions
 
+### grant_budgets table (new — replay-safe spend tracking)
+
+```sql
+CREATE TABLE grant_budgets (
+  grant_id TEXT PRIMARY KEY,
+  max_calls INTEGER NOT NULL,
+  max_usd NUMERIC(18,6) NOT NULL,
+  calls_used INTEGER NOT NULL DEFAULT 0,
+  usd_used NUMERIC(18,6) NOT NULL DEFAULT 0,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Atomic consume: returns TRUE if budget available, FALSE if exceeded
+-- Called by gateway middleware on every authorized request
+CREATE OR REPLACE FUNCTION consume_grant_budget(
+  p_grant_id TEXT, p_delta_usd NUMERIC, p_delta_calls INTEGER
+) RETURNS BOOLEAN AS $$
+DECLARE
+  v_ok BOOLEAN;
+BEGIN
+  UPDATE grant_budgets
+  SET calls_used = calls_used + p_delta_calls,
+      usd_used = usd_used + p_delta_usd
+  WHERE grant_id = p_grant_id
+    AND calls_used + p_delta_calls <= max_calls
+    AND usd_used + p_delta_usd <= max_usd
+    AND expires_at > NOW()
+  RETURNING TRUE INTO v_ok;
+
+  RETURN COALESCE(v_ok, FALSE);
+END;
+$$ LANGUAGE plpgsql;
+```
+
 ### payment_events table (new)
 
 ```sql
@@ -297,10 +338,12 @@ CREATE INDEX idx_payment_epochs_status ON payment_epochs(status);
 ## 7. Phase Plan
 
 ### Phase 1: PaymentGrant + Gateway Verification
-- Define PaymentGrant type and Ed25519 signing/verification
-- Gateway middleware: verify PaymentGrant header
+- Define PaymentGrant type and Ed25519 signing/verification (canonical JSON, NOT JSON.stringify)
+- `grant_budgets` table + `consume_grant_budget()` atomic function
+- Gateway middleware: verify signature → consume budget → proceed
 - `payment_events` table + consumer job
 - Wire receipt pipeline to emit payment_events
+- **Shared verifier:** platform-core imports PaymentGrant verifier from Lucid-L2 (one spec, strict compat test)
 
 ### Phase 2: On-Chain AccessReceipt (Layer 1)
 - `LucidPassportRegistry.sol` with full payment gate (already in chain parity plan)
