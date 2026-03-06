@@ -5,7 +5,7 @@ import { protocolManager } from '../../protocols/protocolManager';
 import { SessionSignerService } from '../../services/sessionSignerService';
 
 // Mock dependencies
-jest.mock('../../services/protocolManager');
+jest.mock('../../protocols/protocolManager');
 jest.mock('../../services/sessionSignerService');
 
 describe('Wallet Routes', () => {

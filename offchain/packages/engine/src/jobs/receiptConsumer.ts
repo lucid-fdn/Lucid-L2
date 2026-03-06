@@ -30,6 +30,17 @@ interface ReceiptEventRow {
   model: string | null
   endpoint: string | null
   created_at: string
+  // Agent system fields (added in 020_agent_system migration)
+  agent_passport_id: string | null
+  run_id: string | null
+  call_type: 'llm' | 'tool' | 'oracle' | null
+  tool_name: string | null
+  mcp_server_id: string | null
+  latency_ms: number | null
+  status: 'success' | 'error' | 'timeout' | null
+  provider: string | null
+  pricing_version: string | null
+  cost_usd: number | null
 }
 
 export interface ReceiptConsumerConfig {
@@ -127,7 +138,9 @@ async function pollOnce(): Promise<number> {
     // Fetch unprocessed events — use FOR UPDATE SKIP LOCKED for safe concurrency
     const result = await queryFn(
       `SELECT id, model_passport_id, compute_passport_id, policy_hash,
-              tokens_in, tokens_out, tenant_id, model, endpoint, created_at
+              tokens_in, tokens_out, tenant_id, model, endpoint, created_at,
+              agent_passport_id, run_id, call_type, tool_name, mcp_server_id,
+              latency_ms, status, provider, pricing_version, cost_usd
        FROM receipt_events
        WHERE processed = false
        ORDER BY id ASC
@@ -148,18 +161,22 @@ async function pollOnce(): Promise<number> {
     for (const row of rows) {
       try {
         // createReceipt() is the existing Lucid-L2 service — same as the /v1/receipts endpoint
+        // Pass run_id from gateway edge so the join key is consistent
         const receipt = createReceipt({
           model_passport_id: row.model_passport_id,
           compute_passport_id: row.compute_passport_id ?? 'unknown',
           policy_hash: row.policy_hash,
-          runtime: row.model ?? 'unknown',
+          runtime: row.model ?? row.call_type ?? 'unknown',
           tokens_in: row.tokens_in ?? 0,
           tokens_out: row.tokens_out ?? 0,
-          ttft_ms: 0, // Not tracked via TrustGate side-channel
+          ttft_ms: row.latency_ms ?? 0,
+          run_id: row.run_id ?? undefined,
         })
 
-        // Wire receipt into current epoch for anchoring
-        addReceiptToEpoch(receipt.run_id)
+        // Route to per-agent epoch when agent_passport_id is present;
+        // otherwise route to global epoch.
+        // Using agent_passport_id as project_id gives per-agent MMR isolation.
+        addReceiptToEpoch(receipt.run_id, row.agent_passport_id ?? undefined)
 
         // Mark as processed
         await queryFn!(
@@ -170,7 +187,7 @@ async function pollOnce(): Promise<number> {
         processed++
         stats.processed_total++
 
-        log('debug', `Processed receipt event ${row.id} → receipt ${receipt.run_id}`)
+        log('debug', `Processed receipt event ${row.id} → receipt ${receipt.run_id} (agent: ${row.agent_passport_id ?? 'global'})`)
       } catch (err) {
         stats.failed_total++
         log('error', `Failed to process receipt event ${row.id}`, err)

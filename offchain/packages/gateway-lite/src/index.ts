@@ -79,6 +79,9 @@ import { zkmlRouter } from './routes/zkmlRoutes';
 import { agentDeployRouter } from './routes/agentDeployRoutes';
 import { agentMarketplaceRouter } from './routes/agentMarketplaceRoutes';
 import { a2aRouter } from './routes/a2aRoutes';
+// Agent mirror + proof routes
+import { agentMirrorRouter } from './routes/agentMirrorRoutes';
+import { initAgentMirrorConsumer, startAgentMirrorConsumer, stopAgentMirrorConsumer } from '../../engine/src/jobs/agentMirrorConsumer';
 
 const app = express();
 
@@ -223,6 +226,8 @@ app.use('/', zkmlRouter);
 app.use('/', agentDeployRouter);
 app.use('/', agentMarketplaceRouter);
 app.use('/', a2aRouter);
+// Mount Agent Mirror routes (proof + receipts + epoch endpoints)
+app.use('/', agentMirrorRouter);
 
 // Register built-in reputation algorithms
 reputationAlgorithmRegistry.register(new ReceiptVolumeAlgorithm());
@@ -284,6 +289,31 @@ try {
   console.warn('⚠️ Receipt Consumer failed to start:', err instanceof Error ? err.message : err);
 }
 
+// Initialize Agent Mirror Consumer (polls agent_created_events from platform-core DB)
+const PLATFORM_CORE_DB_URL = process.env.PLATFORM_CORE_DB_URL;
+if (PLATFORM_CORE_DB_URL) {
+  try {
+    initAgentMirrorConsumer(
+      async (sql, params) => {
+        const result = await pool.query(sql, params);
+        return { rows: result.rows as Record<string, unknown>[] };
+      },
+      PLATFORM_CORE_DB_URL,
+      {
+        interval_ms: parseInt(process.env.AGENT_MIRROR_INTERVAL_MS || '10000'),
+        batch_size: parseInt(process.env.AGENT_MIRROR_BATCH_SIZE || '50'),
+        enabled: process.env.AGENT_MIRROR_ENABLED !== 'false',
+      }
+    );
+    startAgentMirrorConsumer();
+    console.log('🤖 Agent Mirror Consumer started (PLATFORM_CORE_DB_URL configured)');
+  } catch (err) {
+    console.warn('⚠️ Agent Mirror Consumer failed to start:', err instanceof Error ? err.message : err);
+  }
+} else {
+  console.log('ℹ️ Agent Mirror Consumer disabled (PLATFORM_CORE_DB_URL not set)');
+}
+
 // Receipt retention cron — clean up processed events older than 30 days
 const RECEIPT_RETENTION_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
 setInterval(async () => {
@@ -303,12 +333,14 @@ setInterval(async () => {
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received — shutting down');
   stopReceiptConsumer();
+  stopAgentMirrorConsumer();
   await Promise.all([flushSentry(), shutdownTracing()]);
   process.exit(0);
 });
 process.on('SIGINT', async () => {
   console.log('SIGINT received — shutting down');
   stopReceiptConsumer();
+  stopAgentMirrorConsumer();
   await Promise.all([flushSentry(), shutdownTracing()]);
   process.exit(0);
 });
