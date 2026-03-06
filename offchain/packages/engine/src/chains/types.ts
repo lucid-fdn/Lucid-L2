@@ -90,6 +90,9 @@ export interface ChainConfig {
   /** EpochRegistry contract address (EVM epoch storage) */
   epochRegistry?: string;
 
+  /** LucidPassportRegistry contract address (passport anchor + payment gate) */
+  passportRegistry?: string;
+
   // ---- Solana Program IDs (only for Solana chains) ----
 
   /** thought-epoch program ID */
