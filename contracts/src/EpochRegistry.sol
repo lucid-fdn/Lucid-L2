@@ -110,6 +110,49 @@ contract EpochRegistry is Ownable {
         uint64 leafCount,
         uint64 mmrSize
     ) external onlyAuthorized {
+        _commitEpoch(agentId, mmrRoot, epochId, leafCount, mmrSize);
+    }
+
+    /// @notice Commit multiple epoch roots in a single transaction (gas optimization).
+    /// @param agentIds Array of agent identifiers
+    /// @param mmrRoots Array of MMR root hashes
+    /// @param epochIds Array of epoch sequence numbers
+    /// @param leafCounts Array of leaf counts per epoch
+    /// @param mmrSizes Array of MMR sizes per epoch
+    function commitEpochBatch(
+        bytes32[] calldata agentIds,
+        bytes32[] calldata mmrRoots,
+        uint64[] calldata epochIds,
+        uint64[] calldata leafCounts,
+        uint64[] calldata mmrSizes
+    ) external onlyAuthorized {
+        uint256 len = agentIds.length;
+        require(len > 0 && len <= 16, "batch: 1-16 epochs");
+        require(
+            len == mmrRoots.length &&
+            len == epochIds.length &&
+            len == leafCounts.length &&
+            len == mmrSizes.length,
+            "batch: length mismatch"
+        );
+
+        for (uint256 i = 0; i < len; i++) {
+            _commitEpoch(agentIds[i], mmrRoots[i], epochIds[i], leafCounts[i], mmrSizes[i]);
+        }
+    }
+
+    // =========================================================================
+    // Internal
+    // =========================================================================
+
+    /// @dev Shared validation + storage logic for single and batch commits.
+    function _commitEpoch(
+        bytes32 agentId,
+        bytes32 mmrRoot,
+        uint64 epochId,
+        uint64 leafCount,
+        uint64 mmrSize
+    ) internal {
         if (mmrRoot == bytes32(0)) revert InvalidRoot();
         if (epochId == 0) revert InvalidEpochId();
 

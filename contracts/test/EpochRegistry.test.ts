@@ -248,4 +248,130 @@ describe("EpochRegistry", function () {
         .false;
     });
   });
+
+  describe("commitEpochBatch", function () {
+    const agent2 = ethers.keccak256(ethers.toUtf8Bytes("agent-2"));
+    const root3 = ethers.keccak256(ethers.toUtf8Bytes("root-3"));
+    const root4 = ethers.keccak256(ethers.toUtf8Bytes("root-4"));
+
+    it("should commit multiple epochs in one tx", async function () {
+      const tx = await registry.commitEpochBatch(
+        [agentId, agent2, agentId],
+        [mmrRoot, mmrRoot2, root3],
+        [1, 1, 2],
+        [100, 50, 200],
+        [127, 63, 255]
+      );
+
+      // Verify all three EpochCommitted events were emitted
+      await expect(tx)
+        .to.emit(registry, "EpochCommitted")
+        .withArgs(agentId, 1, mmrRoot, 100, 127, await getBlockTimestamp(tx));
+      await expect(tx)
+        .to.emit(registry, "EpochCommitted")
+        .withArgs(agent2, 1, mmrRoot2, 50, 63, await getBlockTimestamp(tx));
+      await expect(tx)
+        .to.emit(registry, "EpochCommitted")
+        .withArgs(agentId, 2, root3, 200, 255, await getBlockTimestamp(tx));
+
+      // Verify state
+      expect(await registry.latestEpoch(agentId)).to.equal(2);
+      expect(await registry.latestEpoch(agent2)).to.equal(1);
+      expect(await registry.getEpochCount(agentId)).to.equal(2);
+      expect(await registry.getEpochCount(agent2)).to.equal(1);
+
+      const epoch1 = await registry.getEpoch(agentId, 1);
+      expect(epoch1.mmrRoot).to.equal(mmrRoot);
+      expect(epoch1.leafCount).to.equal(100);
+
+      const epoch2 = await registry.getEpoch(agentId, 2);
+      expect(epoch2.mmrRoot).to.equal(root3);
+      expect(epoch2.leafCount).to.equal(200);
+    });
+
+    it("should reject batch > 16", async function () {
+      const agentIds = Array(17).fill(agentId);
+      const roots = Array(17).fill(mmrRoot);
+      const epochIds = Array.from({ length: 17 }, (_, i) => i + 1);
+      const leafCounts = Array(17).fill(100);
+      const mmrSizes = Array(17).fill(127);
+
+      await expect(
+        registry.commitEpochBatch(agentIds, roots, epochIds, leafCounts, mmrSizes)
+      ).to.be.revertedWith("batch: 1-16 epochs");
+    });
+
+    it("should reject empty batch", async function () {
+      await expect(
+        registry.commitEpochBatch([], [], [], [], [])
+      ).to.be.revertedWith("batch: 1-16 epochs");
+    });
+
+    it("should reject mismatched array lengths", async function () {
+      await expect(
+        registry.commitEpochBatch(
+          [agentId, agent2],
+          [mmrRoot],       // mismatched: 1 vs 2
+          [1, 1],
+          [100, 50],
+          [127, 63]
+        )
+      ).to.be.revertedWith("batch: length mismatch");
+    });
+
+    it("should reject zero root in batch", async function () {
+      await expect(
+        registry.commitEpochBatch(
+          [agentId],
+          [ethers.ZeroHash],
+          [1],
+          [100],
+          [127]
+        )
+      ).to.be.revertedWithCustomError(registry, "InvalidRoot");
+    });
+
+    it("should reject zero epochId in batch", async function () {
+      await expect(
+        registry.commitEpochBatch(
+          [agentId],
+          [mmrRoot],
+          [0],
+          [100],
+          [127]
+        )
+      ).to.be.revertedWithCustomError(registry, "InvalidEpochId");
+    });
+
+    it("should reject duplicate epochId in batch", async function () {
+      await expect(
+        registry.commitEpochBatch(
+          [agentId, agentId],
+          [mmrRoot, mmrRoot2],
+          [1, 1],
+          [100, 50],
+          [127, 63]
+        )
+      ).to.be.revertedWithCustomError(registry, "EpochAlreadyExists");
+    });
+
+    it("should reject unauthorized submitter for batch", async function () {
+      await expect(
+        registry.connect(unauthorized).commitEpochBatch(
+          [agentId],
+          [mmrRoot],
+          [1],
+          [100],
+          [127]
+        )
+      ).to.be.revertedWithCustomError(registry, "NotAuthorized");
+    });
+  });
 });
+
+// Helper to get the block timestamp from a transaction
+async function getBlockTimestamp(tx: any): Promise<number> {
+  const receipt = await tx.wait();
+  const block = await ethers.provider.getBlock(receipt.blockNumber);
+  return block!.timestamp;
+}
