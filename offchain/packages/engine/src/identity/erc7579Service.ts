@@ -5,6 +5,7 @@
  * Supports Policy, Payout, and Receipt modules.
  */
 
+import { encodeFunctionData, encodeAbiParameters } from 'viem';
 import type {
   ModuleType,
   InstalledModule,
@@ -12,6 +13,7 @@ import type {
   PayoutSplitConfig,
   ReceiptData,
 } from './erc7579Types';
+import { ModuleType as ModuleTypeEnum } from './erc7579Types';
 
 // Policy Module ABI
 const POLICY_MODULE_ABI = [
@@ -117,6 +119,25 @@ const RECEIPT_MODULE_ABI = [
   },
 ] as const;
 
+/** Encode a call against one of the module ABIs. */
+function encodeModuleCall(abi: readonly any[], funcName: string, args: unknown[]): `0x${string}` {
+  const func = abi.find((f: any) => f.name === funcName && f.type === 'function');
+  if (!func) throw new Error(`Unknown module function: ${funcName}`);
+  return encodeFunctionData({ abi: [func], functionName: funcName, args });
+}
+
+/** Select the correct ABI for a given module type. */
+function abiForModuleType(moduleType: ModuleType): readonly any[] {
+  switch (moduleType) {
+    case ModuleTypeEnum.Validator:
+      return POLICY_MODULE_ABI;
+    case ModuleTypeEnum.Executor:
+      return PAYOUT_MODULE_ABI;
+    default:
+      throw new Error(`No ABI mapping for module type: ${moduleType}`);
+  }
+}
+
 export class ERC7579Service {
   private static instance: ERC7579Service | null = null;
 
@@ -153,7 +174,7 @@ export class ERC7579Service {
 
     const txReceipt = await adapter.sendTransaction({
       to: accountAddress,
-      data: `0xinstallModule_stub`,
+      data: encodeModuleCall(abiForModuleType(moduleType), 'onInstall', [initData ?? '0x']),
     });
 
     // Track locally
@@ -189,7 +210,7 @@ export class ERC7579Service {
 
     const txReceipt = await adapter.sendTransaction({
       to: accountAddress,
-      data: `0xuninstallModule_stub`,
+      data: encodeModuleCall(POLICY_MODULE_ABI, 'onUninstall', ['0x']),
     });
 
     // Remove from local tracking
@@ -223,7 +244,7 @@ export class ERC7579Service {
 
     const txReceipt = await adapter.sendTransaction({
       to: config.modules.policy,
-      data: `0xconfigurePolicy_stub`,
+      data: encodeModuleCall(POLICY_MODULE_ABI, 'setPolicy', [policyHashes[0], true]),
     });
 
     return { txHash: txReceipt.hash };
@@ -256,7 +277,7 @@ export class ERC7579Service {
 
     const txReceipt = await adapter.sendTransaction({
       to: config.modules.payout,
-      data: `0xconfigurePayout_stub`,
+      data: encodeModuleCall(PAYOUT_MODULE_ABI, 'setSplit', [recipients, basisPoints.map(BigInt)]),
     });
 
     return { txHash: txReceipt.hash };
@@ -282,7 +303,26 @@ export class ERC7579Service {
 
     const txReceipt = await adapter.sendTransaction({
       to: config.modules.receipt,
-      data: `0xemitReceipt_stub`,
+      data: encodeModuleCall(RECEIPT_MODULE_ABI, 'emitReceipt', [
+        encodeAbiParameters(
+          [
+            { name: 'receiptHash', type: 'bytes32' },
+            { name: 'policyHash', type: 'bytes32' },
+            { name: 'modelPassportId', type: 'string' },
+            { name: 'computePassportId', type: 'string' },
+            { name: 'tokensIn', type: 'uint256' },
+            { name: 'tokensOut', type: 'uint256' },
+          ],
+          [
+            receiptData.receiptHash as `0x${string}`,
+            receiptData.policyHash as `0x${string}`,
+            receiptData.modelPassportId,
+            receiptData.computePassportId,
+            BigInt(receiptData.tokensIn),
+            BigInt(receiptData.tokensOut),
+          ],
+        ),
+      ]),
     });
 
     return { txHash: txReceipt.hash };
