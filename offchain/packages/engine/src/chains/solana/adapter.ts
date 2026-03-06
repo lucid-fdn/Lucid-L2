@@ -34,7 +34,7 @@ import type {
   ReputationFeedback,
   ReputationData,
 } from '../types';
-import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter } from '../domain-interfaces';
+import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter } from '../domain-interfaces';
 import { SolanaPassportClient } from '../../passport/nft/solana-token2022';
 import pool from '../../db/pool';
 
@@ -956,6 +956,54 @@ export class SolanaAdapter implements IBlockchainAdapter {
         const svc = getPaymentGateService();
         const txHash = await svc.withdrawRevenue(passportId);
         return { hash: txHash, chainId, success: true };
+      },
+    };
+  }
+
+  agentWallet(): IAgentWalletAdapter {
+    this.ensureConnected();
+
+    const adapter = this;
+    const chainId = this._chainId;
+
+    return {
+      async createWallet(passportRef) {
+        const result = await adapter.createAgentWallet(passportRef);
+        return {
+          walletAddress: result.walletPda,
+          tx: { hash: result.txHash, chainId, success: true },
+        };
+      },
+
+      async execute(_walletAddress, _instruction) {
+        // Solana agent wallets use instruction-specific methods (createEscrow, releaseEscrow, etc.)
+        // rather than a generic execute — each instruction has its own account layout and discriminator.
+        throw new Error(
+          'Solana agent wallet uses instruction-specific methods (createEscrow, releaseEscrow), not generic execute',
+        );
+      },
+
+      async setPolicy(walletAddress, policy) {
+        const result = await adapter.setPolicy(walletAddress, {
+          maxPerTx: BigInt(policy.maxAmount ?? '0'),
+          dailyLimit: BigInt(policy.maxAmount ?? '0'),
+          allowedPrograms: policy.allowedTargets ?? [],
+          timeWindowStart: policy.rateLimit ? 0 : undefined,
+          timeWindowEnd: policy.rateLimit ? policy.rateLimit.windowSeconds : undefined,
+        });
+        return { hash: result.txHash, chainId, success: true };
+      },
+
+      async createSession(_walletAddress, _delegate, _permissions, _expiresAt, _maxAmount) {
+        throw new Error(
+          'Session key creation: implement when create_session instruction is added to Anchor program',
+        );
+      },
+
+      async revokeSession(_walletAddress, _delegate) {
+        throw new Error(
+          'Session revocation: implement when revoke_session instruction is added to Anchor program',
+        );
       },
     };
   }
