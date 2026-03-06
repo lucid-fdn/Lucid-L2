@@ -23,12 +23,14 @@ export interface Epoch {
   epoch_id: string;
   epoch_index: number;
   project_id?: string;
+  /** Agent passport ID — set when epoch belongs to a specific agent (BYOR Phase 1) */
+  agent_passport_id?: string;
   mmr_root: string;
   leaf_count: number;
   created_at: number;         // Unix timestamp (seconds)
   finalized_at?: number;      // When the epoch was finalized
   status: EpochStatus;
-  chain_tx?: string;          // Solana transaction signature
+  chain_tx?: Record<string, string>;  // Per-chain transaction signatures (chainId → txHash)
   error?: string;             // Error message if failed
   start_leaf_index: number;   // First leaf index in this epoch
   end_leaf_index?: number;    // Last leaf index in this epoch (set on finalization)
@@ -42,7 +44,7 @@ export interface EpochSummary {
   leaf_count: number;
   created_at: number;
   finalized_at?: number;
-  chain_tx?: string;
+  chain_tx?: Record<string, string>;
 }
 
 export interface EpochFilters {
@@ -115,8 +117,8 @@ export function getEpochConfig(): EpochConfig {
 async function persistEpochToDb(epoch: Epoch): Promise<void> {
   try {
     await pool.query(
-      `INSERT INTO epochs (epoch_id, epoch_index, project_id, status, mmr_root, leaf_count, start_leaf_index, end_leaf_index, chain_tx, error, finalized_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `INSERT INTO epochs (epoch_id, epoch_index, project_id, agent_passport_id, status, mmr_root, leaf_count, start_leaf_index, end_leaf_index, chain_tx, error, finalized_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        ON CONFLICT (epoch_id) DO UPDATE SET
          status = EXCLUDED.status,
          mmr_root = EXCLUDED.mmr_root,
@@ -129,12 +131,13 @@ async function persistEpochToDb(epoch: Epoch): Promise<void> {
         epoch.epoch_id,
         epoch.epoch_index,
         epoch.project_id || null,
+        epoch.agent_passport_id || null,
         epoch.status,
         epoch.mmr_root,
         epoch.leaf_count,
         epoch.start_leaf_index,
         epoch.end_leaf_index || null,
-        epoch.chain_tx || null,
+        epoch.chain_tx ? JSON.stringify(epoch.chain_tx) : null,
         epoch.error || null,
         epoch.finalized_at ? new Date(epoch.finalized_at * 1000) : null,
       ]
@@ -185,7 +188,7 @@ export async function loadEpochsFromDb(): Promise<number> {
         finalized_at: row.finalized_at_unix || undefined,
         start_leaf_index: row.start_leaf_index,
         end_leaf_index: row.end_leaf_index || undefined,
-        chain_tx: row.chain_tx || undefined,
+        chain_tx: row.chain_tx ? (typeof row.chain_tx === 'string' ? JSON.parse(row.chain_tx) : row.chain_tx) : undefined,
         error: row.error || undefined,
         receipt_run_ids: receiptsResult.rows.map((r: any) => r.run_id),
       };
@@ -230,10 +233,15 @@ export function createEpoch(project_id?: string): Epoch {
   const currentRoot = getMmrRoot();
   const currentLeafCount = getMmrLeafCount();
 
+  // When project_id looks like an agent passport ID (starts with 'agnt_'),
+  // also populate agent_passport_id for indexed DB queries.
+  const agent_passport_id = project_id?.startsWith('agnt_') ? project_id : undefined;
+
   const epoch: Epoch = {
     epoch_id,
     epoch_index,
     project_id,
+    agent_passport_id,
     mmr_root: currentRoot,
     leaf_count: 0,
     created_at: now,
@@ -425,11 +433,13 @@ export function prepareEpochForFinalization(epoch_id: string): Epoch | null {
 }
 
 /**
- * Finalize an epoch - Mark as anchored with transaction signature.
+ * Finalize an epoch - Mark as anchored with transaction signature(s).
+ * Accepts either a Record<string, string> (multi-chain) or a plain string (legacy Solana-only).
+ * A plain string is auto-wrapped as { 'solana-devnet': tx }.
  */
 export function finalizeEpoch(
   epoch_id: string,
-  chain_tx: string,
+  chain_tx: Record<string, string> | string,
   final_root: string
 ): Epoch | null {
   const epoch = epochStore.get(epoch_id);
@@ -442,9 +452,14 @@ export function finalizeEpoch(
     return null;
   }
 
+  // Normalize string → Record for backward compatibility
+  const txRecord: Record<string, string> = typeof chain_tx === 'string'
+    ? { 'solana-devnet': chain_tx }
+    : chain_tx;
+
   // Update epoch
   epoch.status = 'anchored';
-  epoch.chain_tx = chain_tx;
+  epoch.chain_tx = txRecord;
   epoch.mmr_root = final_root;
 
   // Persist to DB (non-blocking)

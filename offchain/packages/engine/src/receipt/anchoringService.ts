@@ -478,6 +478,106 @@ export async function commitEpochRoot(epoch_id: string): Promise<AnchorResult> {
     };
   }
 
+  // ---------------------------------------------------------------------------
+  // Multi-chain anchoring via ANCHORING_CHAINS env var
+  // ---------------------------------------------------------------------------
+  const anchoringChains = (process.env.ANCHORING_CHAINS || 'solana-devnet').split(',').map(s => s.trim()).filter(Boolean);
+
+  // Try the adapter-factory multi-chain path first
+  try {
+    // Lazy import to avoid circular deps — factory may not be initialised yet
+    const { blockchainAdapterFactory } = require('../chains/factory') as typeof import('../chains/factory');
+
+    // Only use adapter path if at least one requested chain is registered
+    const registeredChains = anchoringChains.filter(c => blockchainAdapterFactory.has(c));
+
+    if (registeredChains.length > 0) {
+      const txResults: Record<string, string> = {};
+      const errors: string[] = [];
+
+      for (const chainId of anchoringChains) {
+        try {
+          const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+          const epochAdapter = adapter.epochs();
+          const receipt = await epochAdapter.commitEpoch(
+            epoch.agent_passport_id || epoch.project_id || '__global__',
+            epoch.mmr_root,
+            epoch.epoch_index,
+            epoch.leaf_count,
+            epoch.end_leaf_index ? epoch.end_leaf_index + 1 : epoch.leaf_count,
+          );
+
+          if (receipt.success) {
+            txResults[chainId] = receipt.hash;
+            console.log(`[Anchoring] ${chainId}: epoch ${epoch_id} -> tx ${receipt.hash}`);
+          } else {
+            errors.push(`${chainId}: tx failed (hash=${receipt.hash})`);
+            console.warn(`[Anchoring] ${chainId}: tx submitted but not successful (hash=${receipt.hash})`);
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          errors.push(`${chainId}: ${msg}`);
+          console.warn(`[Anchoring] ${chainId} failed for epoch ${epoch_id}: ${msg}`);
+        }
+      }
+
+      // If at least one chain succeeded, finalize the epoch
+      if (Object.keys(txResults).length > 0) {
+        const result = finalizeEpoch(epoch_id, txResults, epoch.mmr_root);
+        if (result) {
+          await updateReceiptsWithAnchor(epoch, Object.values(txResults)[0]);
+        }
+
+        // Upload epoch proof to DePIN permanent storage (non-blocking)
+        if (process.env.DEPIN_UPLOAD_ENABLED !== 'false') {
+          try {
+            const { getPermanentStorage } = require('../storage/depin');
+            const proof = {
+              epoch_id,
+              mmr_root: epoch.mmr_root,
+              chain_txs: txResults,
+              timestamp: Date.now(),
+              leaf_count: epoch.leaf_count,
+              chains: Object.keys(txResults),
+            };
+            const upload = await getPermanentStorage().uploadJSON(proof, {
+              tags: { type: 'epoch-proof', epoch: epoch_id },
+            });
+            console.log(`   DePIN: epoch proof -> ${upload.cid} (${upload.provider})`);
+          } catch (err) {
+            console.warn(`   DePIN epoch proof upload failed (non-blocking):`, err instanceof Error ? err.message : err);
+          }
+        }
+
+        const firstSig = Object.values(txResults)[0];
+        return {
+          success: true,
+          signature: firstSig,
+          root: epoch.mmr_root,
+          epoch_id,
+        };
+      }
+
+      // All chains failed
+      const combinedError = errors.join('; ');
+      failEpoch(epoch_id, combinedError);
+      return {
+        success: false,
+        root: epoch.mmr_root,
+        epoch_id,
+        error: combinedError,
+      };
+    }
+    // If no registered chains matched, fall through to legacy Solana path
+  } catch (_factoryErr) {
+    // Adapter factory not available — fall through to direct Solana path
+    console.warn('[Anchoring] Adapter factory unavailable, falling back to direct Solana path');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Legacy Solana-only direct path (fallback)
+  // ---------------------------------------------------------------------------
+
   // Check for authority keypair
   if (!config.authority_keypair) {
     failEpoch(epoch_id, 'No authority keypair configured');
@@ -532,8 +632,12 @@ export async function commitEpochRoot(epoch_id: string): Promise<AnchorResult> {
         }
       );
 
-      // Success! Finalize the epoch
-      const result = finalizeEpoch(epoch_id, signature, epoch.mmr_root);
+      // Determine the Solana chain ID for the tx record
+      const solanaChainId = anchoringChains.find(c => c.startsWith('solana')) || `solana-${config.network}`;
+
+      // Success! Finalize the epoch with a Record
+      const txRecord: Record<string, string> = { [solanaChainId]: signature };
+      const result = finalizeEpoch(epoch_id, txRecord, epoch.mmr_root);
       if (result) {
         // Update receipts with anchor info
         await updateReceiptsWithAnchor(epoch, signature);
@@ -764,6 +868,21 @@ async function updateReceiptsWithAnchor(epoch: Epoch, tx_signature: string): Pro
 }
 
 // =============================================================================
+// HELPERS
+// =============================================================================
+
+/**
+ * Extract the first Solana tx signature from chain_tx record (backward compat helper).
+ * Returns the first value whose key starts with 'solana', or the first value overall.
+ */
+function firstSolanaTx(chain_tx?: Record<string, string>): string | undefined {
+  if (!chain_tx) return undefined;
+  const entries = Object.entries(chain_tx);
+  const solana = entries.find(([k]) => k.startsWith('solana'));
+  return solana ? solana[1] : entries[0]?.[1];
+}
+
+// =============================================================================
 // VERIFICATION FUNCTIONS
 // =============================================================================
 
@@ -772,6 +891,7 @@ export interface VerifyAnchorResult {
   on_chain_root?: string;
   expected_root: string;
   tx_signature?: string;
+  chain_txs?: Record<string, string>;
   error?: string;
 }
 
@@ -801,7 +921,8 @@ export async function verifyEpochAnchor(epoch_id: string): Promise<VerifyAnchorR
       valid: true,
       on_chain_root: epoch.mmr_root,
       expected_root: epoch.mmr_root,
-      tx_signature: epoch.chain_tx,
+      tx_signature: firstSolanaTx(epoch.chain_tx),
+      chain_txs: epoch.chain_tx,
     };
   }
 
@@ -816,14 +937,15 @@ export async function verifyEpochAnchor(epoch_id: string): Promise<VerifyAnchorR
   try {
     const conn = getConnection();
     const [epochRecordPDA] = deriveEpochRecordV2PDA(config.authority_keypair.publicKey);
-    
+
     // Fetch account data
     const accountInfo = await conn.getAccountInfo(epochRecordPDA);
     if (!accountInfo) {
       return {
         valid: false,
         expected_root: epoch.mmr_root,
-        tx_signature: epoch.chain_tx,
+        tx_signature: firstSolanaTx(epoch.chain_tx),
+        chain_txs: epoch.chain_tx,
         error: 'Epoch record not found on-chain',
       };
     }
@@ -836,13 +958,15 @@ export async function verifyEpochAnchor(epoch_id: string): Promise<VerifyAnchorR
       valid: onChainRoot === epoch.mmr_root,
       on_chain_root: onChainRoot,
       expected_root: epoch.mmr_root,
-      tx_signature: epoch.chain_tx,
+      tx_signature: firstSolanaTx(epoch.chain_tx),
+      chain_txs: epoch.chain_tx,
     };
   } catch (error) {
     return {
       valid: false,
       expected_root: epoch.mmr_root,
-      tx_signature: epoch.chain_tx,
+      tx_signature: firstSolanaTx(epoch.chain_tx),
+      chain_txs: epoch.chain_tx,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
@@ -850,10 +974,12 @@ export async function verifyEpochAnchor(epoch_id: string): Promise<VerifyAnchorR
 
 /**
  * Get transaction details for an anchored epoch.
+ * Returns the first Solana transaction signature for backward compatibility.
  */
 export async function getAnchorTransaction(epoch_id: string): Promise<{
   found: boolean;
   tx_signature?: string;
+  chain_txs?: Record<string, string>;
   slot?: number;
   block_time?: number;
   error?: string;
@@ -863,39 +989,53 @@ export async function getAnchorTransaction(epoch_id: string): Promise<{
     return { found: false, error: 'Epoch not found or not anchored' };
   }
 
+  const solanaTx = firstSolanaTx(epoch.chain_tx);
+
   if (config.mock_mode) {
     return {
       found: true,
-      tx_signature: epoch.chain_tx,
+      tx_signature: solanaTx,
+      chain_txs: epoch.chain_tx,
       slot: 12345678,
       block_time: epoch.finalized_at,
     };
   }
 
+  if (!solanaTx) {
+    // No Solana tx to look up, but we have chain_txs from other chains
+    return {
+      found: true,
+      chain_txs: epoch.chain_tx,
+    };
+  }
+
   try {
     const conn = getConnection();
-    const txInfo = await conn.getTransaction(epoch.chain_tx, {
+    const txInfo = await conn.getTransaction(solanaTx, {
       maxSupportedTransactionVersion: 0,
     });
 
     if (!txInfo) {
       return {
         found: false,
-        tx_signature: epoch.chain_tx,
+        tx_signature: solanaTx,
+        chain_txs: epoch.chain_tx,
         error: 'Transaction not found on-chain',
       };
     }
 
     return {
       found: true,
-      tx_signature: epoch.chain_tx,
+      tx_signature: solanaTx,
+      chain_txs: epoch.chain_tx,
       slot: txInfo.slot,
       block_time: txInfo.blockTime || undefined,
     };
   } catch (error) {
     return {
       found: false,
-      tx_signature: epoch.chain_tx,
+      tx_signature: solanaTx,
+      chain_txs: epoch.chain_tx,
       error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
