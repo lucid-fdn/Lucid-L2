@@ -917,7 +917,47 @@ export class SolanaAdapter implements IBlockchainAdapter {
   }
 
   passports(): IPassportAdapter {
-    throw new Error('IPassportAdapter not yet implemented on Solana — see Task 13');
+    const chainId = this._chainId;
+
+    return {
+      async anchorPassport(_passportId, _contentHash, _owner) {
+        // Solana passport anchoring uses the lucid_passports program via Anchor.
+        // Call passportSyncService.syncPassportToChain() directly instead.
+        throw new Error('Solana passport anchoring uses passportSyncService — call syncPassportToChain() directly');
+      },
+      async updatePassportStatus(_passportId, _status) {
+        // Solana passport status updates go through passportSyncService.
+        throw new Error('Solana passport status update uses passportSyncService — call syncPassportToChain() directly');
+      },
+      async verifyAnchor(_passportId, _contentHash) {
+        // Requires reading from the Solana PDA directly — not yet implemented.
+        throw new Error('Solana passport verification not yet implemented — PDA reads needed');
+      },
+      async setPaymentGate(passportId, priceNative, priceLucid) {
+        const { getPaymentGateService } = await import('../../finance/paymentGateService');
+        const svc = getPaymentGateService();
+        const txHash = await svc.setPaymentGate(passportId, Number(priceNative), Number(priceLucid));
+        return { hash: txHash, chainId, success: true };
+      },
+      async payForAccess(passportId, duration) {
+        const { getPaymentGateService } = await import('../../finance/paymentGateService');
+        const svc = getPaymentGateService();
+        const expiresAt = Math.floor(Date.now() / 1000) + duration;
+        const txHash = await svc.payForAccess(passportId, undefined, expiresAt);
+        return { hash: txHash, chainId, success: true };
+      },
+      async checkAccess(passportId, user) {
+        const { getPaymentGateService } = await import('../../finance/paymentGateService');
+        const svc = getPaymentGateService();
+        return svc.checkAccess(passportId, user);
+      },
+      async withdrawRevenue(passportId) {
+        const { getPaymentGateService } = await import('../../finance/paymentGateService');
+        const svc = getPaymentGateService();
+        const txHash = await svc.withdrawRevenue(passportId);
+        return { hash: txHash, chainId, success: true };
+      },
+    };
   }
 
   // =========================================================================

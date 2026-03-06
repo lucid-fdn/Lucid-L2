@@ -14,7 +14,7 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import type { IBlockchainAdapter } from '../adapter-interface';
-import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter } from '../domain-interfaces';
+import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter } from '../domain-interfaces';
 import type {
   ChainConfig,
   ChainType,
@@ -575,7 +575,174 @@ export class EVMAdapter implements IBlockchainAdapter {
   }
 
   passports(): IPassportAdapter {
-    throw new Error('IPassportAdapter not yet implemented on EVM — see Task 13');
+    const registryAddr = this._config?.passportRegistry;
+    if (!registryAddr) throw new Error(`PassportRegistry not configured on ${this._chainId}`);
+
+    const publicClient = this._publicClient!;
+    const walletClient = this._walletClient!;
+    const account = this._account!;
+    const chainId = this._chainId;
+
+    const PASSPORT_ABI = [
+      { name: 'anchorPassport', type: 'function', stateMutability: 'nonpayable',
+        inputs: [{ name: 'passportId', type: 'bytes32' }, { name: 'contentHash', type: 'bytes32' }, { name: 'passportOwner', type: 'address' }], outputs: [] },
+      { name: 'updateStatus', type: 'function', stateMutability: 'nonpayable',
+        inputs: [{ name: 'passportId', type: 'bytes32' }, { name: 'newStatus', type: 'uint8' }], outputs: [] },
+      { name: 'verifyAnchor', type: 'function', stateMutability: 'view',
+        inputs: [{ name: 'passportId', type: 'bytes32' }, { name: 'contentHash', type: 'bytes32' }], outputs: [{ type: 'bool' }] },
+      { name: 'setGate', type: 'function', stateMutability: 'nonpayable',
+        inputs: [{ name: 'passportId', type: 'bytes32' }, { name: 'priceNative', type: 'uint256' }, { name: 'priceLucid', type: 'uint256' }], outputs: [] },
+      { name: 'payForAccess', type: 'function', stateMutability: 'payable',
+        inputs: [{ name: 'passportId', type: 'bytes32' }, { name: 'duration', type: 'uint64' }], outputs: [] },
+      { name: 'checkAccess', type: 'function', stateMutability: 'view',
+        inputs: [{ name: 'passportId', type: 'bytes32' }, { name: 'user', type: 'address' }], outputs: [{ type: 'bool' }] },
+      { name: 'withdrawRevenue', type: 'function', stateMutability: 'nonpayable',
+        inputs: [{ name: 'passportId', type: 'bytes32' }], outputs: [] },
+    ] as const;
+
+    return {
+      async anchorPassport(passportId, contentHash, owner) {
+        const hash = await walletClient.writeContract({
+          address: registryAddr as `0x${string}`, abi: PASSPORT_ABI, functionName: 'anchorPassport',
+          args: [passportId as `0x${string}`, contentHash as `0x${string}`, owner as `0x${string}`], account,
+        });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        return { hash, chainId, success: receipt.status === 'success' };
+      },
+      async updatePassportStatus(passportId, status) {
+        const statusNum = typeof status === 'number' ? status : parseInt(status, 10);
+        const hash = await walletClient.writeContract({
+          address: registryAddr as `0x${string}`, abi: PASSPORT_ABI, functionName: 'updateStatus',
+          args: [passportId as `0x${string}`, statusNum], account,
+        });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        return { hash, chainId, success: receipt.status === 'success' };
+      },
+      async verifyAnchor(passportId, contentHash) {
+        return await publicClient.readContract({
+          address: registryAddr as `0x${string}`, abi: PASSPORT_ABI, functionName: 'verifyAnchor',
+          args: [passportId as `0x${string}`, contentHash as `0x${string}`],
+        }) as boolean;
+      },
+      async setPaymentGate(passportId, priceNative, priceLucid) {
+        const hash = await walletClient.writeContract({
+          address: registryAddr as `0x${string}`, abi: PASSPORT_ABI, functionName: 'setGate',
+          args: [passportId as `0x${string}`, BigInt(priceNative), BigInt(priceLucid)], account,
+        });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        return { hash, chainId, success: receipt.status === 'success' };
+      },
+      async payForAccess(passportId, duration) {
+        const hash = await walletClient.writeContract({
+          address: registryAddr as `0x${string}`, abi: PASSPORT_ABI, functionName: 'payForAccess',
+          args: [passportId as `0x${string}`, BigInt(duration)], account,
+        });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        return { hash, chainId, success: receipt.status === 'success' };
+      },
+      async checkAccess(passportId, user) {
+        return await publicClient.readContract({
+          address: registryAddr as `0x${string}`, abi: PASSPORT_ABI, functionName: 'checkAccess',
+          args: [passportId as `0x${string}`, user as `0x${string}`],
+        }) as boolean;
+      },
+      async withdrawRevenue(passportId) {
+        const hash = await walletClient.writeContract({
+          address: registryAddr as `0x${string}`, abi: PASSPORT_ABI, functionName: 'withdrawRevenue',
+          args: [passportId as `0x${string}`], account,
+        });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        return { hash, chainId, success: receipt.status === 'success' };
+      },
+    };
+  }
+
+  agentWallet(): IAgentWalletAdapter {
+    this.ensureConnected();
+    if (!this._walletClient || !this._account) {
+      throw new Error('Wallet required for agent wallet operations');
+    }
+
+    const chainId = this._chainId;
+    const config = this._config;
+    const publicClient = this._publicClient!;
+    const walletClient = this._walletClient!;
+    const account = this._account!;
+
+    return {
+      async createWallet(passportRef) {
+        // Create TBA via ERC-6551 registry using TBAService
+        if (!config?.erc6551) {
+          throw new Error(`No ERC-6551 configuration on chain ${chainId} — cannot create agent wallet`);
+        }
+        const identityRegistry = config.erc8004?.identityRegistry;
+        if (!identityRegistry) {
+          throw new Error(`No IdentityRegistry configured on chain ${chainId} — needed for TBA token contract`);
+        }
+
+        const { getTBAService } = await import('../../identity/tbaService');
+        const tbaService = getTBAService();
+        const result = await tbaService.createTBA(chainId, identityRegistry, passportRef);
+
+        return {
+          walletAddress: result.address,
+          tx: { hash: result.txHash, chainId, success: true },
+        };
+      },
+
+      async execute(walletAddress, instruction) {
+        // Execute an arbitrary call through the TBA's execute(address,uint256,bytes,uint8)
+        const TBA_EXECUTE_ABI = [{
+          name: 'execute', type: 'function', stateMutability: 'payable',
+          inputs: [
+            { name: 'to', type: 'address' },
+            { name: 'value', type: 'uint256' },
+            { name: 'data', type: 'bytes' },
+            { name: 'operation', type: 'uint8' },
+          ],
+          outputs: [{ type: 'bytes' }],
+        }] as const;
+
+        // instruction is hex-encoded: first 20 bytes = target address, rest = calldata
+        // If instruction is too short to contain a target, treat it as raw calldata to the wallet itself
+        const instrHex = instruction.startsWith('0x') ? instruction.slice(2) : instruction;
+        let to: `0x${string}`;
+        let data: `0x${string}`;
+
+        if (instrHex.length >= 40) {
+          // First 20 bytes (40 hex chars) = target address
+          to = `0x${instrHex.slice(0, 40)}` as `0x${string}`;
+          data = `0x${instrHex.slice(40)}` as `0x${string}` || '0x';
+        } else {
+          // Fallback: instruction is calldata to wallet itself
+          to = walletAddress as `0x${string}`;
+          data = (instruction.startsWith('0x') ? instruction : `0x${instruction}`) as `0x${string}`;
+        }
+
+        const hash = await walletClient.writeContract({
+          address: walletAddress as `0x${string}`,
+          abi: TBA_EXECUTE_ABI,
+          functionName: 'execute',
+          args: [to, 0n, data, 0],
+          account,
+        });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        return { hash, chainId, success: receipt.status === 'success' };
+      },
+
+      async setPolicy(_walletAddress, _policy) {
+        // ERC-7579 PolicyModule configuration — requires PolicyModule contract deployment
+        throw new Error('EVM policy configuration requires PolicyModule deployment — use erc7579Service directly');
+      },
+
+      async createSession(_walletAddress, _delegate, _permissions, _expiresAt, _maxAmount) {
+        throw new Error('Session keys not yet deployed on EVM — use Solana agent wallet for session delegation');
+      },
+
+      async revokeSession(_walletAddress, _delegate) {
+        throw new Error('Session keys not yet deployed on EVM');
+      },
+    };
   }
 
   // =========================================================================

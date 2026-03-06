@@ -153,6 +153,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     },
     zkmlVerifier: process.env.BASE_SEPOLIA_ZKML_VERIFIER || '0xAA663967159E18A3Da2A8277FDDa35C0389e1462',
     epochRegistry: process.env.BASE_SEPOLIA_EPOCH_REGISTRY,
+    passportRegistry: process.env.BASE_SEPOLIA_PASSPORT_REGISTRY || '0x0000000000000000000000000000000000000000',
   },
 
   'ethereum-sepolia': {
@@ -182,6 +183,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
     },
     zkmlVerifier: process.env.SEPOLIA_ZKML_VERIFIER || '0xd69Ce5E5AA5a68D55413766320b520eeA3fdFf98',
     epochRegistry: process.env.SEPOLIA_EPOCH_REGISTRY,
+    passportRegistry: process.env.SEPOLIA_PASSPORT_REGISTRY || '0x0000000000000000000000000000000000000000',
   },
 
   'apechain-testnet': {
@@ -210,6 +212,7 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
       receipt: process.env.APECHAIN_TESTNET_MODULE_RECEIPT || '0x7695cd6F97d1434A2Ab5f778C6B02898385b14cc',
     },
     zkmlVerifier: process.env.APECHAIN_TESTNET_ZKML_VERIFIER || '0xd69Ce5E5AA5a68D55413766320b520eeA3fdFf98',
+    passportRegistry: process.env.APECHAIN_TESTNET_PASSPORT_REGISTRY || '0x0000000000000000000000000000000000000000',
   },
 
   'avalanche-fuji': {
