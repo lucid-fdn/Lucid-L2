@@ -1191,8 +1191,12 @@ Expected: FAIL — module not found.
 ```typescript
 // offchain/packages/engine/src/finance/paymentGrant.ts
 
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import * as nacl from 'tweetnacl';
+import { canonicalJson } from '../crypto/canonicalJson';
+// ^^^ Uses @raijinlabs/passport's canonicalJsonLucid under the hood:
+//     normalize(BigInt→string, NaN→null, Date→ISO, strip undefined) → JCS (RFC 8785)
+//     DO NOT inline a local canonicalizer. One spec, one implementation.
 
 export interface PaymentGrantScope {
   models: string[];
@@ -1238,33 +1242,13 @@ export interface VerifyResult {
 }
 
 /**
- * Canonical JSON for signing (RFC 8785 — JCS).
- * Sorted keys, deterministic output. MUST match the canonicalJson used
- * in gateway-core/src/crypto/ for tool_args_hash/result_hash signing.
- * DO NOT use JSON.stringify() — key order is non-deterministic across JS engines.
- */
-function canonicalJson(obj: unknown): string {
-  if (obj === null || obj === undefined) return 'null';
-  if (typeof obj === 'boolean' || typeof obj === 'number') return JSON.stringify(obj);
-  if (typeof obj === 'string') return JSON.stringify(obj);
-  if (typeof obj === 'bigint') return obj.toString();
-  if (obj instanceof Date) return JSON.stringify(obj.toISOString());
-  if (Array.isArray(obj)) return '[' + obj.map(canonicalJson).join(',') + ']';
-  const sorted = Object.keys(obj as Record<string, unknown>).sort();
-  const entries = sorted
-    .filter(k => (obj as Record<string, unknown>)[k] !== undefined)
-    .map(k => JSON.stringify(k) + ':' + canonicalJson((obj as Record<string, unknown>)[k]));
-  return '{' + entries.join(',') + '}';
-}
-
-/**
  * Create a signed PaymentGrant.
  */
 export async function createPaymentGrant(
   input: PaymentGrantInput,
   secretKey: Uint8Array,
 ): Promise<PaymentGrant> {
-  const grant_id = `grant_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const grant_id = `grant_${randomUUID()}`;
   const pubkey = nacl.sign.keyPair.fromSecretKey(secretKey).publicKey;
 
   const payload = {
@@ -1366,7 +1350,9 @@ git commit -m "feat(payments): add PaymentGrant type with Ed25519 signing and ve
 
 -- Grant spend tracking (replay-safe limits)
 CREATE TABLE IF NOT EXISTS grant_budgets (
-  grant_id TEXT PRIMARY KEY,
+  grant_id TEXT PRIMARY KEY,            -- UUIDv4: grant_${randomUUID()}
+  tenant_id TEXT NOT NULL,              -- operational queries + per-tenant cleanup
+  signer_pubkey TEXT,                   -- observability: which key signed this grant
   max_calls INTEGER NOT NULL,
   max_usd NUMERIC(18,6) NOT NULL,
   calls_used INTEGER NOT NULL DEFAULT 0,
@@ -1374,6 +1360,8 @@ CREATE TABLE IF NOT EXISTS grant_budgets (
   expires_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX idx_grant_budgets_tenant ON grant_budgets(tenant_id);
 
 -- Atomic budget consume: returns TRUE if budget available, FALSE if exceeded
 CREATE OR REPLACE FUNCTION consume_grant_budget(
@@ -1607,12 +1595,13 @@ export function requirePaymentAuth() {
         const { getPool } = await import('@lucid-l2/engine/db/pool');
         const pool = getPool();
 
-        // Ensure grant budget exists (lazy init from grant limits)
+        // Ensure grant budget exists (lazy init from signed grant limits)
         await pool.query(
-          `INSERT INTO grant_budgets (grant_id, max_calls, max_usd, expires_at)
-           VALUES ($1, $2, $3, to_timestamp($4))
+          `INSERT INTO grant_budgets (grant_id, tenant_id, signer_pubkey, max_calls, max_usd, expires_at)
+           VALUES ($1, $2, $3, $4, $5, to_timestamp($6))
            ON CONFLICT (grant_id) DO NOTHING`,
-          [grant.grant_id, grant.limits.max_calls, grant.limits.total_usd, grant.limits.expires_at]
+          [grant.grant_id, grant.tenant_id, grant.signer_pubkey,
+           grant.limits.max_calls, grant.limits.total_usd, grant.limits.expires_at]
         );
 
         // Consume budget atomically
@@ -2192,6 +2181,29 @@ git commit -m "feat(payments): add PaymentEpochService for async settlement batc
 
 ---
 
+## One-Time Task: Canonical JSON Parity
+
+**Problem:** Two incompatible canonicalizers in platform-core (custom in gateway-core vs json-canonicalize in passport). L2 engine uses json-canonicalize. Stale local copy of @raijinlabs/passport in L2.
+
+**Fix:**
+1. Consolidate to `canonicalJsonLucid()` in `@raijinlabs/passport`: normalize(BigInt, NaN, Date, undefined) then JCS (RFC 8785)
+2. gateway-core's custom canonicalizer becomes thin wrapper or deleted
+3. L2 engine imports from `@raijinlabs/passport` (or its own crypto/ re-export)
+4. `paymentGrant.ts` imports from engine crypto — no inline canonicalizer
+5. Add golden test vector fixture (shared JSON file) run by both repos
+6. Sync `local-packages/passport/` in L2 with platform-core's published version
+
+**Files:**
+- Modify: `lucid-plateform-core/packages/passport/src/canonical-json.ts` (add normalization layer)
+- Modify: `lucid-plateform-core/packages/gateway-core/src/crypto/canonicalJson.ts` (redirect to passport)
+- Create: `lucid-plateform-core/packages/passport/src/__tests__/canonical-vectors.json` (shared golden vectors)
+- Modify: `Lucid-L2/offchain/packages/engine/src/crypto/canonicalJson.ts` (re-export from passport)
+- Sync: `Lucid-L2/offchain/local-packages/passport/` with latest published version
+
+**This is cross-repo work. Do it BEFORE Task 9 so PaymentGrant signing uses the correct canonicalizer from day one.**
+
+---
+
 ## Verification Checklist
 
 After all tasks:
@@ -2204,8 +2216,10 @@ After all tasks:
 - [ ] `grep -rn "_stub" offchain/packages/engine/src/identity/erc7579Service.ts` returns empty
 - [ ] `npx jest --testPathPattern='paymentGrant.test'` passes
 - [ ] `ANCHORING_CHAINS=solana-devnet,base-sepolia` recognized in config
-- [ ] PaymentGrant can be created, signed, and verified
+- [ ] PaymentGrant can be created, signed, and verified (using shared canonicalizer)
 - [ ] Gateway returns 402 with payment methods when no auth header present
-- [ ] `payment_events` and `payment_epochs` tables exist in migration
+- [ ] `payment_events`, `payment_epochs`, `grant_budgets` tables exist in migration
+- [ ] `consume_grant_budget()` function works atomically
 - [ ] LucidPassportRegistry.sol compiles and all tests pass
+- [ ] Canonical JSON golden vectors pass in both repos
 - [ ] Both adapters implement `epochs()`, `escrow()`, `passports()`, `agentWallet()`

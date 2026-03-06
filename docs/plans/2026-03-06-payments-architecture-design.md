@@ -51,7 +51,11 @@ interface PaymentGrant {
 
 **Verified by:** Gateway middleware. Check signature, check expiry, then **atomic spend tracking** (consume_grant_budget) to enforce limits. Requires DB/Redis for grant budget state.
 
-**Signing:** Ed25519 over `SHA-256(canonicalJson(payload))` — must use sorted-key canonical JSON (RFC 8785 / JCS), NOT `JSON.stringify()`. Reuse `canonicalSha256Hex()` from `gateway-core/src/crypto/`.
+**Signing:** Ed25519 over `SHA-256(canonicalJsonLucid(payload))`. Two-step process:
+1. **Normalize** (Lucid rules): BigInt → quoted string, NaN/Infinity → null, Date → ISO 8601, undefined → stripped, circulars → rejected
+2. **JCS** (RFC 8785): deterministic key ordering + JSON formatting
+
+Single source: `canonicalJsonLucid()` in `@raijinlabs/passport` (shared package, already cross-repo bridge). `paymentGrant.ts` imports from `@lucid-l2/engine/crypto/` which re-exports it. gateway-core's custom canonicalizer becomes a thin wrapper or gets deleted. Golden test vectors in both repos enforce parity.
 
 **Replay protection:** Signed grants can be replayed up to their limits. Gateway must track `(grant_id → calls_used, usd_used)` atomically per request. Pattern: `consume_grant_budget(grant_id, delta_usd, delta_calls)` — decrement atomically, reject if exceeded.
 
@@ -259,7 +263,9 @@ Upgrade path:
 
 ```sql
 CREATE TABLE grant_budgets (
-  grant_id TEXT PRIMARY KEY,
+  grant_id TEXT PRIMARY KEY,            -- UUIDv4: grant_${randomUUID()}
+  tenant_id TEXT NOT NULL,              -- operational queries + per-tenant cleanup
+  signer_pubkey TEXT,                   -- observability: which key signed this grant
   max_calls INTEGER NOT NULL,
   max_usd NUMERIC(18,6) NOT NULL,
   calls_used INTEGER NOT NULL DEFAULT 0,
@@ -267,6 +273,8 @@ CREATE TABLE grant_budgets (
   expires_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+CREATE INDEX idx_grant_budgets_tenant ON grant_budgets(tenant_id);
 
 -- Atomic consume: returns TRUE if budget available, FALSE if exceeded
 -- Called by gateway middleware on every authorized request
