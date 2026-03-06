@@ -5,6 +5,7 @@
  * Singleton pattern matching existing service conventions.
  */
 
+import { encodeFunctionData } from 'viem';
 import type { EscrowParams, EscrowInfo, EscrowStatus } from './escrowTypes';
 
 // LucidEscrow ABI (minimal — only the functions we call)
@@ -123,11 +124,11 @@ export class EscrowService {
 
     // Encode calldata using function selector + ABI-encoded params
     const receiptHash = params.expectedReceiptHash || '0x' + '00'.repeat(32);
-    const calldata = encodeFunctionCall('createEscrow', [
+    const calldata = encodeEscrowCall('createEscrow', [
       params.beneficiary,
       params.token,
-      params.amount,
-      params.duration.toString(),
+      BigInt(params.amount),
+      BigInt(params.duration),
       receiptHash,
     ]);
 
@@ -175,7 +176,7 @@ export class EscrowService {
     const adapter = await blockchainAdapterFactory.getAdapter(chainId);
     if (!adapter) throw new Error(`No adapter for chain: ${chainId}`);
 
-    const calldata = encodeFunctionCall('releaseEscrow', [
+    const calldata = encodeEscrowCall('releaseEscrow', [
       escrowId,
       receiptHash,
       signature,
@@ -218,7 +219,7 @@ export class EscrowService {
       throw new Error('Escrow has not expired yet');
     }
 
-    const calldata = encodeFunctionCall('claimTimeout', [escrowId]);
+    const calldata = encodeEscrowCall('claimTimeout', [escrowId]);
 
     const txReceipt = await adapter.sendTransaction({
       to: config.escrowContract,
@@ -249,7 +250,7 @@ export class EscrowService {
     const adapter = await blockchainAdapterFactory.getAdapter(chainId);
     if (!adapter) throw new Error(`No adapter for chain: ${chainId}`);
 
-    const calldata = encodeFunctionCall('disputeEscrow', [escrowId, reason]);
+    const calldata = encodeEscrowCall('disputeEscrow', [escrowId, reason]);
 
     const txReceipt = await adapter.sendTransaction({
       to: config.escrowContract,
@@ -383,17 +384,8 @@ export function getEscrowService(): EscrowService {
   return EscrowService.getInstance();
 }
 
-// Simple calldata encoder (selector + ABI params)
-function encodeFunctionCall(funcName: string, _params: (string | number)[]): string {
-  // In production, use viem's encodeFunctionData. For MVP, we construct selector.
-  const func = ESCROW_ABI.find((f) => f.name === funcName && f.type === 'function');
-  if (!func) throw new Error(`Unknown function: ${funcName}`);
-
-  const inputTypes = func.inputs.map((i) => i.type).join(',');
-  const signature = `${funcName}(${inputTypes})`;
-
-  // Use keccak256 for selector — but since we may not have ethers here,
-  // we'll use a simple hex stub. Real implementation uses viem/ethers.
-  // For the service layer, the adapter handles the actual encoding.
-  return `0x${funcName}_stub`;
+function encodeEscrowCall(funcName: string, args: unknown[]): `0x${string}` {
+  const func = ESCROW_ABI.find((f) => 'name' in f && f.name === funcName && f.type === 'function');
+  if (!func) throw new Error(`Unknown escrow function: ${funcName}`);
+  return encodeFunctionData({ abi: [func] as readonly unknown[], functionName: funcName, args } as Parameters<typeof encodeFunctionData>[0]);
 }

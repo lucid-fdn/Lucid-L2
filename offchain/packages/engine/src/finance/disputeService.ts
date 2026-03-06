@@ -4,6 +4,7 @@
  * Off-chain service for managing LucidArbitration contract interactions.
  */
 
+import { encodeFunctionData } from 'viem';
 import type { DisputeInfo, EvidenceSubmission } from './disputeTypes';
 import { DisputeStatus } from './disputeTypes';
 
@@ -84,6 +85,12 @@ const ARBITRATION_ABI = [
   },
 ] as const;
 
+function encodeArbitrationCall(funcName: string, args: unknown[]): `0x${string}` {
+  const func = ARBITRATION_ABI.find((f) => 'name' in f && f.name === funcName && f.type === 'function');
+  if (!func) throw new Error(`Unknown arbitration function: ${funcName}`);
+  return encodeFunctionData({ abi: [func] as readonly unknown[], functionName: funcName, args } as Parameters<typeof encodeFunctionData>[0]);
+}
+
 export class DisputeService {
   private static instance: DisputeService | null = null;
 
@@ -119,7 +126,7 @@ export class DisputeService {
 
     const txReceipt = await adapter.sendTransaction({
       to: config.arbitrationContract,
-      data: `0xopenDispute_stub`,
+      data: encodeArbitrationCall('openDispute', [escrowId, reason]),
     });
 
     const disputeId = `dispute_${chainId}_${txReceipt.hash}`;
@@ -162,7 +169,7 @@ export class DisputeService {
 
     const txReceipt = await adapter.sendTransaction({
       to: config.arbitrationContract,
-      data: `0xsubmitEvidence_stub`,
+      data: encodeArbitrationCall('submitEvidence', [disputeId, evidence.receiptHash, evidence.mmrRoot, evidence.mmrProof, evidence.description]),
     });
 
     return { txHash: txReceipt.hash };
@@ -186,7 +193,7 @@ export class DisputeService {
 
     const txReceipt = await adapter.sendTransaction({
       to: config.arbitrationContract,
-      data: `0xresolveDispute_stub`,
+      data: encodeArbitrationCall('resolveDispute', [disputeId]),
     });
 
     const info = this.disputeStore.get(disputeId);
@@ -215,7 +222,7 @@ export class DisputeService {
 
     const txReceipt = await adapter.sendTransaction({
       to: config.arbitrationContract,
-      data: `0xappealDecision_stub`,
+      data: encodeArbitrationCall('appealDecision', [disputeId]),
     });
 
     const info = this.disputeStore.get(disputeId);

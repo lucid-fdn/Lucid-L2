@@ -14,6 +14,7 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import type { IBlockchainAdapter } from '../adapter-interface';
+import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter } from '../domain-interfaces';
 import type {
   ChainConfig,
   ChainType,
@@ -404,6 +405,22 @@ export class EVMAdapter implements IBlockchainAdapter {
       to: entryPoint,
       data: calldata,
     });
+  }
+
+  // =========================================================================
+  // Domain Sub-Adapters
+  // =========================================================================
+
+  epochs(): IEpochAdapter {
+    throw new Error('IEpochAdapter not yet implemented on EVM — see Task 7');
+  }
+
+  escrow(): IEscrowAdapter {
+    throw new Error('IEscrowAdapter not yet implemented on EVM');
+  }
+
+  passports(): IPassportAdapter {
+    throw new Error('IPassportAdapter not yet implemented on EVM — see Task 13');
   }
 
   // =========================================================================
