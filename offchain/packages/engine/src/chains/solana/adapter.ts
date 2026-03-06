@@ -18,6 +18,7 @@ import {
 } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token';
 import * as fs from 'fs';
+import * as crypto from 'crypto';
 import bs58 from 'bs58';
 import type { IBlockchainAdapter } from '../adapter-interface';
 import type {
@@ -35,6 +36,7 @@ import type {
 } from '../types';
 import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter } from '../domain-interfaces';
 import { SolanaPassportClient } from '../../passport/nft/solana-token2022';
+import pool from '../../db/pool';
 
 // =============================================================================
 // ANCHOR INSTRUCTION DISCRIMINATORS
@@ -209,31 +211,140 @@ export class SolanaAdapter implements IBlockchainAdapter {
   }
 
   // =========================================================================
-  // Validation Registry (local store — no on-chain registry on Solana yet)
+  // Validation Registry (DB-backed — no on-chain registry on Solana yet)
   // =========================================================================
 
-  async submitValidation(_params: ValidationSubmission): Promise<TxReceipt> {
+  async submitValidation(params: ValidationSubmission): Promise<TxReceipt> {
     this.ensureConnected();
-    throw new Error('Validation/Reputation: DB persistence coming in Task 3');
+
+    const validationId = `val_${crypto.randomUUID().replace(/-/g, '')}`;
+    const validator = this._keypair?.publicKey.toBase58() ?? 'unknown';
+
+    try {
+      await pool.query(
+        `INSERT INTO validations (validation_id, agent_token_id, validator, valid, receipt_hash, metadata, chain_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          validationId,
+          params.agentTokenId,
+          validator,
+          params.valid,
+          params.receiptHash,
+          params.metadata ?? null,
+          this._chainId,
+        ],
+      );
+    } catch (err) {
+      console.error('[SolanaAdapter] submitValidation DB error:', err);
+      return {
+        hash: '',
+        chainId: this._chainId,
+        success: false,
+        statusMessage: `DB error: ${err instanceof Error ? err.message : 'unknown'}`,
+      };
+    }
+
+    return {
+      hash: validationId,
+      chainId: this._chainId,
+      success: true,
+      statusMessage: `Validation ${validationId} recorded for agent ${params.agentTokenId}`,
+    };
   }
 
-  async getValidation(_validationId: string): Promise<ValidationResult | null> {
+  async getValidation(validationId: string): Promise<ValidationResult | null> {
     this.ensureConnected();
-    throw new Error('Validation/Reputation: DB persistence coming in Task 3');
+
+    try {
+      const { rows } = await pool.query(
+        `SELECT validation_id, agent_token_id, validator, valid, metadata, created_at
+         FROM validations WHERE validation_id = $1`,
+        [validationId],
+      );
+
+      if (rows.length === 0) return null;
+
+      const row = rows[0];
+      return {
+        validationId: row.validation_id,
+        agentTokenId: row.agent_token_id,
+        validator: row.validator,
+        valid: row.valid,
+        timestamp: new Date(row.created_at).getTime(),
+        metadata: row.metadata ?? undefined,
+      };
+    } catch (err) {
+      console.error('[SolanaAdapter] getValidation DB error:', err);
+      return null;
+    }
   }
 
   // =========================================================================
-  // Reputation Registry (local store — no on-chain registry on Solana yet)
+  // Reputation Registry (DB-backed — no on-chain registry on Solana yet)
   // =========================================================================
 
-  async submitReputation(_params: ReputationFeedback): Promise<TxReceipt> {
+  async submitReputation(params: ReputationFeedback): Promise<TxReceipt> {
     this.ensureConnected();
-    throw new Error('Validation/Reputation: DB persistence coming in Task 3');
+
+    const fromAddress = this._keypair?.publicKey.toBase58() ?? 'unknown';
+    let insertedId = '';
+
+    try {
+      const { rows } = await pool.query(
+        `INSERT INTO reputation_scores (agent_token_id, from_address, score, category, comment_hash, chain_id)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING id`,
+        [
+          params.agentTokenId,
+          fromAddress,
+          params.score,
+          params.category ?? null,
+          params.commentHash ?? null,
+          this._chainId,
+        ],
+      );
+      insertedId = rows[0]?.id ?? '';
+    } catch (err) {
+      console.error('[SolanaAdapter] submitReputation DB error:', err);
+      return {
+        hash: '',
+        chainId: this._chainId,
+        success: false,
+        statusMessage: `DB error: ${err instanceof Error ? err.message : 'unknown'}`,
+      };
+    }
+
+    return {
+      hash: insertedId,
+      chainId: this._chainId,
+      success: true,
+      statusMessage: `Reputation score ${params.score} recorded for agent ${params.agentTokenId}`,
+    };
   }
 
-  async readReputation(_agentId: string): Promise<ReputationData[]> {
+  async readReputation(agentId: string): Promise<ReputationData[]> {
     this.ensureConnected();
-    throw new Error('Validation/Reputation: DB persistence coming in Task 3');
+
+    try {
+      const { rows } = await pool.query(
+        `SELECT from_address, agent_token_id, score, category, created_at
+         FROM reputation_scores
+         WHERE agent_token_id = $1
+         ORDER BY created_at DESC`,
+        [agentId],
+      );
+
+      return rows.map((row: Record<string, unknown>) => ({
+        from: row.from_address as string,
+        agentTokenId: row.agent_token_id as string,
+        score: row.score as number,
+        category: (row.category as string) ?? undefined,
+        timestamp: new Date(row.created_at as string).getTime(),
+      }));
+    } catch (err) {
+      console.error('[SolanaAdapter] readReputation DB error:', err);
+      return [];
+    }
   }
 
   // =========================================================================
