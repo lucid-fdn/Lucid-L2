@@ -107,7 +107,7 @@ export interface WalletConfig {
 
 // --- Deployment ---
 
-export type DeploymentTargetType = 'railway' | 'akash' | 'phala' | 'ionet' | 'vercel_edge' | 'docker' | 'aws_bedrock' | 'self_hosted';
+export type DeploymentTargetType = 'railway' | 'akash' | 'phala' | 'ionet' | 'nosana' | 'vercel_edge' | 'docker' | 'aws_bedrock' | 'self_hosted';
 
 export interface DeploymentTarget {
   type: DeploymentTargetType;
