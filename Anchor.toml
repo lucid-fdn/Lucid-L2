@@ -11,6 +11,7 @@ gas_utils = "EzuUhxtNAz1eRfAPypm6eAepe8fRQBrBPSo4Qcp1w3hm"
 lucid_passports = "FhoemNdqwPMt8nmX4HT3WpSqUuqeAUXRb7WchAehmSaL"
 lucid_agent_wallet = "AJGpTWXbhvdYMxSah6GAKzykvfkYo2ViQpWGMbimQsph"
 lucid_zkml_verifier = "69cJRFGWijD1FdapQ2vz7VP6x2jcXRQyBws9VzzPpqAN"
+lucid_reputation = "4FWEH1XQb7p1pU9r8Ap8xomDYVxdSdwk6fFT8XD63G3A"
 
 [programs.devnet]
 thought_epoch = "9YhfaLoUZYLzu3xRQevRom4qj8oTf5TGpuoWptvStKDu"
@@ -18,6 +19,7 @@ gas_utils = "EzuUhxtNAz1eRfAPypm6eAepe8fRQBrBPSo4Qcp1w3hm"
 lucid_passports = "FhoemNdqwPMt8nmX4HT3WpSqUuqeAUXRb7WchAehmSaL"
 lucid_agent_wallet = "AJGpTWXbhvdYMxSah6GAKzykvfkYo2ViQpWGMbimQsph"
 lucid_zkml_verifier = "69cJRFGWijD1FdapQ2vz7VP6x2jcXRQyBws9VzzPpqAN"
+lucid_reputation = "4FWEH1XQb7p1pU9r8Ap8xomDYVxdSdwk6fFT8XD63G3A"
 
 [programs.mainnet]
 thought_epoch = "11111111111111111111111111111111"
@@ -25,6 +27,7 @@ gas_utils = "EzuUhxtNAz1eRfAPypm6eAepe8fRQBrBPSo4Qcp1w3hm"
 lucid_passports = "11111111111111111111111111111111"
 lucid_agent_wallet = "AJGpTWXbhvdYMxSah6GAKzykvfkYo2ViQpWGMbimQsph"
 lucid_zkml_verifier = "69cJRFGWijD1FdapQ2vz7VP6x2jcXRQyBws9VzzPpqAN"
+lucid_reputation = "4FWEH1XQb7p1pU9r8Ap8xomDYVxdSdwk6fFT8XD63G3A"
 
 [workspace]
 members = [
@@ -32,5 +35,6 @@ members = [
     "programs/lucid-passports",
     "programs/gas-utils",
     "programs/lucid-agent-wallet",
-    "programs/lucid-zkml-verifier"
+    "programs/lucid-zkml-verifier",
+    "programs/lucid-reputation"
 ]
