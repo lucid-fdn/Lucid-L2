@@ -43,3 +43,26 @@ export function useHealth(intervalMs = 30_000) {
   const fetcher = useCallback(() => api.getHealth(), []);
   return usePolling(fetcher, intervalMs);
 }
+
+export function useDeployments(
+  filters?: { status?: string; target?: string },
+  intervalMs = 10_000,
+) {
+  const fetcher = useCallback(() => api.getDeployments(filters), [filters]);
+  return usePolling(fetcher, intervalMs);
+}
+
+export function useDeploymentStatus(passportId: string, intervalMs = 5_000) {
+  const fetcher = useCallback(() => api.getDeploymentStatus(passportId), [passportId]);
+  return usePolling(fetcher, intervalMs);
+}
+
+export function useDeploymentLogs(passportId: string, tail = 100, intervalMs = 10_000) {
+  const fetcher = useCallback(() => api.getDeploymentLogs(passportId, tail), [passportId, tail]);
+  return usePolling(fetcher, intervalMs);
+}
+
+export function useAgentCapabilities(intervalMs = 60_000) {
+  const fetcher = useCallback(() => api.getAgentCapabilities(), []);
+  return usePolling(fetcher, intervalMs);
+}

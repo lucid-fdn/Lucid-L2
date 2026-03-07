@@ -8,6 +8,7 @@ const navItems = [
   { href: '/dashboard/agents', label: 'Agents', icon: 'users' },
   { href: '/dashboard/receipts', label: 'Receipts', icon: 'file-text' },
   { href: '/dashboard/reputation', label: 'Reputation', icon: 'star' },
+  { href: '/dashboard/deployments', label: 'Deployments', icon: 'rocket' },
   { href: '/dashboard/epochs', label: 'Epochs', icon: 'clock' },
   { href: '/dashboard/chains', label: 'Chains', icon: 'link' },
 ];
@@ -19,6 +20,7 @@ const icons: Record<string, string> = {
   'file-text': 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm-1 1v5h5m-10 4h8m-8 4h8m-8-8h2',
   'star': 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
   'clock': 'M12 22a10 10 0 100-20 10 10 0 000 20zm0-14v4l3 3',
+  'rocket': 'M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09zM12 15l-3-3m3 3a22 22 0 004-11 22 22 0 00-11 4l-3 3 7 7 3-3zm-1-5a1 1 0 102 0 1 1 0 00-2 0z',
   'link': 'M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71m-.54 7.12a5 5 0 01-7.54-.54l-3-3a5 5 0 017.07-7.07l1.71 1.71',
 };
 
