@@ -236,16 +236,13 @@ export class AgentDeploymentService {
       try {
         const { getPermanentStorage } = await import('../storage/depin');
         const storage = getPermanentStorage();
-        await storage.upload({
-          data: JSON.stringify({
+        await storage.uploadJSON({
             passport_id: passportId,
             deployment_target: input.descriptor.deployment_config.target.type,
             deployment_url: deployerResult.url,
             adapter: adapter.name,
             deployed_at: new Date().toISOString(),
-          }),
-          tags: { type: 'agent-deployment', passport_id: passportId },
-        });
+          }, { tags: { type: 'agent-deployment', passport_id: passportId } });
         console.log(`[AgentDeploy] Deployment artifact stored on DePIN`);
       } catch (error) {
         console.warn(`[AgentDeploy] DePIN storage failed (non-blocking): ${error instanceof Error ? error.message : 'Unknown'}`);

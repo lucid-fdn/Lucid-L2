@@ -287,7 +287,7 @@ describe('Epoch Service', () => {
       
       expect(finalized).not.toBeNull();
       expect(finalized?.status).toBe('anchored');
-      expect(finalized?.chain_tx).toBe('tx_signature_123');
+      expect(finalized?.chain_tx).toEqual({ 'solana-devnet': 'tx_signature_123' });
     });
 
     it('should only finalize anchoring epochs', () => {

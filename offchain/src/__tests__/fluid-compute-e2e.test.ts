@@ -537,7 +537,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
       // 7. Check final epoch state
       const finalEpoch = getEpoch(epoch.epoch_id);
       expect(finalEpoch?.status).toBe('anchored');
-      expect(finalEpoch?.chain_tx).toBe(anchorResult.signature);
+      expect(finalEpoch?.chain_tx).toEqual({ 'solana-devnet': anchorResult.signature });
       
       console.log('✅ E2E Flow Complete:');
       console.log(`   Quote: ${fullQuote.quote_id}`);
