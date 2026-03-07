@@ -136,12 +136,19 @@ export interface RevenueSplit {
   protocol: number;
 }
 
+export interface ShareTokenConfig {
+  symbol: string;
+  total_supply: number;
+  auto_launch: boolean;
+}
+
 export interface MonetizationConfig {
   enabled: boolean;
   pricing_model: PricingModel;
   price_per_call_usd?: number;
   share_token_mint?: string;
   revenue_split?: RevenueSplit;
+  share_token?: ShareTokenConfig;
 }
 
 // --- Compliance ---

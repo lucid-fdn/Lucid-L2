@@ -12,6 +12,8 @@ import { blockchainAdapterFactory } from '../../../engine/src/chain/blockchain/B
 import { CHAIN_CONFIGS, getEVMChains } from '../../../engine/src/chain/blockchain/chains';
 import type { ChainConfig } from '../../../engine/src/chain/blockchain/types';
 import type { ReputationService } from './reputationService';
+import { getIdentityBridgeService } from '../../../engine/src/identity/identityBridgeService';
+import { fromCaip10, isEvmCaip10 } from '../../../engine/src/identity/caip10';
 
 // =============================================================================
 // Types
@@ -361,6 +363,101 @@ export class ReputationAggregator {
       lastIndexedBlock: s.lastIndexedBlock.toString(),
       isRunning: s.isRunning,
     }));
+  }
+
+  /**
+   * Resolve an agent passport_id to ERC-8004 token IDs across chains.
+   * Uses the identity bridge to find all chain-linked addresses,
+   * then looks up existing reputation data keyed by those addresses.
+   */
+  async resolveAgentTokenIds(agentPassportId: string): Promise<Map<string, string>> {
+    const result = new Map<string, string>();
+
+    try {
+      const bridge = getIdentityBridgeService();
+      const resolution = bridge.resolveIdentity(`lucid:1:${agentPassportId}`);
+
+      for (const linked of resolution.linkedIdentities) {
+        if (isEvmCaip10(linked.caip10)) {
+          const parsed = fromCaip10(linked.caip10);
+          // Check if we have reputation data for this address on this chain
+          const chainId = `eip155:${parsed.reference}`;
+          const agentData = this.reputationStore.get(linked.address);
+          if (agentData?.has(chainId)) {
+            result.set(chainId, linked.address);
+          }
+        }
+      }
+    } catch {
+      // Identity bridge not available, try direct lookup
+    }
+
+    // If no bridge resolution found, check if agentPassportId is directly in the store
+    if (result.size === 0 && this.reputationStore.has(agentPassportId)) {
+      const agentData = this.reputationStore.get(agentPassportId)!;
+      for (const [chainId] of agentData) {
+        result.set(chainId, agentPassportId);
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Get unified reputation for an agent passport_id.
+   * Resolves passport to chain-specific token IDs, aggregates all reputation data,
+   * and merges with Lucid-native reputation from ReputationService.
+   */
+  async getAgentReputation(agentPassportId: string): Promise<UnifiedReputationScore> {
+    // Try direct lookup first (passport_id may already be used as agentId)
+    const directScore = await this.getUnifiedScore(agentPassportId);
+
+    // Try identity-bridge-resolved token IDs
+    const tokenIds = await this.resolveAgentTokenIds(agentPassportId);
+    const chainScores: ChainReputationData[] = directScore?.chains ? [...directScore.chains] : [];
+    const seenChains = new Set(chainScores.map(c => c.chainId));
+
+    for (const [chainId, tokenId] of tokenIds) {
+      if (seenChains.has(chainId)) continue;
+      const agentData = this.reputationStore.get(tokenId);
+      if (agentData?.has(chainId)) {
+        chainScores.push(agentData.get(chainId)!);
+        seenChains.add(chainId);
+      }
+    }
+
+    // Merge Lucid-native reputation
+    let nativeScore = 0;
+    let nativeCount = 0;
+    if (this.reputationService) {
+      try {
+        const summary = await this.reputationService.getSummary(agentPassportId);
+        if (summary.feedbackCount > 0) {
+          nativeScore = summary.avgScore * summary.feedbackCount;
+          nativeCount = summary.feedbackCount;
+        }
+      } catch {
+        // ReputationService unavailable
+      }
+    }
+
+    const totalEvmFeedback = chainScores.reduce((sum, c) => sum + c.feedbackCount, 0);
+    const evmWeightedSum = chainScores.reduce(
+      (sum, c) => sum + c.averageScore * c.feedbackCount, 0,
+    );
+    const combinedCount = totalEvmFeedback + nativeCount;
+    const unifiedScore = combinedCount > 0
+      ? (evmWeightedSum + nativeScore) / combinedCount
+      : 0;
+
+    return {
+      agentId: agentPassportId,
+      unifiedScore: Math.round(unifiedScore * 100) / 100,
+      totalFeedbackCount: combinedCount,
+      chainCount: seenChains.size,
+      chains: chainScores,
+      computedAt: Math.floor(Date.now() / 1000),
+    };
   }
 
   /**

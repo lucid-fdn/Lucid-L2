@@ -43,7 +43,7 @@ function findValidationPDA(passportId: string, receiptHash: Buffer): [PublicKey,
 // ---------------------------------------------------------------------------
 
 describe("Lucid Reputation Program", () => {
-  const provider = anchor.AnchorProvider.local("https://api.devnet.solana.com");
+  const provider = anchor.AnchorProvider.local("http://127.0.0.1:8899");
   anchor.setProvider(provider);
 
   program = anchor.workspace.LucidReputation as Program;

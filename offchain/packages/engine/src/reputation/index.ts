@@ -61,9 +61,9 @@ export function getReputationSyncers(): IReputationSyncer[] {
     switch (name) {
       case '8004': {
         try {
-          const sdk8004 = require('8004-solana');
+          const { SolanaSDK } = require('8004-solana');
           const { Solana8004Syncer } = require('./syncers/Solana8004Syncer');
-          _syncers.push(new Solana8004Syncer(new sdk8004.SolanaSDK8004()));
+          _syncers.push(new Solana8004Syncer(new SolanaSDK()));
         } catch {
           console.warn('[Reputation] 8004-solana SDK not available, skipping syncer');
         }

@@ -231,7 +231,31 @@ export class AgentDeploymentService {
       }
     }
 
-    // Step 7.5: Store deployment artifact on DePIN (if enabled)
+    // Step 7.5: Auto-launch share token (if configured)
+    if (input.descriptor.monetization?.share_token?.auto_launch) {
+      console.log(`[AgentDeploy] Step 7.5: Auto-launching share token...`);
+      try {
+        const { getTokenLauncher } = await import('../assets/shares');
+        const launcher = getTokenLauncher();
+        const shareConfig = input.descriptor.monetization.share_token;
+        const launchResult = await launcher.launchToken({
+          passportId,
+          name: `${input.name} Share`,
+          symbol: shareConfig.symbol,
+          uri: '', // Metadata URI set later
+          totalSupply: shareConfig.total_supply,
+          decimals: 6,
+          owner: input.owner,
+        });
+        // Store mint address in monetization config for downstream use
+        input.descriptor.monetization.share_token_mint = launchResult.mint;
+        console.log(`[AgentDeploy] Share token launched: ${launchResult.mint} (${shareConfig.symbol})`);
+      } catch (error) {
+        console.warn(`[AgentDeploy] Share token launch failed (non-blocking): ${error instanceof Error ? error.message : 'Unknown'}`);
+      }
+    }
+
+    // Step 7.6: Store deployment artifact on DePIN (if enabled)
     if (process.env.DEPIN_UPLOAD_ENABLED !== 'false') {
       try {
         const { getPermanentStorage } = await import('../storage/depin');

@@ -97,6 +97,55 @@ export class MetaplexCoreProvider implements INFTProvider {
     }
   }
 
+  /**
+   * Add a custom data plugin to an existing Metaplex Core asset.
+   * MIP #52 prep: stores structured data (reputation, capabilities) on-chain.
+   *
+   * Plugin types for Lucid:
+   * - 'reputation': { avg_score, feedback_count, last_updated }
+   * - 'capabilities': { tools, models, channels }
+   * - 'deployment': { target, url, status }
+   */
+  async addPlugin(
+    mint: string,
+    pluginType: string,
+    data: Record<string, unknown>,
+  ): Promise<string> {
+    const umi = await this.getUmi();
+    const { addPluginV1 } = require('@metaplex-foundation/mpl-core');
+    const { publicKey } = require('@metaplex-foundation/umi');
+
+    // Encode plugin data as JSON attribute map
+    const result = await addPluginV1(umi, {
+      asset: publicKey(mint),
+      plugin: {
+        type: 'Attributes',
+        attributeList: Object.entries(data).map(([key, value]) => ({
+          key: `${pluginType}:${key}`,
+          value: String(value),
+        })),
+      },
+    }).sendAndConfirm(umi);
+
+    return Buffer.from(result.signature).toString('base64');
+  }
+
+  /**
+   * Update reputation data on a Metaplex Core asset plugin.
+   * MIP #52 prep: keeps on-chain reputation in sync with aggregated scores.
+   */
+  async syncReputationPlugin(
+    mint: string,
+    reputation: { avg_score: number; feedback_count: number; validation_count: number },
+  ): Promise<string> {
+    return this.addPlugin(mint, 'reputation', {
+      avg_score: reputation.avg_score.toString(),
+      feedback_count: reputation.feedback_count.toString(),
+      validation_count: reputation.validation_count.toString(),
+      last_updated: Math.floor(Date.now() / 1000).toString(),
+    });
+  }
+
   async isHealthy(): Promise<boolean> {
     try {
       await this.getUmi();

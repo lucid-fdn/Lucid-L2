@@ -95,12 +95,36 @@ export async function processAgentRevenue(receipt: {
 
   const pool = revenuePools.get(receipt.agent_passport_id)!;
 
-  // 4. Log if accumulated exceeds airdrop threshold
-  // For MVP, just accumulate — airdrop is manual via triggerAgentAirdrop()
+  // 4. Auto-trigger airdrop if accumulated exceeds threshold and share token exists
   if (pool.accumulated_lamports >= AIRDROP_THRESHOLD_LAMPORTS) {
     console.log(
       `[AgentRevenue] Agent ${receipt.agent_passport_id} accumulated ${pool.accumulated_lamports} lamports — eligible for airdrop`,
     );
+
+    // Attempt auto-airdrop if share token is configured
+    try {
+      const { getTokenLauncher } = await import('../assets/shares');
+      const launcher = getTokenLauncher();
+      const tokenInfo = await launcher.getTokenInfo(receipt.agent_passport_id);
+      if (tokenInfo) {
+        const result = await triggerAgentAirdrop(receipt.agent_passport_id);
+        if (result) {
+          const { runRevenueAirdrop } = await import('../jobs/revenueAirdrop');
+          await runRevenueAirdrop(
+            receipt.agent_passport_id,
+            tokenInfo.mint,
+            Number(result.distributed_lamports),
+          );
+          console.log(
+            `[AgentRevenue] Auto-airdrop completed: ${result.distributed_lamports} lamports to ${tokenInfo.mint} holders`,
+          );
+        }
+      }
+    } catch (error) {
+      console.warn(
+        `[AgentRevenue] Auto-airdrop failed (non-blocking): ${error instanceof Error ? error.message : error}`,
+      );
+    }
   }
 }
 
