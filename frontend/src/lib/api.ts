@@ -76,35 +76,3 @@ export const getBridgeQuote = (source: string, dest: string, amount: string) =>
   fetchApi<{ success: boolean; quote: any }>(
     `/v2/bridge/quote?sourceChainId=${source}&destChainId=${dest}&amount=${amount}`,
   );
-
-// Deployments
-export const getDeployments = (filters?: { status?: string; target?: string }) => {
-  const params = new URLSearchParams();
-  if (filters?.status) params.set('status', filters.status);
-  if (filters?.target) params.set('target', filters.target);
-  const qs = params.toString();
-  return fetchApi<{ success: boolean; deployments: any[] }>(
-    `/v1/agents/deployments${qs ? `?${qs}` : ''}`,
-  );
-};
-
-export const getDeploymentStatus = (passportId: string) =>
-  fetchApi<{ success: boolean; status: string; health: string; deployment_id: string; url?: string }>(
-    `/v1/agents/${passportId}/status`,
-  );
-
-export const getDeploymentLogs = (passportId: string, tail = 100) =>
-  fetchApi<{ success: boolean; logs: string }>(
-    `/v1/agents/${passportId}/logs?tail=${tail}`,
-  );
-
-export const terminateDeployment = (passportId: string) =>
-  fetchApi<{ success: boolean; message: string }>(
-    `/v1/agents/${passportId}/terminate`,
-    { method: 'POST' },
-  );
-
-export const getAgentCapabilities = () =>
-  fetchApi<{ success: boolean; capabilities: { adapters: string[]; targets: string[] } }>(
-    '/v1/agents/capabilities',
-  );
