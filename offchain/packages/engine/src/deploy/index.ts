@@ -13,7 +13,7 @@ export {
   LogOptions,
 } from './IDeployer';
 
-type DeployerTarget = 'docker' | 'railway' | 'akash' | 'phala' | 'ionet';
+type DeployerTarget = 'docker' | 'railway' | 'akash' | 'phala' | 'ionet' | 'nosana';
 
 let deployers: Map<string, IDeployer> | null = null;
 
@@ -27,6 +27,7 @@ function loadDeployers(): Map<string, IDeployer> {
   const { AkashDeployer } = require('./AkashDeployer');
   const { PhalaDeployer } = require('./PhalaDeployer');
   const { IoNetDeployer } = require('./IoNetDeployer');
+  const { NosanaDeployer } = require('./NosanaDeployer');
 
   const instances: IDeployer[] = [
     new DockerDeployer(),
@@ -34,6 +35,7 @@ function loadDeployers(): Map<string, IDeployer> {
     new AkashDeployer(),
     new PhalaDeployer(),
     new IoNetDeployer(),
+    new NosanaDeployer(),
   ];
 
   for (const d of instances) {
@@ -46,7 +48,7 @@ function loadDeployers(): Map<string, IDeployer> {
 
 /**
  * Get a deployer by target name.
- * env: DEPLOY_TARGET = 'docker' | 'railway' | 'akash' | 'phala' | 'ionet'
+ * env: DEPLOY_TARGET = 'docker' | 'railway' | 'akash' | 'phala' | 'ionet' | 'nosana'
  * Falls back to 'docker' if no target specified.
  */
 export function getDeployer(target?: string): IDeployer {
