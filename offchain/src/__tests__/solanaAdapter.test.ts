@@ -151,64 +151,6 @@ describe('SolanaAdapter', () => {
     await adapter.disconnect();
     expect(adapter.isConnected()).toBe(false);
   });
-
-  describe('when connected', () => {
-    beforeEach(async () => {
-      await adapter.connect({
-        chainId: 'solana-devnet',
-        name: 'Solana Devnet',
-        chainType: 'solana',
-        rpcUrl: 'https://api.devnet.solana.com',
-        isTestnet: true,
-      });
-    });
-
-    afterEach(async () => {
-      await adapter.disconnect();
-    });
-
-    it('stores validation results locally', async () => {
-      const result = await adapter.submitValidation({
-        agentTokenId: 'agent-123',
-        receiptHash: 'hash-abc',
-        valid: true,
-        metadata: 'test',
-      });
-
-      expect(result.success).toBe(true);
-      expect(result.chainId).toBe('solana-devnet');
-
-      const validation = await adapter.getValidation(result.hash);
-      expect(validation).not.toBeNull();
-      expect(validation!.agentTokenId).toBe('agent-123');
-      expect(validation!.valid).toBe(true);
-    });
-
-    it('stores reputation data locally', async () => {
-      const result = await adapter.submitReputation({
-        agentTokenId: 'agent-456',
-        score: 85,
-        category: 'performance',
-      });
-
-      expect(result.success).toBe(true);
-
-      const reputationData = await adapter.readReputation('agent-456');
-      expect(reputationData).toHaveLength(1);
-      expect(reputationData[0].score).toBe(85);
-      expect(reputationData[0].category).toBe('performance');
-    });
-
-    it('returns null for unknown validation', async () => {
-      const result = await adapter.getValidation('nonexistent');
-      expect(result).toBeNull();
-    });
-
-    it('returns empty array for unknown reputation', async () => {
-      const result = await adapter.readReputation('nonexistent');
-      expect(result).toEqual([]);
-    });
-  });
 });
 
 // =============================================================================

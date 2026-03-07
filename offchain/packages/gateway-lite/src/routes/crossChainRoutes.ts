@@ -6,6 +6,7 @@ import { blockchainAdapterFactory } from '../../../engine/src/chain/blockchain/B
 import { CHAIN_CONFIGS } from '../../../engine/src/chain/blockchain/chains';
 import { getReputationAggregator } from '../reputation/reputationAggregator';
 import { getReceiptReputation, submitReceiptReputation } from '../reputation/receiptReputationService';
+import { getReputationProvider } from '../../../engine/src/reputation';
 
 export const crossChainRouter = Router();
 
@@ -150,18 +151,19 @@ crossChainRouter.post('/v2/validate', async (req, res) => {
     // Step 2: If chain_id provided, submit validation on-chain
     if (chain_id && agent_token_id && hashToSubmit) {
       try {
-        const adapter = await blockchainAdapterFactory.getAdapter(chain_id);
-        const txReceipt = await adapter.submitValidation({
-          agentTokenId: agent_token_id,
-          receiptHash: hashToSubmit.startsWith('0x') ? hashToSubmit : `0x${hashToSubmit}`,
+        const reputationProvider = getReputationProvider();
+        const txReceipt = await reputationProvider.submitValidation({
+          passportId: agent_token_id,
+          receiptHash: hashToSubmit.startsWith('0x') ? hashToSubmit.slice(2) : hashToSubmit,
           valid: localValid,
+          assetType: 'agent',
+          metadata: `chain:${chain_id}`,
         });
 
         response.on_chain = {
           chain_id,
-          tx_hash: txReceipt.hash,
+          tx_hash: txReceipt.txHash || txReceipt.id,
           success: txReceipt.success,
-          block_number: txReceipt.blockNumber,
         };
       } catch (chainError) {
         response.on_chain = {
@@ -323,26 +325,14 @@ crossChainRouter.get('/v2/agents/:agentId/reputation', async (req, res) => {
 
     const results: Array<{ chain_id: string; reputation: any }> = [];
 
-    if (chain_id) {
-      // Query specific chain
-      const adapter = await blockchainAdapterFactory.getAdapter(chain_id);
-      const reputation = await adapter.readReputation(agentId);
-      results.push({ chain_id, reputation });
-    } else {
-      // Query all connected EVM chains
-      const chains = blockchainAdapterFactory.listChains();
-      for (const chain of chains) {
-        if (!chain.connected) continue;
-        try {
-          const adapter = blockchainAdapterFactory.get(chain.chainId);
-          if (!adapter) continue;
-          const reputation = await adapter.readReputation(agentId);
-          results.push({ chain_id: chain.chainId, reputation });
-        } catch {
-          // Skip chains that fail
-        }
-      }
-    }
+    // Query reputation from the unified reputation provider
+    const reputationProvider = getReputationProvider();
+    const feedback = await reputationProvider.readFeedback(agentId);
+    const summary = await reputationProvider.getSummary(agentId);
+    results.push({
+      chain_id: chain_id || 'all',
+      reputation: { feedback, summary },
+    });
 
     return res.json({
       success: true,

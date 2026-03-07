@@ -14,7 +14,7 @@
 
 import { listReceipts, listExtendedReceipts, verifyReceipt } from '../../../engine/src/receipt/receiptService';
 import type { SignedReceipt, ExtendedSignedReceipt } from '../../../engine/src/receipt/receiptService';
-import { blockchainAdapterFactory } from '../../../engine/src/chain/blockchain/BlockchainAdapterFactory';
+import { getReputationProvider } from '../../../engine/src/reputation';
 
 // =============================================================================
 // Types
@@ -239,22 +239,20 @@ export async function submitReceiptReputation(
       return { success: false, error: 'No receipts found for agent' };
     }
 
-    const adapter = await blockchainAdapterFactory.getAdapter(chainId);
-    if (!adapter) {
-      return { success: false, error: `No adapter for chain ${chainId}` };
-    }
+    const provider = getReputationProvider();
 
-    // Submit the overall score as reputation feedback
-    // Score is 0–100, map to uint8 for the contract
-    const txReceipt = await adapter.submitReputation({
-      agentTokenId,
+    const txReceipt = await provider.submitFeedback({
+      passportId: agentTokenId,
       score: Math.round(score.overall),
       category: 'receipt-based',
+      receiptHash: '',
+      assetType: 'agent',
+      metadata: `chain:${chainId}`,
     });
 
     return {
       success: txReceipt.success,
-      txHash: txReceipt.hash,
+      txHash: txReceipt.txHash,
       score,
     };
   } catch (error) {

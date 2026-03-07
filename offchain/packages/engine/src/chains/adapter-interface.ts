@@ -13,10 +13,6 @@ import type {
   UnsignedTx,
   AgentRegistration,
   AgentIdentity,
-  ValidationSubmission,
-  ValidationResult,
-  ReputationFeedback,
-  ReputationData,
 } from './types';
 
 import type {
@@ -62,26 +58,6 @@ export interface IBlockchainAdapter {
 
   /** Query an agent by token ID */
   queryAgent(agentId: string): Promise<AgentIdentity | null>;
-
-  // =========================================================================
-  // ERC-8004: Validation Registry
-  // =========================================================================
-
-  /** Submit a validation result */
-  submitValidation(params: ValidationSubmission): Promise<TxReceipt>;
-
-  /** Get a validation result by ID */
-  getValidation(validationId: string): Promise<ValidationResult | null>;
-
-  // =========================================================================
-  // ERC-8004: Reputation Registry
-  // =========================================================================
-
-  /** Submit reputation feedback */
-  submitReputation(params: ReputationFeedback): Promise<TxReceipt>;
-
-  /** Read reputation data for an agent */
-  readReputation(agentId: string): Promise<ReputationData[]>;
 
   // =========================================================================
   // Generic Transaction

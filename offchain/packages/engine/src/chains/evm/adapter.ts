@@ -2,7 +2,8 @@
  * EVM Blockchain Adapter
  *
  * Implements IBlockchainAdapter for any EVM-compatible chain using viem.
- * Reads/writes ERC-8004 registries (Identity, Validation, Reputation).
+ * Reads/writes ERC-8004 Identity Registry. Validation and Reputation
+ * are handled by the IReputationProvider layer.
  */
 
 import {
@@ -23,10 +24,6 @@ import type {
   UnsignedTx,
   AgentRegistration,
   AgentIdentity,
-  ValidationSubmission,
-  ValidationResult,
-  ReputationFeedback,
-  ReputationData,
 } from '../types';
 
 import { IdentityRegistryClient } from '../../identity/registries/evm-identity';
@@ -234,78 +231,6 @@ export class EVMAdapter implements IBlockchainAdapter {
     }
 
     return this._identityRegistry.getAgent(agentId, this._chainId);
-  }
-
-  // =========================================================================
-  // ERC-8004 Validation Registry
-  // =========================================================================
-
-  async submitValidation(params: ValidationSubmission): Promise<TxReceipt> {
-    this.ensureConnected();
-    if (!this._validationRegistry) {
-      throw new Error(`No Validation Registry configured for chain ${this._chainId}`);
-    }
-    if (!this._walletClient || !this._account) {
-      throw new Error('Wallet required for write operations');
-    }
-
-    const hash = await this._validationRegistry.submitResult(
-      params.agentTokenId,
-      params.receiptHash,
-      params.valid,
-    );
-
-    return this.waitForTx(hash);
-  }
-
-  async getValidation(validationId: string): Promise<ValidationResult | null> {
-    this.ensureConnected();
-    if (!this._validationRegistry) {
-      throw new Error(`No Validation Registry configured for chain ${this._chainId}`);
-    }
-
-    const record = await this._validationRegistry.getValidation(validationId);
-    if (!record) return null;
-
-    return {
-      validationId: record.validationId.toString(),
-      agentTokenId: record.agentTokenId.toString(),
-      validator: record.validator,
-      valid: record.valid,
-      timestamp: Number(record.timestamp),
-      metadata: record.metadata,
-    };
-  }
-
-  // =========================================================================
-  // ERC-8004 Reputation Registry
-  // =========================================================================
-
-  async submitReputation(params: ReputationFeedback): Promise<TxReceipt> {
-    this.ensureConnected();
-    if (!this._reputationRegistry) {
-      throw new Error(`No Reputation Registry configured for chain ${this._chainId}`);
-    }
-    if (!this._walletClient || !this._account) {
-      throw new Error('Wallet required for write operations');
-    }
-
-    const hash = await this._reputationRegistry.submitFeedback(
-      params.agentTokenId,
-      params.score,
-      params.category || '',
-    );
-
-    return this.waitForTx(hash);
-  }
-
-  async readReputation(agentId: string): Promise<ReputationData[]> {
-    this.ensureConnected();
-    if (!this._reputationRegistry) {
-      throw new Error(`No Reputation Registry configured for chain ${this._chainId}`);
-    }
-
-    return this._reputationRegistry.getFeedback(agentId);
   }
 
   // =========================================================================
