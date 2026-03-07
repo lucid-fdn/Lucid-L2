@@ -228,6 +228,21 @@ export async function runAnchoringJob(): Promise<AnchoringJobResult> {
             tx: anchorResult.signature,
             root: anchorResult.root,
           });
+
+          // Write to outbox for platform-core consumption (reverse signaling)
+          if (epoch.agent_passport_id) {
+            try {
+              const { writeEpochAnchoredEvent } = await import('./epochAnchoredOutbox');
+              await writeEpochAnchoredEvent({
+                epoch_id: epoch.epoch_id,
+                agent_passport_id: epoch.agent_passport_id,
+                mmr_root: anchorResult.root || epoch.mmr_root || '',
+                chain_tx: anchorResult.signature || '',
+              });
+            } catch (err) {
+              log('warn', `Failed to write epoch_anchored_event for ${epoch.epoch_id}`, err);
+            }
+          }
         } else {
           result.epochs_failed++;
           result.errors.push(`Failed to anchor epoch ${epoch.epoch_id}: ${anchorResult.error}`);
