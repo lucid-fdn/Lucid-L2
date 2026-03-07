@@ -79,6 +79,8 @@ import { zkmlRouter } from './routes/zkmlRoutes';
 import { agentDeployRouter } from './routes/agentDeployRoutes';
 import { agentMarketplaceRouter } from './routes/agentMarketplaceRoutes';
 import { a2aRouter } from './routes/a2aRoutes';
+import { agentWalletRouter } from './routes/agentWalletRoutes';
+import { agentRevenueRouter } from './routes/agentRevenueRoutes';
 // Agent mirror + proof routes
 import { agentMirrorRouter } from './routes/agentMirrorRoutes';
 import { initAgentMirrorConsumer, startAgentMirrorConsumer, stopAgentMirrorConsumer } from '../../engine/src/jobs/agentMirrorConsumer';
@@ -226,6 +228,8 @@ app.use('/', zkmlRouter);
 app.use('/', agentDeployRouter);
 app.use('/', agentMarketplaceRouter);
 app.use('/', a2aRouter);
+app.use('/', agentWalletRouter);
+app.use('/', agentRevenueRouter);
 // Mount Agent Mirror routes (proof + receipts + epoch endpoints)
 app.use('/', agentMirrorRouter);
 
