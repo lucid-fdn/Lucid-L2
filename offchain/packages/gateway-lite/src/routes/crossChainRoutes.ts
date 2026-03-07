@@ -364,7 +364,7 @@ crossChainRouter.get('/v2/reputation/:agentId', async (req, res) => {
     const { agentId } = req.params;
 
     const aggregator = getReputationAggregator();
-    const unified = aggregator.getUnifiedScore(agentId);
+    const unified = await aggregator.getUnifiedScore(agentId);
 
     if (!unified) {
       return res.json({

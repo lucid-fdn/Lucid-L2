@@ -11,6 +11,7 @@ import { createPublicClient, http, parseAbiItem } from 'viem';
 import { blockchainAdapterFactory } from '../../../engine/src/chain/blockchain/BlockchainAdapterFactory';
 import { CHAIN_CONFIGS, getEVMChains } from '../../../engine/src/chain/blockchain/chains';
 import type { ChainConfig } from '../../../engine/src/chain/blockchain/types';
+import type { ReputationService } from './reputationService';
 
 // =============================================================================
 // Types
@@ -71,6 +72,13 @@ export class ReputationAggregator {
 
   /** chainId -> IndexerState */
   private indexerStates = new Map<string, IndexerState>();
+
+  /** Optional ReputationService for Lucid-native reputation data */
+  private reputationService?: ReputationService;
+
+  setReputationService(service: ReputationService): void {
+    this.reputationService = service;
+  }
 
   /** Polling interval handle */
   private intervalHandle: ReturnType<typeof setInterval> | null = null;
@@ -258,7 +266,7 @@ export class ReputationAggregator {
    * Get unified cross-chain reputation score for an agent.
    * Score is weighted average across chains (weight = feedbackCount per chain).
    */
-  getUnifiedScore(agentId: string): UnifiedReputationScore | null {
+  async getUnifiedScore(agentId: string): Promise<UnifiedReputationScore | null> {
     const agentData = this.reputationStore.get(agentId);
     if (!agentData || agentData.size === 0) {
       return null;
@@ -278,17 +286,33 @@ export class ReputationAggregator {
       };
     }
 
-    // Weighted average: weight = feedbackCount per chain
+    // Merge Lucid-native reputation if available
+    let extraScore = 0;
+    let extraCount = 0;
+    if (this.reputationService) {
+      try {
+        const lucidSummary = await this.reputationService.getSummary(agentId);
+        if (lucidSummary.feedbackCount > 0) {
+          extraScore = lucidSummary.avgScore * lucidSummary.feedbackCount;
+          extraCount = lucidSummary.feedbackCount;
+        }
+      } catch {
+        // ReputationService unavailable, continue with EVM data only
+      }
+    }
+
+    // Weighted average: weight = feedbackCount per chain + Lucid native
     const weightedSum = chains.reduce(
       (sum, c) => sum + c.averageScore * c.feedbackCount,
-      0
+      extraScore,
     );
-    const unifiedScore = weightedSum / totalFeedback;
+    const combinedCount = totalFeedback + extraCount;
+    const unifiedScore = combinedCount > 0 ? weightedSum / combinedCount : 0;
 
     return {
       agentId,
       unifiedScore: Math.round(unifiedScore * 100) / 100,
-      totalFeedbackCount: totalFeedback,
+      totalFeedbackCount: combinedCount,
       chainCount: chains.length,
       chains,
       computedAt: Math.floor(Date.now() / 1000),

@@ -16,7 +16,7 @@ export class CrossChainWeightedAlgorithm implements IReputationAlgorithm {
 
   async compute(agentId: string, _context: ReputationContext): Promise<AlgorithmScore> {
     const aggregator = getReputationAggregator();
-    const unified = aggregator.getUnifiedScore(agentId);
+    const unified = await aggregator.getUnifiedScore(agentId);
 
     if (!unified || unified.totalFeedbackCount === 0) {
       return {
