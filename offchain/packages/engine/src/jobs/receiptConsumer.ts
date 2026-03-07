@@ -178,6 +178,22 @@ async function pollOnce(): Promise<number> {
         // Using agent_passport_id as project_id gives per-agent MMR isolation.
         addReceiptToEpoch(receipt.run_id, row.agent_passport_id ?? undefined)
 
+        // Wire agent receipts to revenue pipeline
+        if (row.agent_passport_id) {
+          try {
+            const { processAgentRevenue } = await import('../agent/agentRevenueService')
+            await processAgentRevenue({
+              agent_passport_id: row.agent_passport_id,
+              run_id: receipt.run_id,
+              tokens_in: row.tokens_in ?? 0,
+              tokens_out: row.tokens_out ?? 0,
+              model: row.model ?? 'unknown',
+            })
+          } catch (err) {
+            log('warn', `Failed to process agent revenue for ${row.agent_passport_id}`, err)
+          }
+        }
+
         // Mark as processed
         await queryFn!(
           `UPDATE receipt_events SET processed = true WHERE id = $1`,

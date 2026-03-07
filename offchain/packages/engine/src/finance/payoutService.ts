@@ -25,6 +25,7 @@ export interface PayoutRecipient {
 
 export interface PayoutSplit {
   run_id: string;
+  agent_passport_id?: string;  // Links payout to agent (set by agentRevenueService)
   total_amount_lamports: bigint;
   recipients: PayoutRecipient[];
   split_config: SplitConfig;
