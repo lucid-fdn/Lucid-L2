@@ -9,7 +9,7 @@ let walletSingleton: IAgentWalletProvider | null = null;
 
 /**
  * Get the agent wallet provider.
- * env: AGENT_WALLET_PROVIDER = 'crossmint' | 'erc6551' | 'mock'
+ * env: AGENT_WALLET_PROVIDER = 'crossmint' | 'erc6551' | 'solana-native' | 'mock'
  */
 export function getAgentWalletProvider(): IAgentWalletProvider {
   if (!walletSingleton) {
@@ -23,6 +23,11 @@ export function getAgentWalletProvider(): IAgentWalletProvider {
       case 'erc6551': {
         const { ERC6551WalletProvider } = require('./ERC6551WalletProvider');
         walletSingleton = new ERC6551WalletProvider();
+        break;
+      }
+      case 'solana-native': {
+        const { SolanaWalletProvider } = require('./SolanaWalletProvider');
+        walletSingleton = new SolanaWalletProvider();
         break;
       }
       default: {
