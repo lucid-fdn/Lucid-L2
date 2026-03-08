@@ -84,6 +84,8 @@ import { agentRevenueRouter } from './routes/agentRevenueRoutes';
 // Agent mirror + proof routes
 import { agentMirrorRouter } from './routes/agentMirrorRoutes';
 import { initAgentMirrorConsumer, startAgentMirrorConsumer, stopAgentMirrorConsumer } from '../../engine/src/jobs/agentMirrorConsumer';
+import { createAssetPaymentRouter } from './routes/assetPaymentRoutes';
+import { createPaymentConfigRouter } from './routes/paymentConfigRoutes';
 
 const app = express();
 
@@ -232,6 +234,10 @@ app.use('/', agentWalletRouter);
 app.use('/', agentRevenueRouter);
 // Mount Agent Mirror routes (proof + receipts + epoch endpoints)
 app.use('/', agentMirrorRouter);
+
+// Mount Asset Payment & Config routes
+app.use('/v1/assets', createAssetPaymentRouter());
+app.use('/v1/config', createPaymentConfigRouter());
 
 // Register built-in reputation algorithms
 reputationAlgorithmRegistry.register(new ReceiptVolumeAlgorithm());
