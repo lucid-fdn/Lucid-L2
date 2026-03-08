@@ -6,3 +6,6 @@ export { EscrowStatus } from './escrowTypes';
 export { getDisputeService, DisputeService } from './disputeService';
 export type { DisputeInfo, EvidenceSubmission } from './disputeTypes';
 export { DisputeStatus } from './disputeTypes';
+
+// Payment system (x402 universal)
+export * from '../payment';
