@@ -7,6 +7,7 @@
 import { Router } from 'express';
 import { PricingService } from '../../../engine/src/payment/pricingService';
 import { RevenueService } from '../../../engine/src/payment/revenueService';
+import { verifyAdminAuth } from '../middleware/adminAuth';
 
 /**
  * Serialize a value that may contain BigInt fields into JSON-safe form.
@@ -26,6 +27,8 @@ function serializeBigInts(obj: Record<string, unknown>): Record<string, unknown>
 
 export function createAssetPaymentRouter(): Router {
   const router = Router();
+  const pricingService = new PricingService();
+  const revenueService = new RevenueService();
 
   /**
    * GET /:passportId/pricing
@@ -34,7 +37,6 @@ export function createAssetPaymentRouter(): Router {
   router.get('/:passportId/pricing', async (req, res) => {
     try {
       const { passportId } = req.params;
-      const pricingService = new PricingService();
       const pricing = await pricingService.getPricing(passportId);
 
       if (!pricing) {
@@ -58,7 +60,7 @@ export function createAssetPaymentRouter(): Router {
    * PUT /:passportId/pricing
    * Set or update pricing configuration for an asset.
    */
-  router.put('/:passportId/pricing', async (req, res) => {
+  router.put('/:passportId/pricing', verifyAdminAuth, async (req, res) => {
     try {
       const { passportId } = req.params;
       const body = req.body || {};
@@ -71,7 +73,13 @@ export function createAssetPaymentRouter(): Router {
         });
       }
 
-      const pricingService = new PricingService();
+      if (body.price_per_call != null && !/^\d+$/.test(String(body.price_per_call))) {
+        return res.status(400).json({
+          success: false,
+          error: 'price_per_call must be a numeric string',
+        });
+      }
+
       await pricingService.setPricing({
         passport_id: passportId,
         price_per_call: body.price_per_call != null ? BigInt(body.price_per_call) : undefined,
@@ -97,10 +105,9 @@ export function createAssetPaymentRouter(): Router {
    * DELETE /:passportId/pricing
    * Remove pricing (free access).
    */
-  router.delete('/:passportId/pricing', async (req, res) => {
+  router.delete('/:passportId/pricing', verifyAdminAuth, async (req, res) => {
     try {
       const { passportId } = req.params;
-      const pricingService = new PricingService();
       const deleted = await pricingService.deletePricing(passportId);
 
       return res.json({ success: true, deleted });
@@ -121,7 +128,6 @@ export function createAssetPaymentRouter(): Router {
     try {
       const { passportId } = req.params;
       const token = (req.query.token as string) || 'USDC';
-      const revenueService = new RevenueService();
       const revenue = await revenueService.getRevenue(passportId, token);
 
       return res.json({
@@ -141,11 +147,10 @@ export function createAssetPaymentRouter(): Router {
    * POST /:passportId/withdraw
    * Withdraw earnings for an asset.
    */
-  router.post('/:passportId/withdraw', async (req, res) => {
+  router.post('/:passportId/withdraw', verifyAdminAuth, async (req, res) => {
     try {
       const { passportId } = req.params;
       const token = (req.body?.token as string) || 'USDC';
-      const revenueService = new RevenueService();
       const result = await revenueService.withdraw(passportId, token);
 
       return res.json({

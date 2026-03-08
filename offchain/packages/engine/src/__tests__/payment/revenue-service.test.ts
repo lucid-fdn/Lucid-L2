@@ -145,7 +145,7 @@ describe('RevenueService', () => {
 
       const result = await service.withdraw('passport-1', 'USDC');
 
-      expect(result).toEqual({ amount: BigInt(8000), token: 'USDC' });
+      expect(result).toEqual({ amount: BigInt(8000), token: 'USDC', status: 'pending_payout' });
 
       // Verify transaction flow
       expect(mockQuery).toHaveBeenCalledTimes(4);
@@ -166,7 +166,7 @@ describe('RevenueService', () => {
 
       const result = await service.withdraw('passport-1');
 
-      expect(result).toEqual({ amount: BigInt(0), token: 'USDC' });
+      expect(result).toEqual({ amount: BigInt(0), token: 'USDC', status: 'no_funds' });
       expect(mockQuery).toHaveBeenCalledTimes(3);
       expect(mockQuery.mock.calls[0][0]).toBe('BEGIN');
       expect(mockQuery.mock.calls[2][0]).toBe('COMMIT');

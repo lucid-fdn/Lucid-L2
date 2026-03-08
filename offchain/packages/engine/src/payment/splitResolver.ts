@@ -42,7 +42,7 @@ export interface SplitResolverConfig {
   defaultChain?: string;
 }
 
-interface ResolveParams {
+export interface ResolveParams {
   modelPassportId?: string;
   computePassportId?: string;
   orchestratorPassportId?: string;

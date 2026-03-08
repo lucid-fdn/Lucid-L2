@@ -2,6 +2,11 @@ import request from 'supertest';
 import express from 'express';
 import { createAssetPaymentRouter } from '../assetPaymentRoutes';
 
+// Mock admin auth — pass-through for tests
+jest.mock('../../middleware/adminAuth', () => ({
+  verifyAdminAuth: (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
 // Mock PricingService and RevenueService
 const mockGetPricing = jest.fn();
 const mockSetPricing = jest.fn();

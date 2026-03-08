@@ -20,6 +20,9 @@ export interface RevenueInfo {
 export interface WithdrawResult {
   amount: bigint;
   token: string;
+  /** Status of the withdrawal — 'pending_payout' means DB records are marked,
+   *  actual on-chain transfer happens via the batch payout epoch. */
+  status: 'pending_payout' | 'no_funds';
 }
 
 export class RevenueService {
@@ -77,7 +80,7 @@ export class RevenueService {
         );
       }
       await client.query('COMMIT');
-      return { amount, token };
+      return { amount, token, status: amount > 0n ? 'pending_payout' as const : 'no_funds' as const };
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;

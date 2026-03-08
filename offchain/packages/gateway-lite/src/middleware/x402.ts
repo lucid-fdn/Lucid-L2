@@ -26,6 +26,7 @@ import {
 import type { SpentProofsStore } from '../../../engine/src/payment/spentProofsStore';
 import type { FacilitatorRegistry } from '../../../engine/src/payment/facilitators';
 import type { X402ResponseV2 } from '../../../engine/src/payment/types';
+import { PricingService } from '../../../engine/src/payment/pricingService';
 
 // =============================================================================
 // Configuration
@@ -87,6 +88,47 @@ export function setSpentProofsStore(store: SpentProofsStore): void {
 }
 
 // =============================================================================
+// Dynamic Pricing (lazy singleton)
+// =============================================================================
+
+let pricingServiceInstance: PricingService | null = null;
+
+function getPricingServiceInstance(): PricingService {
+  if (!pricingServiceInstance) {
+    pricingServiceInstance = new PricingService();
+  }
+  return pricingServiceInstance;
+}
+
+/**
+ * Resolve dynamic pricing from the request body.
+ * Extracts passport ID from common fields and looks up pricing in DB.
+ * Returns null if no dynamic pricing is available (falls back to static).
+ */
+async function resolveDynamicPricing(
+  req: Request,
+): Promise<{ price: string; recipient: string } | null> {
+  const body = req.body || {};
+  const passportId = body.model || body.model_passport_id || body.passport_id;
+  if (!passportId || typeof passportId !== 'string') return null;
+
+  try {
+    const pricing = await getPricingServiceInstance().getPricing(passportId);
+    if (!pricing || !pricing.price_per_call) return null;
+
+    // Convert bigint micro-units to USDC string (6 decimals)
+    const microUnits = pricing.price_per_call;
+    const whole = microUnits / 1000000n;
+    const frac = (microUnits % 1000000n).toString().padStart(6, '0');
+    const price = frac === '000000' ? whole.toString() : `${whole}.${frac}`;
+
+    return { price, recipient: pricing.payout_address };
+  } catch {
+    return null;
+  }
+}
+
+// =============================================================================
 // FacilitatorRegistry (optional)
 // =============================================================================
 
@@ -144,7 +186,6 @@ export function requirePayment(optsOrPrice?: string | RequirePaymentOptions) {
       ? { priceUSDC: optsOrPrice }
       : optsOrPrice ?? {};
 
-  const price = opts.priceUSDC || config.defaultPriceUSDC;
   const facilitatorName = opts.facilitator ?? 'direct';
 
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -165,15 +206,27 @@ export function requirePayment(optsOrPrice?: string | RequirePaymentOptions) {
       }
     }
 
-    // 3. Check for payment proof header
+    // 3. Resolve price — dynamic (from DB) or static (from options/config)
+    let price = opts.priceUSDC || config.defaultPriceUSDC;
+    let recipient = config.paymentAddress;
+
+    if (opts.dynamic) {
+      const resolved = await resolveDynamicPricing(req);
+      if (resolved) {
+        price = resolved.price;
+        recipient = resolved.recipient;
+      }
+    }
+
+    // 4. Check for payment proof header
     const paymentProof = req.headers['x-payment-proof'] as string | undefined;
 
     if (!paymentProof) {
       // Return 402 with v2 payment instructions
-      return res.status(402).json(build402Response(price, facilitatorName));
+      return res.status(402).json(build402Response(price, facilitatorName, recipient));
     }
 
-    // 4. Check spent proofs (async)
+    // 5. Check spent proofs (async)
     const normalizedHash = paymentProof.toLowerCase();
     const store = getSpentProofsStore();
 
@@ -183,7 +236,7 @@ export function requirePayment(optsOrPrice?: string | RequirePaymentOptions) {
         return res.status(402).json({
           error: 'Payment already used',
           reason: 'This transaction hash has already been used as payment proof.',
-          x402: buildX402Block(price, facilitatorName),
+          x402: buildX402Block(price, facilitatorName, recipient),
         });
       }
     } catch (err) {
@@ -191,19 +244,20 @@ export function requirePayment(optsOrPrice?: string | RequirePaymentOptions) {
       // On store failure, fall through to verification (fail-open for reads)
     }
 
-    // 5. Verify via facilitator or built-in fallback
+    // 6. Verify via facilitator or built-in fallback
     try {
       const verified = await verifyWithFacilitatorOrFallback(
         paymentProof,
         price,
         facilitatorName,
+        recipient,
       );
 
       if (!verified.valid) {
         return res.status(402).json({
           error: 'Payment verification failed',
           reason: verified.reason,
-          x402: buildX402Block(price, facilitatorName),
+          x402: buildX402Block(price, facilitatorName, recipient),
         });
       }
 
@@ -218,6 +272,7 @@ export function requirePayment(optsOrPrice?: string | RequirePaymentOptions) {
       (req as any).x402 = {
         txHash: paymentProof,
         amount: price,
+        recipient,
         chain: config.paymentChain,
         verified: true,
       };
@@ -237,7 +292,7 @@ export function requirePayment(optsOrPrice?: string | RequirePaymentOptions) {
 // v2 Response Builders
 // =============================================================================
 
-function buildX402Block(price: string, facilitatorName: string): X402ResponseV2 {
+function buildX402Block(price: string, facilitatorName: string, recipient?: string): X402ResponseV2 {
   const amountMicro = parseUSDCAmount(price).toString();
   const expiresAt = Math.floor(Date.now() / 1000) + config.maxProofAge;
 
@@ -250,7 +305,7 @@ function buildX402Block(price: string, facilitatorName: string): X402ResponseV2 
       token: 'USDC',
       tokenAddress: config.usdcAddress,
       amount: amountMicro,
-      recipient: config.paymentAddress,
+      recipient: recipient || config.paymentAddress,
       facilitator: facilitatorName,
       scheme: 'exact',
     },
@@ -258,10 +313,10 @@ function buildX402Block(price: string, facilitatorName: string): X402ResponseV2 
   };
 }
 
-function build402Response(price: string, facilitatorName: string) {
+function build402Response(price: string, facilitatorName: string, recipient?: string) {
   return {
     error: 'Payment Required',
-    x402: buildX402Block(price, facilitatorName),
+    x402: buildX402Block(price, facilitatorName, recipient),
   };
 }
 
@@ -277,7 +332,10 @@ async function verifyWithFacilitatorOrFallback(
   txHash: string,
   expectedAmountUSDC: string,
   facilitatorName: string,
+  recipient?: string,
 ): Promise<{ valid: boolean; reason?: string }> {
+  const expectedRecipient = recipient || config.paymentAddress;
+
   // Try facilitator registry first
   if (facilitatorRegistry) {
     try {
@@ -295,7 +353,7 @@ async function verifyWithFacilitatorOrFallback(
             decimals: 6,
             chain: config.paymentChain,
           },
-          recipient: config.paymentAddress,
+          recipient: expectedRecipient,
         },
       );
 
@@ -307,7 +365,7 @@ async function verifyWithFacilitatorOrFallback(
   }
 
   // Built-in fallback (original on-chain verification)
-  return verifyPaymentProof(txHash, expectedAmountUSDC);
+  return verifyPaymentProof(txHash, expectedAmountUSDC, expectedRecipient);
 }
 
 /**
@@ -317,7 +375,9 @@ async function verifyWithFacilitatorOrFallback(
 async function verifyPaymentProof(
   txHash: string,
   expectedAmountUSDC: string,
+  recipient?: string,
 ): Promise<{ valid: boolean; reason?: string }> {
+  const expectedRecipient = recipient || config.paymentAddress;
   const chain = config.paymentChain === 'base' ? base : baseSepolia;
 
   const client = createPublicClient({
@@ -341,7 +401,7 @@ async function verifyPaymentProof(
       return { valid: false, reason: `Payment too old (${txAge}s > ${config.maxProofAge}s)` };
     }
 
-    // Look for USDC Transfer event to our payment address
+    // Look for USDC Transfer event to the expected recipient
     const expectedAmount = parseUSDCAmount(expectedAmountUSDC);
     let foundTransfer = false;
 
@@ -355,7 +415,7 @@ async function verifyPaymentProof(
 
       // Decode the 'to' address from topic2
       const toAddress = '0x' + (topics[2] || '').slice(26);
-      if (toAddress.toLowerCase() !== config.paymentAddress.toLowerCase()) continue;
+      if (toAddress.toLowerCase() !== expectedRecipient.toLowerCase()) continue;
 
       // Decode value from data
       const value = BigInt(log.data);
@@ -368,7 +428,7 @@ async function verifyPaymentProof(
     if (!foundTransfer) {
       return {
         valid: false,
-        reason: `No qualifying USDC transfer to ${config.paymentAddress} found in tx`,
+        reason: `No qualifying USDC transfer to ${expectedRecipient} found in tx`,
       };
     }
 
@@ -438,11 +498,14 @@ export { parseUSDCAmount };
  */
 export function resetSpentProofs(): void {
   syncSpentCache.clear();
-  // Also reset the async store
-  const store = getSpentProofsStore();
-  if (store instanceof InMemorySpentProofsStore) {
-    store.close(); // clears the internal set
+  // Also reset the async store — preserve the store type
+  if (spentProofsStore) {
+    if (spentProofsStore instanceof InMemorySpentProofsStore) {
+      spentProofsStore.close(); // clears the internal set
+      spentProofsStore = SpentProofsStoreFactory.createInMemory();
+    } else {
+      // For Redis or other stores, create a fresh instance of the same type
+      spentProofsStore = SpentProofsStoreFactory.create();
+    }
   }
-  // Reset to a fresh in-memory store
-  spentProofsStore = SpentProofsStoreFactory.createInMemory();
 }
