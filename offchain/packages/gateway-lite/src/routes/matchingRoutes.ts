@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { validateWithSchema } from '../../../engine/src/crypto/schemaValidator';
 import { evaluatePolicy } from '../compute/policyEngine';
 import { matchComputeForModel } from '../compute/matchingEngine';
+import { requirePayment } from '../middleware/x402';
 
 export const matchingRouter = Router();
 
@@ -69,7 +70,7 @@ matchingRouter.post('/v1/match/explain', async (req, res) => {
  * Input: { model_meta, policy, compute_catalog[] }
  * Output: selected compute + fallbacks
  */
-matchingRouter.post('/v1/match', async (req, res) => {
+matchingRouter.post('/v1/match', requirePayment({ dynamic: true }), async (req, res) => {
   try {
     const { model_meta, policy, compute_catalog, require_live_healthy } = req.body || {};
     const { match, explain } = matchComputeForModel({

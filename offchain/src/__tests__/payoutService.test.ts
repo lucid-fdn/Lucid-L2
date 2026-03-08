@@ -203,23 +203,23 @@ describe('PayoutService', () => {
   });
 
   describe('storePayout / getPayout', () => {
-    it('should store and retrieve payout', () => {
+    it('should store and retrieve payout', async () => {
       const payout = calculatePayoutSplit({
         run_id: 'run_store_test',
         total_amount_lamports: BigInt(5000000),
         compute_wallet: 'ComputeWallet111111111111111111111111111111',
       });
 
-      storePayout(payout);
-      
-      const retrieved = getPayout('run_store_test');
+      await storePayout(payout);
+
+      const retrieved = await getPayout('run_store_test');
       expect(retrieved).not.toBeNull();
       expect(retrieved?.run_id).toBe('run_store_test');
       expect(retrieved?.total_amount_lamports).toBe(BigInt(5000000));
     });
 
-    it('should return null for non-existent payout', () => {
-      const result = getPayout('run_nonexistent');
+    it('should return null for non-existent payout', async () => {
+      const result = await getPayout('run_nonexistent');
       expect(result).toBeNull();
     });
   });

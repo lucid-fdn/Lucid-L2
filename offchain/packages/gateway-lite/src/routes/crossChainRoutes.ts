@@ -545,7 +545,7 @@ crossChainRouter.get('/v2/payouts/:runId/execution', async (req, res) => {
       return res.status(400).json({ success: false, error: 'chainId query parameter is required' });
     }
 
-    const execution = getPayoutExecution(runId, chainId);
+    const execution = await getPayoutExecution(runId, chainId);
     if (!execution) {
       return res.status(404).json({
         success: false,

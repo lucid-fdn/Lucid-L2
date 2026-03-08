@@ -6,6 +6,7 @@ import {
   ExecutionRequest,
   ChatCompletionRequest,
 } from '../inference/executionGateway';
+import { requirePayment } from '../middleware/x402';
 
 export const inferenceRouter = Router();
 
@@ -174,7 +175,7 @@ inferenceRouter.post('/v1/run/inference', async (req, res) => {
  *
  * Response: OpenAI ChatCompletionResponse format with LucidLayer extensions
  */
-inferenceRouter.post('/v1/chat/completions', async (req, res) => {
+inferenceRouter.post('/v1/chat/completions', requirePayment({ dynamic: true }), async (req, res) => {
   // Deprecation headers — clients should migrate to TrustGate /v1/chat/completions
   res.setHeader('Deprecation', 'true');
   res.setHeader('Sunset', '2026-06-01');

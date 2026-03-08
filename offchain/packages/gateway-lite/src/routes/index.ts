@@ -28,3 +28,5 @@ export { crossChainRouter } from './crossChainRoutes';
 export { agentDeployRouter } from './agentDeployRoutes';
 export { agentMarketplaceRouter } from './agentMarketplaceRoutes';
 export { a2aRouter } from './a2aRoutes';
+// Subscription route
+export { createSubscriptionRouter } from './subscriptionRoutes';

@@ -45,7 +45,7 @@ payoutRouter.post('/v1/payouts/calculate', async (req, res) => {
     });
 
     // Store the payout
-    storePayout(payout);
+    await storePayout(payout);
 
     // Convert BigInt to string for JSON serialization
     const payoutJson = {
@@ -94,7 +94,7 @@ payoutRouter.post('/v1/payouts/from-receipt', async (req, res) => {
     });
 
     // Store the payout
-    storePayout(payout);
+    await storePayout(payout);
 
     // Convert BigInt to string for JSON serialization
     const payoutJson = {
@@ -120,7 +120,7 @@ payoutRouter.post('/v1/payouts/from-receipt', async (req, res) => {
 payoutRouter.get('/v1/payouts/:run_id', async (req, res) => {
   try {
     const { run_id } = req.params;
-    const payout = getPayout(run_id);
+    const payout = await getPayout(run_id);
     if (!payout) {
       return res.status(404).json({ success: false, error: 'Payout not found' });
     }
@@ -149,7 +149,7 @@ payoutRouter.get('/v1/payouts/:run_id', async (req, res) => {
 payoutRouter.get('/v1/payouts/:run_id/verify', async (req, res) => {
   try {
     const { run_id } = req.params;
-    const payout = getPayout(run_id);
+    const payout = await getPayout(run_id);
     if (!payout) {
       return res.status(404).json({ success: false, error: 'Payout not found' });
     }

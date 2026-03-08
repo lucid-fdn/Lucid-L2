@@ -1,12 +1,14 @@
 /**
  * PR6: Payouts Minimal - Split Calculation Service
- * 
+ *
  * Handles revenue split calculation between stakeholders:
  * - Compute provider
  * - Model provider (if any royalty)
  * - Protocol treasury
  * - Optional: agent/orchestrator fee
  */
+
+import { getClient } from '../db/pool';
 
 export interface SplitConfig {
   // Basis points (1 bp = 0.01%, 10000 bp = 100%)
@@ -242,17 +244,80 @@ export function verifyPayoutSplit(payout: PayoutSplit): { valid: boolean; error?
 const payoutStore = new Map<string, PayoutSplit>();
 
 /**
- * Store a payout split
+ * Store a payout split (DB-backed with in-memory fallback)
  */
-export function storePayout(payout: PayoutSplit): void {
+export async function storePayout(payout: PayoutSplit): Promise<void> {
+  // Always keep in-memory copy for fast reads
   payoutStore.set(payout.run_id, payout);
+
+  try {
+    const client = await getClient();
+    try {
+      await client.query(
+        `INSERT INTO payout_splits (run_id, total_amount, split_config, recipients)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (run_id) DO UPDATE SET
+           total_amount = EXCLUDED.total_amount,
+           split_config = EXCLUDED.split_config,
+           recipients = EXCLUDED.recipients`,
+        [
+          payout.run_id,
+          payout.total_amount_lamports.toString(),
+          JSON.stringify(payout.split_config),
+          JSON.stringify(payout.recipients.map(r => ({
+            ...r,
+            amount_lamports: r.amount_lamports.toString(),
+          }))),
+        ],
+      );
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.warn('[PayoutService] DB write failed, using in-memory only:', err instanceof Error ? err.message : err);
+  }
 }
 
 /**
- * Get a stored payout split
+ * Get a stored payout split (DB-backed with in-memory fallback)
  */
-export function getPayout(run_id: string): PayoutSplit | null {
-  return payoutStore.get(run_id) || null;
+export async function getPayout(run_id: string): Promise<PayoutSplit | null> {
+  // Check in-memory cache first
+  const cached = payoutStore.get(run_id);
+  if (cached) return cached;
+
+  try {
+    const client = await getClient();
+    try {
+      const result = await client.query(
+        `SELECT run_id, total_amount, split_config, recipients, created_at
+         FROM payout_splits WHERE run_id = $1`,
+        [run_id],
+      );
+      if (result.rows.length === 0) return null;
+
+      const row = result.rows[0];
+      const recipients: PayoutRecipient[] = row.recipients.map((r: any) => ({
+        ...r,
+        amount_lamports: BigInt(r.amount_lamports),
+      }));
+      const payout: PayoutSplit = {
+        run_id: row.run_id,
+        total_amount_lamports: BigInt(row.total_amount),
+        recipients,
+        split_config: row.split_config,
+        created_at: Math.floor(new Date(row.created_at).getTime() / 1000),
+      };
+      // Populate cache
+      payoutStore.set(run_id, payout);
+      return payout;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.warn('[PayoutService] DB read failed, using in-memory only:', err instanceof Error ? err.message : err);
+    return null;
+  }
 }
 
 /**
@@ -301,13 +366,13 @@ export async function executePayoutSplit(
   const { CHAIN_CONFIGS } = await import('../chain/blockchain/chains');
 
   // Check if already executed
-  const existing = executionStore.get(`${runId}:${chainId}`);
+  const existing = await getPayoutExecution(runId, chainId);
   if (existing) {
     return existing;
   }
 
   // Get the calculated payout
-  const payout = payoutStore.get(runId);
+  const payout = await getPayout(runId);
   if (!payout) {
     throw new Error(`No payout found for run_id: ${runId}`);
   }
@@ -405,10 +470,43 @@ export async function executePayoutSplit(
 }
 
 /**
- * Get a payout execution record.
+ * Get a payout execution record (DB-backed with in-memory fallback).
  */
-export function getPayoutExecution(runId: string, chainId: string): PayoutExecution | null {
-  return executionStore.get(`${runId}:${chainId}`) || null;
+export async function getPayoutExecution(runId: string, chainId: string): Promise<PayoutExecution | null> {
+  const key = `${runId}:${chainId}`;
+
+  // Check in-memory cache first
+  const cached = executionStore.get(key);
+  if (cached) return cached;
+
+  try {
+    const client = await getClient();
+    try {
+      const result = await client.query(
+        `SELECT run_id, chain, tx_hash, status, error, created_at
+         FROM payout_executions WHERE run_id = $1 AND chain = $2
+         ORDER BY created_at DESC LIMIT 1`,
+        [runId, chainId],
+      );
+      if (result.rows.length === 0) return null;
+
+      const row = result.rows[0];
+      const execution: PayoutExecution = {
+        run_id: row.run_id,
+        chainId: row.chain,
+        transfers: [], // Individual transfers are tracked in-memory only for now
+        totalTransferred: '0',
+        executedAt: Math.floor(new Date(row.created_at).getTime() / 1000),
+      };
+      executionStore.set(key, execution);
+      return execution;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    console.warn('[PayoutService] DB read failed, using in-memory only:', err instanceof Error ? err.message : err);
+    return null;
+  }
 }
 
 // =============================================================================
@@ -489,7 +587,7 @@ export async function createEscrowedPayout(params: {
     model_wallet: params.model_wallet,
   });
 
-  storePayout(payout);
+  await storePayout(payout);
 
   // Create escrow for the compute provider's share
   const { getEscrowService } = await import('./escrowService');

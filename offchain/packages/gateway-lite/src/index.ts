@@ -86,6 +86,7 @@ import { agentMirrorRouter } from './routes/agentMirrorRoutes';
 import { initAgentMirrorConsumer, startAgentMirrorConsumer, stopAgentMirrorConsumer } from '../../engine/src/jobs/agentMirrorConsumer';
 import { createAssetPaymentRouter } from './routes/assetPaymentRoutes';
 import { createPaymentConfigRouter } from './routes/paymentConfigRoutes';
+import { createSubscriptionRouter } from './routes/subscriptionRoutes';
 
 const app = express();
 
@@ -238,6 +239,9 @@ app.use('/', agentMirrorRouter);
 // Mount Asset Payment & Config routes
 app.use('/v1/assets', createAssetPaymentRouter());
 app.use('/v1/config', createPaymentConfigRouter());
+
+// Mount Subscription route (x402-gated access)
+app.use('/', createSubscriptionRouter());
 
 // Register built-in reputation algorithms
 reputationAlgorithmRegistry.register(new ReceiptVolumeAlgorithm());
