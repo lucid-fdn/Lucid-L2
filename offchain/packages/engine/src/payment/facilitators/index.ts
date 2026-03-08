@@ -38,3 +38,7 @@ export class FacilitatorRegistry {
 export { X402Facilitator } from './interface';
 export { DirectFacilitator } from './direct';
 export type { DirectFacilitatorConfig } from './direct';
+export { CoinbaseFacilitator } from './coinbase';
+export type { CoinbaseFacilitatorConfig } from './coinbase';
+export { PayAIFacilitator } from './payai';
+export type { PayAIFacilitatorConfig } from './payai';

@@ -1,5 +1,5 @@
-export { FacilitatorRegistry, DirectFacilitator } from './facilitators';
-export type { X402Facilitator, DirectFacilitatorConfig } from './facilitators';
+export { FacilitatorRegistry, DirectFacilitator, CoinbaseFacilitator, PayAIFacilitator } from './facilitators';
+export type { X402Facilitator, DirectFacilitatorConfig, CoinbaseFacilitatorConfig, PayAIFacilitatorConfig } from './facilitators';
 export { SpentProofsStore } from './spentProofsStore';
 export { PricingService } from './pricingService';
 export type { AssetPricing, SetPricingParams } from './pricingService';
