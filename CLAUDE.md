@@ -52,6 +52,13 @@ Client → /v1/chat/completions → Passport matching → LLM execution
 - `/v1/passports/:id/token/launch` — Launch share token for passport
 - `/v1/passports/:id/token` — Get share token info
 - `/v1/passports/:id/token/airdrop` — Trigger revenue airdrop
+- `/v1/assets/:passportId/pricing` — Asset pricing CRUD (GET public, PUT/DELETE admin)
+- `/v1/assets/:passportId/revenue` — Revenue summary (GET)
+- `/v1/assets/:passportId/withdraw` — Revenue withdrawal (POST, admin)
+- `/v1/config/payment` — x402 payment config (GET)
+- `/v1/config/facilitator` — Set default facilitator (PUT, admin)
+- `/v1/config/chains` — Supported payment chains (GET)
+- `/v1/access/subscribe` — x402-gated subscription (POST)
 - `/api/hyperliquid`, `/api/solana` — DeFi integrations
 
 ### Model Availability Filter (`?available=true|false`)
@@ -84,6 +91,7 @@ In-memory registry with 30s TTL. Compute nodes send periodic heartbeats to stay 
 - **Signing**: Ed25519 via tweetnacl (`LUCID_ORCHESTRATOR_SECRET_KEY`)
 - **Gas**: iGas (1 LUCID/call) + mGas (5 LUCID/root). Batch: 2+5=7 LUCID total
 - **Revenue split**: Default 70% compute / 20% model / 10% protocol (basis points)
+- **x402 payment**: HTTP 402 protocol — server returns payment instructions, agent pays USDC on-chain, retries with `X-Payment-Proof` header. Facilitator-agnostic (DirectFacilitator, CoinbaseFacilitator, PayAIFacilitator). Dynamic pricing resolved per-asset from `asset_pricing` table. SpentProofsStore (Redis/in-memory) prevents replay.
 - **Compute matching**: Runtime compat → hardware check → policy eval → score → select
 
 ### DePIN Storage Layer (Swappable)
@@ -151,6 +159,7 @@ offchain/
         shares/                       # ITokenLauncher → DirectMint, Genesis, Mock
       passport/                       # passportManager, passportService, passportSyncService
         nft/                          # SolanaPassportClient (Token-2022 NFT minting)
+      payment/                        # x402 payment engine (facilitators, pricingService, revenueService, splitResolver, spentProofsStore)
       finance/                        # payoutService, paymentGateService, escrowService, disputeService
       identity/                       # identityBridgeService, caip10, crossChainBridge
         tba/                          # ERC-6551 TBA client + ABIs

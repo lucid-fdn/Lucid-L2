@@ -50,6 +50,7 @@ tags:
   - name: TBA
   - name: Modules
   - name: zkML
+  - name: Payments
 
 paths:
   # ===========================================================================
@@ -651,9 +652,17 @@ paths:
       tags: [Match]
       operationId: lucid_match
       summary: Match compute for model
+      description: |
+        x402-gated with dynamic pricing when X402_ENABLED=true.
       x-speakeasy-mcp:
         name: lucid_match
         description: Match compute for a model given a compute catalog and policy constraints.
+      parameters:
+        - name: X-Payment-Proof
+          in: header
+          required: false
+          description: Transaction hash proving USDC payment (x402 protocol)
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -679,6 +688,12 @@ paths:
                   success: { type: boolean }
                   match: { type: object, additionalProperties: true }
                   explain: { type: object, additionalProperties: true }
+        '402':
+          description: Payment Required (x402)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/X402PaymentRequired'
         '422': { $ref: '#/components/responses/UnprocessableEntity' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
@@ -765,9 +780,19 @@ paths:
       tags: [Run]
       operationId: lucid_chat_completions
       summary: OpenAI-compatible chat completions
+      description: |
+        x402-gated with dynamic pricing. If `X402_ENABLED=true`, requests without
+        a valid `X-Payment-Proof` header receive HTTP 402 with payment instructions.
+        Pricing is resolved per-model from the asset_pricing table.
       x-speakeasy-mcp:
         name: lucid_chat_completions
         description: OpenAI-compatible chat completions routed through LucidLayer.
+      parameters:
+        - name: X-Payment-Proof
+          in: header
+          required: false
+          description: Transaction hash proving USDC payment (x402 protocol)
+          schema: { type: string }
       requestBody:
         required: true
         content:
@@ -782,6 +807,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ChatCompletionResponse'
         '400': { $ref: '#/components/responses/BadRequest' }
+        '402':
+          description: Payment Required (x402)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/X402PaymentRequired'
         '500': { $ref: '#/components/responses/InternalServerError' }
 
   # ===========================================================================
@@ -3071,6 +3102,329 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
+  # ===========================================================================
+  # x402 Payments — Asset Pricing, Revenue, Withdrawal
+  # ===========================================================================
+  /v1/assets/{passport_id}/pricing:
+    get:
+      tags: [Payments]
+      operationId: getAssetPricing
+      summary: Get asset pricing
+      x-speakeasy-mcp:
+        name: getAssetPricing
+        description: Get the pricing configuration for an AI asset (model, compute, etc.).
+      parameters:
+        - name: passport_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Pricing data (null if not configured)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean }
+                  pricing:
+                    oneOf:
+                      - $ref: '#/components/schemas/AssetPricing'
+                      - type: 'null'
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    put:
+      tags: [Payments]
+      operationId: setAssetPricing
+      summary: Set asset pricing
+      description: Admin-only. Sets or updates the pricing configuration for an AI asset.
+      security:
+        - BearerAuth: []
+      x-speakeasy-mcp:
+        name: setAssetPricing
+        description: Set or update pricing for an AI asset (admin auth required).
+      parameters:
+        - name: passport_id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetAssetPricingRequest'
+      responses:
+        '200':
+          description: Pricing updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Unauthorized (admin auth required)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+    delete:
+      tags: [Payments]
+      operationId: deleteAssetPricing
+      summary: Remove asset pricing
+      description: Admin-only. Removes pricing (asset becomes free access).
+      security:
+        - BearerAuth: []
+      x-speakeasy-mcp:
+        name: deleteAssetPricing
+        description: Remove pricing for an AI asset, making it free (admin auth required).
+      parameters:
+        - name: passport_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, deleted]
+                properties:
+                  success: { type: boolean }
+                  deleted: { type: boolean }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/assets/{passport_id}/revenue:
+    get:
+      tags: [Payments]
+      operationId: getAssetRevenue
+      summary: Get asset revenue summary
+      x-speakeasy-mcp:
+        name: getAssetRevenue
+        description: Get total, pending, and withdrawn revenue for an AI asset.
+      parameters:
+        - name: passport_id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: token
+          in: query
+          required: false
+          schema: { type: string, default: USDC }
+      responses:
+        '200':
+          description: Revenue summary
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, revenue]
+                properties:
+                  success: { type: boolean }
+                  revenue:
+                    $ref: '#/components/schemas/RevenueInfo'
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/assets/{passport_id}/withdraw:
+    post:
+      tags: [Payments]
+      operationId: withdrawAssetRevenue
+      summary: Withdraw asset revenue
+      description: |
+        Admin-only. Marks confirmed revenue as pending_payout. The actual
+        on-chain transfer happens via the batch payout epoch.
+      security:
+        - BearerAuth: []
+      x-speakeasy-mcp:
+        name: withdrawAssetRevenue
+        description: Withdraw accumulated revenue for an AI asset (admin auth required).
+      parameters:
+        - name: passport_id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token: { type: string, default: USDC }
+      responses:
+        '200':
+          description: Withdrawal queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, withdrawal]
+                properties:
+                  success: { type: boolean }
+                  withdrawal:
+                    type: object
+                    required: [amount, token, status]
+                    properties:
+                      amount: { type: string, description: Amount in micro-units }
+                      token: { type: string }
+                      status:
+                        type: string
+                        enum: [pending_payout, no_funds]
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  # ===========================================================================
+  # x402 Payments — Configuration
+  # ===========================================================================
+  /v1/config/payment:
+    get:
+      tags: [Payments]
+      operationId: getPaymentConfig
+      summary: Get x402 payment configuration
+      x-speakeasy-mcp:
+        name: getPaymentConfig
+        description: Get the current x402 payment configuration (chains, facilitator, etc.).
+      responses:
+        '200':
+          description: Payment configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, config]
+                properties:
+                  success: { type: boolean }
+                  config: { type: object, additionalProperties: true }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/config/facilitator:
+    put:
+      tags: [Payments]
+      operationId: setDefaultFacilitator
+      summary: Set default payment facilitator
+      description: Admin-only. Sets the default x402 facilitator (direct, coinbase, payai).
+      security:
+        - BearerAuth: []
+      x-speakeasy-mcp:
+        name: setDefaultFacilitator
+        description: Set the default x402 facilitator for payment verification (admin auth required).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [facilitator]
+              properties:
+                facilitator:
+                  type: string
+                  enum: [direct, coinbase, payai]
+      responses:
+        '200':
+          description: Facilitator updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/config/chains:
+    get:
+      tags: [Payments]
+      operationId: getSupportedChains
+      summary: List supported payment chains
+      x-speakeasy-mcp:
+        name: getSupportedChains
+        description: List the chains supported for x402 payments (Base, Solana, etc.).
+      responses:
+        '200':
+          description: Supported chains
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, chains]
+                properties:
+                  success: { type: boolean }
+                  chains:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        chain: { type: string }
+                        tokens:
+                          type: array
+                          items: { type: string }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  # ===========================================================================
+  # x402 Payments — Subscriptions
+  # ===========================================================================
+  /v1/access/subscribe:
+    post:
+      tags: [Payments]
+      operationId: subscribe
+      summary: Subscribe to asset access
+      description: |
+        x402-gated. Pay via USDC and receive a time-limited access subscription.
+        On success, creates an on-chain AccessReceipt.
+      x-speakeasy-mcp:
+        name: subscribe
+        description: Pay for a time-limited subscription to an AI asset via x402.
+      parameters:
+        - name: X-Payment-Proof
+          in: header
+          required: true
+          description: Transaction hash proving USDC payment (x402 protocol)
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [passport_id]
+              properties:
+                passport_id: { type: string }
+                duration_hours: { type: integer, default: 24 }
+      responses:
+        '200':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [subscribed, passport_id, expires_at, duration_hours]
+                properties:
+                  subscribed: { type: boolean }
+                  passport_id: { type: string }
+                  expires_at: { type: integer, description: Unix timestamp }
+                  duration_hours: { type: integer }
+        '402':
+          description: Payment Required (x402)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/X402PaymentRequired'
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
 # =============================================================================
 # Components
 # =============================================================================
@@ -4425,6 +4779,90 @@ components:
         inference_url: { type: string, format: uri }
         health_url: { type: string, format: uri }
         api_base_url: { type: string, format: uri }
+
+    # =========================================================================
+    # x402 Payments
+    # =========================================================================
+    X402PaymentRequired:
+      type: object
+      required: [error, x402]
+      properties:
+        error: { type: string, example: Payment Required }
+        x402:
+          type: object
+          required: [version, facilitator, payment, expires]
+          properties:
+            version: { type: string, example: '2' }
+            facilitator: { type: string, example: direct }
+            description: { type: string }
+            payment:
+              type: object
+              required: [chain, token, tokenAddress, amount, recipient, facilitator, scheme]
+              properties:
+                chain: { type: string, example: base-sepolia }
+                token: { type: string, example: USDC }
+                tokenAddress: { type: string }
+                amount: { type: string, description: Amount in micro-units (6 decimals) }
+                recipient: { type: string, description: Wallet or splitter contract address }
+                facilitator: { type: string }
+                scheme: { type: string, enum: [exact] }
+            alternatives:
+              type: array
+              items: { type: object, additionalProperties: true }
+            splits:
+              type: array
+              items: { type: object, additionalProperties: true }
+            expires: { type: integer, description: Unix timestamp }
+
+    AssetPricing:
+      type: object
+      required: [passport_id, payout_address]
+      properties:
+        passport_id: { type: string }
+        price_per_call: { type: string, nullable: true, description: Micro-units (6 decimals) }
+        price_per_token: { type: string, nullable: true }
+        price_subscription_hour: { type: string, nullable: true }
+        accepted_tokens:
+          type: array
+          items: { type: string }
+          default: [USDC]
+        accepted_chains:
+          type: array
+          items: { type: string }
+          default: [base]
+        payout_address: { type: string }
+        custom_split_bps:
+          type: object
+          nullable: true
+          additionalProperties: { type: integer }
+        updated_at: { type: string, format: date-time }
+
+    SetAssetPricingRequest:
+      type: object
+      required: [payout_address]
+      properties:
+        price_per_call: { type: string, description: Micro-units (e.g. "10000" = $0.01) }
+        price_per_token: { type: string }
+        price_subscription_hour: { type: string }
+        accepted_tokens:
+          type: array
+          items: { type: string }
+        accepted_chains:
+          type: array
+          items: { type: string }
+        payout_address: { type: string }
+        custom_split_bps:
+          type: object
+          additionalProperties: { type: integer }
+
+    RevenueInfo:
+      type: object
+      required: [total, pending, withdrawn, token]
+      properties:
+        total: { type: string, description: Total revenue in micro-units }
+        pending: { type: string, description: Pending (confirmed, not yet withdrawn) }
+        withdrawn: { type: string, description: Already withdrawn }
+        token: { type: string }
 
     # =========================================================================
     # Shared
