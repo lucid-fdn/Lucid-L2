@@ -1,17 +1,31 @@
 /**
- * x402 Payment Middleware
+ * x402 Payment Middleware (v2)
  *
  * Implements the x402 HTTP payment protocol (https://x402.org).
  * When a client sends a request without payment, the server returns HTTP 402
- * with payment instructions. The client pays (USDC on-chain), then retries
+ * with v2 payment instructions. The client pays (USDC on-chain), then retries
  * with a payment proof header.
  *
  * Opt-in per route — wrap any Express route handler with requirePayment().
+ *
+ * v2 changes:
+ *  - requirePayment() accepts string | RequirePaymentOptions
+ *  - 402 response is v2 format (version: '2', facilitator, expires)
+ *  - SpentProofs backed by SpentProofsStore (async, Redis or in-memory)
+ *  - Integrates with FacilitatorRegistry for pluggable verification
+ *  - Keeps all existing exports with unchanged signatures for backward compat
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { createPublicClient, http, parseAbi } from 'viem';
+import { createPublicClient, http } from 'viem';
 import { base, baseSepolia } from 'viem/chains';
+import {
+  SpentProofsStoreFactory,
+  InMemorySpentProofsStore,
+} from '../../../engine/src/payment/spentProofsStore';
+import type { SpentProofsStore } from '../../../engine/src/payment/spentProofsStore';
+import type { FacilitatorRegistry } from '../../../engine/src/payment/facilitators';
+import type { X402ResponseV2 } from '../../../engine/src/payment/types';
 
 // =============================================================================
 // Configuration
@@ -48,13 +62,68 @@ const DEFAULT_CONFIG: X402Config = {
 
 let config: X402Config = { ...DEFAULT_CONFIG };
 
-// Replay protection: set of already-spent transaction hashes
-const spentProofs = new Set<string>();
+// =============================================================================
+// Spent-proofs store (lazy-initialized, async)
+// =============================================================================
 
-// Minimal ERC-20 Transfer event ABI for verifying USDC transfers
-const TRANSFER_EVENT_ABI = parseAbi([
-  'event Transfer(address indexed from, address indexed to, uint256 value)',
-]);
+let spentProofsStore: SpentProofsStore | null = null;
+
+/**
+ * Get or create the spent-proofs store. Uses in-memory by default;
+ * automatically upgrades to Redis if REDIS_URL is set.
+ */
+function getSpentProofsStore(): SpentProofsStore {
+  if (!spentProofsStore) {
+    spentProofsStore = SpentProofsStoreFactory.create();
+  }
+  return spentProofsStore;
+}
+
+/**
+ * Allow external code to inject a custom store (e.g., for testing or Redis).
+ */
+export function setSpentProofsStore(store: SpentProofsStore): void {
+  spentProofsStore = store;
+}
+
+// =============================================================================
+// FacilitatorRegistry (optional)
+// =============================================================================
+
+let facilitatorRegistry: FacilitatorRegistry | null = null;
+
+/**
+ * Set the facilitator registry for pluggable payment verification.
+ */
+export function setFacilitatorRegistry(registry: FacilitatorRegistry): void {
+  facilitatorRegistry = registry;
+}
+
+/**
+ * Get the current facilitator registry (may be null).
+ */
+export function getFacilitatorRegistry(): FacilitatorRegistry | null {
+  return facilitatorRegistry;
+}
+
+// =============================================================================
+// RequirePaymentOptions
+// =============================================================================
+
+export interface RequirePaymentOptions {
+  /** Price in USDC (e.g., "0.01") */
+  priceUSDC?: string;
+  /** Whether pricing is dynamic (resolved per-request) */
+  dynamic?: boolean;
+  /** Name of the facilitator to use (default: registry default or 'direct') */
+  facilitator?: string;
+  /** Async predicate — if returns true, skip payment check */
+  skipIf?: (req: Request) => Promise<boolean>;
+}
+
+// ERC-20 Transfer event topic0 (for built-in fallback verification)
+const TRANSFER_TOPIC =
+  '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
 // =============================================================================
 // Middleware
@@ -64,80 +133,87 @@ const TRANSFER_EVENT_ABI = parseAbi([
  * x402 payment middleware factory.
  * Returns an Express middleware that checks for payment proof.
  *
- * @param priceUSDC  Price for this endpoint in USDC (e.g., "0.01")
+ * Backward-compatible overloads:
+ *   requirePayment()              — use default price
+ *   requirePayment('0.01')        — use specific price
+ *   requirePayment({ priceUSDC: '0.01', skipIf: ... }) — full options
  */
-export function requirePayment(priceUSDC?: string) {
-  const price = priceUSDC || config.defaultPriceUSDC;
+export function requirePayment(optsOrPrice?: string | RequirePaymentOptions) {
+  const opts: RequirePaymentOptions =
+    typeof optsOrPrice === 'string'
+      ? { priceUSDC: optsOrPrice }
+      : optsOrPrice ?? {};
+
+  const price = opts.priceUSDC || config.defaultPriceUSDC;
+  const facilitatorName = opts.facilitator ?? 'direct';
 
   return async (req: Request, res: Response, next: NextFunction) => {
-    // Skip if x402 is disabled
+    // 1. Skip if x402 is disabled
     if (!config.enabled) {
       return next();
     }
 
-    // Check for payment proof header
+    // 2. Skip if skipIf predicate returns true
+    if (opts.skipIf) {
+      try {
+        const skip = await opts.skipIf(req);
+        if (skip) {
+          return next();
+        }
+      } catch {
+        // If skipIf throws, continue with payment check
+      }
+    }
+
+    // 3. Check for payment proof header
     const paymentProof = req.headers['x-payment-proof'] as string | undefined;
 
     if (!paymentProof) {
-      // Return 402 with payment instructions
-      return res.status(402).json({
-        error: 'Payment Required',
-        x402: {
-          version: '1',
-          payment: {
-            chain: config.paymentChain,
-            currency: 'USDC',
-            amount: price,
-            recipient: config.paymentAddress,
-            usdc_address: config.usdcAddress,
-          },
-          instructions: 'Send USDC to the recipient address, then retry with X-Payment-Proof header containing the transaction hash.',
-        },
-      });
+      // Return 402 with v2 payment instructions
+      return res.status(402).json(build402Response(price, facilitatorName));
     }
 
-    // Replay protection: reject already-used tx hashes
+    // 4. Check spent proofs (async)
     const normalizedHash = paymentProof.toLowerCase();
-    if (spentProofs.has(normalizedHash)) {
-      return res.status(402).json({
-        error: 'Payment already used',
-        reason: 'This transaction hash has already been used as payment proof.',
-        x402: {
-          version: '1',
-          payment: {
-            chain: config.paymentChain,
-            currency: 'USDC',
-            amount: price,
-            recipient: config.paymentAddress,
-            usdc_address: config.usdcAddress,
-          },
-        },
-      });
+    const store = getSpentProofsStore();
+
+    try {
+      const spent = await store.isSpent(normalizedHash);
+      if (spent) {
+        return res.status(402).json({
+          error: 'Payment already used',
+          reason: 'This transaction hash has already been used as payment proof.',
+          x402: buildX402Block(price, facilitatorName),
+        });
+      }
+    } catch (err) {
+      console.error('x402 spent-proof check error:', err);
+      // On store failure, fall through to verification (fail-open for reads)
     }
 
-    // Verify the payment proof (transaction hash)
+    // 5. Verify via facilitator or built-in fallback
     try {
-      const verified = await verifyPaymentProof(paymentProof, price);
+      const verified = await verifyWithFacilitatorOrFallback(
+        paymentProof,
+        price,
+        facilitatorName,
+      );
 
       if (!verified.valid) {
         return res.status(402).json({
           error: 'Payment verification failed',
           reason: verified.reason,
-          x402: {
-            version: '1',
-            payment: {
-              chain: config.paymentChain,
-              currency: 'USDC',
-              amount: price,
-              recipient: config.paymentAddress,
-              usdc_address: config.usdcAddress,
-            },
-          },
+          x402: buildX402Block(price, facilitatorName),
         });
       }
 
       // Payment verified — mark as spent and proceed
-      spentProofs.add(normalizedHash);
+      syncSpentCache.add(normalizedHash);
+      try {
+        await store.markSpent(normalizedHash, config.maxProofAge);
+      } catch (err) {
+        console.error('x402 mark-spent error (continuing):', err);
+      }
 
       (req as any).x402 = {
         txHash: paymentProof,
@@ -158,11 +234,85 @@ export function requirePayment(priceUSDC?: string) {
 }
 
 // =============================================================================
+// v2 Response Builders
+// =============================================================================
+
+function buildX402Block(price: string, facilitatorName: string): X402ResponseV2 {
+  const amountMicro = parseUSDCAmount(price).toString();
+  const expiresAt = Math.floor(Date.now() / 1000) + config.maxProofAge;
+
+  return {
+    version: '2',
+    facilitator: facilitatorName,
+    description: 'API access',
+    payment: {
+      chain: config.paymentChain,
+      token: 'USDC',
+      tokenAddress: config.usdcAddress,
+      amount: amountMicro,
+      recipient: config.paymentAddress,
+      facilitator: facilitatorName,
+      scheme: 'exact',
+    },
+    expires: expiresAt,
+  };
+}
+
+function build402Response(price: string, facilitatorName: string) {
+  return {
+    error: 'Payment Required',
+    x402: buildX402Block(price, facilitatorName),
+  };
+}
+
+// =============================================================================
 // Payment Verification
 // =============================================================================
 
 /**
+ * Verify a payment proof using the facilitator registry if available,
+ * otherwise fall back to built-in on-chain verification.
+ */
+async function verifyWithFacilitatorOrFallback(
+  txHash: string,
+  expectedAmountUSDC: string,
+  facilitatorName: string,
+): Promise<{ valid: boolean; reason?: string }> {
+  // Try facilitator registry first
+  if (facilitatorRegistry) {
+    try {
+      const facilitator =
+        facilitatorRegistry.get(facilitatorName) ??
+        facilitatorRegistry.getDefault();
+
+      const result = await facilitator.verify(
+        { chain: config.paymentChain, txHash },
+        {
+          amount: parseUSDCAmount(expectedAmountUSDC),
+          token: {
+            symbol: 'USDC',
+            address: config.usdcAddress,
+            decimals: 6,
+            chain: config.paymentChain,
+          },
+          recipient: config.paymentAddress,
+        },
+      );
+
+      return { valid: result.valid, reason: result.reason };
+    } catch (err) {
+      console.error('Facilitator verify failed, falling back to built-in:', err);
+      // Fall through to built-in verification
+    }
+  }
+
+  // Built-in fallback (original on-chain verification)
+  return verifyPaymentProof(txHash, expectedAmountUSDC);
+}
+
+/**
  * Verify a USDC payment on-chain by checking the transaction receipt.
+ * (Built-in fallback when no FacilitatorRegistry is available.)
  */
 async function verifyPaymentProof(
   txHash: string,
@@ -198,13 +348,9 @@ async function verifyPaymentProof(
     for (const log of receipt.logs) {
       if (log.address.toLowerCase() !== config.usdcAddress.toLowerCase()) continue;
 
-      // Cast to access topics (viem log type)
       const logAny = log as any;
       const topics: string[] = logAny.topics || [];
 
-      // Check if this is a Transfer event
-      // Transfer(address,address,uint256) topic0 = 0xddf252ad...
-      const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
       if (topics[0] !== TRANSFER_TOPIC) continue;
 
       // Decode the 'to' address from topic2
@@ -246,7 +392,7 @@ function parseUSDCAmount(amount: string): bigint {
 }
 
 // =============================================================================
-// Configuration
+// Configuration Helpers (backward-compatible exports)
 // =============================================================================
 
 /**
@@ -263,18 +409,23 @@ export function getX402Config(): Omit<X402Config, 'paymentAddress'> & { paymentA
   return { ...config };
 }
 
+// Synchronous spent-proofs cache — kept in sync with the async store by the
+// middleware's markSpent path. Provides backward-compat for sync callers.
+const syncSpentCache = new Set<string>();
+
 /**
  * Check if a tx hash has already been used as payment proof.
+ * Synchronous — uses the in-memory sync cache (backward compat).
  */
 export function isProofSpent(txHash: string): boolean {
-  return spentProofs.has(txHash.toLowerCase());
+  return syncSpentCache.has(txHash.toLowerCase());
 }
 
 /**
  * Get the number of spent proofs (for monitoring).
  */
 export function getSpentProofsCount(): number {
-  return spentProofs.size;
+  return syncSpentCache.size;
 }
 
 /**
@@ -286,5 +437,12 @@ export { parseUSDCAmount };
  * Reset spent proofs (for testing).
  */
 export function resetSpentProofs(): void {
-  spentProofs.clear();
+  syncSpentCache.clear();
+  // Also reset the async store
+  const store = getSpentProofsStore();
+  if (store instanceof InMemorySpentProofsStore) {
+    store.close(); // clears the internal set
+  }
+  // Reset to a fresh in-memory store
+  spentProofsStore = SpentProofsStoreFactory.createInMemory();
 }
