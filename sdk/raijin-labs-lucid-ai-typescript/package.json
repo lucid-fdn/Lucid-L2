@@ -1,14 +1,11 @@
 {
   "name": "@lucid/sdk",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "author": "Speakeasy",
   "type": "module",
   "tshy": {
     "sourceDialects": [
       "@lucid/sdk/source"
-    ],
-    "exclude": [
-      "src/__tests__/**"
     ],
     "exports": {
       ".": "./src/index.ts",
@@ -25,9 +22,8 @@
   "scripts": {
     "lint": "eslint --cache --max-warnings=0 src",
     "build": "tshy",
-    "test": "vitest run",
-    "postgen": "node scripts/patch-hooks.mjs",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "vitest run"
   },
   "peerDependencies": {
     "@ai-sdk/openai-compatible": ">=0.1.0"
@@ -37,10 +33,10 @@
     "@eslint/js": "^9.26.0",
     "eslint": "^9.26.0",
     "globals": "^15.14.0",
-    "tshy": "^2.0.0",
+    "tshy": "^3.3.2",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.26.0",
-    "vitest": "^4.0.18"
+    "vitest": "^3.0.0"
   },
   "dependencies": {
     "zod": "^3.25.65 || ^4.0.0"
@@ -125,11 +121,6 @@
       }
     }
   },
-  "files": [
-    "dist",
-    "src",
-    "scripts"
-  ],
   "main": "./dist/commonjs/index.js",
   "types": "./dist/commonjs/index.d.ts",
   "module": "./dist/esm/index.js"

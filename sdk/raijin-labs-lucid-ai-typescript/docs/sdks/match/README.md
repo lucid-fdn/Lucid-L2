@@ -77,7 +77,8 @@ run();
 
 ## compute
 
-Match compute for model
+x402-gated with dynamic pricing when X402_ENABLED=true.
+
 
 ### Example Usage
 
@@ -88,7 +89,9 @@ import { LucidSDK } from "@lucid/sdk";
 const lucidSDK = new LucidSDK();
 
 async function run() {
-  const result = await lucidSDK.match.compute({});
+  const result = await lucidSDK.match.compute({
+    body: {},
+  });
 
   console.log(result);
 }
@@ -109,7 +112,9 @@ import { matchCompute } from "@lucid/sdk/funcs/matchCompute.js";
 const lucidSDK = new LucidSDKCore();
 
 async function run() {
-  const res = await matchCompute(lucidSDK, {});
+  const res = await matchCompute(lucidSDK, {
+    body: {},
+  });
   if (res.ok) {
     const { value: result } = res;
     console.log(result);
@@ -136,11 +141,12 @@ run();
 
 ### Errors
 
-| Error Type               | Status Code              | Content Type             |
-| ------------------------ | ------------------------ | ------------------------ |
-| errors.ErrorResponse     | 422                      | application/json         |
-| errors.ErrorResponse     | 500                      | application/json         |
-| errors.LucidDefaultError | 4XX, 5XX                 | \*/\*                    |
+| Error Type                      | Status Code                     | Content Type                    |
+| ------------------------------- | ------------------------------- | ------------------------------- |
+| errors.X402PaymentRequiredError | 402                             | application/json                |
+| errors.ErrorResponse            | 422                             | application/json                |
+| errors.ErrorResponse            | 500                             | application/json                |
+| errors.LucidDefaultError        | 4XX, 5XX                        | \*/\*                           |
 
 ## planRoute
 

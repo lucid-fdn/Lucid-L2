@@ -26,6 +26,9 @@ export class Match extends ClientSDK {
 
   /**
    * Match compute for model
+   *
+   * @remarks
+   * x402-gated with dynamic pricing when X402_ENABLED=true.
    */
   async compute(
     request: operations.LucidMatchRequest,

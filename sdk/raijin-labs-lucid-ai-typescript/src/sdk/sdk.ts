@@ -14,6 +14,7 @@ import { Match } from "./match.js";
 import { Modules } from "./modules.js";
 import { Passports } from "./passports.js";
 import { Paymaster } from "./paymaster.js";
+import { Payments } from "./payments.js";
 import { Payouts } from "./payouts.js";
 import { Receipts } from "./receipts.js";
 import { Run } from "./run.js";
@@ -105,5 +106,10 @@ export class LucidSDK extends ClientSDK {
   private _zkML?: ZkML;
   get zkML(): ZkML {
     return (this._zkML ??= new ZkML(this._options));
+  }
+
+  private _payments?: Payments;
+  get payments(): Payments {
+    return (this._payments ??= new Payments(this._options));
   }
 }

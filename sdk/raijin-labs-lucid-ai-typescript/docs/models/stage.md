@@ -6,11 +6,11 @@
 import { Stage } from "@lucid/sdk/models";
 
 let value: Stage = "offchain";
+
+// Open enum: unrecognized values are captured as Unrecognized<string>
 ```
 
 ## Values
-
-This is an open enum. Unrecognized values will be captured as the `Unrecognized<string>` branded type.
 
 ```typescript
 "offchain" | "onchain" | Unrecognized<string>
