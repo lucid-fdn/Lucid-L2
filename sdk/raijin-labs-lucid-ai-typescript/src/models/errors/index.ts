@@ -11,3 +11,4 @@ export * from "./luciderror.js";
 export * from "./responsevalidationerror.js";
 export * from "./sdkvalidationerror.js";
 export * from "./systemhealtherror.js";
+export * from "./x402paymentrequirederror.js";

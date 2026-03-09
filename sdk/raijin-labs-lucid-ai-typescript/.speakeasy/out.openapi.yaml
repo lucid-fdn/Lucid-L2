@@ -47,9 +47,12 @@ tags:
   - name: TBA
   - name: Modules
   - name: zkML
+  - name: Payments
 paths:
   # ===========================================================================
+
   # Passports
+
   # ===========================================================================
   /v1/passports:
     post:
@@ -290,7 +293,9 @@ paths:
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: getStats
   # ===========================================================================
+
   # Share Tokens
+
   # ===========================================================================
   /v1/passports/{passport_id}/token/launch:
     post:
@@ -601,7 +606,9 @@ paths:
                   pagination: {$ref: '#/components/schemas/Pagination'}
         '500': {$ref: '#/components/responses/InternalServerError'}
   # ===========================================================================
+
   # Match
+
   # ===========================================================================
   /v1/match/explain:
     post:
@@ -644,9 +651,17 @@ paths:
       tags: [Match]
       operationId: lucid_match
       summary: Match compute for model
+      description: |
+        x402-gated with dynamic pricing when X402_ENABLED=true.
       x-speakeasy-mcp:
         name: lucid_match
         description: Match compute for a model given a compute catalog and policy constraints.
+      parameters:
+        - name: X-Payment-Proof
+          in: header
+          required: false
+          description: Transaction hash proving USDC payment (x402 protocol)
+          schema: {type: string}
       requestBody:
         required: true
         content:
@@ -672,6 +687,12 @@ paths:
                   success: {type: boolean}
                   match: {type: object, additionalProperties: true}
                   explain: {type: object, additionalProperties: true}
+        '402':
+          description: Payment Required (x402)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/X402PaymentRequired'
         '422': {$ref: '#/components/responses/UnprocessableEntity'}
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: compute
@@ -724,7 +745,9 @@ paths:
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: planRoute
   # ===========================================================================
+
   # Run / Inference
+
   # ===========================================================================
   /v1/run/inference:
     post:
@@ -758,9 +781,19 @@ paths:
       tags: [Run]
       operationId: lucid_chat_completions
       summary: OpenAI-compatible chat completions
+      description: |
+        x402-gated with dynamic pricing. If `X402_ENABLED=true`, requests without
+        a valid `X-Payment-Proof` header receive HTTP 402 with payment instructions.
+        Pricing is resolved per-model from the asset_pricing table.
       x-speakeasy-mcp:
         name: lucid_chat_completions
         description: OpenAI-compatible chat completions routed through LucidLayer.
+      parameters:
+        - name: X-Payment-Proof
+          in: header
+          required: false
+          description: Transaction hash proving USDC payment (x402 protocol)
+          schema: {type: string}
       requestBody:
         required: true
         content:
@@ -775,10 +808,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/ChatCompletionResponse'
         '400': {$ref: '#/components/responses/BadRequest'}
+        '402':
+          description: Payment Required (x402)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/X402PaymentRequired'
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: chatCompletions
   # ===========================================================================
+
   # Compute live-state
+
   # ===========================================================================
   /v1/compute/nodes/heartbeat:
     post:
@@ -834,7 +875,9 @@ paths:
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: getNodeHealth
   # ===========================================================================
+
   # Receipts
+
   # ===========================================================================
   /v1/receipts:
     post:
@@ -1012,7 +1055,9 @@ paths:
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: getSignerPubKey
   # ===========================================================================
+
   # Epochs / anchoring
+
   # ===========================================================================
   /v1/epochs/current:
     get:
@@ -1365,7 +1410,9 @@ paths:
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: getStats
   # ===========================================================================
+
   # Payouts
+
   # ===========================================================================
   /v1/payouts/calculate:
     post:
@@ -1481,7 +1528,9 @@ paths:
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: verify
   # ===========================================================================
+
   # Health
+
   # ===========================================================================
   /health:
     get:
@@ -1660,7 +1709,9 @@ paths:
                       cpu: {type: object, additionalProperties: true}
         '500': {$ref: '#/components/responses/InternalServerError'}
   # ===========================================================================
+
   # Agents — Core MMR
+
   # ===========================================================================
   /api/agents/init:
     post:
@@ -1936,7 +1987,9 @@ paths:
                   message: {type: string}
         '500': {$ref: '#/components/responses/InternalServerError'}
   # ===========================================================================
+
   # Agents — Planner (Phase 3)
+
   # ===========================================================================
   /api/agents/plan:
     post:
@@ -2242,7 +2295,9 @@ paths:
         '400': {$ref: '#/components/responses/BadRequest'}
         '500': {$ref: '#/components/responses/InternalServerError'}
   # ===========================================================================
+
   # v2 Escrow
+
   # ===========================================================================
   /v2/escrow/create:
     post:
@@ -2344,7 +2399,9 @@ paths:
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: get
   # ===========================================================================
+
   # v2 Disputes
+
   # ===========================================================================
   /v2/disputes/open:
     post:
@@ -2491,7 +2548,9 @@ paths:
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: get
   # ===========================================================================
+
   # v2 Paymaster (ERC-4337 gas abstraction)
+
   # ===========================================================================
   /v2/paymaster/sponsor:
     post:
@@ -2564,7 +2623,9 @@ paths:
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: estimate
   # ===========================================================================
+
   # v2 Identity (cross-chain)
+
   # ===========================================================================
   /v2/identity/link:
     post:
@@ -2684,7 +2745,9 @@ paths:
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: unlink
   # ===========================================================================
+
   # v2 TBA (Token Bound Accounts)
+
   # ===========================================================================
   /v2/tba/create:
     post:
@@ -2742,7 +2805,9 @@ paths:
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: get
   # ===========================================================================
+
   # v2 ERC-7579 Modules
+
   # ===========================================================================
   /v2/modules/install:
     post:
@@ -2868,7 +2933,9 @@ paths:
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: list
   # ===========================================================================
+
   # v2 zkML
+
   # ===========================================================================
   /v2/zkml/prove:
     post:
@@ -2969,7 +3036,9 @@ paths:
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: listModels
   # ===========================================================================
+
   # Passport PATCH sub-routes
+
   # ===========================================================================
   /v1/passports/{passport_id}/pricing:
     patch:
@@ -3039,8 +3108,332 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '500': {$ref: '#/components/responses/InternalServerError'}
       x-speakeasy-name-override: updateEndpoints
+  # ===========================================================================
+
+  # x402 Payments — Asset Pricing, Revenue, Withdrawal
+
+  # ===========================================================================
+  /v1/assets/{passport_id}/pricing:
+    get:
+      tags: [Payments]
+      operationId: getAssetPricing
+      summary: Get asset pricing
+      x-speakeasy-mcp:
+        name: getAssetPricing
+        description: Get the pricing configuration for an AI asset (model, compute, etc.).
+      parameters:
+        - name: passport_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Pricing data (null if not configured)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: {type: boolean}
+                  pricing:
+                    oneOf:
+                      - $ref: '#/components/schemas/AssetPricing'
+                      - type: 'null'
+        '500': {$ref: '#/components/responses/InternalServerError'}
+    put:
+      tags: [Payments]
+      operationId: setAssetPricing
+      summary: Set asset pricing
+      description: Admin-only. Sets or updates the pricing configuration for an AI asset.
+      security:
+        - BearerAuth: []
+      x-speakeasy-mcp:
+        name: setAssetPricing
+        description: Set or update pricing for an AI asset (admin auth required).
+      parameters:
+        - name: passport_id
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetAssetPricingRequest'
+      responses:
+        '200':
+          description: Pricing updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401':
+          description: Unauthorized (admin auth required)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+    delete:
+      tags: [Payments]
+      operationId: deleteAssetPricing
+      summary: Remove asset pricing
+      description: Admin-only. Removes pricing (asset becomes free access).
+      security:
+        - BearerAuth: []
+      x-speakeasy-mcp:
+        name: deleteAssetPricing
+        description: Remove pricing for an AI asset, making it free (admin auth required).
+      parameters:
+        - name: passport_id
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, deleted]
+                properties:
+                  success: {type: boolean}
+                  deleted: {type: boolean}
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /v1/assets/{passport_id}/revenue:
+    get:
+      tags: [Payments]
+      operationId: getAssetRevenue
+      summary: Get asset revenue summary
+      x-speakeasy-mcp:
+        name: getAssetRevenue
+        description: Get total, pending, and withdrawn revenue for an AI asset.
+      parameters:
+        - name: passport_id
+          in: path
+          required: true
+          schema: {type: string}
+        - name: token
+          in: query
+          required: false
+          schema: {type: string, default: USDC}
+      responses:
+        '200':
+          description: Revenue summary
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, revenue]
+                properties:
+                  success: {type: boolean}
+                  revenue:
+                    $ref: '#/components/schemas/RevenueInfo'
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /v1/assets/{passport_id}/withdraw:
+    post:
+      tags: [Payments]
+      operationId: withdrawAssetRevenue
+      summary: Withdraw asset revenue
+      description: |
+        Admin-only. Marks confirmed revenue as pending_payout. The actual
+        on-chain transfer happens via the batch payout epoch.
+      security:
+        - BearerAuth: []
+      x-speakeasy-mcp:
+        name: withdrawAssetRevenue
+        description: Withdraw accumulated revenue for an AI asset (admin auth required).
+      parameters:
+        - name: passport_id
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token: {type: string, default: USDC}
+      responses:
+        '200':
+          description: Withdrawal queued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, withdrawal]
+                properties:
+                  success: {type: boolean}
+                  withdrawal:
+                    type: object
+                    required: [amount, token, status]
+                    properties:
+                      amount: {type: string, description: Amount in micro-units}
+                      token: {type: string}
+                      status:
+                        type: string
+                        enum: [pending_payout, no_funds]
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  # ===========================================================================
+
+  # x402 Payments — Configuration
+
+  # ===========================================================================
+  /v1/config/payment:
+    get:
+      tags: [Payments]
+      operationId: getPaymentConfig
+      summary: Get x402 payment configuration
+      x-speakeasy-mcp:
+        name: getPaymentConfig
+        description: Get the current x402 payment configuration (chains, facilitator, etc.).
+      responses:
+        '200':
+          description: Payment configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, config]
+                properties:
+                  success: {type: boolean}
+                  config: {type: object, additionalProperties: true}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /v1/config/facilitator:
+    put:
+      tags: [Payments]
+      operationId: setDefaultFacilitator
+      summary: Set default payment facilitator
+      description: Admin-only. Sets the default x402 facilitator (direct, coinbase, payai).
+      security:
+        - BearerAuth: []
+      x-speakeasy-mcp:
+        name: setDefaultFacilitator
+        description: Set the default x402 facilitator for payment verification (admin auth required).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [facilitator]
+              properties:
+                facilitator:
+                  type: string
+                  enum: [direct, coinbase, payai]
+      responses:
+        '200':
+          description: Facilitator updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ErrorResponse'}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  /v1/config/chains:
+    get:
+      tags: [Payments]
+      operationId: getSupportedChains
+      summary: List supported payment chains
+      x-speakeasy-mcp:
+        name: getSupportedChains
+        description: List the chains supported for x402 payments (Base, Solana, etc.).
+      responses:
+        '200':
+          description: Supported chains
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, chains]
+                properties:
+                  success: {type: boolean}
+                  chains:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        chain: {type: string}
+                        tokens:
+                          type: array
+                          items: {type: string}
+        '500': {$ref: '#/components/responses/InternalServerError'}
+  # ===========================================================================
+
+  # x402 Payments — Subscriptions
+
+  # ===========================================================================
+  /v1/access/subscribe:
+    post:
+      tags: [Payments]
+      operationId: subscribe
+      summary: Subscribe to asset access
+      description: |
+        x402-gated. Pay via USDC and receive a time-limited access subscription.
+        On success, creates an on-chain AccessReceipt.
+      x-speakeasy-mcp:
+        name: subscribe
+        description: Pay for a time-limited subscription to an AI asset via x402.
+      parameters:
+        - name: X-Payment-Proof
+          in: header
+          required: true
+          description: Transaction hash proving USDC payment (x402 protocol)
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [passport_id]
+              properties:
+                passport_id: {type: string}
+                duration_hours: {type: integer, default: 24}
+      responses:
+        '200':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [subscribed, passport_id, expires_at, duration_hours]
+                properties:
+                  subscribed: {type: boolean}
+                  passport_id: {type: string}
+                  expires_at: {type: integer, description: Unix timestamp}
+                  duration_hours: {type: integer}
+        '402':
+          description: Payment Required (x402)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/X402PaymentRequired'
+        '500': {$ref: '#/components/responses/InternalServerError'}
 # =============================================================================
+
 # Components
+
 # =============================================================================
 components:
   responses:
@@ -3081,7 +3474,9 @@ components:
       description: Lucid API key (lk_live_... or lk_test_...)
   schemas:
     # =========================================================================
+
     # Passport schemas
+
     # =========================================================================
     PassportType:
       type: string
@@ -3182,7 +3577,9 @@ components:
         per_page: {type: integer}
         total_pages: {type: integer}
     # =========================================================================
+
     # Policy
+
     # =========================================================================
     Policy:
       type: object
@@ -3220,7 +3617,9 @@ components:
             store_inputs: {type: boolean}
             redact_pii: {type: boolean}
     # =========================================================================
+
     # ComputeMeta / ModelMeta schemas  (mirror schemas/*.schema.json)
+
     # =========================================================================
     ComputeHardware:
       type: object
@@ -3404,7 +3803,9 @@ components:
         weights_uri: {type: string}
         weights_hash: {type: string}
     # =========================================================================
+
     # Chat / Inference schemas
+
     # =========================================================================
     ChatMessage:
       type: object
@@ -3507,7 +3908,9 @@ components:
             completion_tokens: {type: integer}
             total_tokens: {type: integer}
     # =========================================================================
+
     # Error
+
     # =========================================================================
     ErrorResponse:
       type: object
@@ -3518,7 +3921,9 @@ components:
         error_code: {type: string}
         details: {}
     # =========================================================================
+
     # Compute
+
     # =========================================================================
     ComputeHeartbeat:
       type: object
@@ -3532,7 +3937,9 @@ components:
         price_per_1k_tokens_estimate: {type: number}
         p95_ms_estimate: {type: number}
     # =========================================================================
+
     # Receipt schemas
+
     # =========================================================================
     Receipt:
       type: object
@@ -3683,7 +4090,9 @@ components:
         on_chain_verified: {type: boolean}
         tx_signature: {type: string, nullable: true}
     # =========================================================================
+
     # Epoch schemas
+
     # =========================================================================
     Epoch:
       type: object
@@ -3738,7 +4147,9 @@ components:
               created_at: {type: integer}
               mmr_root: {type: string}
     # =========================================================================
+
     # Payout schemas
+
     # =========================================================================
     PayoutCalculateRequest:
       type: object
@@ -3833,7 +4244,9 @@ components:
                 deprecated: {type: integer}
                 revoked: {type: integer}
     # =========================================================================
+
     # Health schemas
+
     # =========================================================================
     HealthCheckResult:
       type: object
@@ -3860,7 +4273,9 @@ components:
           additionalProperties:
             $ref: '#/components/schemas/HealthCheckResult'
     # =========================================================================
+
     # Agent schemas
+
     # =========================================================================
     AgentInitRequest:
       type: object
@@ -3945,7 +4360,9 @@ components:
           enum: [n8n, langgraph]
         dryRun: {type: boolean}
     # =========================================================================
+
     # Share Token schemas
+
     # =========================================================================
     TokenLaunchRequest:
       type: object
@@ -4003,7 +4420,9 @@ components:
           type: array
           items: {type: string}
     # =========================================================================
+
     # v2 Escrow
+
     # =========================================================================
     EscrowStatus:
       type: string
@@ -4053,7 +4472,9 @@ components:
         success: {type: boolean}
         escrow: {$ref: '#/components/schemas/EscrowInfo'}
     # =========================================================================
+
     # v2 Disputes
+
     # =========================================================================
     DisputeStatus:
       type: string
@@ -4091,7 +4512,9 @@ components:
         success: {type: boolean}
         dispute: {$ref: '#/components/schemas/DisputeInfo'}
     # =========================================================================
+
     # v2 Paymaster
+
     # =========================================================================
     SponsorUserOpRequest:
       type: object
@@ -4117,7 +4540,9 @@ components:
         exchangeRate: {type: number, description: "LUCID per ETH rate"}
         chainId: {type: string}
     # =========================================================================
+
     # v2 Identity
+
     # =========================================================================
     LinkIdentityRequest:
       type: object
@@ -4160,7 +4585,9 @@ components:
           type: array
           items: {type: string}
     # =========================================================================
+
     # v2 TBA (Token Bound Accounts)
+
     # =========================================================================
     CreateTBARequest:
       type: object
@@ -4183,7 +4610,9 @@ components:
         success: {type: boolean}
         tba: {$ref: '#/components/schemas/TBAInfo'}
     # =========================================================================
+
     # v2 ERC-7579 Modules
+
     # =========================================================================
     InstallModuleRequest:
       type: object
@@ -4231,7 +4660,9 @@ components:
         success: {type: boolean}
         modules: {type: object, description: "Installed modules by type"}
     # =========================================================================
+
     # v2 zkML
+
     # =========================================================================
     GenerateZkMLProofRequest:
       type: object
@@ -4281,7 +4712,9 @@ components:
         success: {type: boolean}
         models: {type: object}
     # =========================================================================
+
     # Passport PATCH sub-routes
+
     # =========================================================================
     UpdatePassportPricingRequest:
       type: object
@@ -4301,7 +4734,91 @@ components:
         health_url: {type: string, format: uri}
         api_base_url: {type: string, format: uri}
     # =========================================================================
+
+    # x402 Payments
+
+    # =========================================================================
+    X402PaymentRequired:
+      type: object
+      required: [error, x402]
+      properties:
+        error: {type: string, example: Payment Required}
+        x402:
+          type: object
+          required: [version, facilitator, payment, expires]
+          properties:
+            version: {type: string, example: '2'}
+            facilitator: {type: string, example: direct}
+            description: {type: string}
+            payment:
+              type: object
+              required: [chain, token, tokenAddress, amount, recipient, facilitator, scheme]
+              properties:
+                chain: {type: string, example: base-sepolia}
+                token: {type: string, example: USDC}
+                tokenAddress: {type: string}
+                amount: {type: string, description: Amount in micro-units (6 decimals)}
+                recipient: {type: string, description: Wallet or splitter contract address}
+                facilitator: {type: string}
+                scheme: {type: string, enum: [exact]}
+            alternatives:
+              type: array
+              items: {type: object, additionalProperties: true}
+            splits:
+              type: array
+              items: {type: object, additionalProperties: true}
+            expires: {type: integer, description: Unix timestamp}
+    AssetPricing:
+      type: object
+      required: [passport_id, payout_address]
+      properties:
+        passport_id: {type: string}
+        price_per_call: {type: string, nullable: true, description: Micro-units (6 decimals)}
+        price_per_token: {type: string, nullable: true}
+        price_subscription_hour: {type: string, nullable: true}
+        accepted_tokens:
+          type: array
+          items: {type: string}
+          default: [USDC]
+        accepted_chains:
+          type: array
+          items: {type: string}
+          default: [base]
+        payout_address: {type: string}
+        custom_split_bps:
+          type: object
+          nullable: true
+          additionalProperties: {type: integer}
+        updated_at: {type: string, format: date-time}
+    SetAssetPricingRequest:
+      type: object
+      required: [payout_address]
+      properties:
+        price_per_call: {type: string, description: Micro-units (e.g. "10000" = $0.01)}
+        price_per_token: {type: string}
+        price_subscription_hour: {type: string}
+        accepted_tokens:
+          type: array
+          items: {type: string}
+        accepted_chains:
+          type: array
+          items: {type: string}
+        payout_address: {type: string}
+        custom_split_bps:
+          type: object
+          additionalProperties: {type: integer}
+    RevenueInfo:
+      type: object
+      required: [total, pending, withdrawn, token]
+      properties:
+        total: {type: string, description: Total revenue in micro-units}
+        pending: {type: string, description: Pending (confirmed, not yet withdrawn): ''}
+        withdrawn: {type: string, description: Already withdrawn}
+        token: {type: string}
+    # =========================================================================
+
     # Shared
+
     # =========================================================================
     SuccessResponse:
       type: object

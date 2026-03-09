@@ -4,7 +4,7 @@
 
 import * as z from "zod/v4-mini";
 import { LucidSDKCore } from "../core.js";
-import { encodeJSON } from "../lib/encodings.js";
+import { encodeJSON, encodeSimple } from "../lib/encodings.js";
 import * as M from "../lib/matchers.js";
 import { compactMap } from "../lib/primitives.js";
 import { safeParse } from "../lib/schemas.js";
@@ -28,6 +28,9 @@ import { Result } from "../types/fp.js";
 
 /**
  * Match compute for model
+ *
+ * @remarks
+ * x402-gated with dynamic pricing when X402_ENABLED=true.
  */
 export function matchCompute(
   client: LucidSDKCore,
@@ -36,6 +39,7 @@ export function matchCompute(
 ): APIPromise<
   Result<
     operations.LucidMatchResponse,
+    | errors.X402PaymentRequiredError
     | errors.ErrorResponse
     | LucidError
     | ResponseValidationError
@@ -62,6 +66,7 @@ async function $do(
   [
     Result<
       operations.LucidMatchResponse,
+      | errors.X402PaymentRequiredError
       | errors.ErrorResponse
       | LucidError
       | ResponseValidationError
@@ -84,13 +89,18 @@ async function $do(
     return [parsed, { status: "invalid" }];
   }
   const payload = parsed.value;
-  const body = encodeJSON("body", payload, { explode: true });
+  const body = encodeJSON("body", payload.body, { explode: true });
 
   const path = pathToFunc("/v1/match")();
 
   const headers = new Headers(compactMap({
     "Content-Type": "application/json",
     Accept: "application/json",
+    "X-Payment-Proof": encodeSimple(
+      "X-Payment-Proof",
+      payload["X-Payment-Proof"],
+      { explode: false, charEncoding: "none" },
+    ),
   }));
 
   const secConfig = await extractSecurity(client._options.bearerAuth);
@@ -129,7 +139,7 @@ async function $do(
 
   const doResult = await client._do(req, {
     context,
-    errorCodes: ["422", "4XX", "500", "5XX"],
+    errorCodes: ["402", "422", "4XX", "500", "5XX"],
     retryConfig: context.retryConfig,
     retryCodes: context.retryCodes,
   });
@@ -144,6 +154,7 @@ async function $do(
 
   const [result] = await M.match<
     operations.LucidMatchResponse,
+    | errors.X402PaymentRequiredError
     | errors.ErrorResponse
     | LucidError
     | ResponseValidationError
@@ -155,6 +166,7 @@ async function $do(
     | SDKValidationError
   >(
     M.json(200, operations.LucidMatchResponse$inboundSchema),
+    M.jsonErr(402, errors.X402PaymentRequiredError$inboundSchema),
     M.jsonErr(422, errors.ErrorResponse$inboundSchema),
     M.jsonErr(500, errors.ErrorResponse$inboundSchema),
     M.fail("4XX"),

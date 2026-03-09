@@ -34,7 +34,7 @@ generation:
     generateNewTests: true
     skipResponseBodyAssertions: false
 typescript:
-  version: 0.5.0
+  version: 0.5.1
   acceptHeaderEnum: false
   additionalDependencies:
     dependencies: {}
@@ -93,4 +93,6 @@ typescript:
   unionStrategy: populated-fields
   usageSDKInitImports: []
   useIndexModules: true
+  useOxlint: false
+  useTsgo: false
   zodVersion: v4-mini

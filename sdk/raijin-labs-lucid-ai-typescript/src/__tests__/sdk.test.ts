@@ -192,8 +192,10 @@ describe('V1 Endpoints', () => {
   it('POST /v1/chat/completions', async () => {
     const sdk = new LucidSDK({ serverURL: baseURL });
     const result = await sdk.run.chatCompletions({
-      model: 'deepseek-v3',
-      messages: [{ role: 'user', content: 'Hello' }],
+      body: {
+        model: 'deepseek-v3',
+        messages: [{ role: 'user', content: 'Hello' }],
+      },
     });
 
     expect(lastRequest.method).toBe('POST');

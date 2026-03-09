@@ -6,6 +6,7 @@ import { runChatCompletions } from "../funcs/runChatCompletions.js";
 import { runInference } from "../funcs/runInference.js";
 import { ClientSDK, RequestOptions } from "../lib/sdks.js";
 import * as models from "../models/index.js";
+import * as operations from "../models/operations/index.js";
 import { unwrapAsync } from "../types/fp.js";
 
 export class Run extends ClientSDK {
@@ -25,9 +26,14 @@ export class Run extends ClientSDK {
 
   /**
    * OpenAI-compatible chat completions
+   *
+   * @remarks
+   * x402-gated with dynamic pricing. If `X402_ENABLED=true`, requests without
+   * a valid `X-Payment-Proof` header receive HTTP 402 with payment instructions.
+   * Pricing is resolved per-model from the asset_pricing table.
    */
   async chatCompletions(
-    request: models.ChatCompletionRequest,
+    request: operations.LucidChatCompletionsRequest,
     options?: RequestOptions,
   ): Promise<models.ChatCompletionResponse> {
     return unwrapAsync(runChatCompletions(
