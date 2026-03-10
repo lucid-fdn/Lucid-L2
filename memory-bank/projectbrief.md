@@ -1,39 +1,61 @@
-# Project Brief: Lucid L2™ Phase 1 & Phase 2 MVP
+# Project Brief: Lucid
 
-## Core Purpose
-Lucid L2™ is a blockchain-based system that creates a complete loop from text input to on-chain commitment with local memory storage. The MVP demonstrates the foundational architecture for a larger AI-powered system.
+## What Lucid Is
 
-## Key Requirements
-1. **Text → Thought Epoch Hash**: Convert text input into a cryptographic hash (currently SHA-256)
-2. **On-Chain Commit**: Store the hash on Solana blockchain using Anchor framework
-3. **Local Memory Wallet**: Maintain local storage of committed hashes per user
-4. **End-to-End Loop**: Complete workflow from input to storage in minutes
+Lucid is a **verifiable AI execution layer** — blockchain-anchored infrastructure that gives AI assets (models, agents, tools, compute, datasets) provable identity, cryptographic receipts, and reputation backed by real traffic data.
 
-## Architecture Overview
-- **On-Chain Component**: Solana program using Anchor framework
-- **Off-Chain Component**: TypeScript service with Express API
-- **Storage**: Program Derived Accounts (PDAs) on Solana + local JSON wallet
-- **Interface**: REST API and CLI tools
+## Two-Repo Architecture
 
-## Success Criteria
-- Deploy and test on Solana localnet
-- Process text input through complete pipeline
-- Store results both on-chain and locally
-- Provide working API and CLI interfaces
-- Foundation ready for Phase 3 (UI) and real AI integration
+| Repo | Purpose | License |
+|------|---------|---------|
+| **Lucid-L2** (this repo) | Open-source truth layer — Solana programs, offchain engine, Next.js frontend | Open source |
+| **lucid-plateform-core** | Proprietary gateway — TrustGate, MCPGate, Control-Plane, Oracle | Private |
 
-## Current Status
-- Phase 1: On-chain "Thought Epoch" program ✓
-- Phase 2: Off-chain mock inference service ✓
-- Ready for initialization and testing
+Bridge: `@raijinlabs/passport` shared npm package + receipt_events consumed via DB.
 
-## Future Phases
-- Phase 3: Next.js + Tailwind UI ✅ Complete
-- Real AI integration (replace mock inference) ✅ Complete (Phase 8.1)
-- Browser Extension for mGas earning ✅ Complete (Phase 8.2)
-- Advanced mGas rewards & gamification ✅ Complete (Phase 8.3)
-- Memory mapping and gas optimization ✅ Complete (Phase 5 MMR)
-- Advanced anti-cheat and fraud prevention ⏳ Phase 8.4
-- Virtual humans with sub-100ms RCS streams
-- Production deployment and scaling
-- Decentralized AI infrastructure
+## Core Thesis
+
+Every AI interaction produces a verifiable receipt. Those receipts become the foundation for reputation, payment, and governance — not self-reported metrics or synthetic benchmarks, but real traffic data flowing through the gateway.
+
+## Strategic Position: Metaplex Partnership
+
+**Partner with Metaplex for identity. Build our own reputation/validation.**
+
+| Layer | Owner | Why |
+|-------|-------|-----|
+| **Identity** (who you are) | Metaplex Core / MIP #52 | They're the Solana NFT standard. Don't fight it. |
+| **Reputation** (are you trustworthy) | Lucid | Gateway traffic data is our moat. No one else has it. |
+| **Validation** (can you prove it) | Lucid | Cryptographic receipts + MMR proofs + on-chain anchoring. |
+
+### What Lucid Adds Beyond Metaplex
+
+Metaplex handles agents. Lucid extends identity to **all AI assets**:
+
+- **Models** — inference passports with provider routing
+- **Compute** — GPU/CPU nodes with heartbeat + health monitoring
+- **Tools** — MCP tools with schema validation
+- **Datasets** — provenance tracking
+- **Agents** — orchestration + deployment to 6 platforms
+
+### Bidirectional Reputation Mesh
+
+Lucid doesn't just consume external reputation — it feeds back:
+
+```
+External Providers  <-->  Lucid Reputation Engine
+  ERC-8004 (Solana)  <-->  Pull scores + Push validated scores
+  ERC-8004 (EVM)     <-->  Pull scores + Push validated scores
+  SATI               <-->  Pull trust + Push traffic-backed trust
+  SAID               <-->  Pull identity + Push verified identity
+```
+
+**The pitch to Metaplex:** MIP #52 gives agents identity. Lucid gives ALL AI assets identity + proven reputation backed by real traffic data.
+
+## On-Chain Programs (6 Solana Programs)
+
+1. `thought_epoch` — MMR root commitment (single/batch/v2)
+2. `lucid_passports` — AI asset registry + x402 payment gating
+3. `gas_utils` — Token burn/split CPI + on-chain distribution
+4. `lucid_agent_wallet` — PDA wallets, policy, escrow, splits, sessions
+5. `lucid_zkml_verifier` — Groth16 proof verification + bloom dedup
+6. `lucid_reputation` — On-chain reputation (feedback, validation, revocation)
