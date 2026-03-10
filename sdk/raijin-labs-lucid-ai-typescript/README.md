@@ -1,3 +1,5 @@
+> **DEPRECATED** — This package is deprecated. Use `@lucid-l2/sdk` instead for the embeddable SDK, or the hosted API via platform-core.
+
 # @lucid/sdk
 
 TypeScript SDK for the Lucid AI infrastructure protocol.

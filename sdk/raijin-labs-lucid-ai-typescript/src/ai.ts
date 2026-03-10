@@ -48,6 +48,10 @@ export interface LucidProviderSettings {
  *
  * The returned provider can be used with `generateText`, `streamText`,
  * `generateObject`, `streamObject`, and any other Vercel AI SDK function.
+ *
+ * @deprecated Use `@lucid-l2/sdk` instead. This Speakeasy-generated HTTP SDK
+ * is deprecated in favour of the embeddable SDK at `offchain/packages/sdk/`.
+ * See https://github.com/raijinlabs/Lucid-L2 for migration details.
  */
 export function createLucidProvider(options: LucidProviderSettings = {}) {
   const env = typeof globalThis !== "undefined" ? (globalThis as any).process?.env : undefined;

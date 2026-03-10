@@ -1,6 +1,7 @@
 {
   "name": "@lucid/sdk",
   "version": "0.5.1",
+  "deprecated": "Use @lucid-l2/sdk instead",
   "author": "Speakeasy",
   "type": "module",
   "tshy": {

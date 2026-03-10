@@ -1,6 +1,7 @@
 {
   "name": "@lucidlayer/sdk",
   "version": "1.0.0",
+  "deprecated": "Use @lucid-l2/sdk instead",
   "description": "TypeScript SDK for LucidLayer - Decentralized AI Compute Orchestration",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

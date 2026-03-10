@@ -883,12 +883,78 @@ export class EVMAdapter implements IBlockchainAdapter {
         throw new Error('EVM policy configuration requires PolicyModule deployment — use erc7579Service directly');
       },
 
-      async createSession(_walletAddress, _delegate, _permissions, _expiresAt, _maxAmount) {
-        throw new Error('Session keys not yet deployed on EVM — use Solana agent wallet for session delegation');
+      async createSession(walletAddress, delegate, permissions, expiresAt, maxAmount) {
+        const sessionManagerAddr = config?.sessionManager;
+        if (!sessionManagerAddr) {
+          throw new Error(`No LucidSessionManager configured for chain ${chainId}`);
+        }
+
+        // Encode permissions as a bitmask: each permission string maps to a bit position
+        let permBitmask = 0n;
+        for (let i = 0; i < permissions.length; i++) {
+          permBitmask |= (1n << BigInt(i));
+        }
+
+        const SESSION_MANAGER_ABI = [
+          {
+            name: 'createSession',
+            type: 'function' as const,
+            stateMutability: 'nonpayable' as const,
+            inputs: [
+              { name: 'delegate', type: 'address' as const },
+              { name: 'permissions', type: 'uint256' as const },
+              { name: 'expiresAt', type: 'uint256' as const },
+              { name: 'maxAmount', type: 'uint256' as const },
+            ],
+            outputs: [],
+          },
+        ] as const;
+
+        const hash = await walletClient.writeContract({
+          address: sessionManagerAddr as `0x${string}`,
+          abi: SESSION_MANAGER_ABI,
+          functionName: 'createSession',
+          args: [
+            delegate as `0x${string}`,
+            permBitmask,
+            BigInt(expiresAt),
+            BigInt(maxAmount),
+          ],
+          account,
+        });
+
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        return { hash, chainId, success: receipt.status === 'success' };
       },
 
-      async revokeSession(_walletAddress, _delegate) {
-        throw new Error('Session keys not yet deployed on EVM');
+      async revokeSession(walletAddress, delegate) {
+        const sessionManagerAddr = config?.sessionManager;
+        if (!sessionManagerAddr) {
+          throw new Error(`No LucidSessionManager configured for chain ${chainId}`);
+        }
+
+        const SESSION_MANAGER_ABI = [
+          {
+            name: 'revokeSession',
+            type: 'function' as const,
+            stateMutability: 'nonpayable' as const,
+            inputs: [
+              { name: 'delegate', type: 'address' as const },
+            ],
+            outputs: [],
+          },
+        ] as const;
+
+        const hash = await walletClient.writeContract({
+          address: sessionManagerAddr as `0x${string}`,
+          abi: SESSION_MANAGER_ABI,
+          functionName: 'revokeSession',
+          args: [delegate as `0x${string}`],
+          account,
+        });
+
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        return { hash, chainId, success: receipt.status === 'success' };
       },
     };
   }
@@ -947,7 +1013,7 @@ export class EVMAdapter implements IBlockchainAdapter {
       passport: true,
       escrow: !!this._config?.escrowContract,
       verifyAnchor: true,
-      sessionKeys: false,
+      sessionKeys: !!this._config?.sessionManager,
       zkml: true,
       paymaster: !!this._config?.paymaster,
     };

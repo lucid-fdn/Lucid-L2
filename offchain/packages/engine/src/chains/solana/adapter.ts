@@ -862,6 +862,10 @@ export class SolanaAdapter implements IBlockchainAdapter {
 
     const adapter = this;
     const chainId = this._chainId;
+    const conn = this._connection!;
+    const keypair = this._keypair!;
+    const config = this._config;
+    const commitment = this._commitment;
 
     return {
       async createWallet(passportRef) {
@@ -891,16 +895,113 @@ export class SolanaAdapter implements IBlockchainAdapter {
         return { hash: result.txHash, chainId, success: true };
       },
 
-      async createSession(_walletAddress, _delegate, _permissions, _expiresAt, _maxAmount) {
-        throw new Error(
-          'Session key creation: implement when create_session instruction is added to Anchor program',
+      async createSession(walletAddress, delegate, permissions, expiresAt, maxAmount) {
+        if (!config?.agentWalletProgram) throw new Error('LucidAgentWallet program not configured');
+
+        const programId = new PublicKey(config.agentWalletProgram);
+        const walletPubkey = new PublicKey(walletAddress);
+        const delegatePubkey = new PublicKey(delegate);
+
+        // Derive session PDA: seeds = ["session", wallet.key(), delegate.key()]
+        const SESSION_SEED = Buffer.from('session');
+        const [sessionPda] = PublicKey.findProgramAddressSync(
+          [SESSION_SEED, walletPubkey.toBuffer(), delegatePubkey.toBuffer()],
+          programId,
         );
+
+        // Encode permissions as a bitmask: each permission string maps to a bit position
+        let permBitmask = 0;
+        for (let i = 0; i < permissions.length; i++) {
+          permBitmask |= (1 << i);
+        }
+
+        // sha256("global:create_session")[0:8]
+        const CREATE_SESSION_DISC = Buffer.from([
+          0xfc, 0xa0, 0x9a, 0xbe, 0x7e, 0x43, 0x17, 0x02,
+        ]);
+
+        // Instruction data: discriminator (8) + permissions u16 (2) + expires_at i64 (8) + max_amount u64 (8)
+        const permBuf = Buffer.alloc(2);
+        permBuf.writeUInt16LE(permBitmask, 0);
+
+        const expiresAtBuf = Buffer.alloc(8);
+        expiresAtBuf.writeBigInt64LE(BigInt(expiresAt), 0);
+
+        const maxAmountBuf = Buffer.alloc(8);
+        maxAmountBuf.writeBigUInt64LE(BigInt(maxAmount), 0);
+
+        const data = Buffer.concat([
+          CREATE_SESSION_DISC,
+          permBuf,
+          expiresAtBuf,
+          maxAmountBuf,
+        ]);
+
+        const instruction = new TransactionInstruction({
+          programId,
+          keys: [
+            { pubkey: sessionPda, isSigner: false, isWritable: true },          // session (PDA, init)
+            { pubkey: walletPubkey, isSigner: false, isWritable: false },        // wallet (has_one = owner)
+            { pubkey: keypair.publicKey, isSigner: true, isWritable: true },     // owner (payer)
+            { pubkey: delegatePubkey, isSigner: false, isWritable: false },      // delegate
+            { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }, // system_program
+          ],
+          data,
+        });
+
+        const transaction = new Transaction().add(instruction);
+        const signature = await sendAndConfirmTransaction(
+          conn,
+          transaction,
+          [keypair],
+          { commitment, maxRetries: 2 },
+        );
+
+        console.log(`[SolanaAdapter] createSession: wallet=${walletAddress} delegate=${delegate} tx=${signature}`);
+        return { hash: signature, chainId, success: true };
       },
 
-      async revokeSession(_walletAddress, _delegate) {
-        throw new Error(
-          'Session revocation: implement when revoke_session instruction is added to Anchor program',
+      async revokeSession(walletAddress, delegate) {
+        if (!config?.agentWalletProgram) throw new Error('LucidAgentWallet program not configured');
+
+        const programId = new PublicKey(config.agentWalletProgram);
+        const walletPubkey = new PublicKey(walletAddress);
+        const delegatePubkey = new PublicKey(delegate);
+
+        // Derive session PDA: seeds = ["session", wallet.key(), delegate.key()]
+        const SESSION_SEED = Buffer.from('session');
+        const [sessionPda] = PublicKey.findProgramAddressSync(
+          [SESSION_SEED, walletPubkey.toBuffer(), delegatePubkey.toBuffer()],
+          programId,
         );
+
+        // sha256("global:revoke_session")[0:8]
+        const REVOKE_SESSION_DISC = Buffer.from([
+          0x79, 0x7b, 0x7c, 0x72, 0x5f, 0x5d, 0xf3, 0x6e,
+        ]);
+
+        const data = Buffer.concat([REVOKE_SESSION_DISC]);
+
+        const instruction = new TransactionInstruction({
+          programId,
+          keys: [
+            { pubkey: sessionPda, isSigner: false, isWritable: true },          // session (mut, has_one = wallet)
+            { pubkey: walletPubkey, isSigner: false, isWritable: false },        // wallet (has_one = owner)
+            { pubkey: keypair.publicKey, isSigner: true, isWritable: false },    // owner
+          ],
+          data,
+        });
+
+        const transaction = new Transaction().add(instruction);
+        const signature = await sendAndConfirmTransaction(
+          conn,
+          transaction,
+          [keypair],
+          { commitment, maxRetries: 2 },
+        );
+
+        console.log(`[SolanaAdapter] revokeSession: wallet=${walletAddress} delegate=${delegate} tx=${signature}`);
+        return { hash: signature, chainId, success: true };
       },
     };
   }

@@ -36,6 +36,10 @@ export interface LucidSDKOptions {
 
 /**
  * Create a LucidSDK instance with typed options.
+ *
+ * @deprecated Use `@lucid-l2/sdk` instead. This Speakeasy-generated HTTP SDK
+ * is deprecated in favour of the embeddable SDK at `offchain/packages/sdk/`.
+ * See https://github.com/raijinlabs/Lucid-L2 for migration details.
  */
 export function createLucidSDK(options: LucidSDKOptions = {}): LucidSDK {
   const sdkOptions: Record<string, unknown> = {};

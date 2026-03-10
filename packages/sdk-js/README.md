@@ -1,3 +1,5 @@
+> **DEPRECATED** — This package is deprecated. Use `@lucid-l2/sdk` instead for the embeddable SDK, or the hosted API via platform-core.
+
 # @lucidlayer/sdk
 
 TypeScript SDK for **LucidLayer** - Decentralized AI Compute Orchestration.
