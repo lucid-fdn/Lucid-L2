@@ -21,6 +21,7 @@ import type {
   IPassportAdapter,
   IAgentWalletAdapter,
   IGasAdapter,
+  ChainCapabilities,
 } from './domain-interfaces';
 
 export interface IBlockchainAdapter {
@@ -87,4 +88,7 @@ export interface IBlockchainAdapter {
 
   /** Gas collection and revenue splitting (optional) */
   gas?(): IGasAdapter;
+
+  /** Return a map of which features this chain supports */
+  capabilities(): ChainCapabilities;
 }

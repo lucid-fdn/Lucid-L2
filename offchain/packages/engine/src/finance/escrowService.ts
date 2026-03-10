@@ -6,7 +6,8 @@
  */
 
 import { encodeFunctionData } from 'viem';
-import type { EscrowParams, EscrowInfo, EscrowStatus } from './escrowTypes';
+import type { EscrowParams, EscrowInfo } from './escrowTypes';
+import { EscrowStatus } from './escrowTypes';
 
 // LucidEscrow ABI (minimal — only the functions we call)
 const ESCROW_ABI = [
@@ -93,10 +94,47 @@ const ESCROW_ABI = [
 export class EscrowService {
   private static instance: EscrowService | null = null;
 
-  // In-memory escrow tracking (MVP)
-  private escrowStore = new Map<string, EscrowInfo>();
-
   private constructor() {}
+
+  // ---------------------------------------------------------------------------
+  // DB-backed escrow persistence (replaces former in-memory Map)
+  // ---------------------------------------------------------------------------
+
+  private async storeEscrow(info: EscrowInfo): Promise<void> {
+    const { default: pool } = await import('../db/pool');
+    await pool.query(
+      `INSERT INTO escrow_records (escrow_id, depositor, beneficiary, token, amount, created_at, expires_at, expected_receipt_hash, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (escrow_id) DO UPDATE SET status = $9, updated_at = NOW()`,
+      [info.escrowId, info.depositor, info.beneficiary, info.token, info.amount, info.createdAt, info.expiresAt, info.expectedReceiptHash, info.status],
+    );
+  }
+
+  private async loadEscrow(escrowId: string): Promise<EscrowInfo | null> {
+    const { default: pool } = await import('../db/pool');
+    const { rows } = await pool.query('SELECT * FROM escrow_records WHERE escrow_id = $1', [escrowId]);
+    if (rows.length === 0) return null;
+    return this.rowToEscrowInfo(rows[0]);
+  }
+
+  private async updateEscrowStatus(escrowId: string, status: number): Promise<void> {
+    const { default: pool } = await import('../db/pool');
+    await pool.query('UPDATE escrow_records SET status = $1, updated_at = NOW() WHERE escrow_id = $2', [status, escrowId]);
+  }
+
+  private rowToEscrowInfo(row: any): EscrowInfo {
+    return {
+      escrowId: row.escrow_id,
+      depositor: row.depositor,
+      beneficiary: row.beneficiary,
+      token: row.token,
+      amount: row.amount,
+      createdAt: Number(row.created_at),
+      expiresAt: Number(row.expires_at),
+      expectedReceiptHash: row.expected_receipt_hash,
+      status: row.status as EscrowStatus,
+    };
+  }
 
   static getInstance(): EscrowService {
     if (!EscrowService.instance) {
@@ -152,7 +190,7 @@ export class EscrowService {
       status: 0, // Created
     };
 
-    this.escrowStore.set(escrowId, info);
+    await this.storeEscrow(info);
 
     return { escrowId, txHash: txReceipt.hash };
   }
@@ -188,11 +226,8 @@ export class EscrowService {
       data: calldata,
     });
 
-    // Update local store
-    const info = this.escrowStore.get(escrowId);
-    if (info) {
-      info.status = 1; // Released
-    }
+    // Update DB store
+    await this.updateEscrowStatus(escrowId, EscrowStatus.Released);
 
     return { txHash: txReceipt.hash };
   }
@@ -213,8 +248,8 @@ export class EscrowService {
     const adapter = await blockchainAdapterFactory.getAdapter(chainId);
     if (!adapter) throw new Error(`No adapter for chain: ${chainId}`);
 
-    // Check expiry from local store
-    const info = this.escrowStore.get(escrowId);
+    // Check expiry from DB store
+    const info = await this.loadEscrow(escrowId);
     if (info && info.expiresAt > Math.floor(Date.now() / 1000)) {
       throw new Error('Escrow has not expired yet');
     }
@@ -226,9 +261,7 @@ export class EscrowService {
       data: calldata,
     });
 
-    if (info) {
-      info.status = 2; // Refunded
-    }
+    await this.updateEscrowStatus(escrowId, EscrowStatus.Refunded);
 
     return { txHash: txReceipt.hash };
   }
@@ -257,28 +290,28 @@ export class EscrowService {
       data: calldata,
     });
 
-    const info = this.escrowStore.get(escrowId);
-    if (info) {
-      info.status = 3; // Disputed
-    }
+    await this.updateEscrowStatus(escrowId, EscrowStatus.Disputed);
 
     return { txHash: txReceipt.hash };
   }
 
   /**
-   * Get escrow info (from local store).
+   * Get escrow info (from DB).
    */
-  getEscrow(escrowId: string): EscrowInfo | null {
-    return this.escrowStore.get(escrowId) || null;
+  async getEscrow(escrowId: string): Promise<EscrowInfo | null> {
+    return this.loadEscrow(escrowId);
   }
 
   /**
-   * List escrows for an address.
+   * List escrows for an address (depositor or beneficiary).
    */
-  listEscrows(address: string): EscrowInfo[] {
-    return Array.from(this.escrowStore.values()).filter(
-      (e) => e.depositor === address || e.beneficiary === address,
+  async listEscrows(address: string): Promise<EscrowInfo[]> {
+    const { default: pool } = await import('../db/pool');
+    const { rows } = await pool.query(
+      'SELECT * FROM escrow_records WHERE depositor = $1 OR beneficiary = $1 ORDER BY created_at DESC',
+      [address],
     );
+    return rows.map((r: any) => this.rowToEscrowInfo(r));
   }
 
   // =========================================================================
@@ -317,7 +350,7 @@ export class EscrowService {
       expectedReceiptHash: params.expectedReceiptHash,
       status: 0,
     };
-    this.escrowStore.set(escrowId, info);
+    await this.storeEscrow(info);
 
     console.log(`[EscrowService] Solana escrow created: ${escrowId} (amount: ${params.amount})`);
     return { escrowId };
@@ -332,10 +365,7 @@ export class EscrowService {
     receiptHash: string;
     receiptSignature: string;
   }): Promise<{ success: boolean }> {
-    const info = this.escrowStore.get(params.escrowPda);
-    if (info) {
-      info.status = 1; // Released
-    }
+    await this.updateEscrowStatus(params.escrowPda, EscrowStatus.Released);
     console.log(`[EscrowService] Solana escrow released: ${params.escrowPda}`);
     return { success: true };
   }
@@ -347,13 +377,13 @@ export class EscrowService {
     escrowPda: string;
     walletPda: string;
   }): Promise<{ success: boolean }> {
-    const info = this.escrowStore.get(params.escrowPda);
+    const info = await this.loadEscrow(params.escrowPda);
     if (info) {
       if (info.expiresAt > Math.floor(Date.now() / 1000)) {
         throw new Error('Escrow has not expired yet');
       }
-      info.status = 2; // Refunded
     }
+    await this.updateEscrowStatus(params.escrowPda, EscrowStatus.Refunded);
     console.log(`[EscrowService] Solana escrow timeout claimed: ${params.escrowPda}`);
     return { success: true };
   }
@@ -366,10 +396,7 @@ export class EscrowService {
     walletPda: string;
     reason: string;
   }): Promise<{ success: boolean }> {
-    const info = this.escrowStore.get(params.escrowPda);
-    if (info) {
-      info.status = 3; // Disputed
-    }
+    await this.updateEscrowStatus(params.escrowPda, EscrowStatus.Disputed);
     console.log(`[EscrowService] Solana escrow disputed: ${params.escrowPda}`);
     return { success: true };
   }

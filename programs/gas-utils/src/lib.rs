@@ -129,24 +129,10 @@ pub mod gas_utils {
     /// Requires mint authority.
     pub fn mint_and_distribute(
         _ctx: Context<MintAndDistribute>,
-        total_amount: u64,
-        recipients: Vec<RecipientShare>,
+        _total_amount: u64,
+        _recipients: Vec<RecipientShare>,
     ) -> Result<()> {
-        require!(recipients.len() <= MAX_RECIPIENTS, ErrorCode::TooManyRecipients);
-        require!(!recipients.is_empty(), ErrorCode::NoRecipients);
-
-        let total_percentage: u16 = recipients.iter().map(|r| r.percentage as u16).sum();
-        require!(total_percentage == 100, ErrorCode::InvalidPercentageSum);
-        require!(total_amount > 0, ErrorCode::ZeroGasAmount);
-
-        msg!("GAS: mint_and_distribute is a placeholder — no tokens minted");
-
-        emit!(GasDistributed {
-            total_amount,
-            recipients: recipients.clone(),
-        });
-
-        Ok(())
+        err!(ErrorCode::NotImplemented)
     }
 }
 
@@ -230,4 +216,6 @@ pub enum ErrorCode {
     RecipientOwnerMismatch,
     #[msg("Recipient ATA mint mismatch")]
     RecipientMintMismatch,
+    #[msg("Instruction not yet implemented")]
+    NotImplemented,
 }

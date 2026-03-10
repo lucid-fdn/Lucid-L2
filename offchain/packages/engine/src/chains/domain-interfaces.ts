@@ -210,3 +210,17 @@ export interface IGasAdapter {
     burnBps: number,
   ): Promise<TxReceipt>;
 }
+
+// =============================================================================
+// ChainCapabilities
+// =============================================================================
+
+export interface ChainCapabilities {
+  epoch: boolean;
+  passport: boolean;
+  escrow: boolean;
+  verifyAnchor: boolean;
+  sessionKeys: boolean;
+  zkml: boolean;
+  paymaster: boolean;
+}

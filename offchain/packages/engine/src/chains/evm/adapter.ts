@@ -15,7 +15,7 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import type { IBlockchainAdapter } from '../adapter-interface';
-import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter } from '../domain-interfaces';
+import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter, ChainCapabilities } from '../domain-interfaces';
 import type {
   ChainConfig,
   ChainType,
@@ -496,7 +496,230 @@ export class EVMAdapter implements IBlockchainAdapter {
   }
 
   escrow(): IEscrowAdapter {
-    throw new Error('IEscrowAdapter not yet implemented on EVM');
+    this.ensureConnected();
+
+    const escrowAddr = this._config?.escrowContract;
+    if (!escrowAddr) {
+      throw new Error(`No LucidEscrow contract configured for chain ${this._chainId}`);
+    }
+    if (!this._walletClient || !this._account) {
+      throw new Error('Wallet required for escrow operations');
+    }
+
+    const publicClient = this._publicClient!;
+    const walletClient = this._walletClient!;
+    const account = this._account!;
+    const chainId = this._chainId;
+    const address = escrowAddr as `0x${string}`;
+    const tokenAddress = this._config?.lucidTokenAddress;
+    const self = this;
+
+    // Inline ABI snippets for the LucidEscrow contract
+    const ESCROW_ABI = [
+      {
+        name: 'createEscrow',
+        type: 'function' as const,
+        stateMutability: 'nonpayable' as const,
+        inputs: [
+          { name: 'beneficiary', type: 'address' as const },
+          { name: 'token', type: 'address' as const },
+          { name: 'amount', type: 'uint256' as const },
+          { name: 'duration', type: 'uint256' as const },
+          { name: 'expectedReceiptHash', type: 'bytes32' as const },
+        ],
+        outputs: [{ name: 'escrowId', type: 'bytes32' as const }],
+      },
+      {
+        name: 'releaseEscrow',
+        type: 'function' as const,
+        stateMutability: 'nonpayable' as const,
+        inputs: [
+          { name: 'escrowId', type: 'bytes32' as const },
+          { name: 'receiptHash', type: 'bytes32' as const },
+          { name: 'receiptSignature', type: 'bytes' as const },
+          { name: 'signerPubkey', type: 'bytes32' as const },
+        ],
+        outputs: [],
+      },
+      {
+        name: 'claimTimeout',
+        type: 'function' as const,
+        stateMutability: 'nonpayable' as const,
+        inputs: [{ name: 'escrowId', type: 'bytes32' as const }],
+        outputs: [],
+      },
+      {
+        name: 'disputeEscrow',
+        type: 'function' as const,
+        stateMutability: 'nonpayable' as const,
+        inputs: [
+          { name: 'escrowId', type: 'bytes32' as const },
+          { name: 'reason', type: 'string' as const },
+        ],
+        outputs: [],
+      },
+      {
+        name: 'getEscrow',
+        type: 'function' as const,
+        stateMutability: 'view' as const,
+        inputs: [{ name: 'escrowId', type: 'bytes32' as const }],
+        outputs: [
+          {
+            name: '',
+            type: 'tuple' as const,
+            components: [
+              { name: 'escrowId', type: 'bytes32' as const },
+              { name: 'depositor', type: 'address' as const },
+              { name: 'beneficiary', type: 'address' as const },
+              { name: 'token', type: 'address' as const },
+              { name: 'amount', type: 'uint256' as const },
+              { name: 'createdAt', type: 'uint256' as const },
+              { name: 'expiresAt', type: 'uint256' as const },
+              { name: 'expectedReceiptHash', type: 'bytes32' as const },
+              { name: 'status', type: 'uint8' as const },
+            ],
+          },
+        ],
+      },
+      {
+        name: 'EscrowCreated',
+        type: 'event' as const,
+        inputs: [
+          { name: 'escrowId', type: 'bytes32' as const, indexed: true },
+          { name: 'depositor', type: 'address' as const, indexed: true },
+          { name: 'beneficiary', type: 'address' as const, indexed: true },
+          { name: 'token', type: 'address' as const, indexed: false },
+          { name: 'amount', type: 'uint256' as const, indexed: false },
+          { name: 'expiresAt', type: 'uint256' as const, indexed: false },
+          { name: 'expectedReceiptHash', type: 'bytes32' as const, indexed: false },
+        ],
+      },
+    ] as const;
+
+    // EscrowCreated event topic: keccak256("EscrowCreated(bytes32,address,address,address,uint256,uint256,bytes32)")
+    const ESCROW_CREATED_TOPIC = '0x' +
+      'a1c3af5be5f02a43e79e07b2ea4497c8bfed1fb4e839927ded8b7e30d3e3bce5';
+
+    return {
+      async createEscrow(params) {
+        const token = tokenAddress;
+        if (!token) {
+          throw new Error(
+            `No lucidTokenAddress configured for chain ${chainId} — required for ERC-20 escrow`,
+          );
+        }
+
+        const receiptHashBytes = params.receiptHash
+          ? (params.receiptHash.startsWith('0x')
+              ? (params.receiptHash as `0x${string}`)
+              : (`0x${params.receiptHash}` as `0x${string}`))
+          : ('0x' + '00'.repeat(32)) as `0x${string}`;
+
+        const hash = await walletClient.writeContract({
+          address,
+          abi: ESCROW_ABI,
+          functionName: 'createEscrow',
+          args: [
+            params.payee as `0x${string}`,
+            token as `0x${string}`,
+            BigInt(params.amount),
+            BigInt(params.timeoutSeconds),
+            receiptHashBytes,
+          ],
+          account,
+        });
+
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        const tx: TxReceipt = {
+          hash,
+          chainId,
+          success: receipt.status === 'success',
+          blockNumber: Number(receipt.blockNumber),
+          gasUsed: receipt.gasUsed?.toString(),
+          gasPrice: receipt.effectiveGasPrice?.toString(),
+          raw: receipt,
+        };
+
+        // Extract escrowId from the EscrowCreated event log
+        let escrowId = hash; // fallback to tx hash if event parsing fails
+        const logs = (receipt as any).logs || [];
+        for (const log of logs) {
+          const logAddr = ((log as any).address || '').toLowerCase();
+          if (
+            logAddr === address.toLowerCase() &&
+            (log as any).topics?.[0]?.toLowerCase() === ESCROW_CREATED_TOPIC.toLowerCase() &&
+            (log as any).topics?.length >= 2
+          ) {
+            escrowId = (log as any).topics[1] as string;
+            break;
+          }
+        }
+
+        return { escrowId, tx };
+      },
+
+      async releaseEscrow(escrowId, receiptHash, signature) {
+        const escrowIdBytes = escrowId.startsWith('0x')
+          ? (escrowId as `0x${string}`)
+          : (`0x${escrowId}` as `0x${string}`);
+        const receiptHashBytes = receiptHash.startsWith('0x')
+          ? (receiptHash as `0x${string}`)
+          : (`0x${receiptHash}` as `0x${string}`);
+
+        // signature format: "sig_hex:pubkey_hex" — split into signature bytes and signer pubkey
+        const parts = signature.split(':');
+        const sigBytes = parts[0].startsWith('0x')
+          ? (parts[0] as `0x${string}`)
+          : (`0x${parts[0]}` as `0x${string}`);
+        const signerPubkey = parts.length > 1
+          ? (parts[1].startsWith('0x')
+              ? (parts[1] as `0x${string}`)
+              : (`0x${parts[1]}` as `0x${string}`))
+          : ('0x' + '00'.repeat(32)) as `0x${string}`;
+
+        const hash = await walletClient.writeContract({
+          address,
+          abi: ESCROW_ABI,
+          functionName: 'releaseEscrow',
+          args: [escrowIdBytes, receiptHashBytes, sigBytes, signerPubkey],
+          account,
+        });
+
+        return self.waitForTx(hash);
+      },
+
+      async claimTimeout(escrowId) {
+        const escrowIdBytes = escrowId.startsWith('0x')
+          ? (escrowId as `0x${string}`)
+          : (`0x${escrowId}` as `0x${string}`);
+
+        const hash = await walletClient.writeContract({
+          address,
+          abi: ESCROW_ABI,
+          functionName: 'claimTimeout',
+          args: [escrowIdBytes],
+          account,
+        });
+
+        return self.waitForTx(hash);
+      },
+
+      async disputeEscrow(escrowId, reason) {
+        const escrowIdBytes = escrowId.startsWith('0x')
+          ? (escrowId as `0x${string}`)
+          : (`0x${escrowId}` as `0x${string}`);
+
+        const hash = await walletClient.writeContract({
+          address,
+          abi: ESCROW_ABI,
+          functionName: 'disputeEscrow',
+          args: [escrowIdBytes, reason],
+          account,
+        });
+
+        return self.waitForTx(hash);
+      },
+    };
   }
 
   passports(): IPassportAdapter {
@@ -716,5 +939,17 @@ export class EVMAdapter implements IBlockchainAdapter {
           }
         : undefined,
     } as Chain;
+  }
+
+  capabilities(): ChainCapabilities {
+    return {
+      epoch: true,
+      passport: true,
+      escrow: !!this._config?.escrowContract,
+      verifyAnchor: true,
+      sessionKeys: false,
+      zkml: true,
+      paymaster: !!this._config?.paymaster,
+    };
   }
 }

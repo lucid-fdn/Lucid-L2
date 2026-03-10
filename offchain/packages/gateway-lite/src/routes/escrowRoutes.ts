@@ -110,7 +110,7 @@ escrowRouter.get('/v2/escrow/:chainId/:escrowId', async (req, res) => {
     const { escrowId } = req.params;
 
     const service = getEscrowService();
-    const info = service.getEscrow(escrowId);
+    const info = await service.getEscrow(escrowId);
 
     if (!info) {
       res.status(404).json({ success: false, error: 'Escrow not found' });

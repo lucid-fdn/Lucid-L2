@@ -1,6 +1,15 @@
 /**
  * Tests for EscrowService
  */
+
+// Mock DB pool so getEscrow/listEscrows don't require a real Postgres connection
+jest.mock('../../packages/engine/src/db/pool', () => ({
+  __esModule: true,
+  default: {
+    query: jest.fn().mockResolvedValue({ rows: [] }),
+  },
+}));
+
 import { EscrowService, getEscrowService } from '../services/finance/escrowService';
 import type { EscrowParams } from '../services/finance/escrowTypes';
 import { EscrowStatus } from '../services/finance/escrowTypes';
@@ -20,17 +29,17 @@ describe('EscrowService', () => {
   });
 
   describe('getEscrow', () => {
-    it('should return null for non-existent escrow', () => {
+    it('should return null for non-existent escrow', async () => {
       const service = getEscrowService();
-      const result = service.getEscrow('nonexistent_id');
+      const result = await service.getEscrow('nonexistent_id');
       expect(result).toBeNull();
     });
   });
 
   describe('listEscrows', () => {
-    it('should return empty array for unknown address', () => {
+    it('should return empty array for unknown address', async () => {
       const service = getEscrowService();
-      const result = service.listEscrows('0xunknown');
+      const result = await service.listEscrows('0xunknown');
       expect(result).toEqual([]);
     });
   });
