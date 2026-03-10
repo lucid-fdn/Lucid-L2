@@ -28,7 +28,7 @@ import type {
   AgentRegistration,
   AgentIdentity,
 } from '../types';
-import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter } from '../domain-interfaces';
+import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter, ChainCapabilities } from '../domain-interfaces';
 import { SolanaPassportClient } from '../../passport/nft/solana-token2022';
 
 // =============================================================================
@@ -785,9 +785,50 @@ export class SolanaAdapter implements IBlockchainAdapter {
         // Solana passport status updates go through passportSyncService.
         throw new Error('Solana passport status update uses passportSyncService — call syncPassportToChain() directly');
       },
-      async verifyAnchor(_passportId, _contentHash) {
-        // Requires reading from the Solana PDA directly — not yet implemented.
-        throw new Error('Solana passport verification not yet implemented — PDA reads needed');
+      async verifyAnchor(passportId, contentHash) {
+        try {
+          // Look up the passport from the store to find the on-chain PDA address
+          const { getPassportStore } = await import('../../storage/passportStore');
+          const store = getPassportStore();
+          const passport = await store.get(passportId);
+
+          if (!passport) {
+            // Passport not found in the local store — cannot verify
+            return false;
+          }
+
+          const pdaAddress = passport.on_chain_pda;
+          if (!pdaAddress) {
+            // Passport has never been synced to chain — nothing to verify against
+            return false;
+          }
+
+          // Use PassportSyncService to fetch the deserialized on-chain account via Anchor IDL
+          const { getPassportSyncService } = await import('../../passport/passportSyncService');
+          const syncService = getPassportSyncService();
+          const onChainData = await syncService.getOnChainPassport(pdaAddress);
+
+          if (!onChainData) {
+            // Account does not exist on-chain (closed or never created)
+            return false;
+          }
+
+          // on-chain content_hash is [u8; 32] — Anchor deserializes it as number[]
+          const onChainHash: number[] = onChainData.contentHash;
+          if (!onChainHash || !Array.isArray(onChainHash) || onChainHash.length !== 32) {
+            return false;
+          }
+
+          // Normalize the provided contentHash to a comparable hex string
+          // Accept hex strings with or without 0x prefix
+          const providedHex = contentHash.replace(/^0x/, '').toLowerCase();
+          const onChainHex = Buffer.from(onChainHash).toString('hex').toLowerCase();
+
+          return providedHex === onChainHex;
+        } catch {
+          // Any error (network, deserialization, missing IDL, etc.) → not verified
+          return false;
+        }
       },
       async setPaymentGate(passportId, priceNative, priceLucid) {
         const { getPaymentGateService } = await import('../../finance/paymentGateService');
@@ -907,5 +948,17 @@ export class SolanaAdapter implements IBlockchainAdapter {
     }
 
     return null;
+  }
+
+  capabilities(): ChainCapabilities {
+    return {
+      epoch: true,
+      passport: true,
+      escrow: true,
+      verifyAnchor: true,
+      sessionKeys: true,
+      zkml: false,
+      paymaster: false,
+    };
   }
 }

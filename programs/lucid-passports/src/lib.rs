@@ -209,8 +209,12 @@ pub mod lucid_passports {
         system_program::transfer(cpi_context, price)?;
 
         // Update gate stats
-        gate.total_revenue = gate.total_revenue.checked_add(price).unwrap();
-        gate.total_accesses = gate.total_accesses.checked_add(1).unwrap();
+        gate.total_revenue = gate.total_revenue
+            .checked_add(price)
+            .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
+        gate.total_accesses = gate.total_accesses
+            .checked_add(1)
+            .ok_or(error!(ErrorCode::ArithmeticOverflow))?;
 
         // Create access receipt
         let receipt = &mut ctx.accounts.access_receipt;
@@ -775,4 +779,6 @@ pub enum ErrorCode {
     AccessAlreadyGranted,
     #[msg("Unauthorized withdrawal attempt")]
     UnauthorizedWithdrawal,
+    #[msg("Arithmetic overflow")]
+    ArithmeticOverflow,
 }

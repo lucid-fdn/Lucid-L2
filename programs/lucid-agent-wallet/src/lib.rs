@@ -591,6 +591,9 @@ pub struct ReleaseEscrow<'info> {
     pub escrow: Account<'info, EscrowRecord>,
     pub wallet: Account<'info, AgentWallet>,
     /// Either the depositor or the wallet owner can release
+    #[account(
+        constraint = (releaser.key() == escrow.depositor || releaser.key() == wallet.owner) @ ErrorCode::Unauthorized
+    )]
     pub releaser: Signer<'info>,
     /// Escrow token account
     #[account(mut)]
@@ -606,6 +609,9 @@ pub struct ClaimTimeout<'info> {
     #[account(mut, has_one = wallet)]
     pub escrow: Account<'info, EscrowRecord>,
     pub wallet: Account<'info, AgentWallet>,
+    #[account(
+        constraint = claimer.key() == escrow.depositor @ ErrorCode::Unauthorized
+    )]
     pub claimer: Signer<'info>,
     /// Escrow token account
     #[account(mut)]
@@ -620,11 +626,12 @@ pub struct ClaimTimeout<'info> {
 pub struct DisputeEscrow<'info> {
     #[account(mut, has_one = wallet)]
     pub escrow: Account<'info, EscrowRecord>,
-    #[account(has_one = owner)]
     pub wallet: Account<'info, AgentWallet>,
     /// Either depositor or beneficiary can dispute
+    #[account(
+        constraint = (disputer.key() == escrow.depositor || disputer.key() == escrow.beneficiary) @ ErrorCode::Unauthorized
+    )]
     pub disputer: Signer<'info>,
-    pub owner: Signer<'info>,
 }
 
 // ============================================================================
@@ -771,4 +778,6 @@ pub enum ErrorCode {
     EscrowNotExpired,
     #[msg("Dispute reason too long (max 256 chars)")]
     ReasonTooLong,
+    #[msg("Unauthorized: signer is not depositor, beneficiary, or wallet owner")]
+    Unauthorized,
 }

@@ -11,7 +11,7 @@
  * 5. If no share token: direct to agent owner wallet
  */
 
-import type { SplitConfig } from '../../finance/payoutService';
+import type { SplitConfig } from '../finance/payoutService';
 
 export interface AgentRevenuePool {
   agent_passport_id: string;
@@ -53,7 +53,7 @@ export async function processAgentRevenue(receipt: {
 }): Promise<void> {
   // Lazy import to avoid circular dependencies
   const { createPayoutFromReceipt, storePayout } = await import(
-    '../../finance/payoutService'
+    '../finance/payoutService'
   );
 
   // 1. Calculate payout split using agent-specific config
