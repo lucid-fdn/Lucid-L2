@@ -208,24 +208,23 @@ app.use('/api/solana', solanaRouter);
 // Mount health check routes
 app.use('/health', healthRouter);
 
-// Mount Identity Bridge routes (CAIP-10 cross-chain identity)
-app.use('/', identityBridgeRouter);
-
 // Mount Cross-Chain Bridge routes (LayerZero OFT $LUCID)
 app.use('/', bridgeRouter);
 
-// Mount Reputation Marketplace routes
-app.use('/', reputationMarketplaceRouter);
-
-// Mount TBA routes (ERC-6551 Token Bound Accounts)
-app.use('/', tbaRouter);
-
-// Mount Phase 3 routes
-app.use('/', escrowRouter);
-app.use('/', disputeRouter);
-app.use('/', paymasterRouter);
-app.use('/', erc7579Router);
-app.use('/', zkmlRouter);
+// ─── Preview / Phase 3 routes ───────────────────────────────────────────
+// These are gated behind PREVIEW_ROUTES_ENABLED. In production, they are
+// disabled by default. Enable with PREVIEW_ROUTES_ENABLED=true for dev/devnet.
+if (process.env.PREVIEW_ROUTES_ENABLED === 'true') {
+  app.use('/', identityBridgeRouter);     // CAIP-10 cross-chain identity
+  app.use('/', reputationMarketplaceRouter); // Reputation marketplace
+  app.use('/', tbaRouter);                // ERC-6551 Token Bound Accounts
+  app.use('/', escrowRouter);             // Trustless escrow
+  app.use('/', disputeRouter);            // Dispute resolution
+  app.use('/', paymasterRouter);          // ERC-4337 gas sponsorship
+  app.use('/', erc7579Router);            // ERC-7579 smart account modules
+  app.use('/', zkmlRouter);               // zkML proof verification
+  console.log('[gateway-lite] Preview routes enabled (identity, reputation, TBA, escrow, dispute, paymaster, erc7579, zkml)');
+}
 
 // Mount Agent Deployment pipeline routes
 app.use('/', agentDeployRouter);

@@ -169,6 +169,11 @@ export interface IAgentWalletAdapter {
     passportRef: string,
   ): Promise<{ walletAddress: string; tx: TxReceipt }>;
 
+  /** Query the native balance of an agent wallet */
+  getBalance(
+    passportId: string,
+  ): Promise<{ balance: string; currency: string }>;
+
   /** Execute an instruction from the agent wallet */
   execute(
     walletAddress: string,

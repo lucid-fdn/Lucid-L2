@@ -2,6 +2,7 @@
 // EVM NFT provider — wraps existing EVMAdapter.registerAgent() + TBA service
 
 import { INFTProvider, MintResult, NFTMetadata } from './INFTProvider';
+import { ChainFeatureUnavailable } from '../../errors';
 
 export class EVMNFTProvider implements INFTProvider {
   readonly providerName = 'evm-erc721';
@@ -59,11 +60,11 @@ export class EVMNFTProvider implements INFTProvider {
   }
 
   async burn(_mint: string): Promise<string> {
-    throw new Error('EVM NFT burn not yet implemented');
+    throw new ChainFeatureUnavailable('NFT burn', 'evm');
   }
 
   async updateMetadata(_mint: string, _newMetadata: Partial<NFTMetadata>): Promise<string> {
-    throw new Error('EVM NFT metadata update not yet implemented');
+    throw new ChainFeatureUnavailable('NFT metadata update', 'evm');
   }
 
   async getAsset(mint: string): Promise<any | null> {

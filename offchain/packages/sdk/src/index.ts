@@ -4,13 +4,19 @@ export type {
   LucidConfig,
   SolanaChainConfig,
   EVMChainConfig,
+  DeployerTarget,
+  NFTProvider,
+  DepinProvider,
   PassportNamespace,
   ReceiptNamespace,
   EpochNamespace,
   AgentNamespace,
+  AgentDeployOpts,
+  WalletBalance,
   PaymentNamespace,
   DeployNamespace,
   CryptoNamespace,
+  MMRNamespace,
   ChainNamespace,
   PreviewNamespace,
 } from './lucid';
@@ -29,3 +35,7 @@ export {
   TimeoutError,
   RateLimitError,
 } from '@lucid-l2/engine';
+
+// Re-export retry/timeout utilities
+export { withRetry, withTimeout, withRetryAndTimeout } from '@lucid-l2/engine';
+export type { RetryOptions } from '@lucid-l2/engine';

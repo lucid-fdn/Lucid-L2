@@ -6,7 +6,26 @@
  * payments, deploy, crypto, and chain operations.
  */
 
-import type { ChainCapabilities } from '@lucid-l2/engine';
+import type {
+  ChainCapabilities,
+  CreatePassportInput,
+  OperationResult,
+  SignedReceipt,
+  RunReceiptInput,
+  Epoch,
+  EpochStatus,
+  AnchorResult,
+  DeploymentResult,
+  DeploymentStatus,
+  RuntimeArtifact,
+  LogOptions,
+  DeployAgentInput,
+  DeployAgentResult,
+  AgentRevenuePool,
+  MMRProof,
+  TxReceipt,
+  ChainHealthStatus,
+} from '@lucid-l2/engine';
 
 // =============================================================================
 // Config Types
@@ -22,6 +41,10 @@ export interface EVMChainConfig {
   rpc: string;
   privateKey?: string;
 }
+
+export type DeployerTarget = 'docker' | 'railway' | 'akash' | 'phala' | 'ionet' | 'nosana';
+export type NFTProvider = 'token2022' | 'metaplex-core' | 'evm-erc721' | 'mock';
+export type DepinProvider = 'arweave' | 'lighthouse' | 'mock';
 
 export interface LucidConfig {
   /** Ed25519 secret key (hex) for receipt signing */
@@ -40,16 +63,22 @@ export interface LucidConfig {
   db?: string;
 
   /** NFT minting provider */
-  nftProvider?: 'token2022' | 'metaplex-core' | 'evm-erc721' | 'mock';
+  nftProvider?: NFTProvider;
 
   /** Default agent deployment target */
-  deployTarget?: 'docker' | 'railway' | 'akash' | 'phala' | 'ionet' | 'nosana';
+  deployTarget?: DeployerTarget;
 
   /** DePIN storage provider */
-  depinStorage?: 'arweave' | 'lighthouse' | 'mock';
+  depinStorage?: DepinProvider;
 
   /** Custom logger (defaults to console) */
   logger?: { info: Function; warn: Function; error: Function };
+
+  /** Retry config for transient failures. Set to false to disable. */
+  retry?: { maxRetries?: number; baseDelayMs?: number } | false;
+
+  /** Timeout in ms for async operations (default: 30000). Set to 0 to disable. */
+  timeout?: number;
 }
 
 // =============================================================================
@@ -57,54 +86,64 @@ export interface LucidConfig {
 // =============================================================================
 
 export interface PassportNamespace {
-  create(params: any): Promise<any>;
-  get(passportId: string): Promise<any>;
-  update(passportId: string, params: any): Promise<any>;
-  list(params?: any): Promise<any[]>;
-  anchor(passportId: string, opts?: { chains?: string[] }): Promise<any>;
-  setPaymentGate(passportId: string, params: { price: number; priceLucid?: number }): Promise<any>;
+  create(params: CreatePassportInput): Promise<OperationResult<unknown>>;
+  get(passportId: string): Promise<Record<string, unknown> | null>;
+  update(passportId: string, params: Partial<CreatePassportInput>): Promise<OperationResult<unknown>>;
+  list(params?: Record<string, unknown>): Promise<Record<string, unknown>[]>;
+  anchor(passportId: string, opts?: { chains?: string[] }): Promise<PromiseSettledResult<TxReceipt>[]>;
+  setPaymentGate(passportId: string, params: { price: number; priceLucid?: number }): Promise<string>;
 }
 
 export interface ReceiptNamespace {
-  create(params: any): Promise<any>;
-  get(receiptId: string): Promise<any>;
+  create(params: RunReceiptInput): Promise<SignedReceipt>;
+  get(receiptId: string): Promise<SignedReceipt | null>;
   verify(receiptId: string): Promise<boolean>;
-  prove(receiptId: string): Promise<any>;
-  list(params?: any): Promise<any[]>;
+  prove(receiptId: string): Promise<MMRProof | null>;
+  list(params?: Record<string, unknown>): Promise<SignedReceipt[]>;
 }
 
 export interface EpochNamespace {
-  current(): Promise<any>;
-  finalize(epochId: string): Promise<any>;
-  anchor(epochId: string): Promise<any>;
+  current(): Promise<Epoch | null>;
+  finalize(epochId: string): Promise<Epoch>;
+  anchor(epochId: string): Promise<AnchorResult>;
   verify(epochId: string, chain: string): Promise<boolean>;
-  list(): Promise<any[]>;
+  list(): Promise<Epoch[]>;
+}
+
+export interface AgentDeployOpts {
+  env?: Record<string, string>;
+  [key: string]: unknown;
+}
+
+export interface WalletBalance {
+  balance: string;
+  currency: string;
 }
 
 export interface AgentNamespace {
-  deploy(passportId: string, target: string, opts?: any): Promise<any>;
-  status(passportId: string): Promise<any>;
-  logs(passportId: string, opts?: any): Promise<string[]>;
+  deploy(passportId: string, target: DeployerTarget, opts?: AgentDeployOpts): Promise<DeployAgentResult>;
+  status(passportId: string): Promise<DeploymentStatus>;
+  logs(passportId: string, opts?: LogOptions): Promise<string[]>;
   terminate(passportId: string): Promise<void>;
   wallet: {
-    create(passportId: string): Promise<any>;
-    balance(passportId: string): Promise<any>;
+    create(passportId: string): Promise<{ walletAddress: string; tx: TxReceipt }>;
+    balance(passportId: string): Promise<WalletBalance>;
   };
   marketplace: {
-    list(passportId: string): Promise<any>;
+    list(passportId: string): Promise<AgentRevenuePool | null>;
   };
 }
 
 export interface PaymentNamespace {
-  createGrant(params: any): Promise<any>;
+  createGrant(params: Record<string, unknown>): Promise<Record<string, unknown>>;
   verifyGrant(grantHeader: string): Promise<boolean>;
-  calculateSplit(receipt: any): Promise<any>;
-  settle(epochId: string): Promise<any>;
+  calculateSplit(receipt: SignedReceipt): Promise<Record<string, unknown>>;
+  settle(epochId: string): Promise<Record<string, unknown>>;
 }
 
 export interface DeployNamespace {
-  build(passportId: string, artifact: any): Promise<any>;
-  push(passportId: string, tag: string): Promise<any>;
+  build(passportId: string, artifact: RuntimeArtifact): Promise<DeploymentResult>;
+  push(passportId: string, tag: string): Promise<DeploymentResult>;
   targets(): string[];
 }
 
@@ -112,24 +151,34 @@ export interface CryptoNamespace {
   hash(data: string | Buffer): string;
   sign(message: string | Buffer): string;
   verify(signature: string, publicKey: string, message: string | Buffer): boolean;
-  canonicalJson(obj: any): string;
-  mmr: {
-    append(leaf: string): void;
-    root(): string;
-    prove(index: number): any;
-  };
+  canonicalJson(obj: unknown): string;
+  mmr: MMRNamespace;
+}
+
+export interface MMRNamespace {
+  /** Append a leaf hash and return the new root (hex) */
+  append(leaf: string): string;
+  /** Get the current MMR root (hex) */
+  root(): string;
+  /** Generate an inclusion proof for the leaf at the given index */
+  prove(index: number): MMRProof | null;
+  /** Reset the MMR state */
+  reset(): void;
+  /** Get the current number of nodes in the MMR */
+  size(): number;
 }
 
 export interface ChainNamespace {
   capabilities(chain: string): ChainCapabilities;
-  health(chain: string): Promise<any>;
-  adapter(chain: string): any;
+  health(chain: string): Promise<ChainHealthStatus>;
+  /** Returns a Promise resolving to the raw blockchain adapter */
+  adapter(chain: string): Promise<unknown>;
 }
 
 export interface PreviewNamespace {
-  readonly reputation: any;
-  readonly identity: any;
-  readonly zkml: any;
+  readonly reputation: Record<string, unknown>;
+  readonly identity: Record<string, unknown>;
+  readonly zkml: Record<string, unknown>;
 }
 
 // =============================================================================
@@ -140,6 +189,18 @@ export class Lucid {
   private _config: LucidConfig;
   private _previewWarned = false;
   private _preview: PreviewNamespace | null = null;
+
+  /** Wrap an async call with the configured retry + timeout policy */
+  private _wrap<T>(fn: () => Promise<T>): Promise<T> {
+    const { withRetryAndTimeout } = require('@lucid-l2/engine');
+    const retryOpts = this._config.retry === false
+      ? { maxRetries: 0 }
+      : this._config.retry || undefined;
+    const timeoutMs = this._config.timeout === 0
+      ? undefined
+      : (this._config.timeout ?? 30_000);
+    return withRetryAndTimeout(fn, retryOpts, timeoutMs);
+  }
 
   readonly passport: PassportNamespace;
   readonly receipt: ReceiptNamespace;
@@ -175,6 +236,42 @@ export class Lucid {
     this.chain = this._buildChainNamespace();
   }
 
+  /**
+   * Create a Lucid instance from environment variables.
+   *
+   * Reads: LUCID_ORCHESTRATOR_SECRET_KEY, SOLANA_RPC_URL, EVM_RPC_URL,
+   * EVM_PRIVATE_KEY, DATABASE_URL, NFT_PROVIDER, DEPLOY_TARGET,
+   * DEPIN_PERMANENT_PROVIDER, ANCHORING_CHAINS
+   */
+  static fromEnv(): Lucid {
+    const orchestratorKey = process.env.LUCID_ORCHESTRATOR_SECRET_KEY;
+    if (!orchestratorKey) throw new Error('LUCID_ORCHESTRATOR_SECRET_KEY is required');
+
+    const chains: LucidConfig['chains'] = {};
+    if (process.env.SOLANA_RPC_URL) {
+      chains.solana = { rpc: process.env.SOLANA_RPC_URL };
+    }
+    if (process.env.EVM_RPC_URL) {
+      chains.evm = {
+        rpc: process.env.EVM_RPC_URL,
+        ...(process.env.EVM_PRIVATE_KEY && { privateKey: process.env.EVM_PRIVATE_KEY }),
+      };
+    }
+    if (!chains.solana && !chains.evm) {
+      throw new Error('At least one of SOLANA_RPC_URL or EVM_RPC_URL must be set');
+    }
+
+    return new Lucid({
+      orchestratorKey,
+      chains,
+      db: process.env.DATABASE_URL,
+      anchoringChains: process.env.ANCHORING_CHAINS?.split(',').filter(Boolean),
+      nftProvider: (process.env.NFT_PROVIDER as NFTProvider) || undefined,
+      deployTarget: (process.env.DEPLOY_TARGET as DeployerTarget) || undefined,
+      depinStorage: (process.env.DEPIN_PERMANENT_PROVIDER as DepinProvider) || undefined,
+    });
+  }
+
   get preview(): PreviewNamespace {
     if (!this._previewWarned) {
       (this._config.logger || console).warn(
@@ -201,158 +298,163 @@ export class Lucid {
     };
 
     return {
-      create: (params) => getManager().createPassport(params),
-      get: (id) => getManager().getPassport(id),
-      update: (id, params) => getManager().updatePassport(id, params),
-      list: (params) => getManager().listPassports(params),
+      create: (params) => this._wrap(() => getManager().createPassport(params)),
+      get: (id) => this._wrap(() => getManager().getPassport(id)),
+      update: (id, params) => this._wrap(() => getManager().updatePassport(id, params)),
+      list: (params) => this._wrap(() => getManager().listPassports(params)),
       anchor: async (id, opts) => {
         const { blockchainAdapterFactory } = require('@lucid-l2/engine');
         const chains = opts?.chains || this._config.anchoringChains || [];
-        const results = await Promise.allSettled(
+        return Promise.allSettled(
           chains.map(async (chain: string) => {
-            const adapter = await blockchainAdapterFactory.getAdapter(chain);
-            return adapter.passports().anchorPassport(id, '', '');
+            return this._wrap(async () => {
+              const adapter = await blockchainAdapterFactory.getAdapter(chain);
+              return adapter.passports().anchorPassport(id, '', '');
+            });
           }),
         );
-        return results;
       },
-      setPaymentGate: async (id, params) => {
+      setPaymentGate: (id, params) => this._wrap(async () => {
         const { getPaymentGateService } = require('@lucid-l2/engine');
         return getPaymentGateService().setPaymentGate(id, params.price, params.priceLucid || 0);
-      },
+      }),
     };
   }
 
   private _buildReceiptNamespace(): ReceiptNamespace {
     return {
-      create: async (params) => {
+      create: (params) => this._wrap(() => {
         const { createReceipt } = require('@lucid-l2/engine');
         return createReceipt(params);
-      },
-      get: async (id) => {
+      }),
+      get: (id) => this._wrap(() => {
         const { getReceipt } = require('@lucid-l2/engine');
         return getReceipt(id);
-      },
-      verify: async (id) => {
+      }),
+      verify: (id) => this._wrap(() => {
         const { verifyReceipt } = require('@lucid-l2/engine');
         return verifyReceipt(id);
-      },
-      prove: async (id) => {
+      }),
+      prove: (id) => this._wrap(() => {
         const { getReceiptProof } = require('@lucid-l2/engine');
         return getReceiptProof(id);
-      },
-      list: async (params) => {
+      }),
+      list: (params) => this._wrap(() => {
         const { listReceipts } = require('@lucid-l2/engine');
         return listReceipts(params);
-      },
+      }),
     };
   }
 
   private _buildEpochNamespace(): EpochNamespace {
     return {
-      current: async () => {
+      current: () => this._wrap(() => {
         const { getCurrentEpoch } = require('@lucid-l2/engine');
         return getCurrentEpoch();
-      },
-      finalize: async (id) => {
+      }),
+      finalize: (id) => this._wrap(() => {
         const { finalizeEpoch } = require('@lucid-l2/engine');
         return finalizeEpoch(id);
-      },
-      anchor: async (id) => {
+      }),
+      anchor: (id) => this._wrap(() => {
         const { commitEpochRoot } = require('@lucid-l2/engine');
         return commitEpochRoot(id);
-      },
-      verify: async (id, chain) => {
+      }),
+      verify: (id, chain) => this._wrap(async () => {
         const { blockchainAdapterFactory } = require('@lucid-l2/engine');
         const adapter = await blockchainAdapterFactory.getAdapter(chain);
         return adapter.epochs().verifyEpoch('', 0, id);
-      },
-      list: async () => {
+      }),
+      list: () => this._wrap(() => {
         const { getAllEpochs } = require('@lucid-l2/engine');
         return getAllEpochs();
-      },
+      }),
     };
   }
 
   private _buildAgentNamespace(): AgentNamespace {
-    const config = this._config;
     return {
-      deploy: async (passportId, target, opts) => {
+      deploy: (passportId, target, opts) => this._wrap(async () => {
         const { getAgentDeploymentService } = require('@lucid-l2/engine');
-        const svc = getAgentDeploymentService();
-        return svc.deploy({ passportId, target: target as any, ...opts });
-      },
-      status: async (passportId) => {
+        return getAgentDeploymentService().deploy({ passportId, target, ...opts });
+      }),
+      status: (passportId) => this._wrap(async () => {
         const { getAgentDeploymentService } = require('@lucid-l2/engine');
-        const svc = getAgentDeploymentService();
-        return svc.status(passportId);
-      },
-      logs: async (passportId, opts) => {
+        return getAgentDeploymentService().status(passportId);
+      }),
+      logs: (passportId, opts) => this._wrap(async () => {
         const { getAgentDeploymentService } = require('@lucid-l2/engine');
-        const svc = getAgentDeploymentService();
-        return svc.logs(passportId, opts);
-      },
-      terminate: async (passportId) => {
+        return getAgentDeploymentService().logs(passportId, opts);
+      }),
+      terminate: (passportId) => this._wrap(async () => {
         const { getAgentDeploymentService } = require('@lucid-l2/engine');
-        const svc = getAgentDeploymentService();
-        return svc.terminate(passportId);
-      },
+        return getAgentDeploymentService().terminate(passportId);
+      }),
       wallet: {
-        create: async (passportId) => {
+        create: (passportId) => this._wrap(async () => {
           const { blockchainAdapterFactory } = require('@lucid-l2/engine');
           const adapter = await blockchainAdapterFactory.getAdapter('solana-devnet');
           const walletAdapter = adapter.agentWallet?.();
           if (!walletAdapter) throw new Error('Agent wallet not available on this chain');
           return walletAdapter.createWallet(passportId);
-        },
-        balance: async (_passportId) => {
-          // Agent wallet balance requires looking up the PDA and querying token accounts
-          return { balance: '0', currency: 'SOL' };
+        }),
+        balance: async (passportId) => {
+          try {
+            return await this._wrap(async () => {
+              const { blockchainAdapterFactory } = require('@lucid-l2/engine');
+              const adapter = await blockchainAdapterFactory.getAdapter('solana-devnet');
+              const walletAdapter = adapter.agentWallet?.();
+              if (!walletAdapter) return { balance: '0', currency: 'SOL' };
+              return walletAdapter.getBalance(passportId);
+            });
+          } catch {
+            return { balance: '0', currency: 'SOL' };
+          }
         },
       },
       marketplace: {
-        list: async (passportId) => {
+        list: (passportId) => this._wrap(async () => {
           const { getAgentRevenuePool } = require('@lucid-l2/engine');
           return getAgentRevenuePool(passportId);
-        },
+        }),
       },
     };
   }
 
   private _buildPaymentNamespace(): PaymentNamespace {
     return {
-      createGrant: async (params) => {
+      createGrant: (params) => this._wrap(async () => {
         const { getPaymentGateService } = require('@lucid-l2/engine');
         return getPaymentGateService().createGrant(params);
-      },
-      verifyGrant: async (header) => {
+      }),
+      verifyGrant: (header) => this._wrap(async () => {
         const { getPaymentGateService } = require('@lucid-l2/engine');
         return getPaymentGateService().verifyGrant(header);
-      },
-      calculateSplit: async (receipt) => {
+      }),
+      calculateSplit: (receipt) => this._wrap(async () => {
         const { calculatePayoutSplit } = require('@lucid-l2/engine');
         return calculatePayoutSplit(receipt);
-      },
-      settle: async (epochId) => {
+      }),
+      settle: (epochId) => this._wrap(async () => {
         const { executePayoutSplit } = require('@lucid-l2/engine');
         return executePayoutSplit(epochId);
-      },
+      }),
     };
   }
 
   private _buildDeployNamespace(): DeployNamespace {
     const config = this._config;
     return {
-      build: async (passportId, artifact) => {
+      build: (passportId, artifact) => this._wrap(async () => {
         const { getDeployer } = require('@lucid-l2/engine');
         const deployer = getDeployer(config.deployTarget || 'docker');
         return deployer.build(passportId, artifact);
-      },
-      push: async (passportId, tag) => {
+      }),
+      push: (passportId, tag) => this._wrap(async () => {
         const { getDeployer } = require('@lucid-l2/engine');
         const deployer = getDeployer(config.deployTarget || 'docker');
         return deployer.push(passportId, tag);
-      },
+      }),
       targets: () => {
         const { listDeployerTargets } = require('@lucid-l2/engine');
         return listDeployerTargets();
@@ -361,6 +463,16 @@ export class Lucid {
   }
 
   private _buildCryptoNamespace(): CryptoNamespace {
+    // Persistent MerkleTree instance — survives across calls
+    let _mmrInstance: any = null;
+    const getMMR = () => {
+      if (!_mmrInstance) {
+        const { AgentMerkleTree } = require('@lucid-l2/engine');
+        _mmrInstance = new AgentMerkleTree();
+      }
+      return _mmrInstance;
+    };
+
     return {
       hash: (data) => {
         const { sha256Hex } = require('@lucid-l2/engine');
@@ -380,19 +492,23 @@ export class Lucid {
       },
       mmr: {
         append: (leaf) => {
-          const { AgentMMR } = require('@lucid-l2/engine');
-          const mmr = new AgentMMR();
-          mmr.append(leaf);
+          const mmr = getMMR();
+          const leafBuf = Buffer.from(leaf, 'hex');
+          const root = mmr.append(leafBuf);
+          return root.toString('hex');
         },
         root: () => {
-          const { AgentMMR } = require('@lucid-l2/engine');
-          const mmr = new AgentMMR();
-          return mmr.getRoot();
+          return getMMR().getRoot().toString('hex');
         },
         prove: (idx) => {
-          const { AgentMMR } = require('@lucid-l2/engine');
-          const mmr = new AgentMMR();
-          return mmr.generateProof(idx);
+          return getMMR().generateProof(idx);
+        },
+        reset: () => {
+          const { AgentMerkleTree } = require('@lucid-l2/engine');
+          _mmrInstance = new AgentMerkleTree();
+        },
+        size: () => {
+          return getMMR().getSize();
         },
       },
     };
@@ -406,38 +522,38 @@ export class Lucid {
           const adapter = blockchainAdapterFactory.getAdapterSync?.(chain);
           if (adapter) return adapter.capabilities();
         } catch {
-          // Adapter not configured
+          // Adapter not configured — fall through to static map
         }
 
-        // Fallback: static capability map
+        // Fallback: conservative static capability map (matches actual adapter defaults)
         if (chain.includes('solana') || chain === 'solana') {
-          return { epoch: true, passport: true, escrow: true, verifyAnchor: true, sessionKeys: true, zkml: false, paymaster: false };
+          return { epoch: true, passport: true, escrow: false, verifyAnchor: true, sessionKeys: false, zkml: false, paymaster: false };
         }
-        // EVM chains
-        return { epoch: true, passport: true, escrow: false, verifyAnchor: true, sessionKeys: false, zkml: true, paymaster: true };
+        // EVM chains — conservative defaults (contract-dependent features default to false)
+        return { epoch: true, passport: true, escrow: false, verifyAnchor: true, sessionKeys: false, zkml: true, paymaster: false };
       },
-      health: async (chain) => {
+      health: (chain) => this._wrap(async () => {
         const { blockchainAdapterFactory } = require('@lucid-l2/engine');
         const adapter = await blockchainAdapterFactory.getAdapter(chain);
         return adapter.checkHealth();
-      },
-      adapter: (chain) => {
+      }),
+      adapter: (chain) => this._wrap(async () => {
         const { blockchainAdapterFactory } = require('@lucid-l2/engine');
         return blockchainAdapterFactory.getAdapter(chain);
-      },
+      }),
     };
   }
 
   private _buildPreviewNamespace(): PreviewNamespace {
     return {
       get reputation() {
-        return require('@lucid-l2/engine/reputation');
+        try { return require('@lucid-l2/engine/reputation'); } catch { return {}; }
       },
       get identity() {
-        return require('@lucid-l2/engine/identity');
+        try { return require('@lucid-l2/engine/identity'); } catch { return {}; }
       },
       get zkml() {
-        return {};
+        try { return require('@lucid-l2/engine/zkml'); } catch { return {}; }
       },
     };
   }

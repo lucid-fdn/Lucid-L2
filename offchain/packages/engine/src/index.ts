@@ -99,3 +99,7 @@ export { getTokenLauncher } from './assets/shares';
 
 // ─── DePIN Storage ──────────────────────────────────────────────────────────
 export { getPermanentStorage, getEvolvingStorage } from './storage/depin';
+
+// ─── Utils ─────────────────────────────────────────────────────────────────
+export { withRetry, withTimeout, withRetryAndTimeout } from './utils/retry';
+export type { RetryOptions } from './utils/retry';

@@ -22,6 +22,9 @@ const lucid = new Lucid({
   },
 });
 
+// Or create from environment variables:
+// const lucid = Lucid.fromEnv();
+
 // Register an AI model passport
 const passport = await lucid.passport.create({
   name: 'my-model',
@@ -43,10 +46,10 @@ const receipt = await lucid.receipt.create({
 // Verify a receipt (signature + hash integrity)
 const valid = await lucid.receipt.verify(receipt.receipt_id);
 
-// Check chain capabilities
+// Check chain capabilities before calling chain-specific features
 const caps = lucid.chain.capabilities('solana');
 console.log(caps);
-// { epoch: true, passport: true, escrow: true, sessionKeys: true, zkml: false, paymaster: false }
+// { epoch: true, passport: true, escrow: false, sessionKeys: false, zkml: false, paymaster: false, verifyAnchor: true }
 ```
 
 ## Namespaces
@@ -121,7 +124,7 @@ await lucid.agent.terminate('passport-abc');
 
 // Agent PDA wallets (Solana)
 const wallet = await lucid.agent.wallet.create('passport-abc');
-const balance = await lucid.agent.wallet.balance('passport-abc');
+const { balance, currency } = await lucid.agent.wallet.balance('passport-abc');
 ```
 
 ### Cryptographic Primitives
@@ -138,10 +141,29 @@ const valid = lucid.crypto.verify(signature, publicKey, 'message to sign');
 const canonical = lucid.crypto.canonicalJson({ b: 2, a: 1 });
 // '{"a":1,"b":2}'
 
-// MMR operations
-lucid.crypto.mmr.append(hash);
-const root = lucid.crypto.mmr.root();
-const proof = lucid.crypto.mmr.prove(0);
+// MMR operations (stateful — persists across calls)
+const root1 = lucid.crypto.mmr.append(hash);  // Returns new root hex
+const root2 = lucid.crypto.mmr.root();          // Same root
+const proof = lucid.crypto.mmr.prove(0);         // Inclusion proof
+const size = lucid.crypto.mmr.size();            // Node count
+lucid.crypto.mmr.reset();                        // Clear state
+```
+
+### Chain Capabilities
+
+Before calling chain-specific features, check what's available:
+
+```typescript
+const caps = lucid.chain.capabilities('solana-devnet');
+if (caps.escrow) {
+  // Safe to call escrow methods
+}
+if (caps.sessionKeys) {
+  // Session key support available
+}
+
+// Get a chain adapter (returns a Promise)
+const adapter = await lucid.chain.adapter('solana-devnet');
 ```
 
 ## Preview
@@ -162,6 +184,23 @@ You can also import preview features directly:
 ```typescript
 import { getReputation, getIdentity, getZkml } from '@lucid-l2/sdk/preview';
 ```
+
+## `Lucid.fromEnv()`
+
+Create a Lucid instance entirely from environment variables:
+
+```typescript
+import { Lucid } from '@lucid-l2/sdk';
+
+const lucid = Lucid.fromEnv();
+```
+
+Required env vars:
+- `LUCID_ORCHESTRATOR_SECRET_KEY` — Ed25519 secret key (hex)
+- At least one of: `SOLANA_RPC_URL`, `EVM_RPC_URL`
+
+Optional env vars:
+- `EVM_PRIVATE_KEY`, `DATABASE_URL`, `NFT_PROVIDER`, `DEPLOY_TARGET`, `DEPIN_PERMANENT_PROVIDER`, `ANCHORING_CHAINS`
 
 ## Subpath Imports
 
@@ -288,6 +327,35 @@ Every error includes:
 - **`cause`** -- optional wrapped original error
 - **`toJSON()`** -- structured serialization with all error-specific fields
 
+## Retry & Timeout
+
+All async SDK methods are wrapped with configurable retry and timeout policies. By default:
+- **Timeout**: 30 seconds per operation
+- **Retry**: Up to 3 attempts with exponential backoff and jitter
+- **Retryable errors**: `NetworkError`, `TimeoutError`, `RateLimitError`, connection resets, 503/429 responses
+
+`RateLimitError` includes a `retryAfterMs` hint that the retry logic respects automatically.
+
+```typescript
+// Disable retries (fail fast)
+const lucid = new Lucid({ ..., retry: false });
+
+// Custom retry behavior
+const lucid = new Lucid({ ..., retry: { maxRetries: 5, baseDelayMs: 500 } });
+
+// No timeout
+const lucid = new Lucid({ ..., timeout: 0 });
+```
+
+You can also use the utilities directly:
+
+```typescript
+import { withRetry, withTimeout, withRetryAndTimeout } from '@lucid-l2/sdk';
+
+const result = await withRetry(() => fetch(url), { maxRetries: 5 });
+const fast = await withTimeout(() => slowOperation(), 5000);
+```
+
 ## Configuration
 
 The `Lucid` constructor accepts a `LucidConfig` object. Only `orchestratorKey` and at least one chain in `chains` are required:
@@ -340,6 +408,17 @@ const lucid = new Lucid({
     warn: (...args: any[]) => myLogger.warn(...args),
     error: (...args: any[]) => myLogger.error(...args),
   },
+
+  // Retry config for transient failures (NetworkError, TimeoutError, RateLimitError)
+  // Set to false to disable retries entirely
+  retry: {
+    maxRetries: 3,     // default: 3
+    baseDelayMs: 200,  // default: 200 (exponential backoff with jitter)
+  },
+
+  // Timeout in ms for each async operation (default: 30000)
+  // Set to 0 to disable timeouts
+  timeout: 30000,
 });
 ```
 

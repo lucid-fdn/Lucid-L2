@@ -16,6 +16,7 @@ import {
 import { privateKeyToAccount } from 'viem/accounts';
 import type { IBlockchainAdapter } from '../adapter-interface';
 import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter, ChainCapabilities } from '../domain-interfaces';
+import { ChainFeatureUnavailable } from '../../errors';
 import type {
   ChainConfig,
   ChainType,
@@ -26,9 +27,11 @@ import type {
   AgentIdentity,
 } from '../types';
 
-import { IdentityRegistryClient } from '../../identity/registries/evm-identity';
-import { ValidationRegistryClient } from '../../identity/registries/evm-validation';
-import { ReputationRegistryClient } from '../../identity/registries/evm-reputation';
+// Identity registries are lazy-imported in connect() to avoid pulling
+// deferred Phase 3 modules into the core adapter at module load time.
+import type { IdentityRegistryClient } from '../../identity/registries/evm-identity';
+import type { ValidationRegistryClient } from '../../identity/registries/evm-validation';
+import type { ReputationRegistryClient } from '../../identity/registries/evm-reputation';
 
 export class EVMAdapter implements IBlockchainAdapter {
   readonly chainType: ChainType = 'evm';
@@ -40,7 +43,7 @@ export class EVMAdapter implements IBlockchainAdapter {
   private _walletClient: any = null;
   private _account: any = null;
 
-  // ERC-8004 registry clients
+  // ERC-8004 registry clients (lazy-loaded in connect())
   private _identityRegistry: IdentityRegistryClient | null = null;
   private _validationRegistry: ValidationRegistryClient | null = null;
   private _reputationRegistry: ReputationRegistryClient | null = null;
@@ -84,8 +87,9 @@ export class EVMAdapter implements IBlockchainAdapter {
 
     const erc8004 = config.erc8004;
 
-    // Initialize ERC-8004 registry clients if contract addresses are configured
+    // Initialize ERC-8004 registry clients lazily — only if configured
     if (erc8004?.identityRegistry) {
+      const { IdentityRegistryClient } = require('../../identity/registries/evm-identity');
       this._identityRegistry = new IdentityRegistryClient(
         this._publicClient,
         this._walletClient,
@@ -94,6 +98,7 @@ export class EVMAdapter implements IBlockchainAdapter {
     }
 
     if (erc8004?.validationRegistry) {
+      const { ValidationRegistryClient } = require('../../identity/registries/evm-validation');
       this._validationRegistry = new ValidationRegistryClient(
         this._publicClient,
         this._walletClient,
@@ -103,6 +108,7 @@ export class EVMAdapter implements IBlockchainAdapter {
     }
 
     if (erc8004?.reputationRegistry) {
+      const { ReputationRegistryClient } = require('../../identity/registries/evm-reputation');
       this._reputationRegistry = new ReputationRegistryClient(
         this._publicClient,
         this._walletClient,
@@ -838,6 +844,27 @@ export class EVMAdapter implements IBlockchainAdapter {
         };
       },
 
+      async getBalance(passportId) {
+        // For EVM, the wallet is a TBA — look up its address and balance via TBAService
+        const identityRegistry = config?.erc8004?.identityRegistry;
+        if (!identityRegistry) {
+          return { balance: '0', currency: 'ETH' };
+        }
+        const { getTBAService } = await import('../../identity/tbaService');
+        const tbaService = getTBAService();
+        const tbaInfo = await tbaService.getTBA(chainId, identityRegistry, passportId);
+        if (!tbaInfo?.address) {
+          return { balance: '0', currency: 'ETH' };
+        }
+        // If TBAService already fetched the balance, use it; otherwise query directly
+        if (tbaInfo.nativeBalance !== undefined) {
+          return { balance: tbaInfo.nativeBalance, currency: 'ETH' };
+        }
+        const wei = await publicClient.getBalance({ address: tbaInfo.address as `0x${string}` });
+        const ethStr = (Number(wei) / 1e18).toString();
+        return { balance: ethStr, currency: 'ETH' };
+      },
+
       async execute(walletAddress, instruction) {
         // Execute an arbitrary call through the TBA's execute(address,uint256,bytes,uint8)
         const TBA_EXECUTE_ABI = [{
@@ -879,14 +906,13 @@ export class EVMAdapter implements IBlockchainAdapter {
       },
 
       async setPolicy(_walletAddress, _policy) {
-        // ERC-7579 PolicyModule configuration — requires PolicyModule contract deployment
-        throw new Error('EVM policy configuration requires PolicyModule deployment — use erc7579Service directly');
+        throw new ChainFeatureUnavailable('agentWallet.setPolicy (requires PolicyModule deployment)', chainId);
       },
 
       async createSession(walletAddress, delegate, permissions, expiresAt, maxAmount) {
         const sessionManagerAddr = config?.sessionManager;
         if (!sessionManagerAddr) {
-          throw new Error(`No LucidSessionManager configured for chain ${chainId}`);
+          throw new ChainFeatureUnavailable(`sessionKeys (No LucidSessionManager configured)`, chainId);
         }
 
         // Encode permissions as a bitmask: each permission string maps to a bit position
@@ -930,7 +956,7 @@ export class EVMAdapter implements IBlockchainAdapter {
       async revokeSession(walletAddress, delegate) {
         const sessionManagerAddr = config?.sessionManager;
         if (!sessionManagerAddr) {
-          throw new Error(`No LucidSessionManager configured for chain ${chainId}`);
+          throw new ChainFeatureUnavailable(`sessionKeys (No LucidSessionManager configured)`, chainId);
         }
 
         const SESSION_MANAGER_ABI = [

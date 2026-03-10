@@ -3,6 +3,7 @@
 
 import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { INFTProvider, MintResult, NFTMetadata } from './INFTProvider';
+import { ChainFeatureUnavailable } from '../../errors';
 import { SolanaPassportClient } from '../../passport/nft/solana-token2022';
 import { getSolanaKeypair } from '../../chain/solana/keypair';
 
@@ -53,12 +54,12 @@ export class Token2022Provider implements INFTProvider {
   async burn(_mint: string): Promise<string> {
     // Token-2022 burn requires burning the token then closing the mint
     // For now, just mark as not implemented — revocation is handled off-chain
-    throw new Error('Token-2022 burn not yet implemented — use passport revocation instead');
+    throw new ChainFeatureUnavailable('NFT burn', 'solana');
   }
 
   async updateMetadata(_mint: string, _newMetadata: Partial<NFTMetadata>): Promise<string> {
     // Token-2022 metadata update requires update authority
-    throw new Error('Token-2022 metadata update not yet implemented');
+    throw new ChainFeatureUnavailable('NFT metadata update', 'solana');
   }
 
   async getAsset(mint: string): Promise<any | null> {
