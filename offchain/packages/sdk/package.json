@@ -66,16 +66,21 @@
       "types": "./dist/types/preview/index.d.ts"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "docs": "typedoc --out docs src/index.ts --plugin typedoc-plugin-markdown"
   },
   "dependencies": {
     "@lucid-l2/engine": "*"
   },
   "devDependencies": {
     "tsup": "^8.0.0",
+    "typedoc": "^0.28.17",
+    "typedoc-plugin-markdown": "^4.10.0",
     "typescript": "^5.0.0"
   }
 }
