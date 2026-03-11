@@ -23,11 +23,22 @@ export * from './config/paths';
 
 // ─── Receipt & Epoch ────────────────────────────────────────────────────────
 export {
-  createInferenceReceipt, getInferenceReceipt, verifyInferenceReceiptHash, verifyInferenceReceipt,
+  createInferenceReceipt, getInferenceReceipt, getInferenceReceiptAsync,
+  verifyInferenceReceiptHash, verifyInferenceReceipt,
   getInferenceReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey,
-  listInferenceReceipts, listComputeReceipts, getComputeReceipt, verifyComputeReceipt,
+  listInferenceReceipts,
+  createComputeReceipt, createComputeReceiptFromJob,
+  getComputeReceipt, verifyComputeReceipt, listComputeReceipts,
+  validateComputeReceiptInput, assertValidComputeReceiptInput,
+  computeQuoteHash, verifyQuoteHash, computeJobHash, verifyJobHash,
+  computeInputHash, computeOutputsHash,
+  verifyReceiptProof,
 } from './receipt/receiptService';
-export type { InferenceReceipt, InferenceReceiptInput, ComputeReceipt } from './receipt/receiptService';
+export type {
+  InferenceReceipt, InferenceReceiptInput, InferenceReceiptBody,
+  ComputeReceipt, ComputeReceiptBody, ReceiptVerifyResult,
+} from './receipt/receiptService';
+export type { ComputeReceiptInput } from './types/fluidCompute';
 export {
   createEpoch, getAllEpochs, getEpoch, finalizeEpoch, getCurrentEpoch,
   addReceiptToEpoch, resetEpochStore, prepareEpochForFinalization, failEpoch,

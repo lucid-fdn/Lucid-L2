@@ -12,6 +12,9 @@ import type {
   OperationResult,
   InferenceReceipt,
   InferenceReceiptInput,
+  ComputeReceipt,
+  ComputeReceiptInput,
+  ReceiptVerifyResult,
   Epoch,
   EpochStatus,
   AnchorResult,
@@ -97,9 +100,15 @@ export interface PassportNamespace {
 export interface ReceiptNamespace {
   create(params: InferenceReceiptInput): Promise<InferenceReceipt>;
   get(receiptId: string): Promise<InferenceReceipt | null>;
-  verify(receiptId: string): Promise<boolean>;
+  verify(receiptId: string): Promise<ReceiptVerifyResult>;
   prove(receiptId: string): Promise<MMRProof | null>;
   list(params?: Record<string, unknown>): Promise<InferenceReceipt[]>;
+  compute: {
+    create(params: ComputeReceiptInput): Promise<ComputeReceipt>;
+    get(receiptId: string): Promise<ComputeReceipt | null>;
+    verify(receiptId: string): Promise<ReceiptVerifyResult>;
+    list(): Promise<ComputeReceipt[]>;
+  };
 }
 
 export interface EpochNamespace {
@@ -343,6 +352,24 @@ export class Lucid {
         const { listInferenceReceipts } = require('@lucid-l2/engine');
         return listInferenceReceipts(params);
       }),
+      compute: {
+        create: (params) => this._wrap(() => {
+          const { createComputeReceipt } = require('@lucid-l2/engine');
+          return createComputeReceipt(params);
+        }),
+        get: (id) => this._wrap(() => {
+          const { getComputeReceipt } = require('@lucid-l2/engine');
+          return getComputeReceipt(id);
+        }),
+        verify: (id) => this._wrap(() => {
+          const { verifyComputeReceipt } = require('@lucid-l2/engine');
+          return verifyComputeReceipt(id);
+        }),
+        list: () => this._wrap(() => {
+          const { listComputeReceipts } = require('@lucid-l2/engine');
+          return listComputeReceipts();
+        }),
+      },
     };
   }
 
