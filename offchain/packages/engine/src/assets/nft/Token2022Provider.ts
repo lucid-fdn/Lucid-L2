@@ -6,6 +6,7 @@ import { INFTProvider, MintResult, NFTMetadata } from './INFTProvider';
 import { ChainFeatureUnavailable } from '../../errors';
 import { SolanaPassportClient } from '../../passport/nft/solana-token2022';
 import { getSolanaKeypair } from '../../chain/solana/keypair';
+import { getChainConfig } from '../../chains/configs';
 
 export class Token2022Provider implements INFTProvider {
   readonly providerName = 'token2022';
@@ -13,13 +14,15 @@ export class Token2022Provider implements INFTProvider {
   private client: SolanaPassportClient | null = null;
 
   constructor() {
-    this.chain = process.env.SOLANA_CLUSTER === 'mainnet-beta' ? 'solana-mainnet' : 'solana-devnet';
+    this.chain = process.env.SOLANA_CHAIN_ID || (process.env.SOLANA_CLUSTER === 'mainnet-beta' ? 'solana-mainnet' : 'solana-devnet');
   }
 
   private getClient(): SolanaPassportClient {
     if (this.client) return this.client;
 
-    const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+    // Get connection config from centralized chain config
+    const config = getChainConfig(this.chain);
+    const rpcUrl = config?.rpcUrl || process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
     const connection = new Connection(rpcUrl, 'confirmed');
 
     let payer: Keypair | null = null;

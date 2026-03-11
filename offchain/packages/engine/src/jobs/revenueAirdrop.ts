@@ -4,6 +4,7 @@
 import { Connection, PublicKey, Keypair, Transaction, SystemProgram } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { getSolanaKeypair } from '../chain/solana/keypair';
+import { getChainConfig } from '../chains/configs';
 
 export interface AirdropResult {
   passportId: string;
@@ -36,7 +37,10 @@ export async function runRevenueAirdrop(
   tokenMint: string,
   amountLamports: number,
 ): Promise<AirdropResult> {
-  const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+  // Get connection config from centralized chain config
+  const chainId = process.env.SOLANA_CHAIN_ID || 'solana-devnet';
+  const config = getChainConfig(chainId);
+  const rpcUrl = config?.rpcUrl || process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
   const connection = new Connection(rpcUrl, 'confirmed');
 
   if (!process.env.LUCID_ORCHESTRATOR_SECRET_KEY) {

@@ -12,6 +12,7 @@ import {
 } from '@solana/spl-token';
 import { ITokenLauncher, TokenLaunchResult, TokenLaunchParams, TokenInfo } from './ITokenLauncher';
 import { getSolanaKeypair } from '../../chain/solana/keypair';
+import { getChainConfig } from '../../chains/configs';
 
 // In-memory registry of launched tokens (passport_id -> mint)
 const tokenRegistry = new Map<string, TokenInfo>();
@@ -21,7 +22,10 @@ export class DirectMintLauncher implements ITokenLauncher {
   private connection: Connection;
 
   constructor() {
-    const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+    // Get connection config from centralized chain config
+    const chainId = process.env.SOLANA_CHAIN_ID || 'solana-devnet';
+    const config = getChainConfig(chainId);
+    const rpcUrl = config?.rpcUrl || process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
     this.connection = new Connection(rpcUrl, 'confirmed');
   }
 
