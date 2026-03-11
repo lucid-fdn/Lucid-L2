@@ -29,7 +29,7 @@ import type {
   AgentRegistration,
   AgentIdentity,
 } from '../types';
-import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter, IGasAdapter, ChainCapabilities } from '../domain-interfaces';
+import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter, IGasAdapter, IIdentityAdapter, IValidationAdapter, ICrossChainAdapter, ChainCapabilities } from '../domain-interfaces';
 import { ChainFeatureUnavailable } from '../../errors';
 import { SolanaPassportClient } from '../../passport/nft/solana-token2022';
 
@@ -1292,6 +1292,41 @@ export class SolanaAdapter implements IBlockchainAdapter {
     return null;
   }
 
+  identity(): IIdentityAdapter {
+    const chainId = this._chainId;
+    return {
+      async register() { throw new ChainFeatureUnavailable('identity.register', chainId); },
+      async query() { throw new ChainFeatureUnavailable('identity.query', chainId); },
+      async createTBA() { throw new ChainFeatureUnavailable('identity.createTBA', chainId); },
+      async getTBA() { throw new ChainFeatureUnavailable('identity.getTBA', chainId); },
+      async isTBADeployed() { throw new ChainFeatureUnavailable('identity.isTBADeployed', chainId); },
+      async installModule() { throw new ChainFeatureUnavailable('identity.installModule', chainId); },
+      async uninstallModule() { throw new ChainFeatureUnavailable('identity.uninstallModule', chainId); },
+      async configurePolicy() { throw new ChainFeatureUnavailable('identity.configurePolicy', chainId); },
+      async configurePayout() { throw new ChainFeatureUnavailable('identity.configurePayout', chainId); },
+    };
+  }
+
+  validation(): IValidationAdapter {
+    const chainId = this._chainId;
+    return {
+      async requestValidation() { throw new ChainFeatureUnavailable('validation.requestValidation', chainId); },
+      async submitResult() { throw new ChainFeatureUnavailable('validation.submitResult', chainId); },
+      async getValidation() { throw new ChainFeatureUnavailable('validation.getValidation', chainId); },
+      async getValidationCount() { throw new ChainFeatureUnavailable('validation.getValidationCount', chainId); },
+      async verifyMMRProof() { throw new ChainFeatureUnavailable('validation.verifyMMRProof', chainId); },
+    };
+  }
+
+  bridge(): ICrossChainAdapter {
+    const chainId = this._chainId;
+    return {
+      async bridgeTokens() { throw new ChainFeatureUnavailable('bridge.bridgeTokens', chainId); },
+      async getQuote() { throw new ChainFeatureUnavailable('bridge.getQuote', chainId); },
+      async getBridgeStatus() { throw new ChainFeatureUnavailable('bridge.getBridgeStatus', chainId); },
+    };
+  }
+
   capabilities(): ChainCapabilities {
     return {
       epoch: true,
@@ -1301,6 +1336,9 @@ export class SolanaAdapter implements IBlockchainAdapter {
       sessionKeys: !!this._config?.agentWalletProgram,
       zkml: false,           // alt_bn128 syscalls not available on Solana
       paymaster: false,
+      identity: false,
+      validation: false,
+      bridge: false,
     };
   }
 }

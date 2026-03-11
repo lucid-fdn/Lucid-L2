@@ -15,7 +15,7 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import type { IBlockchainAdapter } from '../adapter-interface';
-import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter, ChainCapabilities } from '../domain-interfaces';
+import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter, IIdentityAdapter, IValidationAdapter, ICrossChainAdapter, ChainCapabilities } from '../domain-interfaces';
 import { ChainFeatureUnavailable } from '../../errors';
 import type {
   ChainConfig,
@@ -986,6 +986,176 @@ export class EVMAdapter implements IBlockchainAdapter {
   }
 
   // =========================================================================
+  // Identity Sub-Adapter
+  // =========================================================================
+
+  identity(): IIdentityAdapter {
+    this.ensureConnected();
+    const chainId = this._chainId;
+    const identityRegistry = this._identityRegistry;
+    const publicClient = this._publicClient;
+    const self = this;
+
+    return {
+      async register(metadataURI: string, to: string): Promise<TxReceipt> {
+        if (!identityRegistry) {
+          throw new Error(`No Identity Registry configured for chain ${chainId}`);
+        }
+        const hash = await identityRegistry.register(metadataURI, to);
+        return self.waitForTx(hash);
+      },
+
+      async query(tokenId: string) {
+        if (!identityRegistry) {
+          throw new Error(`No Identity Registry configured for chain ${chainId}`);
+        }
+        return identityRegistry.getAgent(tokenId, chainId);
+      },
+
+      async createTBA(tokenContract: string, tokenId: string) {
+        const { getTBAService } = await import('../../identity/tbaService');
+        const tbaService = getTBAService();
+        const result = await tbaService.createTBA(chainId, tokenContract, tokenId);
+        return { address: result.address, hash: result.txHash };
+      },
+
+      async getTBA(tokenContract: string, tokenId: string) {
+        const { getTBAService } = await import('../../identity/tbaService');
+        const tbaService = getTBAService();
+        const result = await tbaService.getTBA(chainId, tokenContract, tokenId);
+        return result.address;
+      },
+
+      async isTBADeployed(address: string) {
+        const { ERC6551RegistryClient } = await import('../../identity/tba/evm-registry-client');
+        const client = new ERC6551RegistryClient(
+          publicClient,
+          null, // walletClient not needed for read-only check
+          undefined, // default registry address
+          '0x0000000000000000000000000000000000000000', // placeholder impl — not used for isDeployed
+        );
+        return client.isDeployed(address);
+      },
+
+      async installModule(accountAddress: string, moduleType: number, moduleAddress: string, initData: string) {
+        const { getERC7579Service } = await import('../../identity/erc7579Service');
+        const svc = getERC7579Service();
+        const result = await svc.installModule(chainId, accountAddress, moduleType, moduleAddress, initData);
+        return { hash: result.txHash, chainId, success: true };
+      },
+
+      async uninstallModule(accountAddress: string, moduleType: number, moduleAddress: string) {
+        const { getERC7579Service } = await import('../../identity/erc7579Service');
+        const svc = getERC7579Service();
+        const result = await svc.uninstallModule(chainId, accountAddress, moduleType, moduleAddress);
+        return { hash: result.txHash, chainId, success: true };
+      },
+
+      async configurePolicy(accountAddress: string, policyHashes: string[]) {
+        const { getERC7579Service } = await import('../../identity/erc7579Service');
+        const svc = getERC7579Service();
+        const result = await svc.configurePolicyModule(chainId, accountAddress, policyHashes);
+        return { hash: result.txHash, chainId, success: true };
+      },
+
+      async configurePayout(accountAddress: string, recipients: Array<{ address: string; bps: number }>) {
+        const { getERC7579Service } = await import('../../identity/erc7579Service');
+        const svc = getERC7579Service();
+        const addrs = recipients.map(r => r.address);
+        const bps = recipients.map(r => r.bps);
+        const result = await svc.configurePayoutModule(chainId, accountAddress, addrs, bps);
+        return { hash: result.txHash, chainId, success: true };
+      },
+    };
+  }
+
+  // =========================================================================
+  // Validation Sub-Adapter
+  // =========================================================================
+
+  validation(): IValidationAdapter {
+    this.ensureConnected();
+    const chainId = this._chainId;
+    const validationRegistry = this._validationRegistry;
+    const self = this;
+
+    return {
+      async requestValidation(agentTokenId: string, receiptHash: string, metadata?: string) {
+        if (!validationRegistry) {
+          throw new Error(`No Validation Registry configured for chain ${chainId}`);
+        }
+        const hash = await validationRegistry.requestValidation(agentTokenId, receiptHash, metadata);
+        return self.waitForTx(hash);
+      },
+
+      async submitResult(agentTokenId: string, receiptHash: string, valid: boolean) {
+        if (!validationRegistry) {
+          throw new Error(`No Validation Registry configured for chain ${chainId}`);
+        }
+        const hash = await validationRegistry.submitResult(agentTokenId, receiptHash, valid);
+        return self.waitForTx(hash);
+      },
+
+      async getValidation(validationId: string) {
+        if (!validationRegistry) {
+          throw new Error(`No Validation Registry configured for chain ${chainId}`);
+        }
+        return validationRegistry.getValidation(validationId);
+      },
+
+      async getValidationCount(agentTokenId: string) {
+        if (!validationRegistry) {
+          throw new Error(`No Validation Registry configured for chain ${chainId}`);
+        }
+        return validationRegistry.getValidationCount(agentTokenId);
+      },
+
+      async verifyMMRProof(leafHash: string, siblings: string[], peaks: string[], leafIndex: number, expectedRoot: string) {
+        if (!validationRegistry) {
+          throw new Error(`No Validation Registry configured for chain ${chainId}`);
+        }
+        return validationRegistry.verifyMMRProof(leafHash, siblings, peaks, leafIndex, expectedRoot);
+      },
+    };
+  }
+
+  // =========================================================================
+  // Cross-Chain Bridge Sub-Adapter
+  // =========================================================================
+
+  bridge(): ICrossChainAdapter {
+    this.ensureConnected();
+    const chainId = this._chainId;
+
+    return {
+      async bridgeTokens(params: { destChainId: number; recipient: string; amount: string; minAmount: string }) {
+        const { getCrossChainBridgeService } = await import('../../identity/crossChainBridgeService');
+        const svc = getCrossChainBridgeService();
+        const receipt = await svc.bridgeTokens({
+          sourceChainId: chainId,
+          destChainId: String(params.destChainId),
+          amount: params.amount,
+          recipientAddress: params.recipient,
+        });
+        return { hash: receipt.txHash, chainId, success: true };
+      },
+
+      async getQuote(destChainId: number, amount: string) {
+        const { getCrossChainBridgeService } = await import('../../identity/crossChainBridgeService');
+        const svc = getCrossChainBridgeService();
+        return svc.getQuote(chainId, String(destChainId), amount);
+      },
+
+      async getBridgeStatus(txHash: string, sourceChainId?: string) {
+        const { getCrossChainBridgeService } = await import('../../identity/crossChainBridgeService');
+        const svc = getCrossChainBridgeService();
+        const status = await svc.getBridgeStatus(txHash, sourceChainId ?? chainId);
+        return { completed: status.status === 'delivered', destTxHash: undefined };
+      },
+    };
+  }
+
+  // =========================================================================
   // Helpers
   // =========================================================================
 
@@ -1042,6 +1212,9 @@ export class EVMAdapter implements IBlockchainAdapter {
       sessionKeys: !!this._config?.sessionManager,
       zkml: true,
       paymaster: !!this._config?.paymaster,
+      identity: !!this._identityRegistry,
+      validation: !!this._validationRegistry,
+      bridge: !!this._config?.lucidTokenAddress,
     };
   }
 }

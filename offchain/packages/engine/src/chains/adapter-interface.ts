@@ -21,6 +21,9 @@ import type {
   IPassportAdapter,
   IAgentWalletAdapter,
   IGasAdapter,
+  IIdentityAdapter,
+  IValidationAdapter,
+  ICrossChainAdapter,
   ChainCapabilities,
 } from './domain-interfaces';
 
@@ -51,13 +54,13 @@ export interface IBlockchainAdapter {
   checkHealth(): Promise<ChainHealthStatus>;
 
   // =========================================================================
-  // ERC-8004: Identity Registry
+  // ERC-8004: Identity Registry (deprecated — use identity() sub-adapter)
   // =========================================================================
 
-  /** Register an agent on the Identity Registry */
+  /** @deprecated Use `identity().register()` instead */
   registerAgent(metadata: AgentRegistration): Promise<TxReceipt>;
 
-  /** Query an agent by token ID */
+  /** @deprecated Use `identity().query()` instead */
   queryAgent(agentId: string): Promise<AgentIdentity | null>;
 
   // =========================================================================
@@ -88,6 +91,15 @@ export interface IBlockchainAdapter {
 
   /** Gas collection and revenue splitting (optional) */
   gas?(): IGasAdapter;
+
+  /** Identity registry (register, query, TBA, modules) */
+  identity(): IIdentityAdapter;
+
+  /** Validation registry (request, submit, verify) */
+  validation(): IValidationAdapter;
+
+  /** Cross-chain bridge (bridge tokens, quotes, status) */
+  bridge(): ICrossChainAdapter;
 
   /** Return a map of which features this chain supports */
   capabilities(): ChainCapabilities;

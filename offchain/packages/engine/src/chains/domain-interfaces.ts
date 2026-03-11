@@ -6,7 +6,9 @@
  * rather than the full IBlockchainAdapter.
  */
 
-import type { TxReceipt } from './types';
+import type { TxReceipt, AgentIdentity } from './types';
+import type { ValidationRecord } from '../identity/registries/types';
+import type { BridgeQuote } from '../identity/crossChainBridgeTypes';
 
 // =============================================================================
 // Supporting Types
@@ -217,6 +219,75 @@ export interface IGasAdapter {
 }
 
 // =============================================================================
+// IIdentityAdapter
+// =============================================================================
+
+export interface IIdentityAdapter {
+  /** Register a new identity (mints an NFT) */
+  register(metadataURI: string, to: string): Promise<TxReceipt>;
+
+  /** Query an identity by token ID */
+  query(tokenId: string): Promise<AgentIdentity | null>;
+
+  /** Create a Token Bound Account for an NFT */
+  createTBA(tokenContract: string, tokenId: string): Promise<{ address: string; hash: string }>;
+
+  /** Get the deterministic TBA address for an NFT */
+  getTBA(tokenContract: string, tokenId: string): Promise<string>;
+
+  /** Check if a TBA has been deployed */
+  isTBADeployed(address: string): Promise<boolean>;
+
+  /** Install an ERC-7579 module on a smart account */
+  installModule(accountAddress: string, moduleType: number, moduleAddress: string, initData: string): Promise<TxReceipt>;
+
+  /** Uninstall an ERC-7579 module from a smart account */
+  uninstallModule(accountAddress: string, moduleType: number, moduleAddress: string): Promise<TxReceipt>;
+
+  /** Configure policy module on a smart account */
+  configurePolicy(accountAddress: string, policyHashes: string[]): Promise<TxReceipt>;
+
+  /** Configure payout module on a smart account */
+  configurePayout(accountAddress: string, recipients: Array<{ address: string; bps: number }>): Promise<TxReceipt>;
+}
+
+// =============================================================================
+// IValidationAdapter
+// =============================================================================
+
+export interface IValidationAdapter {
+  /** Request validation for an agent's receipt */
+  requestValidation(agentTokenId: string, receiptHash: string, metadata?: string): Promise<TxReceipt>;
+
+  /** Submit a validation result */
+  submitResult(agentTokenId: string, receiptHash: string, valid: boolean): Promise<TxReceipt>;
+
+  /** Get a validation record by ID */
+  getValidation(validationId: string): Promise<ValidationRecord | null>;
+
+  /** Get validation count for an agent */
+  getValidationCount(agentTokenId: string): Promise<bigint>;
+
+  /** Verify an MMR inclusion proof on-chain */
+  verifyMMRProof(leafHash: string, siblings: string[], peaks: string[], leafIndex: number, expectedRoot: string): Promise<boolean>;
+}
+
+// =============================================================================
+// ICrossChainAdapter
+// =============================================================================
+
+export interface ICrossChainAdapter {
+  /** Bridge tokens to a destination chain */
+  bridgeTokens(params: { destChainId: number; recipient: string; amount: string; minAmount: string }): Promise<TxReceipt>;
+
+  /** Get a bridge quote (estimated fees) */
+  getQuote(destChainId: number, amount: string): Promise<BridgeQuote>;
+
+  /** Get bridge transfer status */
+  getBridgeStatus(txHash: string, sourceChainId?: string): Promise<{ completed: boolean; destTxHash?: string }>;
+}
+
+// =============================================================================
 // ChainCapabilities
 // =============================================================================
 
@@ -228,4 +299,7 @@ export interface ChainCapabilities {
   sessionKeys: boolean;
   zkml: boolean;
   paymaster: boolean;
+  identity: boolean;
+  validation: boolean;
+  bridge: boolean;
 }
