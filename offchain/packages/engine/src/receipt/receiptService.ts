@@ -21,7 +21,7 @@ import { getReceiptTree, MerkleTree, MerkleProof } from '../crypto/merkleTree';
 import pool from '../db/pool';
 import type {
   ExecutionMode,
-  ExtendedRunReceiptInput,
+  ComputeReceiptInput,
   OfferQuote,
   JobRequest,
   SignerType,
@@ -33,7 +33,7 @@ import type {
  * Receipt body - the data that gets hashed for receipt_hash.
  * This is the canonical preimage definition.
  */
-export interface ReceiptBody {
+export interface InferenceReceiptBody {
   schema_version: '1.0';
   run_id: string;
   timestamp: number;
@@ -53,7 +53,7 @@ export interface ReceiptBody {
   };
 }
 
-export interface RunReceiptInput {
+export interface InferenceReceiptInput {
   model_passport_id: string;
   compute_passport_id: string;
   policy_hash: string;
@@ -70,7 +70,7 @@ export interface RunReceiptInput {
   run_id?: string;
 }
 
-export interface SignedReceipt {
+export interface InferenceReceipt {
   // Receipt body (hashable content)
   schema_version: '1.0';
   run_id: string;
@@ -130,7 +130,7 @@ export interface ReceiptVerifyResult {
  * Extended Receipt Body for Fluid Compute v0.2.
  * Includes job binding, worker identity, output verification, and serverless fields.
  */
-export interface ExtendedReceiptBody {
+export interface ComputeReceiptBody {
   schema_version: '1.0';
   run_id: string;
   timestamp: number;
@@ -189,7 +189,7 @@ export interface ExtendedReceiptBody {
 /**
  * Extended Signed Receipt for Fluid Compute v0.
  */
-export interface ExtendedSignedReceipt extends ExtendedReceiptBody {
+export interface ComputeReceipt extends ComputeReceiptBody {
   receipt_hash: string;
   receipt_signature: string;
   signer_pubkey: string;
@@ -337,7 +337,7 @@ export function verifyJobHash(job: JobRequest): boolean {
 }
 
 // In-memory store (MVP)
-const receiptStore = new Map<string, SignedReceipt>();
+const receiptStore = new Map<string, InferenceReceipt>();
 
 // Idempotency store: maps idempotency key -> run_id
 const idempotencyStore = new Map<string, string>();
@@ -346,7 +346,7 @@ const idempotencyStore = new Map<string, string>();
 // DATABASE PERSISTENCE (write-through, non-blocking)
 // ============================================================================
 
-async function persistReceiptToDb(receipt: SignedReceipt): Promise<void> {
+async function persistReceiptToDb(receipt: InferenceReceipt): Promise<void> {
   try {
     await pool.query(
       `INSERT INTO receipts (receipt_hash, signature, signer_pubkey, signer_type, body, run_id, anchor_chain, anchor_tx, anchor_root, anchor_epoch_id)
@@ -380,7 +380,7 @@ async function persistReceiptToDb(receipt: SignedReceipt): Promise<void> {
   }
 }
 
-async function loadReceiptFromDb(run_id: string): Promise<SignedReceipt | null> {
+async function loadReceiptFromDb(run_id: string): Promise<InferenceReceipt | null> {
   try {
     const result = await pool.query(
       `SELECT receipt_hash, signature, signer_pubkey, signer_type, body, run_id,
@@ -405,7 +405,7 @@ async function loadReceiptFromDb(run_id: string): Promise<SignedReceipt | null> 
           epoch_id: row.anchor_epoch_id,
         }
       } : {}),
-    } as SignedReceipt;
+    } as InferenceReceipt;
   } catch (err) {
     return null;
   }
@@ -414,7 +414,7 @@ async function loadReceiptFromDb(run_id: string): Promise<SignedReceipt | null> 
 /**
  * Get a receipt by run_id with DB fallback (async).
  */
-export async function getReceiptAsync(run_id: string): Promise<SignedReceipt | null> {
+export async function getInferenceReceiptAsync(run_id: string): Promise<InferenceReceipt | null> {
   // Try in-memory first
   const inMemory = receiptStore.get(run_id) || null;
   if (inMemory) return inMemory;
@@ -429,8 +429,8 @@ export async function getReceiptAsync(run_id: string): Promise<SignedReceipt | n
  * IMPORTANT: This defines the exact data that gets hashed.
  * Any change here will break existing receipts.
  */
-function extractReceiptBody(receipt: SignedReceipt | ReceiptBody): ReceiptBody {
-  const body: ReceiptBody = {
+function extractInferenceReceiptBody(receipt: InferenceReceipt | InferenceReceiptBody): InferenceReceiptBody {
+  const body: InferenceReceiptBody = {
     schema_version: '1.0',
     run_id: receipt.run_id,
     timestamp: receipt.timestamp,
@@ -460,14 +460,14 @@ function extractReceiptBody(receipt: SignedReceipt | ReceiptBody): ReceiptBody {
  * 
  * Hash = sha256(JCS(receipt_body))
  */
-function computeReceiptHash(body: ReceiptBody): string {
+function computeInferenceReceiptHash(body: InferenceReceiptBody): string {
   return canonicalSha256Hex(body);
 }
 
 /**
  * Create a new run receipt with real signing.
  */
-export function createReceipt(input: RunReceiptInput, idempotencyKey?: string): SignedReceipt {
+export function createInferenceReceipt(input: InferenceReceiptInput, idempotencyKey?: string): InferenceReceipt {
   // Check idempotency
   if (idempotencyKey) {
     const existingRunId = idempotencyStore.get(idempotencyKey);
@@ -491,7 +491,7 @@ export function createReceipt(input: RunReceiptInput, idempotencyKey?: string): 
   const timestamp = Math.floor(Date.now() / 1000);
 
   // Build receipt body
-  const body: ReceiptBody = {
+  const body: InferenceReceiptBody = {
     schema_version: '1.0',
     run_id,
     timestamp,
@@ -514,13 +514,13 @@ export function createReceipt(input: RunReceiptInput, idempotencyKey?: string): 
   if (input.p95_ms !== undefined) body.metrics.p95_ms = input.p95_ms;
 
   // Compute canonical hash
-  const receipt_hash = computeReceiptHash(body);
+  const receipt_hash = computeInferenceReceiptHash(body);
 
   // Sign the hash with ed25519
   const { signature, publicKey } = signMessage(receipt_hash);
 
   // Build signed receipt
-  const signed: SignedReceipt = {
+  const signed: InferenceReceipt = {
     ...body,
     receipt_hash,
     receipt_signature: signature,
@@ -579,22 +579,22 @@ export function createReceipt(input: RunReceiptInput, idempotencyKey?: string): 
 /**
  * Get a receipt by run_id.
  */
-export function getReceipt(run_id: string): SignedReceipt | null {
+export function getInferenceReceipt(run_id: string): InferenceReceipt | null {
   return receiptStore.get(run_id) || null;
 }
 
 /**
  * Verify a receipt's hash integrity.
  */
-export function verifyReceiptHash(run_id: string): ReceiptVerifyResult {
+export function verifyInferenceReceiptHash(run_id: string): ReceiptVerifyResult {
   const receipt = receiptStore.get(run_id);
   if (!receipt) {
     return { hash_valid: false, signature_valid: false };
   }
 
   // Recompute hash from body
-  const body = extractReceiptBody(receipt);
-  const computed = computeReceiptHash(body);
+  const body = extractInferenceReceiptBody(receipt);
+  const computed = computeInferenceReceiptHash(body);
   const hash_valid = computed === receipt.receipt_hash;
 
   // Verify signature
@@ -615,15 +615,15 @@ export function verifyReceiptHash(run_id: string): ReceiptVerifyResult {
 /**
  * Full receipt verification: hash + signature + inclusion.
  */
-export function verifyReceipt(run_id: string): ReceiptVerifyResult {
+export function verifyInferenceReceipt(run_id: string): ReceiptVerifyResult {
   const receipt = receiptStore.get(run_id);
   if (!receipt) {
     return { hash_valid: false, signature_valid: false };
   }
 
   // Verify hash
-  const body = extractReceiptBody(receipt);
-  const computed = computeReceiptHash(body);
+  const body = extractInferenceReceiptBody(receipt);
+  const computed = computeInferenceReceiptHash(body);
   const hash_valid = computed === receipt.receipt_hash;
 
   // Verify signature
@@ -660,7 +660,7 @@ export function verifyReceipt(run_id: string): ReceiptVerifyResult {
 /**
  * Get inclusion proof for a receipt.
  */
-export function getReceiptProof(run_id: string): MerkleProof | null {
+export function getInferenceReceiptProof(run_id: string): MerkleProof | null {
   const receipt = receiptStore.get(run_id);
   if (!receipt || receipt._mmr_leaf_index === undefined) {
     return null;
@@ -709,7 +709,7 @@ export function getSignerPublicKey(): string {
 /**
  * List all receipts (for admin/debugging).
  */
-export function listReceipts(): SignedReceipt[] {
+export function listInferenceReceipts(): InferenceReceipt[] {
   return Array.from(receiptStore.values());
 }
 
@@ -769,8 +769,8 @@ export interface ReceiptValidationResult {
  * @returns Validation result with all errors found
  * @throws ReceiptValidationError if strict mode and validation fails
  */
-export function validateExtendedReceiptInput(
-  input: ExtendedRunReceiptInput,
+export function validateComputeReceiptInput(
+  input: ComputeReceiptInput,
   strict: boolean = false
 ): ReceiptValidationResult {
   const errors: Array<{ code: string; message: string; field?: string }> = [];
@@ -886,8 +886,8 @@ export function validateExtendedReceiptInput(
  * @param input - The extended receipt input to validate
  * @throws ReceiptValidationError if validation fails
  */
-export function assertValidExtendedReceiptInput(input: ExtendedRunReceiptInput): void {
-  validateExtendedReceiptInput(input, true);
+export function assertValidComputeReceiptInput(input: ComputeReceiptInput): void {
+  validateComputeReceiptInput(input, true);
 }
 
 // ============================================================================
@@ -895,7 +895,7 @@ export function assertValidExtendedReceiptInput(input: ExtendedRunReceiptInput):
 // ============================================================================
 
 // Extended receipt store (Fluid Compute v0)
-const extendedReceiptStore = new Map<string, ExtendedSignedReceipt>();
+const extendedReceiptStore = new Map<string, ComputeReceipt>();
 
 /**
  * Extract the extended receipt body (the canonical preimage for hashing).
@@ -906,9 +906,9 @@ const extendedReceiptStore = new Map<string, ExtendedSignedReceipt>();
  * @param receipt - The extended receipt
  * @returns The canonical body for hashing
  */
-function extractExtendedReceiptBody(receipt: ExtendedSignedReceipt | ExtendedReceiptBody): ExtendedReceiptBody {
+function extractComputeReceiptBody(receipt: ComputeReceipt | ComputeReceiptBody): ComputeReceiptBody {
   // Start with required fields in deterministic order
-  const body: ExtendedReceiptBody = {
+  const body: ComputeReceiptBody = {
     schema_version: '1.0',
     run_id: receipt.run_id,
     timestamp: receipt.timestamp,
@@ -959,7 +959,7 @@ function extractExtendedReceiptBody(receipt: ExtendedSignedReceipt | ExtendedRec
  * 
  * Hash = sha256(JCS(extended_receipt_body))
  */
-function computeExtendedReceiptHash(body: ExtendedReceiptBody): string {
+function computeComputeReceiptHash(body: ComputeReceiptBody): string {
   return canonicalSha256Hex(body);
 }
 
@@ -991,15 +991,15 @@ function computeExtendedReceiptHash(body: ExtendedReceiptBody): string {
  * @returns Signed extended receipt
  * @throws ReceiptValidationError if validation fails
  */
-export function createExtendedReceipt(
-  input: ExtendedRunReceiptInput,
+export function createComputeReceipt(
+  input: ComputeReceiptInput,
   signerType: SignerType = 'orchestrator',
   idempotencyKey?: string,
   skipValidation: boolean = false
-): ExtendedSignedReceipt {
+): ComputeReceipt {
   // Validate receipt input against Fluid Compute v0 gates
   if (!skipValidation) {
-    const validation = validateExtendedReceiptInput(input);
+    const validation = validateComputeReceiptInput(input);
     if (!validation.valid) {
       const firstError = validation.errors[0];
       throw new ReceiptValidationError(
@@ -1032,7 +1032,7 @@ export function createExtendedReceipt(
   const timestamp = Math.floor(Date.now() / 1000);
 
   // Build extended receipt body
-  const body: ExtendedReceiptBody = {
+  const body: ComputeReceiptBody = {
     schema_version: '1.0',
     run_id,
     timestamp,
@@ -1084,13 +1084,13 @@ export function createExtendedReceipt(
   if (input.cache_hit !== undefined) body.metrics.cache_hit = input.cache_hit;
 
   // Compute canonical hash
-  const receipt_hash = computeExtendedReceiptHash(body);
+  const receipt_hash = computeComputeReceiptHash(body);
 
   // Sign the hash with ed25519
   const { signature, publicKey } = signMessage(receipt_hash);
 
   // Build signed receipt
-  const signed: ExtendedSignedReceipt = {
+  const signed: ComputeReceipt = {
     ...body,
     receipt_hash,
     receipt_signature: signature,
@@ -1123,22 +1123,22 @@ export function createExtendedReceipt(
 /**
  * Get an extended receipt by run_id.
  */
-export function getExtendedReceipt(run_id: string): ExtendedSignedReceipt | null {
+export function getComputeReceipt(run_id: string): ComputeReceipt | null {
   return extendedReceiptStore.get(run_id) || null;
 }
 
 /**
  * Verify an extended receipt's hash and signature.
  */
-export function verifyExtendedReceipt(run_id: string): ReceiptVerifyResult {
+export function verifyComputeReceipt(run_id: string): ReceiptVerifyResult {
   const receipt = extendedReceiptStore.get(run_id);
   if (!receipt) {
     return { hash_valid: false, signature_valid: false };
   }
 
   // Verify hash
-  const body = extractExtendedReceiptBody(receipt);
-  const computed = computeExtendedReceiptHash(body);
+  const body = extractComputeReceiptBody(receipt);
+  const computed = computeComputeReceiptHash(body);
   const hash_valid = computed === receipt.receipt_hash;
 
   // Verify signature
@@ -1175,7 +1175,7 @@ export function verifyExtendedReceipt(run_id: string): ReceiptVerifyResult {
 /**
  * List all extended receipts (for admin/debugging).
  */
-export function listExtendedReceipts(): ExtendedSignedReceipt[] {
+export function listComputeReceipts(): ComputeReceipt[] {
   return Array.from(extendedReceiptStore.values());
 }
 
@@ -1192,7 +1192,7 @@ export function listExtendedReceipts(): ExtendedSignedReceipt[] {
  * @param runtimeHash - Docker image digest (null for managed_endpoint)
  * @param gpuFingerprint - GPU hardware fingerprint (null for managed_endpoint)
  */
-export function createReceiptFromJobResult(
+export function createComputeReceiptFromJob(
   job: JobRequest,
   result: {
     output?: object;
@@ -1216,10 +1216,10 @@ export function createReceiptFromJobResult(
   executionMode: ExecutionMode,
   runtimeHash: string | null,
   gpuFingerprint: string | null
-): ExtendedSignedReceipt {
+): ComputeReceipt {
   const outputs_hash = result.output ? computeOutputsHash(result.output) : undefined;
   
-  return createExtendedReceipt({
+  return createComputeReceipt({
     // Required fields
     model_passport_id: job.model_id,
     compute_passport_id: job.offer_id,

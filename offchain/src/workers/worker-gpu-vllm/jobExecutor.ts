@@ -29,11 +29,11 @@ import type {
   JobErrorCode,
   JobSubmitResponse,
   WorkerIdentity,
-  ExtendedRunReceiptInput,
+  ComputeReceiptInput,
   JobOutput,
 } from '../../types/fluidCompute';
 import { mapToV0ErrorCode } from '../../types/fluidCompute';
-import { createExtendedReceipt, ExtendedSignedReceipt } from '../../services/receipt/receiptService';
+import { createComputeReceipt, ComputeReceipt } from '../../services/receipt/receiptService';
 
 /**
  * S3 Storage configuration
@@ -53,7 +53,7 @@ interface JobState {
   request: JobRequest;
   status: JobStatus;
   result?: JobResult;
-  receipt?: ExtendedSignedReceipt;
+  receipt?: ComputeReceipt;
   start_ts?: number;
   end_ts?: number;
   error_code?: JobErrorCode;
@@ -566,8 +566,8 @@ export class JobExecutor {
       start_ts: number;
       end_ts: number;
     }
-  ): Promise<ExtendedSignedReceipt> {
-    const receiptInput: ExtendedRunReceiptInput = {
+  ): Promise<ComputeReceipt> {
+    const receiptInput: ComputeReceiptInput = {
       // Required fields
       model_passport_id: request.model_id,
       compute_passport_id: request.offer_id,
@@ -601,7 +601,7 @@ export class JobExecutor {
     };
 
     // Create receipt with worker signer
-    return createExtendedReceipt(receiptInput, 'worker');
+    return createComputeReceipt(receiptInput, 'worker');
   }
 
   /**

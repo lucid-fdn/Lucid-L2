@@ -23,7 +23,7 @@ import {
   failEpoch,
   Epoch,
 } from './epochService';
-import { getReceipt, SignedReceipt } from './receiptService';
+import { getInferenceReceipt, InferenceReceipt } from './receiptService';
 
 // =============================================================================
 // CONFIGURATION

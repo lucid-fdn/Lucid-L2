@@ -14,8 +14,8 @@ import { HuggingFaceClient, HFChatMessage, HFGenerateOptions } from './hfClient'
 import { QuoteService } from './quoteService';
 import { 
   verifyJobHash, 
-  createReceiptFromJobResult,
-  ExtendedSignedReceipt,
+  createComputeReceiptFromJob,
+  ComputeReceipt,
 } from '../../services/receipt/receiptService';
 import { addReceiptToEpoch } from '../../services/receipt/epochService';
 import type {
@@ -35,7 +35,7 @@ interface JobState {
   request: JobRequest;
   status: JobStatus;
   result?: JobResult;
-  receipt?: ExtendedSignedReceipt;
+  receipt?: ComputeReceipt;
   start_ts?: number;
   end_ts?: number;
   error_code?: JobErrorCode;
@@ -337,7 +337,7 @@ export class JobExecutor {
 
       // Create receipt
       try {
-        jobState.receipt = createReceiptFromJobResult(
+        jobState.receipt = createComputeReceiptFromJob(
           request,
           {
             output: jobState.result.output,
@@ -396,7 +396,7 @@ export class JobExecutor {
 
       // Create error receipt
       try {
-        jobState.receipt = createReceiptFromJobResult(
+        jobState.receipt = createComputeReceiptFromJob(
           request,
           {
             metrics: {

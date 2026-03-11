@@ -4,7 +4,7 @@
 import { v4 as uuid } from 'uuid';
 import { getPassportManager } from '../../../engine/src/passport/passportManager';
 import { matchComputeForModel, MatchResult } from '../compute/matchingEngine';
-import { createReceipt, RunReceiptInput } from '../../../engine/src/receipt/receiptService';
+import { createInferenceReceipt, InferenceReceiptInput } from '../../../engine/src/receipt/receiptService';
 import { addReceiptToEpoch } from '../../../engine/src/receipt/epochService';
 import { getComputeRegistry } from '../compute/computeRegistry';
 import {
@@ -998,11 +998,11 @@ async function executeWithFallback(
 /**
  * Create receipt asynchronously (non-blocking).
  */
-function createReceiptAsync(input: RunReceiptInput): void {
+function createReceiptAsync(input: InferenceReceiptInput): void {
   // Run in next tick to not block response
   setImmediate(() => {
     try {
-      createReceipt(input);
+      createInferenceReceipt(input);
       // Wire receipt into current epoch for anchoring
       addReceiptToEpoch(input.run_id!);
       console.log(`📝 Receipt created for run ${input.run_id}`);

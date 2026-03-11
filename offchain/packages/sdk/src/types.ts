@@ -22,9 +22,9 @@ export type {
 export { EscrowStatus } from '@lucid-l2/engine';
 
 export type {
-  SignedReceipt,
-  ExtendedSignedReceipt,
-  RunReceiptInput,
+  InferenceReceipt,
+  ComputeReceipt,
+  InferenceReceiptInput,
   Epoch,
   EpochStatus,
   CreatePassportInput,

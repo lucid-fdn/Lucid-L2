@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { matchComputeForModel } from '../../compute/matchingEngine';
-import { verifyReceipt } from '../../../../engine/src/receipt/receiptService';
+import { verifyInferenceReceipt } from '../../../../engine/src/receipt/receiptService';
 import { executePayoutSplit, getPayoutExecution } from '../../../../engine/src/finance/payoutService';
 import { blockchainAdapterFactory } from '../../../../engine/src/chain/blockchain/BlockchainAdapterFactory';
 import { CHAIN_CONFIGS } from '../../../../engine/src/chain/blockchain/chains';
@@ -126,14 +126,14 @@ crossChainRouter.post('/v2/validate', async (req, res) => {
     }
 
     // Step 1: Verify receipt locally using existing receipt system
-    // verifyReceiptHash takes a run_id, verifyReceipt does full verification
+    // verifyInferenceReceiptHash takes a run_id, verifyInferenceReceipt does full verification
     let receiptResult: { hash_valid: boolean; signature_valid: boolean } = {
       hash_valid: false,
       signature_valid: false,
     };
 
     if (run_id) {
-      receiptResult = verifyReceipt(run_id);
+      receiptResult = verifyInferenceReceipt(run_id);
     }
 
     const hashToSubmit = receipt_hash || '';

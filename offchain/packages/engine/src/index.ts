@@ -23,11 +23,11 @@ export * from './config/paths';
 
 // ─── Receipt & Epoch ────────────────────────────────────────────────────────
 export {
-  createReceipt, getReceipt, verifyReceiptHash, verifyReceipt,
-  getReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey,
-  listReceipts, listExtendedReceipts, getExtendedReceipt, verifyExtendedReceipt,
+  createInferenceReceipt, getInferenceReceipt, verifyInferenceReceiptHash, verifyInferenceReceipt,
+  getInferenceReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey,
+  listInferenceReceipts, listComputeReceipts, getComputeReceipt, verifyComputeReceipt,
 } from './receipt/receiptService';
-export type { SignedReceipt, RunReceiptInput, ExtendedSignedReceipt } from './receipt/receiptService';
+export type { InferenceReceipt, InferenceReceiptInput, ComputeReceipt } from './receipt/receiptService';
 export {
   createEpoch, getAllEpochs, getEpoch, finalizeEpoch, getCurrentEpoch,
   addReceiptToEpoch, resetEpochStore, prepareEpochForFinalization, failEpoch,

@@ -186,18 +186,18 @@ describe('Barrel Exports — services/receipt/index.ts', () => {
   it('should export receipt service symbols', () => {
     const receipt = require('../services/receipt');
 
-    expect(receipt.createReceipt).toBeDefined();
-    expect(receipt.getReceipt).toBeDefined();
-    expect(receipt.verifyReceiptHash).toBeDefined();
-    expect(receipt.verifyReceipt).toBeDefined();
-    expect(receipt.getReceiptProof).toBeDefined();
+    expect(receipt.createInferenceReceipt).toBeDefined();
+    expect(receipt.getInferenceReceipt).toBeDefined();
+    expect(receipt.verifyInferenceReceiptHash).toBeDefined();
+    expect(receipt.verifyInferenceReceipt).toBeDefined();
+    expect(receipt.getInferenceReceiptProof).toBeDefined();
     expect(receipt.getMmrRoot).toBeDefined();
     expect(receipt.getMmrLeafCount).toBeDefined();
     expect(receipt.getSignerPublicKey).toBeDefined();
-    expect(receipt.listReceipts).toBeDefined();
-    expect(receipt.listExtendedReceipts).toBeDefined();
-    expect(receipt.getExtendedReceipt).toBeDefined();
-    expect(receipt.verifyExtendedReceipt).toBeDefined();
+    expect(receipt.listInferenceReceipts).toBeDefined();
+    expect(receipt.listComputeReceipts).toBeDefined();
+    expect(receipt.getComputeReceipt).toBeDefined();
+    expect(receipt.verifyComputeReceipt).toBeDefined();
 
     // Epoch
     expect(receipt.createEpoch).toBeDefined();

@@ -7,7 +7,7 @@
 import { evaluatePolicy } from '../../../gateway-lite/src/compute/policyEngine';
 import { matchComputeForModel } from '../../../gateway-lite/src/compute/matchingEngine';
 import { getComputeRegistry } from '../../../gateway-lite/src/compute/computeRegistry';
-import { createReceipt } from '../../../engine/src/receipt/receiptService';
+import { createInferenceReceipt } from '../../../engine/src/receipt/receiptService';
 import { getReceiptTree } from '../../../engine/src/crypto/merkleTree';
 import { calculatePayoutSplit } from '../../../engine/src/finance/payoutService';
 
@@ -390,7 +390,7 @@ export class LucidMcpServer {
       }
     }
 
-    const receipt = createReceipt({
+    const receipt = createInferenceReceipt({
       model_passport_id: args.model_passport_id,
       compute_passport_id: args.compute_passport_id,
       policy_hash: args.policy_hash,

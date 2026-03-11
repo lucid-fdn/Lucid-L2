@@ -40,7 +40,7 @@ jest.mock('../../packages/gateway-lite/src/compute/computeRegistry', () =>
 // Mock receiptService
 const mockCreateReceipt = jest.fn<() => any>();
 jest.mock('../services/receipt/receiptService', () => ({
-  createReceipt: mockCreateReceipt,
+  createInferenceReceipt: mockCreateReceipt,
 }));
 // Dual-path: executionGateway imports from ../../../engine/src/receipt/receiptService
 jest.mock('../../packages/engine/src/receipt/receiptService', () =>

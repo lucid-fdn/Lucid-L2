@@ -1,20 +1,20 @@
 export {
-  createReceipt,
-  getReceipt,
-  verifyReceiptHash,
-  verifyReceipt,
-  getReceiptProof,
+  createInferenceReceipt,
+  getInferenceReceipt,
+  verifyInferenceReceiptHash,
+  verifyInferenceReceipt,
+  getInferenceReceiptProof,
   getMmrRoot,
   getMmrLeafCount,
   getSignerPublicKey,
-  listReceipts,
-  listExtendedReceipts,
-  getExtendedReceipt,
-  verifyExtendedReceipt,
+  listInferenceReceipts,
+  listComputeReceipts,
+  getComputeReceipt,
+  verifyComputeReceipt,
 } from '@lucid-l2/engine';
 
 export type {
-  SignedReceipt,
-  RunReceiptInput,
-  ExtendedSignedReceipt,
+  InferenceReceipt,
+  InferenceReceiptInput,
+  ComputeReceipt,
 } from '@lucid-l2/engine';

@@ -14,9 +14,9 @@ import {
   computeOutputsHash,
   verifyQuoteHash,
   verifyJobHash,
-  createExtendedReceipt,
-  getExtendedReceipt,
-  verifyExtendedReceipt,
+  createComputeReceipt,
+  getComputeReceipt,
+  verifyComputeReceipt,
   resetReceiptStore,
   getMmrRoot,
   getMmrLeafCount,
@@ -262,7 +262,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
 
   describe('3. Extended Receipt Creation', () => {
     it('should create receipt with all v0 fields', () => {
-      const receipt = createExtendedReceipt({
+      const receipt = createComputeReceipt({
         model_passport_id: 'model_001',
         compute_passport_id: 'compute_001',
         policy_hash: 'a'.repeat(64),
@@ -296,7 +296,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
     });
 
     it('should verify receipt hash and signature', () => {
-      const receipt = createExtendedReceipt({
+      const receipt = createComputeReceipt({
         model_passport_id: 'model_001',
         compute_passport_id: 'compute_001',
         policy_hash: 'a'.repeat(64),
@@ -313,7 +313,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
         gpu_fingerprint: 'NVIDIA-A100-40GB',
       });
 
-      const verification = verifyExtendedReceipt(receipt.run_id);
+      const verification = verifyComputeReceipt(receipt.run_id);
 
       expect(verification.hash_valid).toBe(true);
       expect(verification.signature_valid).toBe(true);
@@ -322,7 +322,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
     it('should add receipt to Merkle tree', () => {
       const leafCountBefore = getMmrLeafCount();
 
-      createExtendedReceipt(createValidReceiptInput());
+      createComputeReceipt(createValidReceiptInput());
 
       const leafCountAfter = getMmrLeafCount();
 
@@ -342,7 +342,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
     it('should add receipts to current epoch', () => {
       const epoch = getCurrentEpoch();
 
-      const receipt = createExtendedReceipt(createValidReceiptInput());
+      const receipt = createComputeReceipt(createValidReceiptInput());
 
       addReceiptToEpoch(receipt.run_id);
 
@@ -359,7 +359,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
 
       // Add 2 receipts
       for (let i = 0; i < 2; i++) {
-        const receipt = createExtendedReceipt(createValidReceiptInput({
+        const receipt = createComputeReceipt(createValidReceiptInput({
           model_passport_id: `model_${i}`,
           job_hash: `${'b'.repeat(62)}${i.toString().padStart(2, '0')}`,
         }));
@@ -369,7 +369,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
       expect(shouldFinalizeEpoch(epoch).should).toBe(false);
 
       // Add 3rd receipt - should trigger finalization
-      const receipt = createExtendedReceipt(createValidReceiptInput({
+      const receipt = createComputeReceipt(createValidReceiptInput({
         model_passport_id: 'model_final',
         job_hash: 'b'.repeat(62) + '99',
       }));
@@ -383,7 +383,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
       const epoch = getCurrentEpoch();
 
       // Add a receipt
-      const receipt = createExtendedReceipt(createValidReceiptInput());
+      const receipt = createComputeReceipt(createValidReceiptInput());
       addReceiptToEpoch(receipt.run_id);
 
       const prepared = prepareEpochForFinalization(epoch.epoch_id);
@@ -400,7 +400,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
 
       // Add receipts
       for (let i = 0; i < 3; i++) {
-        const receipt = createExtendedReceipt(createValidReceiptInput({
+        const receipt = createComputeReceipt(createValidReceiptInput({
           model_passport_id: `model_${i}`,
           job_hash: `${'b'.repeat(62)}${i.toString().padStart(2, '0')}`,
         }));
@@ -417,7 +417,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
     it('should verify anchored epoch in mock mode', async () => {
       const epoch = getCurrentEpoch();
 
-      const receipt = createExtendedReceipt(createValidReceiptInput());
+      const receipt = createComputeReceipt(createValidReceiptInput());
       addReceiptToEpoch(receipt.run_id);
 
       await commitEpochRoot(epoch.epoch_id);
@@ -488,7 +488,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
       
       const outputs_hash = computeOutputsHash(mockOutput);
       
-      const receipt = createExtendedReceipt({
+      const receipt = createComputeReceipt({
         run_id: fullJob.job_id, // Use job_id for traceability
         model_passport_id: fullJob.model_id,
         compute_passport_id: fullJob.offer_id,
@@ -514,7 +514,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
       }, 'worker');
       
       // Verify receipt
-      const receiptVerification = verifyExtendedReceipt(receipt.run_id);
+      const receiptVerification = verifyComputeReceipt(receipt.run_id);
       expect(receiptVerification.hash_valid).toBe(true);
       expect(receiptVerification.signature_valid).toBe(true);
       
@@ -551,7 +551,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
   describe('7. Error Handling', () => {
     it('should create error receipt for failed jobs', () => {
       // Error receipts don't require outputs_hash when error_code is set
-      const receipt = createExtendedReceipt({
+      const receipt = createComputeReceipt({
         model_passport_id: 'model_001',
         compute_passport_id: 'compute_001',
         policy_hash: 'a'.repeat(64),
@@ -579,7 +579,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
       expect(receipt.metrics.tokens_out).toBe(0);
 
       // Error receipts should still be valid
-      const verification = verifyExtendedReceipt(receipt.run_id);
+      const verification = verifyComputeReceipt(receipt.run_id);
       expect(verification.hash_valid).toBe(true);
     });
 
@@ -608,7 +608,7 @@ describe('Fluid Compute v0 - E2E Tests', () => {
       for (let e = 0; e < 3; e++) {
         const epoch = createEpoch();
         for (let r = 0; r < 5; r++) {
-          const receipt = createExtendedReceipt(createValidReceiptInput({
+          const receipt = createComputeReceipt(createValidReceiptInput({
             model_passport_id: `model_${e}_${r}`,
             job_hash: `${'b'.repeat(60)}${e.toString().padStart(2, '0')}${r.toString().padStart(2, '0')}`,
           }));

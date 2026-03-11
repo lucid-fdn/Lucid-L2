@@ -528,7 +528,7 @@ export interface ReceiptBilling {
 /**
  * Extended receipt body for Fluid Compute v0.
  */
-export interface ExtendedReceiptBody {
+export interface ComputeReceiptBody {
   // Schema version
   schema_version: '1.0';
 
@@ -603,7 +603,7 @@ export interface ExtendedReceiptBody {
 /**
  * Signed receipt with signature envelope.
  */
-export interface SignedReceipt extends ExtendedReceiptBody {
+export interface InferenceReceipt extends ComputeReceiptBody {
   /** SHA256 hash of the canonical JSON receipt body */
   receipt_hash: string;
   /** ed25519 signature of receipt_hash */
@@ -775,7 +775,7 @@ export interface ComputeOffer {
 /**
  * Input for creating a receipt with extended fields.
  */
-export interface ExtendedRunReceiptInput {
+export interface ComputeReceiptInput {
   // Required
   model_passport_id: string;
   compute_passport_id: string;

@@ -38,7 +38,7 @@ import {
 } from '../services/receipt/anchoringService';
 
 import {
-  createReceipt,
+  createInferenceReceipt,
   resetReceiptStore,
 } from '../services/receipt/receiptService';
 
@@ -72,7 +72,7 @@ function createTestReceipt(overrides: Partial<{
   tokens_out: number;
   ttft_ms: number;
 }> = {}) {
-  return createReceipt({
+  return createInferenceReceipt({
     model_passport_id: overrides.model_passport_id || 'model-test-123',
     compute_passport_id: overrides.compute_passport_id || 'compute-test-456',
     policy_hash: overrides.policy_hash || '0'.repeat(64),

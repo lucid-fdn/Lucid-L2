@@ -67,18 +67,18 @@ jest.mock('../../packages/gateway-lite/src/compute/computeRegistry', () =>
 // Receipt service mock
 const mockCreateReceipt = jest.fn<() => any>();
 jest.mock('../services/receipt/receiptService', () => ({
-  createReceipt: mockCreateReceipt,
-  getReceipt: jest.fn(),
-  verifyReceiptHash: jest.fn(() => true),
-  verifyReceipt: jest.fn(() => true),
-  getReceiptProof: jest.fn(),
+  createInferenceReceipt: mockCreateReceipt,
+  getInferenceReceipt: jest.fn(),
+  verifyInferenceReceiptHash: jest.fn(() => true),
+  verifyInferenceReceipt: jest.fn(() => true),
+  getInferenceReceiptProof: jest.fn(),
   getMmrRoot: jest.fn(() => '0'.repeat(64)),
   getMmrLeafCount: jest.fn(() => 0),
   getSignerPublicKey: jest.fn(() => 'mock_pubkey'),
-  listReceipts: jest.fn(() => []),
-  listExtendedReceipts: jest.fn(() => []),
-  getExtendedReceipt: jest.fn(),
-  verifyExtendedReceipt: jest.fn(() => true),
+  listInferenceReceipts: jest.fn(() => []),
+  listComputeReceipts: jest.fn(() => []),
+  getComputeReceipt: jest.fn(),
+  verifyComputeReceipt: jest.fn(() => true),
 }));
 // Dual-path: gateway-lite routes + executionGateway import from engine
 jest.mock('../../packages/engine/src/receipt/receiptService', () =>

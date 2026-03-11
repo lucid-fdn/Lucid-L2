@@ -22,7 +22,7 @@ import {
 } from '../services/receipt/epochService';
 
 import {
-  createReceipt,
+  createInferenceReceipt,
   resetReceiptStore,
 } from '../services/receipt/receiptService';
 
@@ -64,7 +64,7 @@ jest.mock('../storage/depin', () => ({
 // =============================================================================
 
 function createTestReceipt() {
-  return createReceipt({
+  return createInferenceReceipt({
     model_passport_id: 'model-depin-test',
     compute_passport_id: 'compute-depin-test',
     policy_hash: '0'.repeat(64),

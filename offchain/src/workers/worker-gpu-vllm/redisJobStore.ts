@@ -17,7 +17,7 @@ import type {
   JobStatus,
   JobErrorCode,
 } from '../../types/fluidCompute';
-import { ExtendedSignedReceipt } from '../../services/receipt/receiptService';
+import { ComputeReceipt } from '../../services/receipt/receiptService';
 
 /**
  * Serializable job state for Redis storage
@@ -28,7 +28,7 @@ export interface StoredJobState {
   status: JobStatus;
   result?: JobResult;
   receipt_id?: string;
-  receipt_json?: string; // Serialized ExtendedSignedReceipt
+  receipt_json?: string; // Serialized ComputeReceipt
   start_ts?: number;
   end_ts?: number;
   error_code?: JobErrorCode;
@@ -346,7 +346,7 @@ export class RedisJobStore {
   async completeJob(
     jobId: string,
     result: JobResult,
-    receipt?: ExtendedSignedReceipt,
+    receipt?: ComputeReceipt,
     outputRef?: string
   ): Promise<{ success: boolean; state?: StoredJobState; error?: string }> {
     return this.updateJob(
@@ -370,7 +370,7 @@ export class RedisJobStore {
     jobId: string,
     errorCode: JobErrorCode,
     errorMessage: string,
-    receipt?: ExtendedSignedReceipt
+    receipt?: ComputeReceipt
   ): Promise<{ success: boolean; state?: StoredJobState; error?: string }> {
     return this.updateJob(
       jobId,

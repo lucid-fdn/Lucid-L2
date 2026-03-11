@@ -12,8 +12,8 @@
  *   Consistency (0.15) — 1 - coefficient of variation of latencies
  */
 
-import { listReceipts, listExtendedReceipts, verifyReceipt } from '../../../engine/src/receipt/receiptService';
-import type { SignedReceipt, ExtendedSignedReceipt } from '../../../engine/src/receipt/receiptService';
+import { listInferenceReceipts, listComputeReceipts, verifyInferenceReceipt } from '../../../engine/src/receipt/receiptService';
+import type { InferenceReceipt, ComputeReceipt } from '../../../engine/src/receipt/receiptService';
 import { getReputationProvider } from '../../../engine/src/reputation';
 
 // =============================================================================
@@ -72,8 +72,8 @@ const scoreCache = new Map<string, ReceiptReputationScore>();
  */
 export function computeReceiptReputation(agentId: string): ReceiptReputationScore {
   // Gather all receipts for this agent
-  const allReceipts = listReceipts();
-  const allExtended = listExtendedReceipts();
+  const allReceipts = listInferenceReceipts();
+  const allExtended = listComputeReceipts();
 
   const agentReceipts = allReceipts.filter(
     r => r.compute_passport_id === agentId || r.model_passport_id === agentId
@@ -116,7 +116,7 @@ export function computeReceiptReputation(agentId: string): ReceiptReputationScor
     if (receipt.timestamp > newestTimestamp) newestTimestamp = receipt.timestamp;
 
     // Verify receipt to check validation status
-    const verification = verifyReceipt(receipt.run_id);
+    const verification = verifyInferenceReceipt(receipt.run_id);
     if (verification.hash_valid && verification.signature_valid) {
       validatedCount++;
     }

@@ -10,8 +10,8 @@ import type {
   ChainCapabilities,
   CreatePassportInput,
   OperationResult,
-  SignedReceipt,
-  RunReceiptInput,
+  InferenceReceipt,
+  InferenceReceiptInput,
   Epoch,
   EpochStatus,
   AnchorResult,
@@ -95,11 +95,11 @@ export interface PassportNamespace {
 }
 
 export interface ReceiptNamespace {
-  create(params: RunReceiptInput): Promise<SignedReceipt>;
-  get(receiptId: string): Promise<SignedReceipt | null>;
+  create(params: InferenceReceiptInput): Promise<InferenceReceipt>;
+  get(receiptId: string): Promise<InferenceReceipt | null>;
   verify(receiptId: string): Promise<boolean>;
   prove(receiptId: string): Promise<MMRProof | null>;
-  list(params?: Record<string, unknown>): Promise<SignedReceipt[]>;
+  list(params?: Record<string, unknown>): Promise<InferenceReceipt[]>;
 }
 
 export interface EpochNamespace {
@@ -137,7 +137,7 @@ export interface AgentNamespace {
 export interface PaymentNamespace {
   createGrant(params: Record<string, unknown>): Promise<Record<string, unknown>>;
   verifyGrant(grantHeader: string): Promise<boolean>;
-  calculateSplit(receipt: SignedReceipt): Promise<Record<string, unknown>>;
+  calculateSplit(receipt: InferenceReceipt): Promise<Record<string, unknown>>;
   settle(epochId: string): Promise<Record<string, unknown>>;
 }
 
@@ -324,24 +324,24 @@ export class Lucid {
   private _buildReceiptNamespace(): ReceiptNamespace {
     return {
       create: (params) => this._wrap(() => {
-        const { createReceipt } = require('@lucid-l2/engine');
-        return createReceipt(params);
+        const { createInferenceReceipt } = require('@lucid-l2/engine');
+        return createInferenceReceipt(params);
       }),
       get: (id) => this._wrap(() => {
-        const { getReceipt } = require('@lucid-l2/engine');
-        return getReceipt(id);
+        const { getInferenceReceipt } = require('@lucid-l2/engine');
+        return getInferenceReceipt(id);
       }),
       verify: (id) => this._wrap(() => {
-        const { verifyReceipt } = require('@lucid-l2/engine');
-        return verifyReceipt(id);
+        const { verifyInferenceReceipt } = require('@lucid-l2/engine');
+        return verifyInferenceReceipt(id);
       }),
       prove: (id) => this._wrap(() => {
-        const { getReceiptProof } = require('@lucid-l2/engine');
-        return getReceiptProof(id);
+        const { getInferenceReceiptProof } = require('@lucid-l2/engine');
+        return getInferenceReceiptProof(id);
       }),
       list: (params) => this._wrap(() => {
-        const { listReceipts } = require('@lucid-l2/engine');
-        return listReceipts(params);
+        const { listInferenceReceipts } = require('@lucid-l2/engine');
+        return listInferenceReceipts(params);
       }),
     };
   }

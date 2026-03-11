@@ -5,14 +5,14 @@
  * Flow:
  *   TrustGate (v1.ts) ──write──► receipt_events table
  *   receiptConsumer   ──poll───► receipt_events WHERE processed = false
- *                     ──call───► createReceipt()
+ *                     ──call───► createInferenceReceipt()
  *                     ──mark───► processed = true
  *
  * This keeps TrustGate completely blockchain-free. All Solana anchoring
  * stays in Lucid-L2.
  */
 
-import { createReceipt } from '../receipt/receiptService'
+import { createInferenceReceipt } from '../receipt/receiptService'
 import { addReceiptToEpoch } from '../receipt/epochService'
 
 // ---------------------------------------------------------------------------
@@ -160,9 +160,9 @@ async function pollOnce(): Promise<number> {
 
     for (const row of rows) {
       try {
-        // createReceipt() is the existing Lucid-L2 service — same as the /v1/receipts endpoint
+        // createInferenceReceipt() is the existing Lucid-L2 service — same as the /v1/receipts endpoint
         // Pass run_id from gateway edge so the join key is consistent
-        const receipt = createReceipt({
+        const receipt = createInferenceReceipt({
           model_passport_id: row.model_passport_id,
           compute_passport_id: row.compute_passport_id ?? 'unknown',
           policy_hash: row.policy_hash,

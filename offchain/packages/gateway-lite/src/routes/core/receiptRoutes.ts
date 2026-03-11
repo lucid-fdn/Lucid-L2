@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createReceipt, getReceipt, verifyReceiptHash, verifyReceipt, getReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey, listReceipts, listExtendedReceipts, getExtendedReceipt, verifyExtendedReceipt } from '../../../../engine/src/receipt/receiptService';
+import { createInferenceReceipt, getInferenceReceipt, verifyInferenceReceiptHash, verifyInferenceReceipt, getInferenceReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey, listInferenceReceipts, listComputeReceipts, getComputeReceipt, verifyComputeReceipt } from '../../../../engine/src/receipt/receiptService';
 import { getAllEpochs, addReceiptToEpoch } from '../../../../engine/src/receipt/epochService';
 
 export const receiptRouter = Router();
@@ -18,7 +18,7 @@ receiptRouter.post('/v1/receipts', async (req, res) => {
       }
     }
 
-    const receipt = createReceipt(input);
+    const receipt = createInferenceReceipt(input);
     addReceiptToEpoch(receipt.run_id);
     return res.json({ success: true, receipt });
   } catch (error) {
@@ -33,7 +33,7 @@ receiptRouter.post('/v1/receipts', async (req, res) => {
 receiptRouter.get('/v1/receipts/:receipt_id', async (req, res) => {
   try {
     const { receipt_id } = req.params;
-    const receipt = getReceipt(receipt_id);
+    const receipt = getInferenceReceipt(receipt_id);
     if (!receipt) {
       return res.status(404).json({ success: false, error: 'Receipt not found' });
     }
@@ -51,7 +51,7 @@ receiptRouter.get('/v1/receipts/:receipt_id', async (req, res) => {
 receiptRouter.get('/v1/receipts/:receipt_id/verify', async (req, res) => {
   try {
     const { receipt_id } = req.params;
-    const result = verifyReceipt(receipt_id);
+    const result = verifyInferenceReceipt(receipt_id);
     if (!result.hash_valid && result.expected_hash === undefined) {
       return res.status(404).json({ success: false, error: 'Receipt not found' });
     }
@@ -94,7 +94,7 @@ receiptRouter.get('/v1/verify/:receipt_hash', async (req, res) => {
     let isExtended = false;
 
     // Check regular receipts
-    const regularReceipts = listReceipts();
+    const regularReceipts = listInferenceReceipts();
     for (const r of regularReceipts) {
       if (r.receipt_hash === receipt_hash) {
         receipt = r;
@@ -105,7 +105,7 @@ receiptRouter.get('/v1/verify/:receipt_hash', async (req, res) => {
 
     // Check extended receipts if not found
     if (!receipt) {
-      const extendedReceipts = listExtendedReceipts();
+      const extendedReceipts = listComputeReceipts();
       for (const r of extendedReceipts) {
         if (r.receipt_hash === receipt_hash) {
           receipt = r;
@@ -127,11 +127,11 @@ receiptRouter.get('/v1/verify/:receipt_hash', async (req, res) => {
 
     // Verify the receipt
     const verifyResult = isExtended
-      ? verifyExtendedReceipt(run_id)
-      : verifyReceipt(run_id);
+      ? verifyComputeReceipt(run_id)
+      : verifyInferenceReceipt(run_id);
 
     // Get Merkle proof
-    const merkleProof = getReceiptProof(run_id);
+    const merkleProof = getInferenceReceiptProof(run_id);
 
     // Check if receipt is in an anchored epoch
     let epoch_info = null;
@@ -227,12 +227,12 @@ receiptRouter.get('/v1/receipts/:receipt_id/proof', async (req, res) => {
     const { receipt_id } = req.params;
 
     // Get the receipt first to get run_id and receipt_hash
-    const receipt = getReceipt(receipt_id);
+    const receipt = getInferenceReceipt(receipt_id);
     if (!receipt) {
       return res.status(404).json({ success: false, error: 'Receipt not found' });
     }
 
-    const merkleProof = getReceiptProof(receipt_id);
+    const merkleProof = getInferenceReceiptProof(receipt_id);
     if (!merkleProof) {
       return res.status(404).json({ success: false, error: 'No proof available for this receipt' });
     }
