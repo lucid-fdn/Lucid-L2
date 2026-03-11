@@ -1,2 +1,2 @@
 // PROXY — real implementation moved to @lucid-l2/gateway-lite
-export * from '../../packages/gateway-lite/src/integrations/mcp-server/mcpServer';
+export * from '../../packages/gateway-lite/src/contrib/integrations/mcp-server/mcpServer';

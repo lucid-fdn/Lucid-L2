@@ -1337,7 +1337,7 @@ export async function handleToolsList(req: express.Request, res: express.Respons
  */
 export async function handleSyncAllHF(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./integrations/hf/hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./contrib/integrations/hf/hfSyncOrchestrator');
 
     const {
       types = ['all'],
@@ -1393,7 +1393,7 @@ export async function handleSyncAllHF(req: express.Request, res: express.Respons
  */
 export async function handleSyncProgress(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./integrations/hf/hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./contrib/integrations/hf/hfSyncOrchestrator');
     
     const orchestrator = getHFSyncOrchestrator();
     const progress = orchestrator.getProgress();
@@ -1419,7 +1419,7 @@ export async function handleSyncProgress(req: express.Request, res: express.Resp
  */
 export async function handleSyncResume(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./integrations/hf/hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./contrib/integrations/hf/hfSyncOrchestrator');
     
     const { batchSize, concurrency, hfToken } = req.body;
 
@@ -1451,7 +1451,7 @@ export async function handleSyncResume(req: express.Request, res: express.Respon
  */
 export async function handleSyncStop(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./integrations/hf/hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./contrib/integrations/hf/hfSyncOrchestrator');
     
     const orchestrator = getHFSyncOrchestrator();
     orchestrator.stop();
@@ -1476,7 +1476,7 @@ export async function handleSyncStop(req: express.Request, res: express.Response
  */
 export async function handleSyncRetryFailed(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./integrations/hf/hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./contrib/integrations/hf/hfSyncOrchestrator');
     
     const { maxAttempts = 3, concurrency = 5 } = req.body;
 
@@ -1507,7 +1507,7 @@ export async function handleSyncRetryFailed(req: express.Request, res: express.R
  */
 export async function handleSyncReport(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./integrations/hf/hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./contrib/integrations/hf/hfSyncOrchestrator');
     
     const orchestrator = getHFSyncOrchestrator();
     const report = orchestrator.generateReport();
@@ -1532,7 +1532,7 @@ export async function handleSyncReport(req: express.Request, res: express.Respon
  */
 export async function handleSyncStatus(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./integrations/hf/hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./contrib/integrations/hf/hfSyncOrchestrator');
     
     const orchestrator = getHFSyncOrchestrator();
     const status = orchestrator.getStatus();
@@ -1561,7 +1561,7 @@ export async function handleSyncStatus(req: express.Request, res: express.Respon
  */
 export async function handleSyncSpaces(req: express.Request, res: express.Response) {
   try {
-    const { getHFSyncOrchestrator } = await import('./integrations/hf/hfSyncOrchestrator');
+    const { getHFSyncOrchestrator } = await import('./contrib/integrations/hf/hfSyncOrchestrator');
 
     const {
       batchSize = 100,
@@ -1604,7 +1604,7 @@ export async function handleSyncSpaces(req: express.Request, res: express.Respon
  */
 export async function handleDetectDeprecations(req: express.Request, res: express.Response) {
   try {
-    const { getDeprecationDetector } = await import('./integrations/hf/deprecationDetector');
+    const { getDeprecationDetector } = await import('./contrib/integrations/hf/deprecationDetector');
 
     const { hfToken } = req.body || {};
     const detector = getDeprecationDetector(hfToken);
@@ -1889,7 +1889,7 @@ export async function handleToolsRefresh(req: express.Request, res: express.Resp
  */
 export async function handleN8nNodesReindex(req: express.Request, res: express.Response) {
   try {
-    const { getN8nNodeIndexer } = await import('./integrations/n8n/n8nNodeIndexer');
+    const { getN8nNodeIndexer } = await import('./contrib/integrations/n8n/n8nNodeIndexer');
     const { forceRefresh = false } = req.body;
     
     const indexer = getN8nNodeIndexer();
@@ -1911,7 +1911,7 @@ export async function handleN8nNodesReindex(req: express.Request, res: express.R
  */
 export async function handleN8nNodesStats(req: express.Request, res: express.Response) {
   try {
-    const { getElasticsearchService } = await import('./integrations/n8n/elasticsearchService');
+    const { getElasticsearchService } = await import('./contrib/integrations/n8n/elasticsearchService');
     
     const esService = getElasticsearchService();
     const stats = await esService.getStats();
@@ -1936,7 +1936,7 @@ export async function handleN8nNodesStats(req: express.Request, res: express.Res
  */
 export async function handleN8nNodesDeleteIndex(req: express.Request, res: express.Response) {
   try {
-    const { getElasticsearchService } = await import('./integrations/n8n/elasticsearchService');
+    const { getElasticsearchService } = await import('./contrib/integrations/n8n/elasticsearchService');
     
     const esService = getElasticsearchService();
     await esService.deleteIndex();
@@ -1960,8 +1960,8 @@ export async function handleN8nNodesDeleteIndex(req: express.Request, res: expre
  */
 export async function handleN8nNodesIndexStatus(req: express.Request, res: express.Response) {
   try {
-    const { getN8nNodeIndexer } = await import('./integrations/n8n/n8nNodeIndexer');
-    const { getElasticsearchService } = await import('./integrations/n8n/elasticsearchService');
+    const { getN8nNodeIndexer } = await import('./contrib/integrations/n8n/n8nNodeIndexer');
+    const { getElasticsearchService } = await import('./contrib/integrations/n8n/elasticsearchService');
     
     const indexer = getN8nNodeIndexer();
     const esService = getElasticsearchService();
@@ -1991,8 +1991,8 @@ export async function handleN8nNodesIndexStatus(req: express.Request, res: expre
  */
 export async function handleN8nNodesList(req: express.Request, res: express.Response) {
   try {
-    const { getElasticsearchService } = await import('./integrations/n8n/elasticsearchService');
-    const { getN8nNodeIndexer } = await import('./integrations/n8n/n8nNodeIndexer');
+    const { getElasticsearchService } = await import('./contrib/integrations/n8n/elasticsearchService');
+    const { getN8nNodeIndexer } = await import('./contrib/integrations/n8n/n8nNodeIndexer');
     
     const { 
       category, 
@@ -2454,7 +2454,7 @@ export async function handlePassportsByOwner(req: express.Request, res: express.
  */
 export async function handleSyncHFModels(req: express.Request, res: express.Response) {
   try {
-    const { getHFBridgeService } = await import('./integrations/hf/hfBridgeService');
+    const { getHFBridgeService } = await import('./contrib/integrations/hf/hfBridgeService');
     
     const { limit = 5, hfToken } = req.body;
 
@@ -2485,7 +2485,7 @@ export async function handleSyncHFModels(req: express.Request, res: express.Resp
  */
 export async function handleSyncHFDatasets(req: express.Request, res: express.Response) {
   try {
-    const { getHFBridgeService } = await import('./integrations/hf/hfBridgeService');
+    const { getHFBridgeService } = await import('./contrib/integrations/hf/hfBridgeService');
     
     const { limit = 5, hfToken } = req.body;
 
