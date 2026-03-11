@@ -23,20 +23,36 @@ export * from './config/paths';
 
 // ─── Receipt & Epoch ────────────────────────────────────────────────────────
 export {
+  // Inference receipts
   createInferenceReceipt, getInferenceReceipt, getInferenceReceiptAsync,
   verifyInferenceReceiptHash, verifyInferenceReceipt,
   getInferenceReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey,
   listInferenceReceipts,
+  // Compute receipts
   createComputeReceipt, createComputeReceiptFromJob,
   getComputeReceipt, verifyComputeReceipt, listComputeReceipts,
   validateComputeReceiptInput, assertValidComputeReceiptInput,
+  // Tool receipts
+  createToolReceipt,
+  // Agent receipts
+  createAgentReceipt,
+  // Dataset receipts
+  createDatasetReceipt,
+  // Unified receipt functions
+  createReceipt, getReceipt, verifyReceipt, getReceiptProof, listReceipts,
+  // Hash functions
   computeQuoteHash, verifyQuoteHash, computeJobHash, verifyJobHash,
   computeInputHash, computeOutputsHash,
   verifyReceiptProof,
 } from './receipt/receiptService';
 export type {
+  ReceiptType, Receipt, ReceiptCreateOptions,
   InferenceReceipt, InferenceReceiptInput, InferenceReceiptBody,
-  ComputeReceipt, ComputeReceiptBody, ReceiptVerifyResult,
+  ComputeReceipt, ComputeReceiptBody,
+  ToolReceipt, ToolReceiptInput, ToolReceiptBody,
+  AgentReceipt, AgentReceiptInput, AgentReceiptBody,
+  DatasetReceipt, DatasetReceiptInput, DatasetReceiptBody,
+  ReceiptVerifyResult,
 } from './receipt/receiptService';
 export type { ComputeReceiptInput } from './types/fluidCompute';
 export {

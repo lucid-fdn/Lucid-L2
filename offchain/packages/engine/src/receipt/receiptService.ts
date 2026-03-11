@@ -73,6 +73,7 @@ export interface InferenceReceiptInput {
 export interface InferenceReceipt {
   // Receipt body (hashable content)
   schema_version: '1.0';
+  receipt_type: 'inference';
   run_id: string;
   timestamp: number;
   trace_id?: string;
@@ -190,6 +191,7 @@ export interface ComputeReceiptBody {
  * Extended Signed Receipt for Fluid Compute v0.
  */
 export interface ComputeReceipt extends ComputeReceiptBody {
+  receipt_type: 'compute';
   receipt_hash: string;
   receipt_signature: string;
   signer_pubkey: string;
@@ -201,6 +203,182 @@ export interface ComputeReceipt extends ComputeReceiptBody {
     epoch_id?: string;
   };
   _mmr_leaf_index?: number;
+}
+
+// ============================================================================
+// RECEIPT TYPE DISCRIMINATOR
+// ============================================================================
+
+/** All supported receipt types in the Lucid execution layer */
+export type ReceiptType = 'inference' | 'compute' | 'tool' | 'agent' | 'dataset';
+
+// ============================================================================
+// TOOL RECEIPT — Tool invocation receipts
+// ============================================================================
+
+/**
+ * Tool receipt body — the data that gets hashed.
+ * Records a single tool invocation by an agent or user.
+ */
+export interface ToolReceiptBody {
+  schema_version: '1.0';
+  run_id: string;
+  timestamp: number;
+  trace_id?: string;
+  tool_passport_id: string;
+  agent_passport_id?: string;
+  input_hash: string;
+  output_hash: string;
+  latency_ms: number;
+  success: boolean;
+  error_code?: string;
+  error_message?: string;
+}
+
+export interface ToolReceiptInput {
+  tool_passport_id: string;
+  agent_passport_id?: string;
+  input_hash: string;
+  output_hash: string;
+  latency_ms: number;
+  success: boolean;
+  run_id?: string;
+  trace_id?: string;
+  error_code?: string;
+  error_message?: string;
+}
+
+export interface ToolReceipt extends ToolReceiptBody {
+  receipt_type: 'tool';
+  receipt_hash: string;
+  receipt_signature: string;
+  signer_pubkey: string;
+  signer_type: SignerType;
+  anchor?: {
+    chain?: string;
+    tx?: string;
+    root?: string;
+    epoch_id?: string;
+  };
+  _mmr_leaf_index?: number;
+}
+
+// ============================================================================
+// AGENT RECEIPT — Agent execution receipts (wraps sub-receipts)
+// ============================================================================
+
+/**
+ * Agent receipt body — the data that gets hashed.
+ * Records a complete agent execution, linking to child receipts.
+ */
+export interface AgentReceiptBody {
+  schema_version: '1.0';
+  run_id: string;
+  timestamp: number;
+  trace_id?: string;
+  agent_passport_id: string;
+  task_hash: string;
+  sub_receipt_ids: string[];
+  steps_count: number;
+  total_tokens: number;
+  total_cost_usd?: number;
+  duration_ms: number;
+  success: boolean;
+  error_code?: string;
+  error_message?: string;
+}
+
+export interface AgentReceiptInput {
+  agent_passport_id: string;
+  task_hash: string;
+  sub_receipt_ids: string[];
+  steps_count: number;
+  total_tokens: number;
+  total_cost_usd?: number;
+  duration_ms: number;
+  success: boolean;
+  run_id?: string;
+  trace_id?: string;
+  error_code?: string;
+  error_message?: string;
+}
+
+export interface AgentReceipt extends AgentReceiptBody {
+  receipt_type: 'agent';
+  receipt_hash: string;
+  receipt_signature: string;
+  signer_pubkey: string;
+  signer_type: SignerType;
+  anchor?: {
+    chain?: string;
+    tx?: string;
+    root?: string;
+    epoch_id?: string;
+  };
+  _mmr_leaf_index?: number;
+}
+
+// ============================================================================
+// DATASET RECEIPT — Data access receipts
+// ============================================================================
+
+/**
+ * Dataset receipt body — the data that gets hashed.
+ * Records a dataset access event (download, query, or stream).
+ */
+export interface DatasetReceiptBody {
+  schema_version: '1.0';
+  run_id: string;
+  timestamp: number;
+  trace_id?: string;
+  dataset_passport_id: string;
+  consumer_passport_id?: string;
+  access_type: 'download' | 'query' | 'stream';
+  data_hash: string;
+  rows_returned?: number;
+  bytes_transferred: number;
+  query_hash?: string;
+}
+
+export interface DatasetReceiptInput {
+  dataset_passport_id: string;
+  consumer_passport_id?: string;
+  access_type: 'download' | 'query' | 'stream';
+  data_hash: string;
+  rows_returned?: number;
+  bytes_transferred: number;
+  query_hash?: string;
+  run_id?: string;
+  trace_id?: string;
+}
+
+export interface DatasetReceipt extends DatasetReceiptBody {
+  receipt_type: 'dataset';
+  receipt_hash: string;
+  receipt_signature: string;
+  signer_pubkey: string;
+  signer_type: SignerType;
+  anchor?: {
+    chain?: string;
+    tx?: string;
+    root?: string;
+    epoch_id?: string;
+  };
+  _mmr_leaf_index?: number;
+}
+
+// ============================================================================
+// UNIFIED RECEIPT MODEL
+// ============================================================================
+
+/** Discriminated union of all receipt types */
+export type Receipt = InferenceReceipt | ComputeReceipt | ToolReceipt | AgentReceipt | DatasetReceipt;
+
+/** Options for the unified createReceipt function */
+export interface ReceiptCreateOptions {
+  signerType?: SignerType;
+  idempotencyKey?: string;
+  skipValidation?: boolean;
 }
 
 // ============================================================================
@@ -336,8 +514,8 @@ export function verifyJobHash(job: JobRequest): boolean {
   return computed === job.job_hash;
 }
 
-// In-memory store (MVP)
-const receiptStore = new Map<string, InferenceReceipt>();
+// In-memory store (unified — all receipt types)
+const receiptStore = new Map<string, Receipt>();
 
 // Idempotency store: maps idempotency key -> run_id
 const idempotencyStore = new Map<string, string>();
@@ -393,6 +571,7 @@ async function loadReceiptFromDb(run_id: string): Promise<InferenceReceipt | nul
     const body = row.body;
     return {
       ...body,
+      receipt_type: 'inference' as const,
       receipt_hash: row.receipt_hash,
       receipt_signature: row.signature,
       signer_pubkey: row.signer_pubkey,
@@ -416,8 +595,8 @@ async function loadReceiptFromDb(run_id: string): Promise<InferenceReceipt | nul
  */
 export async function getInferenceReceiptAsync(run_id: string): Promise<InferenceReceipt | null> {
   // Try in-memory first
-  const inMemory = receiptStore.get(run_id) || null;
-  if (inMemory) return inMemory;
+  const inMemory = receiptStore.get(run_id);
+  if (inMemory?.receipt_type === 'inference') return inMemory;
 
   // Fall back to DB
   return loadReceiptFromDb(run_id);
@@ -473,7 +652,7 @@ export function createInferenceReceipt(input: InferenceReceiptInput, idempotency
     const existingRunId = idempotencyStore.get(idempotencyKey);
     if (existingRunId) {
       const existing = receiptStore.get(existingRunId);
-      if (existing) {
+      if (existing?.receipt_type === 'inference') {
         return existing;
       }
     }
@@ -481,11 +660,11 @@ export function createInferenceReceipt(input: InferenceReceiptInput, idempotency
 
   // Generate run_id (use provided or generate new)
   const run_id = input.run_id || `run_${uuid().replace(/-/g, '')}`;
-  
+
   // Check if run_id already exists
-  if (receiptStore.has(run_id)) {
-    const existing = receiptStore.get(run_id)!;
-    return existing;
+  const existingById = receiptStore.get(run_id);
+  if (existingById?.receipt_type === 'inference') {
+    return existingById;
   }
 
   const timestamp = Math.floor(Date.now() / 1000);
@@ -522,6 +701,7 @@ export function createInferenceReceipt(input: InferenceReceiptInput, idempotency
   // Build signed receipt
   const signed: InferenceReceipt = {
     ...body,
+    receipt_type: 'inference',
     receipt_hash,
     receipt_signature: signature,
     signer_pubkey: publicKey,
@@ -580,7 +760,8 @@ export function createInferenceReceipt(input: InferenceReceiptInput, idempotency
  * Get a receipt by run_id.
  */
 export function getInferenceReceipt(run_id: string): InferenceReceipt | null {
-  return receiptStore.get(run_id) || null;
+  const r = receiptStore.get(run_id);
+  return r?.receipt_type === 'inference' ? r : null;
 }
 
 /**
@@ -588,7 +769,7 @@ export function getInferenceReceipt(run_id: string): InferenceReceipt | null {
  */
 export function verifyInferenceReceiptHash(run_id: string): ReceiptVerifyResult {
   const receipt = receiptStore.get(run_id);
-  if (!receipt) {
+  if (!receipt || receipt.receipt_type !== 'inference') {
     return { hash_valid: false, signature_valid: false };
   }
 
@@ -617,7 +798,7 @@ export function verifyInferenceReceiptHash(run_id: string): ReceiptVerifyResult 
  */
 export function verifyInferenceReceipt(run_id: string): ReceiptVerifyResult {
   const receipt = receiptStore.get(run_id);
-  if (!receipt) {
+  if (!receipt || receipt.receipt_type !== 'inference') {
     return { hash_valid: false, signature_valid: false };
   }
 
@@ -662,7 +843,7 @@ export function verifyInferenceReceipt(run_id: string): ReceiptVerifyResult {
  */
 export function getInferenceReceiptProof(run_id: string): MerkleProof | null {
   const receipt = receiptStore.get(run_id);
-  if (!receipt || receipt._mmr_leaf_index === undefined) {
+  if (!receipt || receipt.receipt_type !== 'inference' || receipt._mmr_leaf_index === undefined) {
     return null;
   }
 
@@ -710,7 +891,7 @@ export function getSignerPublicKey(): string {
  * List all receipts (for admin/debugging).
  */
 export function listInferenceReceipts(): InferenceReceipt[] {
-  return Array.from(receiptStore.values());
+  return Array.from(receiptStore.values()).filter((r): r is InferenceReceipt => r.receipt_type === 'inference');
 }
 
 /**
@@ -719,7 +900,6 @@ export function listInferenceReceipts(): InferenceReceipt[] {
 export function resetReceiptStore(): void {
   receiptStore.clear();
   idempotencyStore.clear();
-  extendedReceiptStore.clear();
 }
 
 // ============================================================================
@@ -894,8 +1074,7 @@ export function assertValidComputeReceiptInput(input: ComputeReceiptInput): void
 // FLUID COMPUTE v0 - EXTENDED RECEIPT FUNCTIONS
 // ============================================================================
 
-// Extended receipt store (Fluid Compute v0)
-const extendedReceiptStore = new Map<string, ComputeReceipt>();
+// Extended receipts now stored in unified receiptStore
 
 /**
  * Extract the extended receipt body (the canonical preimage for hashing).
@@ -1014,7 +1193,7 @@ export function createComputeReceipt(
   if (idempotencyKey) {
     const existingRunId = idempotencyStore.get(idempotencyKey);
     if (existingRunId) {
-      const existing = extendedReceiptStore.get(existingRunId);
+      const existing = receiptStore.get(existingRunId) as ComputeReceipt | undefined;
       if (existing) {
         return existing;
       }
@@ -1025,8 +1204,8 @@ export function createComputeReceipt(
   const run_id = input.run_id || `run_${uuid().replace(/-/g, '')}`;
   
   // Check if run_id already exists
-  if (extendedReceiptStore.has(run_id)) {
-    return extendedReceiptStore.get(run_id)!;
+  if (receiptStore.has(run_id)) {
+    return receiptStore.get(run_id)! as ComputeReceipt;
   }
 
   const timestamp = Math.floor(Date.now() / 1000);
@@ -1092,6 +1271,7 @@ export function createComputeReceipt(
   // Build signed receipt
   const signed: ComputeReceipt = {
     ...body,
+    receipt_type: 'compute',
     receipt_hash,
     receipt_signature: signature,
     signer_pubkey: publicKey,
@@ -1110,7 +1290,7 @@ export function createComputeReceipt(
   signed._mmr_leaf_index = leafIndex;
 
   // Store receipt
-  extendedReceiptStore.set(run_id, signed);
+  receiptStore.set(run_id, signed);
 
   // Store idempotency mapping
   if (idempotencyKey) {
@@ -1124,15 +1304,16 @@ export function createComputeReceipt(
  * Get an extended receipt by run_id.
  */
 export function getComputeReceipt(run_id: string): ComputeReceipt | null {
-  return extendedReceiptStore.get(run_id) || null;
+  const r = receiptStore.get(run_id);
+  return r?.receipt_type === 'compute' ? r : null;
 }
 
 /**
  * Verify an extended receipt's hash and signature.
  */
 export function verifyComputeReceipt(run_id: string): ReceiptVerifyResult {
-  const receipt = extendedReceiptStore.get(run_id);
-  if (!receipt) {
+  const receipt = receiptStore.get(run_id);
+  if (!receipt || receipt.receipt_type !== 'compute') {
     return { hash_valid: false, signature_valid: false };
   }
 
@@ -1176,7 +1357,7 @@ export function verifyComputeReceipt(run_id: string): ReceiptVerifyResult {
  * List all extended receipts (for admin/debugging).
  */
 export function listComputeReceipts(): ComputeReceipt[] {
-  return Array.from(extendedReceiptStore.values());
+  return Array.from(receiptStore.values()).filter((r): r is ComputeReceipt => r.receipt_type === 'compute');
 }
 
 /**
@@ -1255,4 +1436,328 @@ export function createComputeReceiptFromJob(
     model_load_ms: result.metrics.model_load_ms,
     cache_hit: result.metrics.cache_hit,
   }, 'worker');
+}
+
+// ============================================================================
+// BODY EXTRACTORS FOR NEW RECEIPT TYPES
+// ============================================================================
+
+function extractToolReceiptBody(receipt: ToolReceipt | ToolReceiptBody): ToolReceiptBody {
+  const body: ToolReceiptBody = {
+    schema_version: '1.0',
+    run_id: receipt.run_id,
+    timestamp: receipt.timestamp,
+    tool_passport_id: receipt.tool_passport_id,
+    input_hash: receipt.input_hash,
+    output_hash: receipt.output_hash,
+    latency_ms: receipt.latency_ms,
+    success: receipt.success,
+  };
+  if (receipt.trace_id !== undefined) body.trace_id = receipt.trace_id;
+  if (receipt.agent_passport_id !== undefined) body.agent_passport_id = receipt.agent_passport_id;
+  if (receipt.error_code !== undefined) body.error_code = receipt.error_code;
+  if (receipt.error_message !== undefined) body.error_message = receipt.error_message;
+  return body;
+}
+
+function extractAgentReceiptBody(receipt: AgentReceipt | AgentReceiptBody): AgentReceiptBody {
+  const body: AgentReceiptBody = {
+    schema_version: '1.0',
+    run_id: receipt.run_id,
+    timestamp: receipt.timestamp,
+    agent_passport_id: receipt.agent_passport_id,
+    task_hash: receipt.task_hash,
+    sub_receipt_ids: [...receipt.sub_receipt_ids],
+    steps_count: receipt.steps_count,
+    total_tokens: receipt.total_tokens,
+    duration_ms: receipt.duration_ms,
+    success: receipt.success,
+  };
+  if (receipt.trace_id !== undefined) body.trace_id = receipt.trace_id;
+  if (receipt.total_cost_usd !== undefined) body.total_cost_usd = receipt.total_cost_usd;
+  if (receipt.error_code !== undefined) body.error_code = receipt.error_code;
+  if (receipt.error_message !== undefined) body.error_message = receipt.error_message;
+  return body;
+}
+
+function extractDatasetReceiptBody(receipt: DatasetReceipt | DatasetReceiptBody): DatasetReceiptBody {
+  const body: DatasetReceiptBody = {
+    schema_version: '1.0',
+    run_id: receipt.run_id,
+    timestamp: receipt.timestamp,
+    dataset_passport_id: receipt.dataset_passport_id,
+    access_type: receipt.access_type,
+    data_hash: receipt.data_hash,
+    bytes_transferred: receipt.bytes_transferred,
+  };
+  if (receipt.trace_id !== undefined) body.trace_id = receipt.trace_id;
+  if (receipt.consumer_passport_id !== undefined) body.consumer_passport_id = receipt.consumer_passport_id;
+  if (receipt.rows_returned !== undefined) body.rows_returned = receipt.rows_returned;
+  if (receipt.query_hash !== undefined) body.query_hash = receipt.query_hash;
+  return body;
+}
+
+// ============================================================================
+// GENERIC RECEIPT PIPELINE (shared by new receipt types)
+// ============================================================================
+
+/**
+ * Generic receipt creation pipeline: body → hash → sign → MMR → store.
+ * Used by tool, agent, and dataset receipts. Inference and compute keep
+ * their existing (more complex) create functions as wrappers.
+ */
+function createReceiptGeneric<TBody extends { run_id: string }, TReceipt extends Receipt>(
+  receiptType: ReceiptType,
+  body: TBody,
+  opts: ReceiptCreateOptions = {}
+): TReceipt {
+  const run_id = body.run_id;
+
+  // Check idempotency
+  if (opts.idempotencyKey) {
+    const existingRunId = idempotencyStore.get(opts.idempotencyKey);
+    if (existingRunId) {
+      const existing = receiptStore.get(existingRunId);
+      if (existing) return existing as TReceipt;
+    }
+  }
+
+  // Check existing
+  if (receiptStore.has(run_id)) {
+    return receiptStore.get(run_id)! as TReceipt;
+  }
+
+  // Hash body (JCS canonical JSON)
+  const receipt_hash = canonicalSha256Hex(body);
+
+  // Sign with ed25519
+  const { signature, publicKey } = signMessage(receipt_hash);
+
+  // Build signed receipt
+  const signed = {
+    ...body,
+    receipt_type: receiptType,
+    receipt_hash,
+    receipt_signature: signature,
+    signer_pubkey: publicKey,
+    signer_type: opts.signerType || 'orchestrator',
+  } as unknown as TReceipt;
+
+  // Add to Merkle tree
+  const tree = getReceiptTree();
+  const leafIndex = tree.addLeaf(receipt_hash);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (signed as any)._mmr_leaf_index = leafIndex;
+
+  // Store
+  receiptStore.set(run_id, signed as Receipt);
+
+  // Idempotency
+  if (opts.idempotencyKey) {
+    idempotencyStore.set(opts.idempotencyKey, run_id);
+  }
+
+  return signed;
+}
+
+// ============================================================================
+// TYPE-SPECIFIC CREATE FUNCTIONS (new receipt types)
+// ============================================================================
+
+/**
+ * Create a tool receipt.
+ */
+export function createToolReceipt(input: ToolReceiptInput, opts: ReceiptCreateOptions = {}): ToolReceipt {
+  const run_id = input.run_id || `run_${uuid().replace(/-/g, '')}`;
+  const timestamp = Math.floor(Date.now() / 1000);
+
+  const body: ToolReceiptBody = {
+    schema_version: '1.0',
+    run_id,
+    timestamp,
+    tool_passport_id: input.tool_passport_id,
+    input_hash: input.input_hash,
+    output_hash: input.output_hash,
+    latency_ms: input.latency_ms,
+    success: input.success,
+  };
+
+  if (input.trace_id) body.trace_id = input.trace_id;
+  if (input.agent_passport_id) body.agent_passport_id = input.agent_passport_id;
+  if (input.error_code) body.error_code = input.error_code;
+  if (input.error_message) body.error_message = input.error_message;
+
+  return createReceiptGeneric<ToolReceiptBody, ToolReceipt>('tool', body, opts);
+}
+
+/**
+ * Create an agent receipt.
+ */
+export function createAgentReceipt(input: AgentReceiptInput, opts: ReceiptCreateOptions = {}): AgentReceipt {
+  const run_id = input.run_id || `run_${uuid().replace(/-/g, '')}`;
+  const timestamp = Math.floor(Date.now() / 1000);
+
+  const body: AgentReceiptBody = {
+    schema_version: '1.0',
+    run_id,
+    timestamp,
+    agent_passport_id: input.agent_passport_id,
+    task_hash: input.task_hash,
+    sub_receipt_ids: [...input.sub_receipt_ids],
+    steps_count: input.steps_count,
+    total_tokens: input.total_tokens,
+    duration_ms: input.duration_ms,
+    success: input.success,
+  };
+
+  if (input.trace_id) body.trace_id = input.trace_id;
+  if (input.total_cost_usd !== undefined) body.total_cost_usd = input.total_cost_usd;
+  if (input.error_code) body.error_code = input.error_code;
+  if (input.error_message) body.error_message = input.error_message;
+
+  return createReceiptGeneric<AgentReceiptBody, AgentReceipt>('agent', body, opts);
+}
+
+/**
+ * Create a dataset receipt.
+ */
+export function createDatasetReceipt(input: DatasetReceiptInput, opts: ReceiptCreateOptions = {}): DatasetReceipt {
+  const run_id = input.run_id || `run_${uuid().replace(/-/g, '')}`;
+  const timestamp = Math.floor(Date.now() / 1000);
+
+  const body: DatasetReceiptBody = {
+    schema_version: '1.0',
+    run_id,
+    timestamp,
+    dataset_passport_id: input.dataset_passport_id,
+    access_type: input.access_type,
+    data_hash: input.data_hash,
+    bytes_transferred: input.bytes_transferred,
+  };
+
+  if (input.trace_id) body.trace_id = input.trace_id;
+  if (input.consumer_passport_id) body.consumer_passport_id = input.consumer_passport_id;
+  if (input.rows_returned !== undefined) body.rows_returned = input.rows_returned;
+  if (input.query_hash) body.query_hash = input.query_hash;
+
+  return createReceiptGeneric<DatasetReceiptBody, DatasetReceipt>('dataset', body, opts);
+}
+
+// ============================================================================
+// UNIFIED RECEIPT FUNCTIONS
+// ============================================================================
+
+/** Body extractor dispatch table */
+const bodyExtractors: Record<ReceiptType, (receipt: Receipt) => object> = {
+  inference: (r) => extractInferenceReceiptBody(r as InferenceReceipt),
+  compute: (r) => extractComputeReceiptBody(r as ComputeReceipt),
+  tool: (r) => extractToolReceiptBody(r as ToolReceipt),
+  agent: (r) => extractAgentReceiptBody(r as AgentReceipt),
+  dataset: (r) => extractDatasetReceiptBody(r as DatasetReceipt),
+};
+
+/**
+ * Create a receipt of any type — single entry point.
+ */
+export function createReceipt(type: 'inference', input: InferenceReceiptInput, opts?: ReceiptCreateOptions): InferenceReceipt;
+export function createReceipt(type: 'compute', input: ComputeReceiptInput, opts?: ReceiptCreateOptions): ComputeReceipt;
+export function createReceipt(type: 'tool', input: ToolReceiptInput, opts?: ReceiptCreateOptions): ToolReceipt;
+export function createReceipt(type: 'agent', input: AgentReceiptInput, opts?: ReceiptCreateOptions): AgentReceipt;
+export function createReceipt(type: 'dataset', input: DatasetReceiptInput, opts?: ReceiptCreateOptions): DatasetReceipt;
+export function createReceipt(
+  type: ReceiptType,
+  input: InferenceReceiptInput | ComputeReceiptInput | ToolReceiptInput | AgentReceiptInput | DatasetReceiptInput,
+  opts: ReceiptCreateOptions = {}
+): Receipt {
+  switch (type) {
+    case 'inference':
+      return createInferenceReceipt(input as InferenceReceiptInput, opts.idempotencyKey);
+    case 'compute':
+      return createComputeReceipt(
+        input as ComputeReceiptInput,
+        opts.signerType || 'orchestrator',
+        opts.idempotencyKey,
+        opts.skipValidation
+      );
+    case 'tool':
+      return createToolReceipt(input as ToolReceiptInput, opts);
+    case 'agent':
+      return createAgentReceipt(input as AgentReceiptInput, opts);
+    case 'dataset':
+      return createDatasetReceipt(input as DatasetReceiptInput, opts);
+    default:
+      throw new Error(`Unknown receipt type: ${type}`);
+  }
+}
+
+/**
+ * Get any receipt by run_id.
+ */
+export function getReceipt(run_id: string): Receipt | null {
+  return receiptStore.get(run_id) || null;
+}
+
+/**
+ * Verify any receipt's hash, signature, and inclusion proof.
+ */
+export function verifyReceipt(run_id: string): ReceiptVerifyResult {
+  const receipt = receiptStore.get(run_id);
+  if (!receipt) {
+    return { hash_valid: false, signature_valid: false };
+  }
+
+  const extractor = bodyExtractors[receipt.receipt_type];
+  const body = extractor(receipt);
+  const computed = canonicalSha256Hex(body);
+  const hash_valid = computed === receipt.receipt_hash;
+
+  const signature_valid = verifySignature(
+    receipt.receipt_hash,
+    receipt.receipt_signature,
+    receipt.signer_pubkey
+  );
+
+  let inclusion_valid: boolean | undefined;
+  let merkle_root: string | undefined;
+
+  if (receipt._mmr_leaf_index !== undefined) {
+    const tree = getReceiptTree();
+    const proof = tree.getProof(receipt._mmr_leaf_index);
+    if (proof) {
+      const result = MerkleTree.verifyProof(proof);
+      inclusion_valid = result.valid;
+      merkle_root = result.expectedRoot;
+    }
+  }
+
+  return {
+    hash_valid,
+    signature_valid,
+    inclusion_valid,
+    expected_hash: receipt.receipt_hash,
+    computed_hash: computed,
+    merkle_root,
+  };
+}
+
+/**
+ * Get inclusion proof for any receipt.
+ */
+export function getReceiptProof(run_id: string): MerkleProof | null {
+  const receipt = receiptStore.get(run_id);
+  if (!receipt || receipt._mmr_leaf_index === undefined) {
+    return null;
+  }
+
+  const tree = getReceiptTree();
+  return tree.getProof(receipt._mmr_leaf_index);
+}
+
+/**
+ * List receipts, optionally filtered by type.
+ */
+export function listReceipts(type?: ReceiptType): Receipt[] {
+  const all = Array.from(receiptStore.values());
+  if (!type) return all;
+  return all.filter(r => r.receipt_type === type);
 }

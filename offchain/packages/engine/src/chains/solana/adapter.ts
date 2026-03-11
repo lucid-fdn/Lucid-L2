@@ -29,7 +29,7 @@ import type {
   AgentRegistration,
   AgentIdentity,
 } from '../types';
-import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter, ChainCapabilities } from '../domain-interfaces';
+import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter, IGasAdapter, ChainCapabilities } from '../domain-interfaces';
 import { ChainFeatureUnavailable } from '../../errors';
 import { SolanaPassportClient } from '../../passport/nft/solana-token2022';
 
@@ -922,11 +922,40 @@ export class SolanaAdapter implements IBlockchainAdapter {
     const chainId = this._chainId;
 
     return {
-      async anchorPassport(_passportId, _contentHash, _owner) {
-        throw new ChainFeatureUnavailable('anchorPassport (use passportSyncService.syncPassportToChain())', chainId);
+      async anchorPassport(passportId, _contentHash, _owner) {
+        // Delegate to PassportSyncService which handles full Anchor IDL interaction
+        const { getPassportSyncService } = await import('../../passport/passportSyncService');
+        const { getPassportStore } = await import('../../storage/passportStore');
+        const syncService = getPassportSyncService();
+        const passport = await getPassportStore().get(passportId);
+        if (!passport) {
+          throw new Error(`Passport ${passportId} not found in store`);
+        }
+        const result = await syncService.syncToChain(passport);
+        if (!result) {
+          throw new Error(`Failed to anchor passport ${passportId} on-chain`);
+        }
+        return { hash: result.tx, chainId, success: true };
       },
-      async updatePassportStatus(_passportId, _status) {
-        throw new ChainFeatureUnavailable('updatePassportStatus (use passportSyncService.syncPassportToChain())', chainId);
+      async updatePassportStatus(passportId, status) {
+        // Delegate to PassportSyncService which handles Anchor IDL interaction
+        const { getPassportSyncService } = await import('../../passport/passportSyncService');
+        const { getPassportStore } = await import('../../storage/passportStore');
+        const syncService = getPassportSyncService();
+        const passport = await getPassportStore().get(passportId);
+        if (!passport?.on_chain_pda) {
+          throw new Error(`Passport ${passportId} has no on-chain PDA — anchor it first`);
+        }
+        const statusMap: Record<string, number> = { active: 0, deprecated: 1, superseded: 2, revoked: 3 };
+        const statusNum = statusMap[status];
+        if (statusNum === undefined) {
+          throw new Error(`Invalid status "${status}" — expected: active, deprecated, superseded, revoked`);
+        }
+        const tx = await syncService.updatePassportStatus(passport.on_chain_pda, statusNum);
+        if (!tx) {
+          throw new Error(`Failed to update passport ${passportId} status to ${status}`);
+        }
+        return { hash: tx, chainId, success: true };
       },
       async verifyAnchor(passportId, contentHash) {
         try {
@@ -1156,6 +1185,64 @@ export class SolanaAdapter implements IBlockchainAdapter {
 
         console.log(`[SolanaAdapter] revokeSession: wallet=${walletAddress} delegate=${delegate} tx=${signature}`);
         return { hash: signature, chainId, success: true };
+      },
+    };
+  }
+
+  // =========================================================================
+  // IGasAdapter — gas collection and revenue splitting via gas-utils program
+  // =========================================================================
+
+  gas(): IGasAdapter {
+    const adapter = this;
+    const config = this._config;
+    const chainId = this._chainId;
+
+    return {
+      async collectAndSplit(iGas, mGas, recipients, burnBps) {
+        adapter.ensureConnected();
+        const conn = adapter._connection!;
+        const keypair = adapter.loadKeypair();
+        if (!keypair) throw new Error('No Solana keypair configured');
+        if (!config?.gasUtilsProgram) throw new ChainFeatureUnavailable('gas.collectAndSplit (gas-utils program not configured)', chainId);
+
+        const { getLUCID_MINT } = await import('../../config/config');
+        const mint = getLUCID_MINT();
+        const programId = new PublicKey(config.gasUtilsProgram);
+
+        // Calculate amounts
+        const iGasAmount = BigInt(iGas);
+        const mGasAmount = BigInt(mGas);
+        const totalAmount = iGasAmount + mGasAmount;
+        const burnAmount = (totalAmount * BigInt(burnBps)) / BigInt(10000);
+        const distributeAmount = totalAmount - burnAmount;
+
+        // Build burn instruction for the burn portion
+        const userAta = await getAssociatedTokenAddress(mint, keypair.publicKey);
+        const { makeBurnIx, makeComputeIx } = await import('./gas');
+        const transaction = new Transaction();
+        transaction.add(makeComputeIx());
+
+        if (burnAmount > 0n) {
+          transaction.add(makeBurnIx('iGas', userAta, mint, keypair.publicKey, burnAmount));
+        }
+
+        // Build transfer instructions for each recipient's share
+        if (distributeAmount > 0n) {
+          const { createTransferInstruction } = await import('@solana/spl-token');
+          for (const recipient of recipients) {
+            const recipientPubkey = new PublicKey(recipient.address);
+            const recipientAta = await getAssociatedTokenAddress(mint, recipientPubkey);
+            const share = (distributeAmount * BigInt(recipient.bps)) / BigInt(10000);
+            if (share > 0n) {
+              transaction.add(createTransferInstruction(userAta, recipientAta, keypair.publicKey, share));
+            }
+          }
+        }
+
+        const sig = await sendAndConfirmTransaction(conn, transaction, [keypair], { commitment: adapter._commitment, maxRetries: 2 });
+        console.log(`[SolanaAdapter] gas.collectAndSplit: burn=${burnAmount} distribute=${distributeAmount} tx=${sig}`);
+        return { hash: sig, chainId, success: true };
       },
     };
   }

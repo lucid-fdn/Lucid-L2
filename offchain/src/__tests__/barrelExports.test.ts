@@ -110,14 +110,14 @@ jest.mock('@nktkas/hyperliquid', () => ({
 jest.mock('../routes/oauthRoutes', () => ({
   oauthRouter: { __mock: true },
 }));
-// Dual-path: gateway-lite routes/index.ts imports ./oauthRoutes
-jest.mock('../../packages/gateway-lite/src/routes/oauthRoutes', () =>
+// Dual-path: gateway-lite routes/contrib/ imports (moved during reorg)
+jest.mock('../../packages/gateway-lite/src/routes/contrib/oauthRoutes', () =>
   require('../routes/oauthRoutes'));
 jest.mock('../routes/hyperliquidRoutes', () => ({
   hyperliquidRouter: { __mock: true },
 }));
-// Dual-path: gateway-lite routes/index.ts imports ./hyperliquidRoutes
-jest.mock('../../packages/gateway-lite/src/routes/hyperliquidRoutes', () =>
+// Dual-path: gateway-lite routes/contrib/ imports (moved during reorg)
+jest.mock('../../packages/gateway-lite/src/routes/contrib/hyperliquidRoutes', () =>
   require('../routes/hyperliquidRoutes'));
 
 // =============================================================================

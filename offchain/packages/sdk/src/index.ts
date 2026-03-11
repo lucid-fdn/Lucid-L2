@@ -36,6 +36,17 @@ export {
   RateLimitError,
 } from '@lucid-l2/engine';
 
+// Re-export receipt types for convenience
+export type {
+  ReceiptType, Receipt, ReceiptCreateOptions,
+  InferenceReceipt, InferenceReceiptInput,
+  ComputeReceipt, ComputeReceiptInput,
+  ToolReceipt, ToolReceiptInput,
+  AgentReceipt, AgentReceiptInput,
+  DatasetReceipt, DatasetReceiptInput,
+  ReceiptVerifyResult,
+} from '@lucid-l2/engine';
+
 // Re-export retry/timeout utilities
 export { withRetry, withTimeout, withRetryAndTimeout } from '@lucid-l2/engine';
 export type { RetryOptions } from '@lucid-l2/engine';

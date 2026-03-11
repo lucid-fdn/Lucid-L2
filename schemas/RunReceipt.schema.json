@@ -20,10 +20,15 @@
     "signer_type"
   ],
   "properties": {
-    "schema_version": { 
-      "type": "string", 
+    "schema_version": {
+      "type": "string",
       "const": "1.0",
       "description": "Schema version for backwards compatibility"
+    },
+    "receipt_type": {
+      "type": "string",
+      "enum": ["inference", "compute", "tool", "agent", "dataset"],
+      "description": "Receipt type discriminator for the unified receipt model"
     },
     "run_id": { 
       "type": "string", 
