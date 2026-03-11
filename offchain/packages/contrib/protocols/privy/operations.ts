@@ -1,4 +1,4 @@
-import { OperationDefinition } from '../../../protocols/types';
+import { OperationDefinition } from '../../../gateway-lite/src/protocols/types';
 
 export const PRIVY_OPERATIONS: OperationDefinition[] = [
   // === User & Wallet Management ===

@@ -6,7 +6,7 @@
  */
 
 import crypto from 'crypto';
-import { BaseProtocolAdapter } from '../../../protocols/BaseProtocolAdapter';
+import { BaseProtocolAdapter } from '../../../gateway-lite/src/protocols/BaseProtocolAdapter';
 import {
   ProtocolMetadata,
   OperationDefinition,
@@ -15,7 +15,7 @@ import {
   ExecutionResult,
   NetworkConfig,
   HealthStatus
-} from '../../../protocols/types';
+} from '../../../gateway-lite/src/protocols/types';
 import { PRIVY_OPERATIONS } from './operations';
 import { PrivyCredentials, SessionSignerConfig, SignTransactionParams } from './types';
 import { PrivyRestClient } from './PrivyRestClient';

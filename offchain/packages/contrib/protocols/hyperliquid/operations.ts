@@ -4,7 +4,7 @@
  * Defines all available operations for the Hyperliquid protocol.
  */
 
-import { OperationDefinition } from '../../../protocols/types';
+import { OperationDefinition } from '../../../gateway-lite/src/protocols/types';
 
 export const HYPERLIQUID_OPERATIONS: OperationDefinition[] = [
   // =============================================================================

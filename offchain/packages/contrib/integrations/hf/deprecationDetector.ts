@@ -4,7 +4,7 @@
 import axios from 'axios';
 import { SyncState, SyncStateManager, getSyncStateManager, AssetIndexEntry } from './syncStateManager';
 import { HFBridgeService, getHFBridgeService } from './hfBridgeService';
-import { PassportSyncService, getPassportSyncService } from '../../../../../engine/src/passport/passportSyncService';
+import { PassportSyncService, getPassportSyncService } from '../../../engine/src/passport/passportSyncService';
 
 // Passport status enum values (matching on-chain)
 const PASSPORT_STATUS_REVOKED = 3;

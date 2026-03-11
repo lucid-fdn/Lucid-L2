@@ -1,5 +1,5 @@
 import express from 'express';
-import { NangoService, SUPPORTED_PROVIDERS } from '../../contrib/integrations/oauth/nangoService';
+import { NangoService, SUPPORTED_PROVIDERS } from '../../../../contrib/integrations/oauth/nangoService';
 import { verifyPrivyToken, PrivyRequest } from '../../middleware/privyAuth';
 import { verifyHmacSignature, HmacRequest } from '../../middleware/hmacAuth';
 import { verifyAdminAuth, AdminRequest } from '../../middleware/adminAuth';

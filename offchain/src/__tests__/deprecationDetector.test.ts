@@ -20,7 +20,7 @@ jest.mock('../services/hf/syncStateManager', () => ({
   SyncStateManager: jest.fn(),
 }));
 // Dual-path: gateway-lite imports ./syncStateManager relative to its own file
-jest.mock('../../packages/gateway-lite/src/contrib/integrations/hf/syncStateManager', () =>
+jest.mock('../../packages/contrib/integrations/hf/syncStateManager', () =>
   require('../services/hf/syncStateManager'));
 
 // Mock hfBridgeService
@@ -29,7 +29,7 @@ jest.mock('../services/hf/hfBridgeService', () => ({
   HFBridgeService: jest.fn(),
 }));
 // Dual-path: gateway-lite imports ./hfBridgeService relative to its own file
-jest.mock('../../packages/gateway-lite/src/contrib/integrations/hf/hfBridgeService', () =>
+jest.mock('../../packages/contrib/integrations/hf/hfBridgeService', () =>
   require('../services/hf/hfBridgeService'));
 
 // Mock passportSyncService

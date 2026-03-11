@@ -6,8 +6,8 @@
  */
 
 import { protocolRegistry } from '../ProtocolRegistry';
-import { HyperliquidAdapter } from '../../contrib/protocols/hyperliquid';
-import { PrivyAdapter } from '../../contrib/protocols/privy';
+import { HyperliquidAdapter } from '../../../../contrib/protocols/hyperliquid';
+import { PrivyAdapter } from '../../../../contrib/protocols/privy';
 import { SolanaProtocolAdapter } from './solana';
 
 // =============================================================================
@@ -36,6 +36,6 @@ export function registerAllAdapters(): void {
 registerAllAdapters();
 
 // Re-export for convenience
-export { HyperliquidAdapter } from '../../contrib/protocols/hyperliquid';
-export { PrivyAdapter } from '../../contrib/protocols/privy';
+export { HyperliquidAdapter } from '../../../../contrib/protocols/hyperliquid';
+export { PrivyAdapter } from '../../../../contrib/protocols/privy';
 export { SolanaProtocolAdapter, SolanaAdapter } from './solana';

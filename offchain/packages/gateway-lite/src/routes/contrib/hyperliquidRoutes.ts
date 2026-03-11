@@ -6,7 +6,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { HyperliquidTradingService } from '../../contrib/integrations/hyperliquid/tradingService';
+import { HyperliquidTradingService } from '../../../../contrib/integrations/hyperliquid/tradingService';
 import { verifyPrivyToken, PrivyRequest } from '../../middleware/privyAuth';
 
 const router = Router();
