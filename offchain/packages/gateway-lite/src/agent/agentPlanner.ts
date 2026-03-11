@@ -3,7 +3,7 @@
  * Connects to CrewAI service to generate workflows from natural language goals
  */
 import axios from 'axios';
-import { FlowSpec } from '../integrations/flowspec/types';
+import { FlowSpec } from '../contrib/integrations/flowspec/types';
 
 export interface PlanRequest {
   goal: string;

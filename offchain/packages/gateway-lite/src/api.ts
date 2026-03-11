@@ -10,8 +10,8 @@ import { makeComputeIx, makeBurnIx, calculateGasCost } from '../../engine/src/ch
 import { LUCID_MINT, MGAS_PER_ROOT, IGAS_PER_BATCH, N8N_URL, N8N_HMAC_SECRET, N8N_API_KEY } from '../../engine/src/config/config';
 import { batchCommit } from '../../../src/commands/batch';
 import { getMMRService, AgentEpochData } from '../../engine/src/receipt/mmrService';
-import { FlowSpecService } from './integrations/flowspec/flowspecService';
-import { FlowSpec, FlowExecutionContext } from './integrations/flowspec/types';
+import { FlowSpecService } from './contrib/integrations/flowspec/flowspecService';
+import { FlowSpec, FlowExecutionContext } from './contrib/integrations/flowspec/types';
 
 export async function handleRun(req: express.Request, res: express.Response) {
   try {
