@@ -41,12 +41,12 @@ export class EVMNFTProvider implements INFTProvider {
       provider: this.providerName,
     };
 
-    // Auto-create ERC-6551 TBA if enabled
+    // Auto-create ERC-6551 TBA if enabled — delegates to adapter.identity()
     if (process.env.AUTO_CREATE_TBA !== 'false' && receipt.contractAddress) {
       try {
-        const { getTBAService } = require('../../identity/tbaService');
-        const tba = await getTBAService().createTBA(
-          this.chain,
+        const { blockchainAdapterFactory } = require('../../chains/factory');
+        const chainAdapter = await blockchainAdapterFactory.getAdapter(this.chain);
+        const tba = await chainAdapter.identity().createTBA(
           receipt.contractAddress,
           receipt.tokenId || '0',
         );

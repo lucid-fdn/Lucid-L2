@@ -168,6 +168,7 @@ export function estimatePayout(params: {
 /**
  * Resolve a payout recipient's TBA address if available.
  * If the agent has a Token Bound Account, payouts go to the TBA instead.
+ * Delegates to adapter.identity().getTBA() via the adapter factory.
  */
 export async function resolvePayoutRecipient(
   chainId: string,
@@ -175,9 +176,14 @@ export async function resolvePayoutRecipient(
   fallbackWallet: string,
 ): Promise<string> {
   try {
-    const { getTBAService } = await import('../identity/tbaService');
-    const tbaService = getTBAService();
-    const tbaAddress = await tbaService.resolveTBAForAgent(chainId, agentTokenId);
+    const { blockchainAdapterFactory } = await import('../chains/factory');
+    const { getChainConfig } = await import('../chains/configs');
+    const config = getChainConfig(chainId);
+    const identityRegistry = config?.erc8004?.identityRegistry;
+    if (!identityRegistry) return fallbackWallet;
+
+    const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+    const tbaAddress = await adapter.identity().getTBA(identityRegistry, agentTokenId);
     return tbaAddress || fallbackWallet;
   } catch {
     return fallbackWallet;
@@ -589,31 +595,25 @@ export async function createEscrowedPayout(params: {
 
   await storePayout(payout);
 
-  // Create escrow for the compute provider's share
-  const { getEscrowService } = await import('./escrowService');
-  const escrowService = getEscrowService();
-
-  const { CHAIN_CONFIGS } = await import('../chain/blockchain/chains');
-  const chainConfig = CHAIN_CONFIGS[params.chainId];
-  if (!chainConfig) throw new Error(`Unknown chain: ${params.chainId}`);
-
-  const tokenAddress = chainConfig.lucidTokenAddress || chainConfig.usdcAddress;
-  if (!tokenAddress) throw new Error(`No payment token on chain: ${params.chainId}`);
+  // Create escrow for the compute provider's share via adapter.escrow()
+  const { blockchainAdapterFactory } = await import('../chains/factory');
 
   const computeRecipient = payout.recipients.find((r) => r.role === 'compute');
   if (!computeRecipient) throw new Error('No compute recipient in payout split');
 
-  const result = await escrowService.createEscrow(params.chainId, {
-    beneficiary: computeRecipient.wallet_address,
-    token: tokenAddress,
+  const adapter = await blockchainAdapterFactory.getAdapter(params.chainId);
+  const account = await adapter.getAccount();
+  const result = await adapter.escrow().createEscrow({
+    payer: account.address,
+    payee: computeRecipient.wallet_address,
     amount: computeRecipient.amount_lamports.toString(),
-    duration: params.duration || 86400, // 24h default
-    expectedReceiptHash: params.expectedReceiptHash,
+    timeoutSeconds: params.duration || 86400, // 24h default
+    receiptHash: params.expectedReceiptHash,
   });
 
   return {
     escrowId: result.escrowId,
-    txHash: result.txHash,
+    txHash: result.tx.hash,
     payout,
   };
 }

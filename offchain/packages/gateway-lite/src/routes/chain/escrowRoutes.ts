@@ -2,9 +2,12 @@
  * Escrow Routes
  *
  * REST API for LucidEscrow contract interactions.
+ * Delegates to adapter.escrow() sub-interface for on-chain operations,
+ * and EscrowService for DB-backed lookups.
  */
 
 import { Router } from 'express';
+import { blockchainAdapterFactory } from '../../../../engine/src/chains/factory';
 import { getEscrowService } from '../../../../engine/src/finance/escrowService';
 
 export const escrowRouter = Router();
@@ -25,16 +28,18 @@ escrowRouter.post('/v2/escrow/create', async (req, res) => {
       return;
     }
 
-    const service = getEscrowService();
-    const result = await service.createEscrow(chainId, {
-      beneficiary,
-      token,
+    const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+    const account = await adapter.getAccount();
+    const result = await adapter.escrow().createEscrow({
+      payer: account.address,
+      payee: beneficiary,
       amount: String(amount),
-      duration: Number(duration),
-      expectedReceiptHash,
+      timeoutSeconds: Number(duration),
+      receiptHash: expectedReceiptHash,
+      metadata: token,
     });
 
-    res.json({ success: true, ...result });
+    res.json({ success: true, escrowId: result.escrowId, txHash: result.tx.hash });
   } catch (error) {
     res.status(400).json({
       success: false,
@@ -49,22 +54,20 @@ escrowRouter.post('/v2/escrow/create', async (req, res) => {
  */
 escrowRouter.post('/v2/escrow/release', async (req, res) => {
   try {
-    const { chainId, escrowId, receiptHash, signature, signerPubkey } = req.body;
+    const { chainId, escrowId, receiptHash, signature, signerPubkey: _signerPubkey } = req.body;
 
-    if (!chainId || !escrowId || !receiptHash || !signature || !signerPubkey) {
+    if (!chainId || !escrowId || !receiptHash || !signature) {
       res.status(400).json({
         success: false,
-        error: 'chainId, escrowId, receiptHash, signature, and signerPubkey are required',
+        error: 'chainId, escrowId, receiptHash, and signature are required',
       });
       return;
     }
 
-    const service = getEscrowService();
-    const result = await service.releaseWithReceipt(
-      chainId, escrowId, receiptHash, signature, signerPubkey,
-    );
+    const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+    const tx = await adapter.escrow().releaseEscrow(escrowId, receiptHash, signature);
 
-    res.json({ success: true, ...result });
+    res.json({ success: true, txHash: tx.hash });
   } catch (error) {
     res.status(400).json({
       success: false,
@@ -89,10 +92,10 @@ escrowRouter.post('/v2/escrow/dispute', async (req, res) => {
       return;
     }
 
-    const service = getEscrowService();
-    const result = await service.disputeEscrow(chainId, escrowId, reason);
+    const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+    const tx = await adapter.escrow().disputeEscrow(escrowId, reason);
 
-    res.json({ success: true, ...result });
+    res.json({ success: true, txHash: tx.hash });
   } catch (error) {
     res.status(400).json({
       success: false,
@@ -104,6 +107,7 @@ escrowRouter.post('/v2/escrow/dispute', async (req, res) => {
 /**
  * GET /v2/escrow/:chainId/:escrowId
  * Get escrow details.
+ * NOTE: Escrow lookup is a DB concern; uses EscrowService directly.
  */
 escrowRouter.get('/v2/escrow/:chainId/:escrowId', async (req, res) => {
   try {

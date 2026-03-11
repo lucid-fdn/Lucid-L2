@@ -2,12 +2,24 @@
  * Bridge Routes
  *
  * REST API for $LUCID cross-chain bridging via LayerZero OFT.
+ * Delegates to adapter.bridge() sub-interface.
  */
 
 import { Router } from 'express';
-import { getCrossChainBridgeService } from '../../../../engine/src/identity/crossChainBridgeService';
+import { blockchainAdapterFactory } from '../../../../engine/src/chains/factory';
 
 export const bridgeRouter = Router();
+
+// LayerZero V2 Endpoint IDs for supported chains (needed to resolve destChainId)
+const LZ_CHAIN_IDS: Record<string, number> = {
+  'ethereum': 30101,
+  'base': 30184,
+  'arbitrum': 30110,
+  'avalanche': 30106,
+  'polygon': 30109,
+  'base-sepolia': 40245,
+  'ethereum-sepolia': 40161,
+};
 
 /**
  * POST /v2/bridge/send
@@ -25,15 +37,35 @@ bridgeRouter.post('/v2/bridge/send', async (req, res) => {
       return;
     }
 
-    const service = getCrossChainBridgeService();
-    const receipt = await service.bridgeTokens({
-      sourceChainId,
-      destChainId,
+    const destLzId = LZ_CHAIN_IDS[destChainId];
+    if (!destLzId) {
+      res.status(400).json({
+        success: false,
+        error: `No LayerZero endpoint ID for chain: ${destChainId}`,
+      });
+      return;
+    }
+
+    const adapter = await blockchainAdapterFactory.getAdapter(sourceChainId);
+    const minAmount = ((BigInt(amount) * 99n) / 100n).toString(); // 1% slippage
+    const tx = await adapter.bridge().bridgeTokens({
+      destChainId: destLzId,
+      recipient: recipientAddress,
       amount,
-      recipientAddress,
+      minAmount,
     });
 
-    res.json({ success: true, receipt });
+    res.json({
+      success: true,
+      receipt: {
+        txHash: tx.hash,
+        sourceChainId,
+        destChainId,
+        amount,
+        recipientAddress,
+        createdAt: Math.floor(Date.now() / 1000),
+      },
+    });
   } catch (error) {
     res.status(400).json({
       success: false,
@@ -51,8 +83,8 @@ bridgeRouter.get('/v2/bridge/status/:txHash', async (req, res) => {
     const { txHash } = req.params;
     const sourceChainId = (req.query.sourceChainId as string) || 'base';
 
-    const service = getCrossChainBridgeService();
-    const status = await service.getBridgeStatus(txHash, sourceChainId);
+    const adapter = await blockchainAdapterFactory.getAdapter(sourceChainId);
+    const status = await adapter.bridge().getBridgeStatus(txHash, sourceChainId);
 
     res.json({ success: true, status });
   } catch (error) {
@@ -79,12 +111,17 @@ bridgeRouter.get('/v2/bridge/quote', async (req, res) => {
       return;
     }
 
-    const service = getCrossChainBridgeService();
-    const quote = await service.getQuote(
-      sourceChainId as string,
-      destChainId as string,
-      amount as string,
-    );
+    const destLzId = LZ_CHAIN_IDS[destChainId as string];
+    if (!destLzId) {
+      res.status(400).json({
+        success: false,
+        error: `No LayerZero endpoint ID for chain: ${destChainId}`,
+      });
+      return;
+    }
+
+    const adapter = await blockchainAdapterFactory.getAdapter(sourceChainId as string);
+    const quote = await adapter.bridge().getQuote(destLzId, amount as string);
 
     res.json({ success: true, quote });
   } catch (error) {

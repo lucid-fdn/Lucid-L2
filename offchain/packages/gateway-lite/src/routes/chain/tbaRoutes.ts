@@ -2,10 +2,11 @@
  * TBA Routes
  *
  * REST API for ERC-6551 Token Bound Accounts.
+ * Delegates to adapter.identity() sub-interface.
  */
 
 import { Router } from 'express';
-import { getTBAService } from '../../../../engine/src/identity/tbaService';
+import { blockchainAdapterFactory } from '../../../../engine/src/chains/factory';
 
 export const tbaRouter = Router();
 
@@ -25,8 +26,8 @@ tbaRouter.post('/v2/tba/create', async (req, res) => {
       return;
     }
 
-    const service = getTBAService();
-    const result = await service.createTBA(chainId, tokenContract, tokenId);
+    const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+    const result = await adapter.identity().createTBA(tokenContract, tokenId);
 
     res.json({ success: true, tba: result });
   } catch (error) {
@@ -54,10 +55,10 @@ tbaRouter.get('/v2/tba/:chainId/:tokenId', async (req, res) => {
       return;
     }
 
-    const service = getTBAService();
-    const info = await service.getTBA(chainId, tokenContract, tokenId);
+    const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+    const tbaAddress = await adapter.identity().getTBA(tokenContract, tokenId);
 
-    res.json({ success: true, tba: info });
+    res.json({ success: true, tba: { address: tbaAddress } });
   } catch (error) {
     res.status(400).json({
       success: false,

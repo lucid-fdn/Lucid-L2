@@ -47,17 +47,15 @@ export class SolanaWalletProvider implements IAgentWalletProvider {
 
   async getBalance(walletAddress: string): Promise<WalletBalance> {
     try {
-      const { Connection, PublicKey, LAMPORTS_PER_SOL } = await import('@solana/web3.js');
-      const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-      const connection = new Connection(rpcUrl);
-      const pubkey = new PublicKey(walletAddress);
-      const balance = await connection.getBalance(pubkey);
+      const adapter = await this.getAdapter();
+      const agentWalletAdapter = adapter.agentWallet!();
+      const result = await agentWalletAdapter.getBalance(walletAddress);
 
       return {
         address: walletAddress,
         balances: [{
-          token: 'SOL',
-          amount: (balance / LAMPORTS_PER_SOL).toString(),
+          token: result.currency,
+          amount: result.balance,
           decimals: 9,
         }],
       };

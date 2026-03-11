@@ -2,9 +2,11 @@
  * ERC-7579 Module Routes
  *
  * REST API for smart account module management.
+ * Delegates to adapter.identity() sub-interface.
  */
 
 import { Router } from 'express';
+import { blockchainAdapterFactory } from '../../../../engine/src/chains/factory';
 import { getERC7579Service } from '../../../../engine/src/identity/erc7579Service';
 
 export const erc7579Router = Router();
@@ -25,12 +27,12 @@ erc7579Router.post('/v2/modules/install', async (req, res) => {
       return;
     }
 
-    const service = getERC7579Service();
-    const result = await service.installModule(
-      chainId, account, moduleType, moduleAddress, initData,
+    const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+    const result = await adapter.identity().installModule(
+      account, moduleType, moduleAddress, initData || '0x',
     );
 
-    res.json({ success: true, ...result });
+    res.json({ success: true, txHash: result.hash });
   } catch (error) {
     res.status(400).json({
       success: false,
@@ -55,12 +57,12 @@ erc7579Router.post('/v2/modules/uninstall', async (req, res) => {
       return;
     }
 
-    const service = getERC7579Service();
-    const result = await service.uninstallModule(
-      chainId, account, moduleType, moduleAddress,
+    const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+    const result = await adapter.identity().uninstallModule(
+      account, moduleType, moduleAddress,
     );
 
-    res.json({ success: true, ...result });
+    res.json({ success: true, txHash: result.hash });
   } catch (error) {
     res.status(400).json({
       success: false,
@@ -85,10 +87,10 @@ erc7579Router.post('/v2/modules/policy/configure', async (req, res) => {
       return;
     }
 
-    const service = getERC7579Service();
-    const result = await service.configurePolicyModule(chainId, account, policyHashes);
+    const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+    const result = await adapter.identity().configurePolicy(account, policyHashes);
 
-    res.json({ success: true, ...result });
+    res.json({ success: true, txHash: result.hash });
   } catch (error) {
     res.status(400).json({
       success: false,
@@ -113,12 +115,16 @@ erc7579Router.post('/v2/modules/payout/configure', async (req, res) => {
       return;
     }
 
-    const service = getERC7579Service();
-    const result = await service.configurePayoutModule(
-      chainId, account, recipients, basisPoints,
-    );
+    // Map recipients + basisPoints to the adapter format
+    const payoutRecipients = (recipients as string[]).map((addr: string, i: number) => ({
+      address: addr,
+      bps: (basisPoints as number[])[i] || 0,
+    }));
 
-    res.json({ success: true, ...result });
+    const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+    const result = await adapter.identity().configurePayout(account, payoutRecipients);
+
+    res.json({ success: true, txHash: result.hash });
   } catch (error) {
     res.status(400).json({
       success: false,
@@ -130,6 +136,7 @@ erc7579Router.post('/v2/modules/payout/configure', async (req, res) => {
 /**
  * GET /v2/modules/:chainId/:account
  * List installed modules for an account.
+ * NOTE: Module listing is a local tracking concern; uses ERC7579Service directly.
  */
 erc7579Router.get('/v2/modules/:chainId/:account', async (req, res) => {
   try {
