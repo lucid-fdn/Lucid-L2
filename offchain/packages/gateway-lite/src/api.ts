@@ -1199,11 +1199,11 @@ export async function createApiRouter(): Promise<express.Router> {
   router.post('/batch', handleBatch);
   
   // Privy wallet management endpoints
-  const walletRoutes = await import('./routes/walletRoutes');
+  const walletRoutes = await import('./routes/system/walletRoutes');
   router.use('/wallets', walletRoutes.default);
   
   // Reward system endpoints
-  const rewardRoutes = await import('./routes/rewardRoutes');
+  const rewardRoutes = await import('./routes/contrib/rewardRoutes');
   router.use('/rewards', rewardRoutes.default);
   
   // AI Agent endpoints

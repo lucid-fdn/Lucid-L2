@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import { createPaymentConfigRouter } from '../paymentConfigRoutes';
+import { createPaymentConfigRouter } from '../core/paymentConfigRoutes';
 
 // Mock x402 middleware
 const mockGetX402Config = jest.fn();

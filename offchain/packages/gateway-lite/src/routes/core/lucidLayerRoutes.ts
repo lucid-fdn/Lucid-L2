@@ -1,0 +1,17 @@
+import { Router } from 'express';
+import { receiptRouter } from './receiptRoutes';
+import { epochRouter } from './epochRoutes';
+import { matchingRouter } from './matchingRoutes';
+import { computeNodeRouter } from './computeNodeRoutes';
+import { payoutRouter } from './payoutRoutes';
+import { inferenceRouter } from './inferenceRoutes';
+import { crossChainRouter } from '../chain/crossChainRoutes';
+
+export const lucidLayerRouter = Router();
+lucidLayerRouter.use('/', matchingRouter);
+lucidLayerRouter.use('/', computeNodeRouter);
+lucidLayerRouter.use('/', receiptRouter);
+lucidLayerRouter.use('/', payoutRouter);
+lucidLayerRouter.use('/', inferenceRouter);
+lucidLayerRouter.use('/', epochRouter);
+lucidLayerRouter.use('/', crossChainRouter);

@@ -1,2 +1,2 @@
 // PROXY — real implementation moved to @lucid-l2/gateway-lite
-export * from '../../packages/gateway-lite/src/routes/erc7579Routes';
+export * from '../../packages/gateway-lite/src/routes/chain/erc7579Routes';

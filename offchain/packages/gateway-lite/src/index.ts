@@ -39,15 +39,15 @@ printEnvironmentStatus();
 // Import protocol adapters to trigger auto-registration
 import './protocols/adapters';
 
-// Import OAuth routes
-import { oauthRouter } from './routes/oauthRoutes';
-import { oauthResourcesRouter } from './routes/oauthResourcesRoutes';
-import { healthRouter } from './routes/healthRoutes';
-import { hyperliquidRouter } from './routes/hyperliquidRoutes';
-import { solanaRouter } from './routes/solanaRoutes';
-import { lucidLayerRouter } from './routes/lucidLayerRoutes';
-import { passportRouter } from './routes/passportRoutes';
-import { shareRouter } from './routes/shareRoutes';
+// Import routes — grouped by domain
+import { oauthRouter } from './routes/contrib/oauthRoutes';
+import { oauthResourcesRouter } from './routes/contrib/oauthResourcesRoutes';
+import { healthRouter } from './routes/system/healthRoutes';
+import { hyperliquidRouter } from './routes/contrib/hyperliquidRoutes';
+import { solanaRouter } from './routes/chain/solanaRoutes';
+import { lucidLayerRouter } from './routes/core/lucidLayerRoutes';
+import { passportRouter } from './routes/core/passportRoutes';
+import { shareRouter } from './routes/core/shareRoutes';
 import { getPassportManager } from '../../engine/src/passport/passportManager';
 import { getPassportSyncService } from '../../engine/src/passport/passportSyncService';
 import { initReceiptConsumer, startReceiptConsumer, stopReceiptConsumer } from '../../engine/src/jobs/receiptConsumer';
@@ -62,31 +62,31 @@ import { SolanaAdapter } from '../../engine/src/chain/blockchain/solana/SolanaAd
 import { CHAIN_CONFIGS, getEVMChains, getSolanaChains } from '../../engine/src/chain/blockchain/chains';
 import { setX402Config } from './middleware/x402';
 import { getReputationAggregator } from './reputation/reputationAggregator';
-import { identityBridgeRouter } from './routes/identityBridgeRoutes';
-import { bridgeRouter } from './routes/bridgeRoutes';
-import { reputationMarketplaceRouter } from './routes/reputationMarketplaceRoutes';
+import { identityBridgeRouter } from './routes/chain/identityBridgeRoutes';
+import { bridgeRouter } from './routes/chain/bridgeRoutes';
+import { reputationMarketplaceRouter } from './routes/chain/reputationMarketplaceRoutes';
 import { reputationAlgorithmRegistry } from './reputation';
 import { ReceiptVolumeAlgorithm } from './reputation/algorithms/ReceiptVolumeAlgorithm';
 import { CrossChainWeightedAlgorithm } from './reputation/algorithms/CrossChainWeightedAlgorithm';
 import { StakeWeightedAlgorithm } from './reputation/algorithms/StakeWeightedAlgorithm';
-import { tbaRouter } from './routes/tbaRoutes';
-import { escrowRouter } from './routes/escrowRoutes';
-import { disputeRouter } from './routes/disputeRoutes';
-import { paymasterRouter } from './routes/paymasterRoutes';
-import { erc7579Router } from './routes/erc7579Routes';
-import { zkmlRouter } from './routes/zkmlRoutes';
+import { tbaRouter } from './routes/chain/tbaRoutes';
+import { escrowRouter } from './routes/chain/escrowRoutes';
+import { disputeRouter } from './routes/chain/disputeRoutes';
+import { paymasterRouter } from './routes/chain/paymasterRoutes';
+import { erc7579Router } from './routes/chain/erc7579Routes';
+import { zkmlRouter } from './routes/chain/zkmlRoutes';
 // Agent deployment pipeline routes
-import { agentDeployRouter } from './routes/agentDeployRoutes';
-import { agentMarketplaceRouter } from './routes/agentMarketplaceRoutes';
-import { a2aRouter } from './routes/a2aRoutes';
-import { agentWalletRouter } from './routes/agentWalletRoutes';
-import { agentRevenueRouter } from './routes/agentRevenueRoutes';
+import { agentDeployRouter } from './routes/agent/agentDeployRoutes';
+import { agentMarketplaceRouter } from './routes/agent/agentMarketplaceRoutes';
+import { a2aRouter } from './routes/agent/a2aRoutes';
+import { agentWalletRouter } from './routes/agent/agentWalletRoutes';
+import { agentRevenueRouter } from './routes/agent/agentRevenueRoutes';
 // Agent mirror + proof routes
-import { agentMirrorRouter } from './routes/agentMirrorRoutes';
+import { agentMirrorRouter } from './routes/agent/agentMirrorRoutes';
 import { initAgentMirrorConsumer, startAgentMirrorConsumer, stopAgentMirrorConsumer } from '../../engine/src/jobs/agentMirrorConsumer';
-import { createAssetPaymentRouter } from './routes/assetPaymentRoutes';
-import { createPaymentConfigRouter } from './routes/paymentConfigRoutes';
-import { createSubscriptionRouter } from './routes/subscriptionRoutes';
+import { createAssetPaymentRouter } from './routes/core/assetPaymentRoutes';
+import { createPaymentConfigRouter } from './routes/core/paymentConfigRoutes';
+import { createSubscriptionRouter } from './routes/core/subscriptionRoutes';
 
 const app = express();
 

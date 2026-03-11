@@ -1,2 +1,2 @@
 // PROXY — real implementation moved to @lucid-l2/gateway-lite
-export * from '../../packages/gateway-lite/src/routes/inferenceRoutes';
+export * from '../../packages/gateway-lite/src/routes/core/inferenceRoutes';

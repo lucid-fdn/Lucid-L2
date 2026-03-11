@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import { createAssetPaymentRouter } from '../assetPaymentRoutes';
+import { createAssetPaymentRouter } from '../core/assetPaymentRoutes';
 
 // Mock admin auth — pass-through for tests
 jest.mock('../../middleware/adminAuth', () => ({

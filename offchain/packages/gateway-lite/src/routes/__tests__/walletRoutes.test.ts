@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import walletRoutes, { __setSessionSignerServiceForTests } from '../walletRoutes';
+import walletRoutes, { __setSessionSignerServiceForTests } from '../system/walletRoutes';
 import { protocolManager } from '../../protocols/protocolManager';
 import { SessionSignerService } from '../../services/sessionSignerService';
 

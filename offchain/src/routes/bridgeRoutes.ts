@@ -1,2 +1,2 @@
 // PROXY — real implementation moved to @lucid-l2/gateway-lite
-export * from '../../packages/gateway-lite/src/routes/bridgeRoutes';
+export * from '../../packages/gateway-lite/src/routes/chain/bridgeRoutes';
