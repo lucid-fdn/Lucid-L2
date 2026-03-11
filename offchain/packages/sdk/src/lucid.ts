@@ -349,8 +349,10 @@ export class Lucid {
         );
       },
       setPaymentGate: (id, params) => this._wrap(async () => {
-        const { getPaymentGateService } = require('@lucid-l2/engine');
-        return getPaymentGateService().setPaymentGate(id, params.price, params.priceLucid || 0);
+        const { blockchainAdapterFactory } = require('@lucid-l2/engine');
+        const chains = this._config.anchoringChains || ['solana-devnet'];
+        const adapter = await blockchainAdapterFactory.getAdapter(chains[0]);
+        return adapter.passports().setPaymentGate(id, String(params.price), String(params.priceLucid || 0));
       }),
     };
   }

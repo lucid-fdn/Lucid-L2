@@ -1643,17 +1643,18 @@ export async function handleDetectDeprecations(req: express.Request, res: expres
  */
 export async function handleSetPaymentGate(req: express.Request, res: express.Response) {
   try {
-    const { getPaymentGateService } = await import('../../engine/src/finance/paymentGateService');
+    const { blockchainAdapterFactory } = await import('../../engine/src/chains/factory');
     const { id } = req.params;
-    const { priceLamports = 0, priceLucid = 0, paymentTokenMint } = req.body;
+    const { priceLamports = 0, priceLucid = 0 } = req.body;
 
-    const service = getPaymentGateService();
-    const tx = await service.setPaymentGate(id, priceLamports, priceLucid, paymentTokenMint);
+    const chainId = (process.env.ANCHORING_CHAINS || 'solana-devnet').split(',')[0].trim();
+    const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+    const receipt = await adapter.passports().setPaymentGate(id, String(priceLamports), String(priceLucid));
 
     res.json({
       success: true,
       passportPDA: id,
-      transaction: tx,
+      transaction: receipt.hash,
       priceLamports,
       priceLucid,
       message: 'Payment gate set successfully',
@@ -1673,17 +1674,19 @@ export async function handleSetPaymentGate(req: express.Request, res: express.Re
  */
 export async function handlePayForAccess(req: express.Request, res: express.Response) {
   try {
-    const { getPaymentGateService } = await import('../../engine/src/finance/paymentGateService');
+    const { blockchainAdapterFactory } = await import('../../engine/src/chains/factory');
     const { id } = req.params;
     const { expiresAt = 0 } = req.body;
 
-    const service = getPaymentGateService();
-    const tx = await service.payForAccess(id, undefined, expiresAt);
+    const chainId = (process.env.ANCHORING_CHAINS || 'solana-devnet').split(',')[0].trim();
+    const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+    const duration = expiresAt > 0 ? expiresAt - Math.floor(Date.now() / 1000) : 0;
+    const receipt = await adapter.passports().payForAccess(id, duration);
 
     res.json({
       success: true,
       passportPDA: id,
-      transaction: tx,
+      transaction: receipt.hash,
       message: 'Access purchased successfully',
     });
   } catch (error) {
@@ -1701,14 +1704,16 @@ export async function handlePayForAccess(req: express.Request, res: express.Resp
  */
 export async function handleCheckAccess(req: express.Request, res: express.Response) {
   try {
-    const { getPaymentGateService } = await import('../../engine/src/finance/paymentGateService');
+    const { blockchainAdapterFactory } = await import('../../engine/src/chains/factory');
     const { id, wallet } = req.params;
 
-    const service = getPaymentGateService();
-    const hasAccess = await service.checkAccess(id, wallet);
+    const chainId = (process.env.ANCHORING_CHAINS || 'solana-devnet').split(',')[0].trim();
+    const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+    const hasAccess = await adapter.passports().checkAccess(id, wallet);
 
-    // Also fetch gate info
-    const gateInfo = await service.getPaymentGateInfo(id);
+    // Also fetch gate info (read-only utility not on adapter interface)
+    const { getPaymentGateService } = await import('../../engine/src/finance/paymentGateService');
+    const gateInfo = await getPaymentGateService().getPaymentGateInfo(id);
 
     res.json({
       success: true,
@@ -1738,17 +1743,17 @@ export async function handleCheckAccess(req: express.Request, res: express.Respo
  */
 export async function handleWithdrawRevenue(req: express.Request, res: express.Response) {
   try {
-    const { getPaymentGateService } = await import('../../engine/src/finance/paymentGateService');
+    const { blockchainAdapterFactory } = await import('../../engine/src/chains/factory');
     const { id } = req.params;
-    const { amount } = req.body;
 
-    const service = getPaymentGateService();
-    const tx = await service.withdrawRevenue(id, amount);
+    const chainId = (process.env.ANCHORING_CHAINS || 'solana-devnet').split(',')[0].trim();
+    const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+    const receipt = await adapter.passports().withdrawRevenue(id);
 
     res.json({
       success: true,
       passportPDA: id,
-      transaction: tx,
+      transaction: receipt.hash,
       message: 'Revenue withdrawn successfully',
     });
   } catch (error) {

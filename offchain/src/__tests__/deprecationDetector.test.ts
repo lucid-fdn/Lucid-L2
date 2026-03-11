@@ -32,17 +32,21 @@ jest.mock('../services/hf/hfBridgeService', () => ({
 jest.mock('../../packages/contrib/integrations/hf/hfBridgeService', () =>
   require('../services/hf/hfBridgeService'));
 
-// Mock passportSyncService
-const mockUpdatePassportStatus = jest.fn().mockResolvedValue('mock-tx-id');
-jest.mock('../services/passport/passportSyncService', () => ({
-  getPassportSyncService: jest.fn(() => ({
-    updatePassportStatus: mockUpdatePassportStatus,
-  })),
-  PassportSyncService: jest.fn(),
+// Mock blockchainAdapterFactory (deprecationDetector now uses adapter.passports())
+const mockUpdatePassportStatus = jest.fn().mockResolvedValue({ hash: 'mock-tx-id', chainId: 'solana-devnet', success: true });
+const mockPassportAdapter = {
+  updatePassportStatus: mockUpdatePassportStatus,
+};
+const mockAdapter = {
+  passports: jest.fn(() => mockPassportAdapter),
+};
+jest.mock('../../packages/engine/src/chains/factory', () => ({
+  blockchainAdapterFactory: {
+    getAdapter: jest.fn().mockResolvedValue(mockAdapter),
+    has: jest.fn().mockReturnValue(true),
+  },
+  BlockchainAdapterFactory: { getInstance: jest.fn() },
 }));
-// Dual-path: gateway-lite deprecationDetector imports from ../../../../engine/src/passport/passportSyncService
-jest.mock('../../packages/engine/src/passport/passportSyncService', () =>
-  require('../services/passport/passportSyncService'));
 
 describe('DeprecationDetector', () => {
   let DeprecationDetector: any;
@@ -108,7 +112,7 @@ describe('DeprecationDetector', () => {
       expect(result.revoked).toBe(1);
       expect(result.details[0].hfId).toBe('hf-deleted-model/old');
       expect(result.details[0].reason).toContain('deleted');
-      expect(mockUpdatePassportStatus).toHaveBeenCalledWith('deletedPDA456', 3); // REVOKED
+      expect(mockUpdatePassportStatus).toHaveBeenCalledWith('deletedPDA456', 'revoked');
     });
 
     it('should not revoke on network errors (conservative approach)', async () => {
@@ -212,7 +216,7 @@ describe('DeprecationDetector', () => {
       };
 
       mockedAxios.head.mockResolvedValue({ status: 404 } as any);
-      mockUpdatePassportStatus.mockResolvedValueOnce(null); // Simulate failure
+      mockUpdatePassportStatus.mockResolvedValueOnce({ hash: '', chainId: 'solana-devnet', success: false }); // Simulate failure
 
       const detector = new DeprecationDetector();
       const result = await detector.detectAndRevoke();
@@ -235,7 +239,6 @@ describe('DeprecationDetector', () => {
         })),
       }));
       jest.doMock('../services/hf/hfBridgeService', () => ({ getHFBridgeService: jest.fn(() => ({})) }));
-      jest.doMock('../services/passport/passportSyncService', () => ({ getPassportSyncService: jest.fn(() => ({})) }));
 
       const mod = require('../services/hf/deprecationDetector');
       const inst1 = mod.getDeprecationDetector();

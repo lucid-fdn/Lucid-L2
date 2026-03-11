@@ -48,8 +48,8 @@ import { solanaRouter } from './routes/chain/solanaRoutes';
 import { lucidLayerRouter } from './routes/core/lucidLayerRoutes';
 import { passportRouter } from './routes/core/passportRoutes';
 import { shareRouter } from './routes/core/shareRoutes';
-import { getPassportManager } from '../../engine/src/passport/passportManager';
-import { getPassportSyncService } from '../../engine/src/passport/passportSyncService';
+import { getPassportManager, OnChainSyncHandler } from '../../engine/src/passport/passportManager';
+import type { Passport } from '../../engine/src/storage/passportStore';
 import { initReceiptConsumer, startReceiptConsumer, stopReceiptConsumer } from '../../engine/src/jobs/receiptConsumer';
 import pool from '../../engine/src/db/pool';
 import { setAnchoringConfig, setAuthorityKeypair, commitEpochRoot } from '../../engine/src/receipt/anchoringService';
@@ -264,14 +264,30 @@ getPassportManager().init().then(async () => {
     console.log('ℹ️ TrustGate Sync disabled (TRUSTGATE_SYNC_ENABLED=false)');
   }
 
-  // Wire up Passport On-Chain Sync Service (if enabled)
+  // Wire up Passport On-Chain Sync via blockchain adapter (if enabled)
   if (process.env.PASSPORT_SYNC_ENABLED !== 'false') {
     try {
-      const syncService = getPassportSyncService();
-      await syncService.init();
-      getPassportManager().setOnChainSyncHandler(syncService);
-      console.log('🔗 Passport On-Chain Sync enabled');
-      console.log(`   Program ID: FhoemNdqwPMt8nmX4HT3WpSqUuqeAUXRb7WchAehmSaL`);
+      const chainId = (process.env.ANCHORING_CHAINS || 'solana-devnet').split(',')[0].trim();
+      const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+      const passportAdapter = adapter.passports();
+
+      // Adapter-backed OnChainSyncHandler — delegates to IPassportAdapter
+      const adapterSyncHandler: OnChainSyncHandler = {
+        async syncToChain(passport: Passport): Promise<{ pda: string; tx: string } | null> {
+          const { createHash } = await import('crypto');
+          const contentHash = passport.metadata?.content_hash
+            || passport.metadata?.sha256
+            || createHash('sha256').update(JSON.stringify(passport.metadata || {})).digest('hex');
+          const owner = passport.owner || '';
+          const receipt = await passportAdapter.anchorPassport(passport.passport_id, contentHash, owner);
+          if (!receipt.success) return null;
+          return { pda: passport.passport_id, tx: receipt.hash };
+        },
+      };
+
+      getPassportManager().setOnChainSyncHandler(adapterSyncHandler);
+      console.log('🔗 Passport On-Chain Sync enabled (via adapter)');
+      console.log(`   Chain: ${chainId}`);
     } catch (err) {
       console.warn('⚠️ Passport On-Chain Sync not available:', err instanceof Error ? err.message : err);
       console.warn('   Passports will be stored offchain only.');

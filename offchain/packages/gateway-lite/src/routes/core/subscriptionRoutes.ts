@@ -1,13 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { requirePayment } from '../../middleware/x402';
-import { getPaymentGateService } from '../../../../engine/src/finance/paymentGateService';
+import { blockchainAdapterFactory } from '../../../../engine/src/chains/factory';
 
 /**
  * Subscription Routes
  *
  * POST /v1/access/subscribe — x402-gated subscription endpoint.
  * The calling agent pays via the x402 protocol (USDC on Base), then the
- * handler creates an on-chain AccessReceipt via paymentGateService.
+ * handler creates an on-chain AccessReceipt via the blockchain adapter.
  */
 export function createSubscriptionRouter(): Router {
   const router = Router();
@@ -18,7 +18,7 @@ export function createSubscriptionRouter(): Router {
    * Body: { passport_id: string, duration_hours: number }
    *
    * x402-gated: agent must include a valid X-Payment-Proof header.
-   * On success the handler calls paymentGateService.payForAccess() to
+   * On success the handler calls adapter.passports().payForAccess() to
    * mint an on-chain AccessReceipt, then returns subscription details.
    */
   router.post(
@@ -39,21 +39,24 @@ export function createSubscriptionRouter(): Router {
           ? duration_hours
           : 24; // default 24 hours
 
-        // Calculate expiration timestamp
-        const expiresAt = Math.floor(Date.now() / 1000) + hours * 3600;
+        // Calculate duration in seconds for the adapter
+        const durationSeconds = hours * 3600;
 
-        // Create on-chain AccessReceipt
+        // Create on-chain AccessReceipt via adapter
         try {
-          const paymentGateService = getPaymentGateService();
-          await paymentGateService.payForAccess(passport_id, undefined, expiresAt);
+          const chainId = (process.env.ANCHORING_CHAINS || 'solana-devnet').split(',')[0].trim();
+          const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+          await adapter.passports().payForAccess(passport_id, durationSeconds);
         } catch (chainErr) {
-          // If on-chain call fails (e.g., no Solana keypair), log but still
+          // If on-chain call fails (e.g., no adapter registered), log but still
           // return success since the x402 payment was already verified.
           console.warn(
             '[SubscriptionRoute] On-chain AccessReceipt creation failed (non-blocking):',
             chainErr instanceof Error ? chainErr.message : chainErr,
           );
         }
+
+        const expiresAt = Math.floor(Date.now() / 1000) + durationSeconds;
 
         return res.json({
           subscribed: true,

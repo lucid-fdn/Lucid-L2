@@ -4,19 +4,26 @@
 import axios from 'axios';
 import { SyncState, SyncStateManager, getSyncStateManager, AssetIndexEntry } from './syncStateManager';
 import { HFBridgeService, getHFBridgeService } from './hfBridgeService';
-import { PassportSyncService, getPassportSyncService } from '../../../engine/src/passport/passportSyncService';
-
-// Passport status enum values (matching on-chain)
-const PASSPORT_STATUS_REVOKED = 3;
+import { blockchainAdapterFactory } from '../../../engine/src/chains/factory';
+import type { IPassportAdapter } from '../../../engine/src/chains/domain-interfaces';
 
 export class DeprecationDetector {
     private stateManager: SyncStateManager;
     private hfBridge: HFBridgeService;
-    private syncService: PassportSyncService;
+    private passportAdapter: IPassportAdapter | null = null;
     constructor(hfToken: string = process.env.HF_TOKEN || '') {
         this.stateManager = getSyncStateManager();
         this.hfBridge = getHFBridgeService(hfToken);
-        this.syncService = getPassportSyncService();
+    }
+
+    /** Lazily resolve the passport adapter (avoids startup ordering issues) */
+    private async getPassportAdapter(): Promise<IPassportAdapter> {
+        if (!this.passportAdapter) {
+            const chainId = (process.env.ANCHORING_CHAINS || 'solana-devnet').split(',')[0].trim();
+            const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+            this.passportAdapter = adapter.passports();
+        }
+        return this.passportAdapter;
     }
 
     /**
@@ -56,12 +63,13 @@ export class DeprecationDetector {
                 if (!exists) {
                     console.log(`  Asset deleted from HF: ${hfId} — revoking on-chain passport ${entry.onChainPDA}`);
 
-                    const tx = await this.syncService.updatePassportStatus(
+                    const passportAdapter = await this.getPassportAdapter();
+                    const receipt = await passportAdapter.updatePassportStatus(
                         entry.onChainPDA,
-                        PASSPORT_STATUS_REVOKED
+                        'revoked'
                     );
 
-                    if (tx) {
+                    if (receipt.success) {
                         revoked++;
                         details.push({
                             hfId,

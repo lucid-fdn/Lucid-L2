@@ -23,7 +23,7 @@ import {
   failEpoch,
   Epoch,
 } from './epochService';
-import { getInferenceReceipt, InferenceReceipt } from './receiptService';
+// receiptService is used by updateReceiptsWithAnchor (future: per-receipt updates)
 
 // =============================================================================
 // CONFIGURATION
@@ -483,210 +483,97 @@ export async function commitEpochRoot(epoch_id: string): Promise<AnchorResult> {
   // ---------------------------------------------------------------------------
   const anchoringChains = (process.env.ANCHORING_CHAINS || 'solana-devnet').split(',').map(s => s.trim()).filter(Boolean);
 
-  // Try the adapter-factory multi-chain path first
-  try {
-    // Lazy import to avoid circular deps — factory may not be initialised yet
-    const { blockchainAdapterFactory } = require('../chains/factory') as typeof import('../chains/factory');
+  // Lazy import to avoid circular deps — factory may not be initialised yet
+  const { blockchainAdapterFactory } = require('../chains/factory') as typeof import('../chains/factory');
 
-    // Only use adapter path if at least one requested chain is registered
-    const registeredChains = anchoringChains.filter(c => blockchainAdapterFactory.has(c));
+  // Check that at least one requested chain is registered
+  const registeredChains = anchoringChains.filter(c => blockchainAdapterFactory.has(c));
 
-    if (registeredChains.length > 0) {
-      const txResults: Record<string, string> = {};
-      const errors: string[] = [];
-
-      for (const chainId of anchoringChains) {
-        try {
-          const adapter = await blockchainAdapterFactory.getAdapter(chainId);
-          const epochAdapter = adapter.epochs();
-          const receipt = await epochAdapter.commitEpoch(
-            epoch.agent_passport_id || epoch.project_id || '__global__',
-            epoch.mmr_root,
-            epoch.epoch_index,
-            epoch.leaf_count,
-            epoch.end_leaf_index ? epoch.end_leaf_index + 1 : epoch.leaf_count,
-          );
-
-          if (receipt.success) {
-            txResults[chainId] = receipt.hash;
-            console.log(`[Anchoring] ${chainId}: epoch ${epoch_id} -> tx ${receipt.hash}`);
-          } else {
-            errors.push(`${chainId}: tx failed (hash=${receipt.hash})`);
-            console.warn(`[Anchoring] ${chainId}: tx submitted but not successful (hash=${receipt.hash})`);
-          }
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          errors.push(`${chainId}: ${msg}`);
-          console.warn(`[Anchoring] ${chainId} failed for epoch ${epoch_id}: ${msg}`);
-        }
-      }
-
-      // If at least one chain succeeded, finalize the epoch
-      if (Object.keys(txResults).length > 0) {
-        const result = finalizeEpoch(epoch_id, txResults, epoch.mmr_root);
-        if (result) {
-          await updateReceiptsWithAnchor(epoch, Object.values(txResults)[0]);
-        }
-
-        // Upload epoch proof to DePIN permanent storage (non-blocking)
-        if (process.env.DEPIN_UPLOAD_ENABLED !== 'false') {
-          try {
-            const { getPermanentStorage } = require('../storage/depin');
-            const proof = {
-              epoch_id,
-              mmr_root: epoch.mmr_root,
-              chain_txs: txResults,
-              timestamp: Date.now(),
-              leaf_count: epoch.leaf_count,
-              chains: Object.keys(txResults),
-            };
-            const upload = await getPermanentStorage().uploadJSON(proof, {
-              tags: { type: 'epoch-proof', epoch: epoch_id },
-            });
-            console.log(`   DePIN: epoch proof -> ${upload.cid} (${upload.provider})`);
-          } catch (err) {
-            console.warn(`   DePIN epoch proof upload failed (non-blocking):`, err instanceof Error ? err.message : err);
-          }
-        }
-
-        const firstSig = Object.values(txResults)[0];
-        return {
-          success: true,
-          signature: firstSig,
-          root: epoch.mmr_root,
-          epoch_id,
-        };
-      }
-
-      // All chains failed
-      const combinedError = errors.join('; ');
-      failEpoch(epoch_id, combinedError);
-      return {
-        success: false,
-        root: epoch.mmr_root,
-        epoch_id,
-        error: combinedError,
-      };
-    }
-    // If no registered chains matched, fall through to legacy Solana path
-  } catch (_factoryErr) {
-    // Adapter factory not available — fall through to direct Solana path
-    console.warn('[Anchoring] Adapter factory unavailable, falling back to direct Solana path');
-  }
-
-  // ---------------------------------------------------------------------------
-  // Legacy Solana-only direct path (fallback)
-  // ---------------------------------------------------------------------------
-
-  // Check for authority keypair
-  if (!config.authority_keypair) {
-    failEpoch(epoch_id, 'No authority keypair configured');
+  if (registeredChains.length === 0) {
+    const msg = `No blockchain adapters registered for configured chains: ${anchoringChains.join(', ')}`;
+    failEpoch(epoch_id, msg);
     return {
       success: false,
       root: epoch.mmr_root,
       epoch_id,
-      error: 'No authority keypair configured',
+      error: msg,
     };
   }
 
-  const authority = config.authority_keypair;
-  const conn = getConnection();
+  const txResults: Record<string, string> = {};
+  const errors: string[] = [];
 
-  // Convert hex root to buffer
-  const rootBuffer = Buffer.from(epoch.mmr_root, 'hex');
-
-  // Check if the v2 PDA already exists — use init if not, update if so
-  const [epochRecordPDA] = deriveEpochRecordV2PDA(authority.publicKey);
-  const existingAccount = await conn.getAccountInfo(epochRecordPDA);
-
-  const v2Args = [
-    authority.publicKey,
-    rootBuffer,
-    epoch.epoch_id.replace('epoch_', ''),
-    epoch.epoch_index,
-    epoch.leaf_count,
-    epoch.finalized_at || Math.floor(Date.now() / 1000),
-    epoch.end_leaf_index ? epoch.end_leaf_index + 1 : epoch.leaf_count,
-  ] as const;
-
-  const instruction = existingAccount
-    ? buildCommitEpochV2Instruction(...v2Args)
-    : buildInitEpochV2Instruction(...v2Args);
-
-  const transaction = new Transaction().add(instruction);
-
-  // Send with retries
-  let lastError: Error | null = null;
-  const maxRetries = config.max_retries || 3;
-  const retryDelay = config.retry_delay_ms || 1000;
-
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  for (const chainId of anchoringChains) {
     try {
-      const signature = await sendAndConfirmTransaction(
-        conn,
-        transaction,
-        [authority],
-        {
-          commitment: config.commitment || 'confirmed',
-          maxRetries: 2,
-        }
+      const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+      const epochAdapter = adapter.epochs();
+      const receipt = await epochAdapter.commitEpoch(
+        epoch.agent_passport_id || epoch.project_id || '__global__',
+        epoch.mmr_root,
+        epoch.epoch_index,
+        epoch.leaf_count,
+        epoch.end_leaf_index ? epoch.end_leaf_index + 1 : epoch.leaf_count,
       );
 
-      // Determine the Solana chain ID for the tx record
-      const solanaChainId = anchoringChains.find(c => c.startsWith('solana')) || `solana-${config.network}`;
-
-      // Success! Finalize the epoch with a Record
-      const txRecord: Record<string, string> = { [solanaChainId]: signature };
-      const result = finalizeEpoch(epoch_id, txRecord, epoch.mmr_root);
-      if (result) {
-        // Update receipts with anchor info
-        await updateReceiptsWithAnchor(epoch, signature);
+      if (receipt.success) {
+        txResults[chainId] = receipt.hash;
+        console.log(`[Anchoring] ${chainId}: epoch ${epoch_id} -> tx ${receipt.hash}`);
+      } else {
+        errors.push(`${chainId}: tx failed (hash=${receipt.hash})`);
+        console.warn(`[Anchoring] ${chainId}: tx submitted but not successful (hash=${receipt.hash})`);
       }
-
-      // Upload epoch proof to DePIN permanent storage (non-blocking)
-      if (process.env.DEPIN_UPLOAD_ENABLED !== 'false') {
-        try {
-          const { getPermanentStorage } = require('../storage/depin');
-          const proof = {
-            epoch_id,
-            mmr_root: epoch.mmr_root,
-            tx_signature: signature,
-            timestamp: Date.now(),
-            leaf_count: epoch.leaf_count,
-            network: config.network,
-          };
-          const upload = await getPermanentStorage().uploadJSON(proof, {
-            tags: { type: 'epoch-proof', epoch: epoch_id },
-          });
-          console.log(`   DePIN: epoch proof -> ${upload.cid} (${upload.provider})`);
-        } catch (err) {
-          console.warn(`   DePIN epoch proof upload failed (non-blocking):`, err instanceof Error ? err.message : err);
-        }
-      }
-
-      return {
-        success: true,
-        signature,
-        root: epoch.mmr_root,
-        epoch_id,
-      };
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      console.error(`Anchoring attempt ${attempt}/${maxRetries} failed:`, lastError.message);
-
-      if (attempt < maxRetries) {
-        await sleep(retryDelay * attempt); // Exponential backoff
-      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`${chainId}: ${msg}`);
+      console.warn(`[Anchoring] ${chainId} failed for epoch ${epoch_id}: ${msg}`);
     }
   }
 
-  // All retries failed
-  failEpoch(epoch_id, lastError?.message || 'Unknown error');
+  // If at least one chain succeeded, finalize the epoch
+  if (Object.keys(txResults).length > 0) {
+    const result = finalizeEpoch(epoch_id, txResults, epoch.mmr_root);
+    if (result) {
+      await updateReceiptsWithAnchor(epoch, Object.values(txResults)[0]);
+    }
+
+    // Upload epoch proof to DePIN permanent storage (non-blocking)
+    if (process.env.DEPIN_UPLOAD_ENABLED !== 'false') {
+      try {
+        const { getPermanentStorage } = require('../storage/depin');
+        const proof = {
+          epoch_id,
+          mmr_root: epoch.mmr_root,
+          chain_txs: txResults,
+          timestamp: Date.now(),
+          leaf_count: epoch.leaf_count,
+          chains: Object.keys(txResults),
+        };
+        const upload = await getPermanentStorage().uploadJSON(proof, {
+          tags: { type: 'epoch-proof', epoch: epoch_id },
+        });
+        console.log(`   DePIN: epoch proof -> ${upload.cid} (${upload.provider})`);
+      } catch (err) {
+        console.warn(`   DePIN epoch proof upload failed (non-blocking):`, err instanceof Error ? err.message : err);
+      }
+    }
+
+    const firstSig = Object.values(txResults)[0];
+    return {
+      success: true,
+      signature: firstSig,
+      root: epoch.mmr_root,
+      epoch_id,
+    };
+  }
+
+  // All chains failed
+  const combinedError = errors.join('; ');
+  failEpoch(epoch_id, combinedError);
   return {
     success: false,
     root: epoch.mmr_root,
     epoch_id,
-    error: lastError?.message || 'Unknown error',
+    error: combinedError,
   };
 }
 
