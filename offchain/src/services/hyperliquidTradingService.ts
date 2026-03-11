@@ -1,2 +1,2 @@
 // PROXY — real implementation moved to @lucid-l2/gateway-lite
-export * from '../../packages/gateway-lite/src/integrations/hyperliquid/tradingService';
+export * from '../../packages/gateway-lite/src/contrib/integrations/hyperliquid/tradingService';

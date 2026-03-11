@@ -5,7 +5,7 @@
  * Provides read-only market data and account information.
  */
 
-import { BaseProtocolAdapter } from '../../BaseProtocolAdapter';
+import { BaseProtocolAdapter } from '../../../protocols/BaseProtocolAdapter';
 import {
   ProtocolMetadata,
   OperationDefinition,
@@ -14,7 +14,7 @@ import {
   ExecutionResult,
   NetworkConfig,
   HealthStatus
-} from '../../types';
+} from '../../../protocols/types';
 import { HYPERLIQUID_OPERATIONS } from './operations';
 import { HyperliquidCredentials } from './types';
 import * as hl from '@nktkas/hyperliquid';

@@ -4,7 +4,7 @@
  * Defines all available operations for the Hyperliquid protocol.
  */
 
-import { OperationDefinition } from '../../types';
+import { OperationDefinition } from '../../../protocols/types';
 
 export const HYPERLIQUID_OPERATIONS: OperationDefinition[] = [
   // =============================================================================

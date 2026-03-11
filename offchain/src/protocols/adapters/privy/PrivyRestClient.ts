@@ -1,2 +1,2 @@
 // PROXY — real implementation moved to @lucid-l2/gateway-lite
-export * from '../../../../packages/gateway-lite/src/protocols/adapters/privy/PrivyRestClient';
+export * from '../../../../packages/gateway-lite/src/contrib/protocols/privy/PrivyRestClient';

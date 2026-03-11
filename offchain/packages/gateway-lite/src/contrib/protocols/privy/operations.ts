@@ -1,4 +1,4 @@
-import { OperationDefinition } from '../../types';
+import { OperationDefinition } from '../../../protocols/types';
 
 export const PRIVY_OPERATIONS: OperationDefinition[] = [
   // === User & Wallet Management ===
