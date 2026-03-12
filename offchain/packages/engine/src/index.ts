@@ -151,3 +151,5 @@ export { getPermanentStorage, getEvolvingStorage } from './storage/depin';
 // ─── Utils ─────────────────────────────────────────────────────────────────
 export { withRetry, withTimeout, withRetryAndTimeout } from './utils/retry';
 export type { RetryOptions } from './utils/retry';
+export { CircuitBreaker, CircuitBreakerOpenError } from './utils/circuitBreaker';
+export type { CircuitState, CircuitBreakerOptions } from './utils/circuitBreaker';

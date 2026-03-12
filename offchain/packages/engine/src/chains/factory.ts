@@ -7,10 +7,12 @@
 
 import type { IBlockchainAdapter } from './adapter-interface';
 import type { ChainConfig, ChainType } from './types';
+import { CircuitBreaker } from '../utils/circuitBreaker';
 
 interface RegisteredAdapter {
   adapter: IBlockchainAdapter;
   config: ChainConfig;
+  circuitBreaker: CircuitBreaker;
 }
 
 export class BlockchainAdapterFactory {
@@ -34,7 +36,11 @@ export class BlockchainAdapterFactory {
     if (this.adapters.has(key)) {
       console.warn(`Blockchain adapter for ${key} is already registered. Replacing...`);
     }
-    this.adapters.set(key, { adapter, config });
+    this.adapters.set(key, {
+      adapter,
+      config,
+      circuitBreaker: new CircuitBreaker({ name: key }),
+    });
     console.log(`Registered blockchain adapter: ${config.name} (${key})`);
   }
 
@@ -47,11 +53,47 @@ export class BlockchainAdapterFactory {
       throw new Error(`No blockchain adapter registered for chain: ${chainId}`);
     }
 
+    // Circuit breaker check — fast-fail if chain is down
+    // Connection failures also trip the circuit.
     if (!entry.adapter.isConnected()) {
-      await entry.adapter.connect(entry.config);
+      await entry.circuitBreaker.run(() => entry.adapter.connect(entry.config));
     }
 
     return entry.adapter;
+  }
+
+  /**
+   * Run an async operation on a chain with circuit-breaker protection.
+   * Combines adapter lookup + connection + circuit breaker in one call.
+   */
+  async run<T>(chainId: string, fn: (adapter: IBlockchainAdapter) => Promise<T>): Promise<T> {
+    const entry = this.adapters.get(chainId);
+    if (!entry) {
+      throw new Error(`No blockchain adapter registered for chain: ${chainId}`);
+    }
+
+    return entry.circuitBreaker.run(async () => {
+      if (!entry.adapter.isConnected()) {
+        await entry.adapter.connect(entry.config);
+      }
+      return fn(entry.adapter);
+    });
+  }
+
+  /**
+   * Get the circuit breaker for a specific chain (for monitoring/reset).
+   */
+  getCircuitBreaker(chainId: string): CircuitBreaker | undefined {
+    return this.adapters.get(chainId)?.circuitBreaker;
+  }
+
+  /**
+   * Reset all circuit breakers (e.g. after manual intervention).
+   */
+  resetAllCircuitBreakers(): void {
+    for (const entry of this.adapters.values()) {
+      entry.circuitBreaker.reset();
+    }
   }
 
   /**
