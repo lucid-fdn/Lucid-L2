@@ -63,7 +63,6 @@ import { CHAIN_CONFIGS, getEVMChains, getSolanaChains } from '../../engine/src/c
 import { setX402Config } from './middleware/x402';
 import { getReputationAggregator } from './reputation/reputationAggregator';
 import { identityBridgeRouter } from './routes/chain/identityBridgeRoutes';
-import { bridgeRouter } from './routes/chain/bridgeRoutes';
 import { reputationMarketplaceRouter } from './routes/chain/reputationMarketplaceRoutes';
 import { reputationAlgorithmRegistry } from './reputation';
 import { ReceiptVolumeAlgorithm } from './reputation/algorithms/ReceiptVolumeAlgorithm';
@@ -208,9 +207,6 @@ app.use('/api/solana', solanaRouter);
 
 // Mount health check routes
 app.use('/health', healthRouter);
-
-// Mount Cross-Chain Bridge routes (LayerZero OFT $LUCID)
-app.use('/', bridgeRouter);
 
 // ─── Preview / Phase 3 routes ───────────────────────────────────────────
 // These are gated behind PREVIEW_ROUTES_ENABLED. In production, they are

@@ -23,7 +23,6 @@ import type {
   IGasAdapter,
   IIdentityAdapter,
   IValidationAdapter,
-  ICrossChainAdapter,
   ChainCapabilities,
 } from './domain-interfaces';
 
@@ -97,9 +96,6 @@ export interface IBlockchainAdapter {
 
   /** Validation registry (request, submit, verify) */
   validation(): IValidationAdapter;
-
-  /** Cross-chain bridge (bridge tokens, quotes, status) */
-  bridge(): ICrossChainAdapter;
 
   /** Return a map of which features this chain supports */
   capabilities(): ChainCapabilities;

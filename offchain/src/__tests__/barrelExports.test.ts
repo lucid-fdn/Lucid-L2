@@ -138,7 +138,6 @@ describe('Barrel Exports — routes/index.ts', () => {
       'hyperliquidRouter',
       'solanaRouter',
       'identityBridgeRouter',
-      'bridgeRouter',
       'reputationMarketplaceRouter',
       'tbaRouter',
       'escrowRouter',
@@ -276,7 +275,6 @@ describe('Barrel Exports — services/identity/index.ts', () => {
     expect(identity.fromCaip10).toBeDefined();
     expect(identity.isSolanaCaip10).toBeDefined();
     expect(identity.isEvmCaip10).toBeDefined();
-    expect(identity.getCrossChainBridgeService).toBeDefined();
     expect(identity.getTBAService).toBeDefined();
     expect(identity.getERC7579Service).toBeDefined();
     expect(identity.ERC7579Service).toBeDefined();

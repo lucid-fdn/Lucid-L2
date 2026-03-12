@@ -15,7 +15,7 @@ import {
 } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import type { IBlockchainAdapter } from '../adapter-interface';
-import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter, IIdentityAdapter, IValidationAdapter, ICrossChainAdapter, ChainCapabilities } from '../domain-interfaces';
+import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter, IIdentityAdapter, IValidationAdapter, ChainCapabilities } from '../domain-interfaces';
 import { ChainFeatureUnavailable } from '../../errors';
 import type {
   ChainConfig,
@@ -1120,42 +1120,6 @@ export class EVMAdapter implements IBlockchainAdapter {
   }
 
   // =========================================================================
-  // Cross-Chain Bridge Sub-Adapter
-  // =========================================================================
-
-  bridge(): ICrossChainAdapter {
-    this.ensureConnected();
-    const chainId = this._chainId;
-
-    return {
-      async bridgeTokens(params: { destChainId: number; recipient: string; amount: string; minAmount: string }) {
-        const { getCrossChainBridgeService } = await import('../../identity/crossChainBridgeService');
-        const svc = getCrossChainBridgeService();
-        const receipt = await svc.bridgeTokens({
-          sourceChainId: chainId,
-          destChainId: String(params.destChainId),
-          amount: params.amount,
-          recipientAddress: params.recipient,
-        });
-        return { hash: receipt.txHash, chainId, success: true };
-      },
-
-      async getQuote(destChainId: number, amount: string) {
-        const { getCrossChainBridgeService } = await import('../../identity/crossChainBridgeService');
-        const svc = getCrossChainBridgeService();
-        return svc.getQuote(chainId, String(destChainId), amount);
-      },
-
-      async getBridgeStatus(txHash: string, sourceChainId?: string) {
-        const { getCrossChainBridgeService } = await import('../../identity/crossChainBridgeService');
-        const svc = getCrossChainBridgeService();
-        const status = await svc.getBridgeStatus(txHash, sourceChainId ?? chainId);
-        return { completed: status.status === 'delivered', destTxHash: undefined };
-      },
-    };
-  }
-
-  // =========================================================================
   // Helpers
   // =========================================================================
 
@@ -1214,7 +1178,6 @@ export class EVMAdapter implements IBlockchainAdapter {
       paymaster: !!this._config?.paymaster,
       identity: !!this._identityRegistry,
       validation: !!this._validationRegistry,
-      bridge: !!this._config?.lucidTokenAddress,
     };
   }
 }

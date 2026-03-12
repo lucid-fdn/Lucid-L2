@@ -8,7 +8,6 @@
 
 import type { TxReceipt, AgentIdentity } from './types';
 import type { ValidationRecord } from '../identity/registries/types';
-import type { BridgeQuote } from '../identity/crossChainBridgeTypes';
 
 // =============================================================================
 // Supporting Types
@@ -273,21 +272,6 @@ export interface IValidationAdapter {
 }
 
 // =============================================================================
-// ICrossChainAdapter
-// =============================================================================
-
-export interface ICrossChainAdapter {
-  /** Bridge tokens to a destination chain */
-  bridgeTokens(params: { destChainId: number; recipient: string; amount: string; minAmount: string }): Promise<TxReceipt>;
-
-  /** Get a bridge quote (estimated fees) */
-  getQuote(destChainId: number, amount: string): Promise<BridgeQuote>;
-
-  /** Get bridge transfer status */
-  getBridgeStatus(txHash: string, sourceChainId?: string): Promise<{ completed: boolean; destTxHash?: string }>;
-}
-
-// =============================================================================
 // ChainCapabilities
 // =============================================================================
 
@@ -301,5 +285,4 @@ export interface ChainCapabilities {
   paymaster: boolean;
   identity: boolean;
   validation: boolean;
-  bridge: boolean;
 }

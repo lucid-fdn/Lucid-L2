@@ -83,7 +83,7 @@ export type {
 } from './chains/types';
 export type {
   IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter,
-  IGasAdapter, IIdentityAdapter, IValidationAdapter, ICrossChainAdapter,
+  IGasAdapter, IIdentityAdapter, IValidationAdapter,
   ChainCapabilities, EscrowCreateParams, WalletPolicy, GasRecipient,
 } from './chains/domain-interfaces';
 export { EVMAdapter } from './chains/evm/adapter';

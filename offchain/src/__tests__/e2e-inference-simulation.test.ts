@@ -113,14 +113,12 @@ jest.mock('../../packages/engine/src/receipt/anchoringService', () =>
 jest.mock('../blockchain/BlockchainAdapterFactory', () => ({
   blockchainAdapterFactory: { getAdapter: jest.fn() },
 }));
-// Dual-path: gateway-lite crossChainRoutes imports from engine
 jest.mock('../../packages/engine/src/chain/blockchain/BlockchainAdapterFactory', () =>
   require('../blockchain/BlockchainAdapterFactory'));
 
 jest.mock('../blockchain/chains', () => ({
   CHAIN_CONFIGS: {},
 }));
-// Dual-path: gateway-lite crossChainRoutes imports from engine
 jest.mock('../../packages/engine/src/chain/blockchain/chains', () =>
   require('../blockchain/chains'));
 
@@ -131,7 +129,6 @@ jest.mock('../services/finance/payoutService', () => ({
   storePayout: jest.fn(),
   verifyPayoutSplit: jest.fn(),
 }));
-// Dual-path: gateway-lite payoutRoutes + crossChainRoutes import from engine
 jest.mock('../../packages/engine/src/finance/payoutService', () =>
   require('../services/finance/payoutService'));
 

@@ -29,7 +29,7 @@ import type {
   AgentRegistration,
   AgentIdentity,
 } from '../types';
-import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter, IGasAdapter, IIdentityAdapter, IValidationAdapter, ICrossChainAdapter, ChainCapabilities } from '../domain-interfaces';
+import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter, IGasAdapter, IIdentityAdapter, IValidationAdapter, ChainCapabilities } from '../domain-interfaces';
 import { ChainFeatureUnavailable } from '../../errors';
 import { SolanaPassportClient } from '../../passport/nft/solana-token2022';
 
@@ -1318,15 +1318,6 @@ export class SolanaAdapter implements IBlockchainAdapter {
     };
   }
 
-  bridge(): ICrossChainAdapter {
-    const chainId = this._chainId;
-    return {
-      async bridgeTokens() { throw new ChainFeatureUnavailable('bridge.bridgeTokens', chainId); },
-      async getQuote() { throw new ChainFeatureUnavailable('bridge.getQuote', chainId); },
-      async getBridgeStatus() { throw new ChainFeatureUnavailable('bridge.getBridgeStatus', chainId); },
-    };
-  }
-
   capabilities(): ChainCapabilities {
     return {
       epoch: true,
@@ -1338,7 +1329,6 @@ export class SolanaAdapter implements IBlockchainAdapter {
       paymaster: false,
       identity: false,
       validation: false,
-      bridge: false,
     };
   }
 }

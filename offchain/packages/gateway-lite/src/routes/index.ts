@@ -30,7 +30,6 @@ export { disputeRouter } from './chain/disputeRoutes';
 export { erc7579Router } from './chain/erc7579Routes';
 export { tbaRouter } from './chain/tbaRoutes';
 export { paymasterRouter } from './chain/paymasterRoutes';
-export { bridgeRouter } from './chain/bridgeRoutes';
 export { solanaRouter } from './chain/solanaRoutes';
 export { identityBridgeRouter } from './chain/identityBridgeRoutes';
 export { zkmlRouter } from './chain/zkmlRoutes';

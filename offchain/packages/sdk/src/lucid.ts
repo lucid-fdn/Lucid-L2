@@ -666,10 +666,10 @@ export class Lucid {
 
         // Fallback: conservative static capability map (matches actual adapter defaults)
         if (chain.includes('solana') || chain === 'solana') {
-          return { epoch: true, passport: true, escrow: false, verifyAnchor: true, sessionKeys: false, zkml: false, paymaster: false, identity: false, validation: false, bridge: false };
+          return { epoch: true, passport: true, escrow: false, verifyAnchor: true, sessionKeys: false, zkml: false, paymaster: false, identity: false, validation: false };
         }
         // EVM chains — conservative defaults (contract-dependent features default to false)
-        return { epoch: true, passport: true, escrow: false, verifyAnchor: true, sessionKeys: false, zkml: true, paymaster: false, identity: true, validation: true, bridge: false };
+        return { epoch: true, passport: true, escrow: false, verifyAnchor: true, sessionKeys: false, zkml: true, paymaster: false, identity: true, validation: true };
       },
       health: (chain) => this._wrap(async () => {
         const { blockchainAdapterFactory } = require('@lucid-l2/engine');
