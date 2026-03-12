@@ -57,10 +57,7 @@ jest.mock('../agent/a2a/agentCard', () => ({
   })),
 }));
 
-// Mock marketplace
-jest.mock('../agent/marketplace', () => ({
-  getMarketplaceService: jest.fn(),
-}));
+// Marketplace moved to _wip/ — no mock needed
 
 // Import mocked modules
 import { validateWithSchema } from '../crypto/schemaValidator';
@@ -69,7 +66,8 @@ import { getRuntimeAdapter, selectBestAdapter, listAdapterNames } from '../runti
 import { getDeployer, listDeployerTargets } from '../deploy';
 import { getAgentWalletProvider } from '../agent/wallet';
 import { generateAgentCard } from '../agent/a2a/agentCard';
-import { getMarketplaceService } from '../agent/marketplace';
+// Marketplace moved to _wip/
+// import { getMarketplaceService } from '../agent/marketplace';
 
 const mockedValidate = validateWithSchema as jest.Mock;
 const mockedGetPassportManager = getPassportManager as jest.Mock;
@@ -77,7 +75,7 @@ const mockedGetRuntimeAdapter = getRuntimeAdapter as jest.Mock;
 const mockedSelectBestAdapter = selectBestAdapter as jest.Mock;
 const mockedGetDeployer = getDeployer as jest.Mock;
 const mockedGetAgentWalletProvider = getAgentWalletProvider as jest.Mock;
-const mockedGetMarketplaceService = getMarketplaceService as jest.Mock;
+// const mockedGetMarketplaceService = getMarketplaceService as jest.Mock;
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
@@ -198,10 +196,7 @@ function setupDefaultMocks() {
   };
   mockedGetAgentWalletProvider.mockReturnValue(mockWallet);
 
-  // Marketplace
-  mockedGetMarketplaceService.mockReturnValue({
-    createListing: jest.fn().mockResolvedValue({ id: 'listing_1' }),
-  });
+  // Marketplace moved to _wip/
 
   return { mockAdapter, mockDeployer, mockWallet };
 }
@@ -314,31 +309,7 @@ describe('AgentDeploymentService', () => {
       expect(result.a2a_endpoint).toBeUndefined();
     });
 
-    it('should create marketplace listing when list_on_marketplace and monetization.enabled', async () => {
-      setupDefaultMocks();
-      const marketplace = mockedGetMarketplaceService();
-      const descriptor = makeDescriptor({
-        monetization: {
-          enabled: true,
-          pricing_model: 'per_call',
-          price_per_call_usd: 0.01,
-        },
-      });
-
-      await service.deployAgent(makeInput({
-        descriptor,
-        list_on_marketplace: true,
-        tags: ['research'],
-      }));
-
-      expect(marketplace.createListing).toHaveBeenCalledWith(
-        'passport_new_agent_123',
-        expect.objectContaining({
-          listing_type: 'per_call',
-          price_per_call_usd: 0.01,
-        }),
-      );
-    });
+    // WIP: marketplace listing test removed — marketplace moved to _wip/
 
     it('should store deployment state in internal map', async () => {
       setupDefaultMocks();
@@ -477,22 +448,7 @@ describe('AgentDeploymentService', () => {
       expect(result.wallet_address).toBeUndefined();
     });
 
-    it('should continue (non-blocking) when marketplace listing fails', async () => {
-      setupDefaultMocks();
-      mockedGetMarketplaceService.mockReturnValue({
-        createListing: jest.fn().mockRejectedValue(new Error('Marketplace down')),
-      });
-
-      const descriptor = makeDescriptor({
-        monetization: { enabled: true, pricing_model: 'free' },
-      });
-
-      const result = await service.deployAgent(makeInput({
-        descriptor,
-        list_on_marketplace: true,
-      }));
-      expect(result.success).toBe(true); // Non-blocking failure
-    });
+    // WIP: marketplace failure test removed — marketplace moved to _wip/
   });
 
   // -------------------------------------------------------------------------

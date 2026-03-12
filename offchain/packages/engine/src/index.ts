@@ -129,13 +129,13 @@ export type {
   A2AClientOptions,
 } from './agent/a2a';
 
-// ─── Marketplace ───────────────────────────────────────────────────────────
-export {
-  getMarketplaceService, resetMarketplaceService, MarketplaceService,
-} from './agent/marketplace';
-export type {
-  MarketplaceListing, AgentReview, AgentUsageRecord, ListingFilters,
-} from './agent/marketplace';
+// ─── Marketplace (WIP — moved to _wip/, needs DB persistence) ─────────────
+// export {
+//   getMarketplaceService, resetMarketplaceService, MarketplaceService,
+// } from './agent/marketplace';
+// export type {
+//   MarketplaceListing, AgentReview, AgentUsageRecord, ListingFilters,
+// } from './agent/marketplace';
 
 // ─── Storage ────────────────────────────────────────────────────────────────
 export { getPassportStore } from './storage/passportStore';

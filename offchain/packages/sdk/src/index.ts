@@ -20,7 +20,7 @@ export type {
   ChainNamespace,
   PreviewNamespace,
   IdentityNamespace,
-  MarketplaceNamespace,
+  // MarketplaceNamespace, // WIP: moved to _wip/
   A2ANamespace,
   ReputationNamespace,
 } from './lucid';

@@ -193,24 +193,8 @@ async function pollOnce(): Promise<number> {
             log('warn', `Failed to process agent revenue for ${row.agent_passport_id}`, err)
           }
 
-          // Feed real receipt data into marketplace usage tracking
-          try {
-            const { getMarketplaceService } = await import('../agent/marketplace')
-            const marketplace = getMarketplaceService()
-            await marketplace.trackUsage({
-              agent_passport_id: row.agent_passport_id,
-              caller_tenant_id: row.tenant_id,
-              session_id: row.run_id ?? undefined,
-              tool_calls: row.call_type === 'tool' ? 1 : 0,
-              tokens_in: row.tokens_in ?? 0,
-              tokens_out: row.tokens_out ?? 0,
-              cost_usd: row.cost_usd ?? 0,
-              duration_ms: row.latency_ms ?? 0,
-              status: (row.status as 'success' | 'error' | 'timeout') ?? 'success',
-            })
-          } catch (err) {
-            log('debug', `Failed to track marketplace usage for ${row.agent_passport_id}`, err)
-          }
+          // WIP: marketplace usage tracking moved to _wip/ — needs DB persistence
+          // Will be re-enabled when marketplace is backed by PostgreSQL
         }
 
         // Mark as processed

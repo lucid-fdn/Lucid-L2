@@ -77,7 +77,8 @@ import { erc7579Router } from './routes/chain/erc7579Routes';
 import { zkmlRouter } from './routes/chain/zkmlRoutes';
 // Agent deployment pipeline routes
 import { agentDeployRouter } from './routes/agent/agentDeployRoutes';
-import { agentMarketplaceRouter } from './routes/agent/agentMarketplaceRoutes';
+// WIP: marketplace routes moved to _wip/ — needs DB persistence before ship
+// import { agentMarketplaceRouter } from './routes/agent/agentMarketplaceRoutes';
 import { a2aRouter } from './routes/agent/a2aRoutes';
 import { agentWalletRouter } from './routes/agent/agentWalletRoutes';
 import { agentRevenueRouter } from './routes/agent/agentRevenueRoutes';
@@ -228,7 +229,7 @@ if (process.env.PREVIEW_ROUTES_ENABLED === 'true') {
 
 // Mount Agent Deployment pipeline routes
 app.use('/', agentDeployRouter);
-app.use('/', agentMarketplaceRouter);
+// WIP: app.use('/', agentMarketplaceRouter);
 app.use('/', a2aRouter);
 app.use('/', agentWalletRouter);
 app.use('/', agentRevenueRouter);

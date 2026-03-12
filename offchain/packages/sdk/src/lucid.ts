@@ -163,7 +163,8 @@ export interface AgentNamespace {
     create(passportId: string): Promise<{ walletAddress: string; tx: TxReceipt }>;
     balance(passportId: string): Promise<WalletBalance>;
   };
-  marketplace: MarketplaceNamespace;
+  // WIP: marketplace moved to _wip/, needs DB persistence before ship
+  // marketplace: MarketplaceNamespace;
   a2a: A2ANamespace;
 }
 
@@ -226,20 +227,8 @@ export interface IdentityNamespace {
   configurePayout(chain: string, accountAddress: string, recipients: Array<{ address: string; bps: number }>): Promise<TxReceipt>;
 }
 
-export interface MarketplaceNamespace {
-  createListing(passportId: string, params: {
-    listing_type: 'free' | 'per_call' | 'subscription' | 'token_gated';
-    pricing?: { amount: number; currency: string };
-    category?: string;
-  }): Promise<unknown>;
-  getListing(passportId: string): Promise<unknown | null>;
-  list(filters?: Record<string, unknown>): Promise<{ items: unknown[]; total: number }>;
-  deleteListing(passportId: string): Promise<boolean>;
-  addReview(passportId: string, reviewerTenantId: string, rating: number, text?: string): Promise<unknown>;
-  getReviews(passportId: string): Promise<unknown[]>;
-  trackUsage(record: Record<string, unknown>): Promise<unknown>;
-  getUsageStats(passportId: string): Promise<{ total_calls: number; total_revenue_usd: number; avg_duration_ms: number; success_rate: number }>;
-}
+// WIP: MarketplaceNamespace moved to _wip/, needs DB persistence before ship
+// export interface MarketplaceNamespace { ... }
 
 export interface A2ANamespace {
   generateCard(passportId: string, descriptor: Record<string, unknown>, agentUrl: string): Promise<unknown>;
@@ -541,44 +530,7 @@ export class Lucid {
           }
         },
       },
-      marketplace: {
-        createListing: (passportId, params) => this._wrap(async () => {
-          const { getMarketplaceService } = require('@lucid-l2/engine');
-          return getMarketplaceService().createListing(passportId, {
-            listing_type: params.listing_type,
-            price_per_call_usd: params.pricing?.amount,
-            category: params.category,
-          });
-        }),
-        getListing: (passportId) => this._wrap(async () => {
-          const { getMarketplaceService } = require('@lucid-l2/engine');
-          return getMarketplaceService().getListing(passportId);
-        }),
-        list: (filters) => this._wrap(async () => {
-          const { getMarketplaceService } = require('@lucid-l2/engine');
-          return getMarketplaceService().listListings(filters);
-        }),
-        deleteListing: (passportId) => this._wrap(async () => {
-          const { getMarketplaceService } = require('@lucid-l2/engine');
-          return getMarketplaceService().deleteListing(passportId);
-        }),
-        addReview: (passportId, reviewerTenantId, rating, text) => this._wrap(async () => {
-          const { getMarketplaceService } = require('@lucid-l2/engine');
-          return getMarketplaceService().addReview(passportId, reviewerTenantId, rating, text);
-        }),
-        getReviews: (passportId) => this._wrap(async () => {
-          const { getMarketplaceService } = require('@lucid-l2/engine');
-          return getMarketplaceService().getReviews(passportId);
-        }),
-        trackUsage: (record) => this._wrap(async () => {
-          const { getMarketplaceService } = require('@lucid-l2/engine');
-          return getMarketplaceService().trackUsage(record as any);
-        }),
-        getUsageStats: (passportId) => this._wrap(async () => {
-          const { getMarketplaceService } = require('@lucid-l2/engine');
-          return getMarketplaceService().getUsageStats(passportId);
-        }),
-      },
+      // WIP: marketplace moved to _wip/, needs DB persistence before ship
       a2a: {
         generateCard: (passportId, descriptor, agentUrl) => this._wrap(async () => {
           const { generateAgentCard } = require('@lucid-l2/engine');

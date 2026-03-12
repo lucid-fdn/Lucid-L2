@@ -16,7 +16,8 @@ export { createSubscriptionRouter } from './core/subscriptionRoutes';
 
 // Agent routes
 export { agentDeployRouter } from './agent/agentDeployRoutes';
-export { agentMarketplaceRouter } from './agent/agentMarketplaceRoutes';
+// WIP: marketplace moved to _wip/, needs DB persistence before ship
+// export { agentMarketplaceRouter } from './agent/agentMarketplaceRoutes';
 export { a2aRouter } from './agent/a2aRoutes';
 export { agentWalletRouter } from './agent/agentWalletRoutes';
 export { agentRevenueRouter } from './agent/agentRevenueRoutes';

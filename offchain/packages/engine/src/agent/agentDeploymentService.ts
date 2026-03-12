@@ -22,7 +22,8 @@ import { getRuntimeAdapter, selectBestAdapter, listAdapterNames } from '../runti
 import { getDeployer, listDeployerTargets } from '../deploy';
 import { getAgentWalletProvider } from './wallet';
 import { generateAgentCard } from './a2a/agentCard';
-import { getMarketplaceService } from './marketplace';
+// WIP: marketplace moved to _wip/ — needs DB persistence before ship
+// import { getMarketplaceService } from './marketplace';
 
 export interface DeployAgentInput {
   /** Agent name */
@@ -215,21 +216,8 @@ export class AgentDeploymentService {
       console.log(`[AgentDeploy]   Capabilities: ${agentCard.capabilities.join(', ') || 'general'}`);
     }
 
-    // Step 7: Create marketplace listing (if requested)
-    if (input.list_on_marketplace && input.descriptor.monetization?.enabled) {
-      console.log(`[AgentDeploy] Step 7: Creating marketplace listing...`);
-      try {
-        const marketplace = getMarketplaceService();
-        await marketplace.createListing(passportId, {
-          listing_type: input.descriptor.monetization.pricing_model,
-          price_per_call_usd: input.descriptor.monetization.price_per_call_usd,
-          category: input.tags?.[0] || 'general',
-        });
-        console.log(`[AgentDeploy] Marketplace listing created`);
-      } catch (error) {
-        console.warn(`[AgentDeploy] Marketplace listing failed (non-blocking): ${error instanceof Error ? error.message : 'Unknown'}`);
-      }
-    }
+    // WIP: marketplace listing creation moved to _wip/ — needs DB persistence
+    // Step 7 will be re-enabled when marketplace is backed by PostgreSQL
 
     // Step 7.5: Auto-launch share token (if configured)
     if (input.descriptor.monetization?.share_token?.auto_launch) {
