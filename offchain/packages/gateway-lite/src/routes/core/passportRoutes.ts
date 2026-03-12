@@ -4,6 +4,7 @@
 import express from 'express';
 import { getPassportManager } from '../../../../engine/src/passport/passportManager';
 import type { PassportType, PassportStatus, PassportFilters } from '../../../../engine/src/storage/passportStore';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export const passportRouter = express.Router();
 
@@ -49,7 +50,7 @@ passportRouter.get('/v1/passports/stats', async (_req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error in GET /v1/passports/stats:', error);
+    logger.error('Error in GET /v1/passports/stats:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -72,7 +73,7 @@ passportRouter.get('/v1/passports/pending-sync', async (_req, res) => {
       passports,
     });
   } catch (error) {
-    console.error('Error in GET /v1/passports/pending-sync:', error);
+    logger.error('Error in GET /v1/passports/pending-sync:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -145,7 +146,7 @@ passportRouter.post('/v1/passports', async (req, res) => {
       passport: result.data,
     });
   } catch (error) {
-    console.error('Error in POST /v1/passports:', error);
+    logger.error('Error in POST /v1/passports:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -183,7 +184,7 @@ passportRouter.get('/v1/passports/:passport_id', async (req, res) => {
       passport: result.data,
     });
   } catch (error) {
-    console.error('Error in GET /v1/passports/:id:', error);
+    logger.error('Error in GET /v1/passports/:id:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -222,7 +223,7 @@ passportRouter.patch('/v1/passports/:passport_id/pricing', async (req, res) => {
 
     return res.json({ success: true, passport: result.data });
   } catch (error) {
-    console.error('Error in PATCH /v1/passports/:id/pricing:', error);
+    logger.error('Error in PATCH /v1/passports/:id/pricing:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Internal server error' });
   }
 });
@@ -258,7 +259,7 @@ passportRouter.patch('/v1/passports/:passport_id/endpoints', async (req, res) =>
 
     return res.json({ success: true, passport: result.data });
   } catch (error) {
-    console.error('Error in PATCH /v1/passports/:id/endpoints:', error);
+    logger.error('Error in PATCH /v1/passports/:id/endpoints:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Internal server error' });
   }
 });
@@ -331,7 +332,7 @@ passportRouter.patch('/v1/passports/:passport_id', async (req, res) => {
       passport: result.data,
     });
   } catch (error) {
-    console.error('Error in PATCH /v1/passports/:id:', error);
+    logger.error('Error in PATCH /v1/passports/:id:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -384,7 +385,7 @@ passportRouter.delete('/v1/passports/:passport_id', async (req, res) => {
       deleted: true,
     });
   } catch (error) {
-    console.error('Error in DELETE /v1/passports/:id:', error);
+    logger.error('Error in DELETE /v1/passports/:id:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -499,7 +500,7 @@ passportRouter.get('/v1/passports', async (req, res) => {
       pagination: result.pagination,
     });
   } catch (error) {
-    console.error('Error in GET /v1/passports:', error);
+    logger.error('Error in GET /v1/passports:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -585,7 +586,7 @@ passportRouter.get('/v1/models', async (req, res) => {
       pagination: result.pagination,
     });
   } catch (error) {
-    console.error('Error in GET /v1/models:', error);
+    logger.error('Error in GET /v1/models:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -675,7 +676,7 @@ passportRouter.get('/v1/compute', async (req, res) => {
       pagination: result.pagination,
     });
   } catch (error) {
-    console.error('Error in GET /v1/compute:', error);
+    logger.error('Error in GET /v1/compute:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -726,7 +727,7 @@ passportRouter.post('/v1/passports/:passport_id/sync', async (req, res) => {
       on_chain_tx: result.data!.tx,
     });
   } catch (error) {
-    console.error('Error in POST /v1/passports/:id/sync:', error);
+    logger.error('Error in POST /v1/passports/:id/sync:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -758,7 +759,7 @@ passportRouter.get('/v1/tools', async (req, res) => {
       pagination: result.pagination,
     });
   } catch (error) {
-    console.error('Error in GET /v1/tools:', error);
+    logger.error('Error in GET /v1/tools:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -789,7 +790,7 @@ passportRouter.get('/v1/datasets', async (req, res) => {
       pagination: result.pagination,
     });
   } catch (error) {
-    console.error('Error in GET /v1/datasets:', error);
+    logger.error('Error in GET /v1/datasets:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -820,7 +821,7 @@ passportRouter.get('/v1/agents', async (req, res) => {
       pagination: result.pagination,
     });
   } catch (error) {
-    console.error('Error in GET /v1/agents:', error);
+    logger.error('Error in GET /v1/agents:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',

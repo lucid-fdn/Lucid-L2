@@ -12,6 +12,7 @@
 import { encodeFunctionData } from 'viem';
 import type { EscrowParams, EscrowInfo } from './escrowTypes';
 import { EscrowStatus } from './escrowTypes';
+import { logger } from '../lib/logger';
 
 // LucidEscrow ABI (minimal — only the functions we call)
 const ESCROW_ABI = [
@@ -356,7 +357,7 @@ export class EscrowService {
     };
     await this.storeEscrow(info);
 
-    console.log(`[EscrowService] Solana escrow created: ${escrowId} (amount: ${params.amount})`);
+    logger.info(`[EscrowService] Solana escrow created: ${escrowId} (amount: ${params.amount})`);
     return { escrowId };
   }
 
@@ -370,7 +371,7 @@ export class EscrowService {
     receiptSignature: string;
   }): Promise<{ success: boolean }> {
     await this.updateEscrowStatus(params.escrowPda, EscrowStatus.Released);
-    console.log(`[EscrowService] Solana escrow released: ${params.escrowPda}`);
+    logger.info(`[EscrowService] Solana escrow released: ${params.escrowPda}`);
     return { success: true };
   }
 
@@ -388,7 +389,7 @@ export class EscrowService {
       }
     }
     await this.updateEscrowStatus(params.escrowPda, EscrowStatus.Refunded);
-    console.log(`[EscrowService] Solana escrow timeout claimed: ${params.escrowPda}`);
+    logger.info(`[EscrowService] Solana escrow timeout claimed: ${params.escrowPda}`);
     return { success: true };
   }
 
@@ -401,7 +402,7 @@ export class EscrowService {
     reason: string;
   }): Promise<{ success: boolean }> {
     await this.updateEscrowStatus(params.escrowPda, EscrowStatus.Disputed);
-    console.log(`[EscrowService] Solana escrow disputed: ${params.escrowPda}`);
+    logger.info(`[EscrowService] Solana escrow disputed: ${params.escrowPda}`);
     return { success: true };
   }
 

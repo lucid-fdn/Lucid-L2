@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { ec } from 'elliptic';
 import crypto from 'crypto';
+import { logger } from '../../../engine/src/lib/logger';
 
 export interface SignerPolicy {
   ttl?: number;
@@ -285,7 +286,7 @@ export class SessionSignerService {
       // Revoke old signer
       await this.revokeSessionSigner(signer.id, signer.user_id);
       
-      console.log(`Rotated signer ${signer.id} → ${newSigner.signerId}`);
+      logger.info(`Rotated signer ${signer.id} → ${newSigner.signerId}`);
     }
   }
   

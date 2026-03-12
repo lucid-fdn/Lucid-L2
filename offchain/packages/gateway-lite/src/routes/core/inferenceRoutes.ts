@@ -7,6 +7,7 @@ import {
   ChatCompletionRequest,
 } from '../../inference/executionGateway';
 import { requirePayment } from '../../middleware/x402';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export const inferenceRouter = Router();
 
@@ -148,7 +149,7 @@ inferenceRouter.post('/v1/run/inference', async (req, res) => {
       fallback_reason: result.fallback_reason,
     });
   } catch (error) {
-    console.error('Error in POST /v1/run/inference:', error);
+    logger.error('Error in POST /v1/run/inference:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -282,7 +283,7 @@ inferenceRouter.post('/v1/chat/completions', requirePayment({ dynamic: true }), 
 
     return res.json(response);
   } catch (error) {
-    console.error('Error in POST /v1/chat/completions:', error);
+    logger.error('Error in POST /v1/chat/completions:', error);
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
     return res.status(500).json({
       error: {

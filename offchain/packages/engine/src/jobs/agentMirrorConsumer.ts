@@ -11,6 +11,7 @@
  */
 
 import { Pool } from 'pg'
+import { logger } from '../lib/logger';
 
 // ---------------------------------------------------------------------------
 // Config
@@ -110,7 +111,7 @@ async function pollOnce(): Promise<number> {
 
     if (result.rows.length === 0) return 0
 
-    console.log(`[AgentMirrorConsumer] Processing ${result.rows.length} agent events`)
+    logger.info(`[AgentMirrorConsumer] Processing ${result.rows.length} agent events`)
 
     for (const row of result.rows) {
       try {
@@ -148,17 +149,17 @@ async function pollOnce(): Promise<number> {
 
         mirrored++
         stats.mirrored_total++
-        console.log(`[AgentMirrorConsumer] Mirrored agent ${row.passport_id} (event_seq=${row.event_seq})`)
+        logger.info(`[AgentMirrorConsumer] Mirrored agent ${row.passport_id} (event_seq=${row.event_seq})`)
       } catch (err) {
         stats.failed_total++
-        console.error(`[AgentMirrorConsumer] Failed to mirror agent ${row.passport_id}:`, err)
+        logger.error(`[AgentMirrorConsumer] Failed to mirror agent ${row.passport_id}:`, err)
         // Don't mark processed — retry next poll
       }
     }
 
     return mirrored
   } catch (err) {
-    console.error('[AgentMirrorConsumer] Poll failed:', err)
+    logger.error('[AgentMirrorConsumer] Poll failed:', err)
     return 0
   } finally {
     isPolling = false
@@ -171,20 +172,20 @@ async function pollOnce(): Promise<number> {
 
 export function startAgentMirrorConsumer(): void {
   if (!config.enabled) {
-    console.log('[AgentMirrorConsumer] Disabled — skipping start')
+    logger.info('[AgentMirrorConsumer] Disabled — skipping start')
     return
   }
   if (pollInterval) {
-    console.warn('[AgentMirrorConsumer] Already running')
+    logger.warn('[AgentMirrorConsumer] Already running')
     return
   }
 
-  console.log(`[AgentMirrorConsumer] Starting (interval: ${config.interval_ms}ms, batch: ${config.batch_size})`)
+  logger.info(`[AgentMirrorConsumer] Starting (interval: ${config.interval_ms}ms, batch: ${config.batch_size})`)
 
-  pollOnce().catch(err => console.error('[AgentMirrorConsumer] Initial poll failed:', err))
+  pollOnce().catch(err => logger.error('[AgentMirrorConsumer] Initial poll failed:', err))
 
   pollInterval = setInterval(() => {
-    pollOnce().catch(err => console.error('[AgentMirrorConsumer] Poll failed:', err))
+    pollOnce().catch(err => logger.error('[AgentMirrorConsumer] Poll failed:', err))
   }, config.interval_ms)
 }
 
@@ -193,7 +194,7 @@ export function stopAgentMirrorConsumer(): void {
   clearInterval(pollInterval)
   pollInterval = null
   platformCorePgPool?.end().catch(() => {})
-  console.log('[AgentMirrorConsumer] Stopped')
+  logger.info('[AgentMirrorConsumer] Stopped')
 }
 
 export function getAgentMirrorStats() {

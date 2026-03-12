@@ -24,6 +24,7 @@ import {
   Epoch,
 } from './epochService';
 import { pool } from '../db/pool';
+import { logger } from '../lib/logger';
 
 // =============================================================================
 // CONFIGURATION
@@ -521,15 +522,15 @@ export async function commitEpochRoot(epoch_id: string): Promise<AnchorResult> {
 
       if (receipt.success) {
         txResults[chainId] = receipt.hash;
-        console.log(`[Anchoring] ${chainId}: epoch ${epoch_id} -> tx ${receipt.hash}`);
+        logger.info(`[Anchoring] ${chainId}: epoch ${epoch_id} -> tx ${receipt.hash}`);
       } else {
         errors.push(`${chainId}: tx failed (hash=${receipt.hash})`);
-        console.warn(`[Anchoring] ${chainId}: tx submitted but not successful (hash=${receipt.hash})`);
+        logger.warn(`[Anchoring] ${chainId}: tx submitted but not successful (hash=${receipt.hash})`);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`${chainId}: ${msg}`);
-      console.warn(`[Anchoring] ${chainId} failed for epoch ${epoch_id}: ${msg}`);
+      logger.warn(`[Anchoring] ${chainId} failed for epoch ${epoch_id}: ${msg}`);
     }
   }
 
@@ -540,30 +541,18 @@ export async function commitEpochRoot(epoch_id: string): Promise<AnchorResult> {
       await updateReceiptsWithAnchor(epoch, txResults);
     }
 
-    // Upload epoch proof to DePIN permanent storage (non-blocking)
+    // Archive full epoch bundle to DePIN + clean up hot data (non-blocking)
     if (process.env.DEPIN_UPLOAD_ENABLED !== 'false') {
-      try {
-        const { getPermanentStorage } = require('../storage/depin');
-        const proof = {
-          epoch_id,
-          mmr_root: epoch.mmr_root,
-          chain_txs: txResults,
-          timestamp: Date.now(),
-          leaf_count: epoch.leaf_count,
-          chains: Object.keys(txResults),
-        };
-        const upload = await getPermanentStorage().uploadJSON(proof, {
-          tags: { type: 'epoch-proof', epoch: epoch_id },
-        });
-        console.log(`   DePIN: epoch proof -> ${upload.cid} (${upload.provider})`);
-      } catch (err) {
-        console.warn(`   DePIN epoch proof upload failed (non-blocking):`, err instanceof Error ? err.message : err);
-      }
+      import('../jobs/epochArchiver').then(({ archiveEpoch }) =>
+        archiveEpoch(epoch_id).catch(err =>
+          logger.warn(`   Epoch archive failed (non-blocking):`, err instanceof Error ? err.message : err),
+        ),
+      ).catch(() => {});
     }
 
     const firstSig = Object.values(txResults)[0];
     if (errors.length > 0) {
-      console.warn(`[Anchoring] Epoch ${epoch_id} partially anchored: ${Object.keys(txResults).join(', ')} succeeded; failures: ${errors.join('; ')}`);
+      logger.warn(`[Anchoring] Epoch ${epoch_id} partially anchored: ${Object.keys(txResults).join(', ')} succeeded; failures: ${errors.join('; ')}`);
     }
     return {
       success: true,
@@ -720,9 +709,9 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
             const upload = await getPermanentStorage().uploadJSON(proof, {
               tags: { type: 'epoch-proof', epoch: epoch.epoch_id },
             });
-            console.log(`   DePIN: epoch proof -> ${upload.cid} (${upload.provider})`);
+            logger.info(`   DePIN: epoch proof -> ${upload.cid} (${upload.provider})`);
           } catch (err) {
-            console.warn(`   DePIN epoch proof upload failed (non-blocking):`, err instanceof Error ? err.message : err);
+            logger.warn(`   DePIN epoch proof upload failed (non-blocking):`, err instanceof Error ? err.message : err);
           }
         }
       }
@@ -730,7 +719,7 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
       return epoch_ids.map(id => resultsByEpochId.get(id)!);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      console.error(`Batch anchoring attempt ${attempt}/${maxRetries} failed:`, lastError.message);
+      logger.error(`Batch anchoring attempt ${attempt}/${maxRetries} failed:`, lastError.message);
       
       if (attempt < maxRetries) {
         await sleep(retryDelay * attempt);
@@ -778,10 +767,10 @@ async function updateReceiptsWithAnchor(
        WHERE run_id = ANY($5)`,
       [anchorChain, anchorTx, epoch.mmr_root, epoch.epoch_id, runIds],
     );
-    console.log(`[Anchoring] Updated ${runIds.length} receipts with anchor (${anchorChain}: ${anchorTx.slice(0, 16)}…)`);
+    logger.info(`[Anchoring] Updated ${runIds.length} receipts with anchor (${anchorChain}: ${anchorTx.slice(0, 16)}…)`);
   } catch (err) {
     // Non-blocking: anchor is on-chain regardless, this is convenience metadata
-    console.warn('[Anchoring] Failed to update receipt anchor metadata (non-blocking):', err instanceof Error ? err.message : err);
+    logger.warn('[Anchoring] Failed to update receipt anchor metadata (non-blocking):', err instanceof Error ? err.message : err);
   }
 }
 
@@ -815,6 +804,8 @@ export interface VerifyAnchorResult {
 
 /**
  * Verify that an epoch's root is anchored on-chain.
+ * Multi-chain: verifies against every chain in the epoch's chain_tx record
+ * via the blockchain adapter factory (Solana + EVM).
  */
 export async function verifyEpochAnchor(epoch_id: string): Promise<VerifyAnchorResult> {
   const epoch = getEpoch(epoch_id);
@@ -844,50 +835,57 @@ export async function verifyEpochAnchor(epoch_id: string): Promise<VerifyAnchorR
     };
   }
 
-  if (!config.authority_keypair) {
+  // Verify via blockchain adapter factory (multi-chain)
+  const chainTxs = epoch.chain_tx || {};
+  const chains = Object.keys(chainTxs).filter(k => k !== 'mock');
+
+  if (chains.length === 0) {
     return {
       valid: false,
       expected_root: epoch.mmr_root,
-      error: 'No authority keypair configured for verification',
+      chain_txs: epoch.chain_tx,
+      error: 'No chain transactions to verify',
     };
   }
 
-  try {
-    const conn = getConnection();
-    const [epochRecordPDA] = deriveEpochRecordV2PDA(config.authority_keypair.publicKey);
+  const { blockchainAdapterFactory } = require('../chains/factory') as typeof import('../chains/factory');
+  const agentId = epoch.agent_passport_id || epoch.project_id || '__global__';
 
-    // Fetch account data
-    const accountInfo = await conn.getAccountInfo(epochRecordPDA);
-    if (!accountInfo) {
-      return {
-        valid: false,
-        expected_root: epoch.mmr_root,
-        tx_signature: firstSolanaTx(epoch.chain_tx),
-        chain_txs: epoch.chain_tx,
-        error: 'Epoch record not found on-chain',
-      };
+  // Verify on each chain that anchored the epoch
+  for (const chainId of chains) {
+    try {
+      if (!blockchainAdapterFactory.has(chainId)) {
+        logger.warn(`[Anchoring] Cannot verify epoch ${epoch_id} on ${chainId}: adapter not registered`);
+        continue;
+      }
+
+      const adapter = await blockchainAdapterFactory.getAdapter(chainId);
+      const epochAdapter = adapter.epochs();
+      const verified = await epochAdapter.verifyEpoch(agentId, epoch.epoch_index, epoch.mmr_root);
+
+      if (verified) {
+        return {
+          valid: true,
+          on_chain_root: epoch.mmr_root,
+          expected_root: epoch.mmr_root,
+          tx_signature: firstSolanaTx(epoch.chain_tx),
+          chain_txs: epoch.chain_tx,
+        };
+      }
+    } catch (error) {
+      logger.warn(`[Anchoring] Verify failed on ${chainId}:`, error instanceof Error ? error.message : error);
+      // Continue to next chain
     }
-
-    // Parse account data (skip 8-byte discriminator)
-    const data = accountInfo.data;
-    const onChainRoot = data.slice(8, 40).toString('hex');
-
-    return {
-      valid: onChainRoot === epoch.mmr_root,
-      on_chain_root: onChainRoot,
-      expected_root: epoch.mmr_root,
-      tx_signature: firstSolanaTx(epoch.chain_tx),
-      chain_txs: epoch.chain_tx,
-    };
-  } catch (error) {
-    return {
-      valid: false,
-      expected_root: epoch.mmr_root,
-      tx_signature: firstSolanaTx(epoch.chain_tx),
-      chain_txs: epoch.chain_tx,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
   }
+
+  // No chain verified successfully
+  return {
+    valid: false,
+    expected_root: epoch.mmr_root,
+    tx_signature: firstSolanaTx(epoch.chain_tx),
+    chain_txs: epoch.chain_tx,
+    error: `Epoch root not verified on any chain (tried: ${chains.join(', ')})`,
+  };
 }
 
 /**

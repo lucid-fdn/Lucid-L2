@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { PATHS } from '../config/paths';
+import { logger } from '../lib/logger';
 
 /**
  * Passport types supported by the system
@@ -143,9 +144,9 @@ export class PassportStore {
           this.passports.set(id, passport);
           this.addToIndex(passport);
         }
-        console.log(`📦 Loaded ${this.passports.size} passports from storage`);
+        logger.info(`📦 Loaded ${this.passports.size} passports from storage`);
       } catch (error) {
-        console.error('Failed to load passport storage:', error);
+        logger.error('Failed to load passport storage:', error);
         // Start with empty store
       }
     }

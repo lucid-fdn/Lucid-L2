@@ -5,6 +5,7 @@ import { Connection, PublicKey, Keypair, Transaction, SystemProgram } from '@sol
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { getSolanaKeypair } from '../chain/solana/keypair';
 import { getChainConfig } from '../chains/configs';
+import { logger } from '../lib/logger';
 
 export interface AirdropResult {
   passportId: string;
@@ -107,7 +108,7 @@ export async function runRevenueAirdrop(
           lamports: dist.amountLamports,
         }));
       } catch (err) {
-        console.warn(`[Airdrop] Failed to resolve holder ${dist.holder}:`, err instanceof Error ? err.message : err);
+        logger.warn(`[Airdrop] Failed to resolve holder ${dist.holder}:`, err instanceof Error ? err.message : err);
       }
     }
 
@@ -120,7 +121,7 @@ export async function runRevenueAirdrop(
 
   const totalDistributed = distributions.reduce((sum, d) => sum + d.amountLamports, 0);
 
-  console.log(`[Airdrop] Distributed ${totalDistributed} lamports to ${distributions.length} holders for ${passportId}`);
+  logger.info(`[Airdrop] Distributed ${totalDistributed} lamports to ${distributions.length} holders for ${passportId}`);
 
   return {
     passportId,

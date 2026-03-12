@@ -8,6 +8,7 @@
 import type { IBlockchainAdapter } from './adapter-interface';
 import type { ChainConfig, ChainType } from './types';
 import { CircuitBreaker } from '../utils/circuitBreaker';
+import { logger } from '../lib/logger';
 
 interface RegisteredAdapter {
   adapter: IBlockchainAdapter;
@@ -34,14 +35,14 @@ export class BlockchainAdapterFactory {
   register(adapter: IBlockchainAdapter, config: ChainConfig): void {
     const key = config.chainId;
     if (this.adapters.has(key)) {
-      console.warn(`Blockchain adapter for ${key} is already registered. Replacing...`);
+      logger.warn(`Blockchain adapter for ${key} is already registered. Replacing...`);
     }
     this.adapters.set(key, {
       adapter,
       config,
       circuitBreaker: new CircuitBreaker({ name: key }),
     });
-    console.log(`Registered blockchain adapter: ${config.name} (${key})`);
+    logger.info(`Registered blockchain adapter: ${config.name} (${key})`);
   }
 
   /**
@@ -148,7 +149,7 @@ export class BlockchainAdapterFactory {
       if (entry.adapter.isConnected()) {
         promises.push(
           entry.adapter.disconnect().catch((err) => {
-            console.error(`Error disconnecting adapter: ${err.message}`);
+            logger.error(`Error disconnecting adapter: ${err.message}`);
           })
         );
       }

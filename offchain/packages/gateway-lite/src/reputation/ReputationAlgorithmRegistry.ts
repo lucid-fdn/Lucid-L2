@@ -6,6 +6,7 @@
  */
 
 import type { IReputationAlgorithm, AlgorithmScore, ReputationContext } from './IReputationAlgorithm';
+import { logger } from '../../../engine/src/lib/logger';
 
 export interface CompositeScore {
   overall: number;
@@ -33,10 +34,10 @@ export class ReputationAlgorithmRegistry {
   /** Register a scoring algorithm */
   register(algo: IReputationAlgorithm): void {
     if (this.algorithms.has(algo.id)) {
-      console.warn(`Reputation algorithm '${algo.id}' already registered. Replacing.`);
+      logger.warn(`Reputation algorithm '${algo.id}' already registered. Replacing.`);
     }
     this.algorithms.set(algo.id, algo);
-    console.log(`Registered reputation algorithm: ${algo.name} (${algo.id})`);
+    logger.info(`Registered reputation algorithm: ${algo.name} (${algo.id})`);
   }
 
   /** Get an algorithm by ID */

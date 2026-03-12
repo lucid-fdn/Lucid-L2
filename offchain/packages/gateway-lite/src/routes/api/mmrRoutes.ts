@@ -7,6 +7,7 @@ import { loadStore, saveStore, MemoryStore } from '../../../../../src/utils/memo
 import { makeComputeIx, makeBurnIx, calculateGasCost } from '../../../../engine/src/chain/solana/gas';
 import { LUCID_MINT } from '../../../../engine/src/config/config';
 import { batchCommit } from '../../../../../src/commands/batch';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export const mmrApiRouter = express.Router();
 
@@ -15,7 +16,7 @@ async function handleRun(req: express.Request, res: express.Response) {
     // Debug: log incoming requests to verify connectivity from the extension
     const body: any = req.body || {};
     const preview = typeof body.text === 'string' ? body.text.slice(0, 80) : body;
-    console.log(`➡️  API POST /run | textPreview="${preview}" wallet="${body.wallet || ''}"`);
+    logger.info(`➡️  API POST /run | textPreview="${preview}" wallet="${body.wallet || ''}"`);
     const { text } = req.body as { text: string };
     const rootBytes = await runInference(text);
     const hexRoot = Buffer.from(rootBytes).toString('hex');
@@ -37,7 +38,7 @@ async function handleRun(req: express.Request, res: express.Response) {
 
     // Calculate and log gas costs
     const gasCost = calculateGasCost('single', 1);
-    console.log(`💰 Gas cost: ${gasCost.iGas} iGas + ${gasCost.mGas} mGas = ${gasCost.total} $LUCID`);
+    logger.info(`💰 Gas cost: ${gasCost.iGas} iGas + ${gasCost.mGas} mGas = ${gasCost.total} $LUCID`);
 
     // 3) Commit on-chain
     // Note: The provider's wallet automatically signs since it's the authority
@@ -59,7 +60,7 @@ async function handleRun(req: express.Request, res: express.Response) {
 
     res.json({ success: true, txSignature: sig, root: hexRoot, store });
   } catch (error) {
-    console.error('Error in handleRun:', error);
+    logger.error('Error in handleRun:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -110,7 +111,7 @@ async function handleBatch(req: express.Request, res: express.Response) {
       } : null
     });
   } catch (error) {
-    console.error('Error in handleBatch:', error);
+    logger.error('Error in handleBatch:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

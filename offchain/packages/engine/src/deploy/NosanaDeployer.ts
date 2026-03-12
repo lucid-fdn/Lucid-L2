@@ -5,6 +5,7 @@
 
 import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, DeploymentStatus, DeploymentStatusType, LogOptions } from './IDeployer';
 import { resilientFetch } from './resilientFetch';
+import { logger } from '../lib/logger';
 
 /**
  * GPU market addresses — Solana pubkeys for Nosana GPU node markets.
@@ -142,9 +143,9 @@ export class NosanaDeployer implements IDeployer {
       await this.request('POST', `/deployments/${deploymentId}/start`);
 
       const url = `https://${deploymentId}.node.k8s.prd.nos.ci`;
-      console.log(`[Deploy] Nosana GPU deployment created: ${deploymentId}`);
-      console.log(`[Deploy]   URL: ${url}`);
-      console.log(`[Deploy]   GPU market: ${gpuRequested} (${market})`);
+      logger.info(`[Deploy] Nosana GPU deployment created: ${deploymentId}`);
+      logger.info(`[Deploy]   URL: ${url}`);
+      logger.info(`[Deploy]   GPU market: ${gpuRequested} (${market})`);
 
       return {
         success: true,
@@ -233,10 +234,10 @@ export class NosanaDeployer implements IDeployer {
     const archiveRes = await this.request('POST', `/deployments/${deploymentId}/archive`);
     if (!archiveRes.ok) {
       // Non-fatal: deployment is already stopped, archiving is cleanup
-      console.warn(`[Deploy] Nosana archive failed for ${deploymentId} (deployment is stopped)`);
+      logger.warn(`[Deploy] Nosana archive failed for ${deploymentId} (deployment is stopped)`);
     }
 
-    console.log(`[Deploy] Nosana deployment terminated: ${deploymentId}`);
+    logger.info(`[Deploy] Nosana deployment terminated: ${deploymentId}`);
   }
 
   async scale(deploymentId: string, replicas: number): Promise<void> {
@@ -248,7 +249,7 @@ export class NosanaDeployer implements IDeployer {
       throw new Error(`Failed to scale Nosana deployment: ${error}`);
     }
 
-    console.log(`[Deploy] Nosana deployment ${deploymentId} scaled to ${replicas} replicas`);
+    logger.info(`[Deploy] Nosana deployment ${deploymentId} scaled to ${replicas} replicas`);
   }
 
   async isHealthy(): Promise<boolean> {

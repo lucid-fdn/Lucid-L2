@@ -8,6 +8,7 @@
 import { AgentPlannerService, PlanRequest, PlanResponse } from './agentPlanner';
 import { ExecutorRouter, ExecutorType } from './executorRouter';
 import { FlowSpec } from '../../../contrib/integrations/flowspec/types';
+import { logger } from '../../../engine/src/lib/logger';
 
 export interface AgentAccomplishRequest {
   goal: string;
@@ -60,18 +61,18 @@ export class AgentOrchestrator {
     const { goal, context = {}, preferredExecutor, dryRun = false } = request;
 
     try {
-      console.log(`🎯 AgentOrchestrator: Accomplishing goal: "${goal}"`);
+      logger.info(`🎯 AgentOrchestrator: Accomplishing goal: "${goal}"`);
       
       // Step 1: Plan the workflow
       const planStartTime = Date.now();
-      console.log('📋 Step 1: Planning workflow with CrewAI...');
+      logger.info('📋 Step 1: Planning workflow with CrewAI...');
       
       const planRequest: PlanRequest = { goal, context };
       const planResponse: PlanResponse = await this.planner.planWorkflow(planRequest);
       const flowspec = planResponse.flowspec;
       const planningTime = Date.now() - planStartTime;
       
-      console.log(`✅ FlowSpec generated with ${flowspec.nodes.length} nodes (${planningTime}ms)`);
+      logger.info(`✅ FlowSpec generated with ${flowspec.nodes.length} nodes (${planningTime}ms)`);
 
       // If dry run, return plan without executing
       if (dryRun) {
@@ -87,7 +88,7 @@ export class AgentOrchestrator {
 
       // Step 2: Execute the workflow
       const execStartTime = Date.now();
-      console.log('⚙️ Step 2: Executing workflow...');
+      logger.info('⚙️ Step 2: Executing workflow...');
       
       const executionResult = await this.router.execute(
         flowspec,
@@ -98,8 +99,8 @@ export class AgentOrchestrator {
       const executionTime = Date.now() - execStartTime;
       const totalTime = Date.now() - startTime;
 
-      console.log(`✅ Execution complete via ${executionResult.executor} (${executionTime}ms)`);
-      console.log(`🎉 Total time: ${totalTime}ms`);
+      logger.info(`✅ Execution complete via ${executionResult.executor} (${executionTime}ms)`);
+      logger.info(`🎉 Total time: ${totalTime}ms`);
 
       // Store in history
       if (context.tenantId) {
@@ -126,7 +127,7 @@ export class AgentOrchestrator {
       };
 
     } catch (error) {
-      console.error('❌ AgentOrchestrator error:', error);
+      logger.error('❌ AgentOrchestrator error:', error);
       return {
         success: false,
         goal,
@@ -264,7 +265,7 @@ export class AgentOrchestrator {
         }
       };
     } catch (error) {
-      console.error('Health check error:', error);
+      logger.error('Health check error:', error);
       return {
         healthy: false,
         components: {

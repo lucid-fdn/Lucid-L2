@@ -8,6 +8,7 @@ import express from 'express';
 import { createClient } from '@supabase/supabase-js';
 import Redis from 'ioredis';
 import { Nango } from '@nangohq/node';
+import { logger } from '../../../../engine/src/lib/logger';
 
 const router = express.Router();
 
@@ -363,13 +364,13 @@ async function getSystemStats(): Promise<any> {
       .single();
     
     if (error) {
-      console.error('Error fetching system stats:', error);
+      logger.error('Error fetching system stats:', error);
       return null;
     }
     
     return data;
   } catch (error) {
-    console.error('Error fetching system stats:', error);
+    logger.error('Error fetching system stats:', error);
     return null;
   }
 }

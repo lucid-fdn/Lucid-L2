@@ -17,6 +17,7 @@ import {
 } from './computeClient';
 import { estimateTokens, estimateChatTokens } from '../../../../src/utils/tokenCounter';
 import { evaluatePolicy, Policy } from '../compute/policyEngine';
+import { logger } from '../../../engine/src/lib/logger';
 
 // ============================================================================
 // TRUSTGATE PROVIDER CONFIGURATION
@@ -980,7 +981,7 @@ async function executeWithFallback(
       usedFallback = true;
       fallbackReason = `Primary compute (${match.compute_passport_id}) failed: ${lastError.message}`;
       
-      console.warn(`Compute ${compute_passport_id} failed, trying fallback...`, lastError.message);
+      logger.warn(`Compute ${compute_passport_id} failed, trying fallback...`, lastError.message);
       
       // Update compute registry with failure
       const registry = getComputeRegistry();
@@ -1005,9 +1006,9 @@ function createReceiptSync(input: InferenceReceiptInput): void {
     createInferenceReceipt(input);
     // Wire receipt into current epoch for anchoring
     addReceiptToEpoch(input.run_id!);
-    console.log(`📝 Receipt created for run ${input.run_id}`);
+    logger.info(`📝 Receipt created for run ${input.run_id}`);
   } catch (error) {
-    console.error(`Failed to create receipt for run ${input.run_id}:`, error);
+    logger.error(`Failed to create receipt for run ${input.run_id}:`, error);
   }
 }
 

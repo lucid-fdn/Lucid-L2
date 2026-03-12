@@ -7,6 +7,7 @@
 
 import { trace, context, SpanStatusCode } from '@opentelemetry/api'
 import type { Tracer, Span } from '@opentelemetry/api'
+import { logger } from '../../../../engine/src/lib/logger';
 
 /** Handle to the running SDK so we can shut it down cleanly. */
 let _sdk: { shutdown: () => Promise<void> } | null = null
@@ -69,7 +70,7 @@ export async function initTracing(): Promise<void> {
 
   process.on('SIGTERM', () => _sdk?.shutdown().catch(() => undefined))
 
-  console.log(
+  logger.info(
     `[otel] Tracing initialized for lucid-l2 (endpoint=${endpoint})`,
   )
 }

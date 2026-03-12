@@ -1,4 +1,5 @@
 import express from 'express';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export const passportApiRouter = express.Router();
 
@@ -59,7 +60,7 @@ async function handlePassportRegister(req: express.Request, res: express.Respons
       message: `Passport registered for ${slug} v${version.major}.${version.minor}.${version.patch}`
     });
   } catch (error) {
-    console.error('Error in handlePassportRegister:', error);
+    logger.error('Error in handlePassportRegister:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -106,7 +107,7 @@ async function handlePassportGet(req: express.Request, res: express.Response) {
       }
     });
   } catch (error) {
-    console.error('Error in handlePassportGet:', error);
+    logger.error('Error in handlePassportGet:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -142,7 +143,7 @@ async function handlePassportsByOwner(req: express.Request, res: express.Respons
       }))
     });
   } catch (error) {
-    console.error('Error in handlePassportsByOwner:', error);
+    logger.error('Error in handlePassportsByOwner:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -160,7 +161,7 @@ async function handleSyncHFModels(req: express.Request, res: express.Response) {
 
     const { limit = 5, hfToken } = req.body;
 
-    console.log(`🔄 Starting HF model sync, limit: ${limit}`);
+    logger.info(`🔄 Starting HF model sync, limit: ${limit}`);
 
     const hfBridge = getHFBridgeService(hfToken);
     const results = await hfBridge.syncModels(limit);
@@ -173,7 +174,7 @@ async function handleSyncHFModels(req: express.Request, res: express.Response) {
       message: `Successfully synced ${results.length} models to blockchain`
     });
   } catch (error) {
-    console.error('Error in handleSyncHFModels:', error);
+    logger.error('Error in handleSyncHFModels:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -191,7 +192,7 @@ async function handleSyncHFDatasets(req: express.Request, res: express.Response)
 
     const { limit = 5, hfToken } = req.body;
 
-    console.log(`🔄 Starting HF dataset sync, limit: ${limit}`);
+    logger.info(`🔄 Starting HF dataset sync, limit: ${limit}`);
 
     const hfBridge = getHFBridgeService(hfToken);
     const results = await hfBridge.syncDatasets(limit);
@@ -204,7 +205,7 @@ async function handleSyncHFDatasets(req: express.Request, res: express.Response)
       message: `Successfully synced ${results.length} datasets to blockchain`
     });
   } catch (error) {
-    console.error('Error in handleSyncHFDatasets:', error);
+    logger.error('Error in handleSyncHFDatasets:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -246,7 +247,7 @@ async function handlePassportSearch(req: express.Request, res: express.Response)
       }))
     });
   } catch (error) {
-    console.error('Error in handlePassportSearch:', error);
+    logger.error('Error in handlePassportSearch:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -278,7 +279,7 @@ async function handleSyncAllHF(req: express.Request, res: express.Response) {
       minLikes = 0
     } = req.body;
 
-    console.log(`🚀 Starting comprehensive HF sync: ${types.join(', ')}`);
+    logger.info(`🚀 Starting comprehensive HF sync: ${types.join(', ')}`);
 
     const orchestrator = getHFSyncOrchestrator(hfToken);
 
@@ -293,7 +294,7 @@ async function handleSyncAllHF(req: express.Request, res: express.Response) {
       minDownloads,
       minLikes
     }).catch((error: any) => {
-      console.error('Background sync failed:', error);
+      logger.error('Background sync failed:', error);
     });
 
     res.json({
@@ -307,7 +308,7 @@ async function handleSyncAllHF(req: express.Request, res: express.Response) {
       }
     });
   } catch (error) {
-    console.error('Error in handleSyncAllHF:', error);
+    logger.error('Error in handleSyncAllHF:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -332,7 +333,7 @@ async function handleSyncProgress(req: express.Request, res: express.Response) {
       message: `Overall progress: ${progress.overall.progress}`
     });
   } catch (error) {
-    console.error('Error in handleSyncProgress:', error);
+    logger.error('Error in handleSyncProgress:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -351,13 +352,13 @@ async function handleSyncResume(req: express.Request, res: express.Response) {
 
     const { batchSize, concurrency, hfToken } = req.body;
 
-    console.log('🔄 Resuming sync from checkpoint...');
+    logger.info('🔄 Resuming sync from checkpoint...');
 
     const orchestrator = getHFSyncOrchestrator(hfToken);
 
     // Resume in background
     orchestrator.resume({ batchSize, concurrency, hfToken }).catch((error) => {
-      console.error('Resume failed:', error);
+      logger.error('Resume failed:', error);
     });
 
     res.json({
@@ -365,7 +366,7 @@ async function handleSyncResume(req: express.Request, res: express.Response) {
       message: 'Sync resumed from last checkpoint'
     });
   } catch (error) {
-    console.error('Error in handleSyncResume:', error);
+    logger.error('Error in handleSyncResume:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -389,7 +390,7 @@ async function handleSyncStop(req: express.Request, res: express.Response) {
       message: 'Sync stop requested, will complete current batch'
     });
   } catch (error) {
-    console.error('Error in handleSyncStop:', error);
+    logger.error('Error in handleSyncStop:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -412,7 +413,7 @@ async function handleSyncRetryFailed(req: express.Request, res: express.Response
 
     // Retry in background
     orchestrator.retryFailed(maxAttempts, concurrency).catch((error) => {
-      console.error('Retry failed:', error);
+      logger.error('Retry failed:', error);
     });
 
     res.json({
@@ -421,7 +422,7 @@ async function handleSyncRetryFailed(req: express.Request, res: express.Response
       config: { maxAttempts, concurrency }
     });
   } catch (error) {
-    console.error('Error in handleSyncRetryFailed:', error);
+    logger.error('Error in handleSyncRetryFailed:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -446,7 +447,7 @@ async function handleSyncReport(req: express.Request, res: express.Response) {
       message: 'Sync report generated'
     });
   } catch (error) {
-    console.error('Error in handleSyncReport:', error);
+    logger.error('Error in handleSyncReport:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -471,7 +472,7 @@ async function handleSyncStatus(req: express.Request, res: express.Response) {
       message: status.isRunning ? 'Sync is running' : 'Sync is idle'
     });
   } catch (error) {
-    console.error('Error in handleSyncStatus:', error);
+    logger.error('Error in handleSyncStatus:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -509,7 +510,7 @@ async function handleSyncSpaces(req: express.Request, res: express.Response) {
       maxRetries: 3,
       minLikes,
     }).catch((error: any) => {
-      console.error('Background spaces sync failed:', error);
+      logger.error('Background spaces sync failed:', error);
     });
 
     res.json({
@@ -518,7 +519,7 @@ async function handleSyncSpaces(req: express.Request, res: express.Response) {
       config: { batchSize, concurrency, minLikes },
     });
   } catch (error) {
-    console.error('Error in handleSyncSpaces:', error);
+    logger.error('Error in handleSyncSpaces:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -557,7 +558,7 @@ async function handleDetectDeprecations(req: express.Request, res: express.Respo
       });
     }
   } catch (error) {
-    console.error('Error in handleDetectDeprecations:', error);
+    logger.error('Error in handleDetectDeprecations:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -588,7 +589,7 @@ async function handleSetPaymentGate(req: express.Request, res: express.Response)
       message: 'Payment gate set successfully',
     });
   } catch (error) {
-    console.error('Error in handleSetPaymentGate:', error);
+    logger.error('Error in handleSetPaymentGate:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -618,7 +619,7 @@ async function handlePayForAccess(req: express.Request, res: express.Response) {
       message: 'Access purchased successfully',
     });
   } catch (error) {
-    console.error('Error in handlePayForAccess:', error);
+    logger.error('Error in handlePayForAccess:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -657,7 +658,7 @@ async function handleCheckAccess(req: express.Request, res: express.Response) {
       } : null,
     });
   } catch (error) {
-    console.error('Error in handleCheckAccess:', error);
+    logger.error('Error in handleCheckAccess:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -685,7 +686,7 @@ async function handleWithdrawRevenue(req: express.Request, res: express.Response
       message: 'Revenue withdrawn successfully',
     });
   } catch (error) {
-    console.error('Error in handleWithdrawRevenue:', error);
+    logger.error('Error in handleWithdrawRevenue:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

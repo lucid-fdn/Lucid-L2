@@ -7,6 +7,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import pool from '../../../engine/src/db/pool';
+import { logger } from '../../../engine/src/lib/logger';
 
 export interface AdminRequest extends Request {
   isAdmin?: boolean;
@@ -97,7 +98,7 @@ function recordFailedAttempt(ip: string): void {
 
   // Alert threshold
   if (record.count === RATE_LIMIT_ALERT_THRESHOLD) {
-    console.error(
+    logger.error(
       `[SECURITY] IP ${ip} has ${record.count} failed admin auth attempts in the last 15 minutes`
     );
   }
@@ -105,7 +106,7 @@ function recordFailedAttempt(ip: string): void {
   // Block threshold
   if (record.count >= RATE_LIMIT_MAX_FAILURES) {
     record.blockedUntil = now + RATE_LIMIT_BLOCK_MS;
-    console.error(
+    logger.error(
       `[SECURITY] IP ${ip} blocked for 15 minutes after ${record.count} failed admin auth attempts`
     );
   }
@@ -182,7 +183,7 @@ export function verifyAdminAuth(
       const adminApiKey = process.env.ADMIN_API_KEY;
       
       if (!adminApiKey) {
-        console.error('❌ ADMIN_API_KEY not configured');
+        logger.error('❌ ADMIN_API_KEY not configured');
         return res.status(500).json({
           error: 'Server misconfiguration',
           message: 'Admin authentication not properly configured'
@@ -215,14 +216,14 @@ export function verifyAdminAuth(
       // Authentication successful
       req.isAdmin = true;
       req.adminApiKey = apiKey;
-      console.log(`✅ Admin authenticated via API key from IP: ${clientIp}`);
+      logger.info(`✅ Admin authenticated via API key from IP: ${clientIp}`);
       return next();
     }
     
     // Method 2: IP Whitelist Authentication (if configured)
     if (ipWhitelist.length > 0 && isIpWhitelisted(clientIp, ipWhitelist)) {
       req.isAdmin = true;
-      console.log(`✅ Admin authenticated via IP whitelist: ${clientIp}`);
+      logger.info(`✅ Admin authenticated via IP whitelist: ${clientIp}`);
       return next();
     }
     
@@ -234,7 +235,7 @@ export function verifyAdminAuth(
     });
     
   } catch (error) {
-    console.error('Admin authentication error:', error);
+    logger.error('Admin authentication error:', error);
     res.status(500).json({
       error: 'Authentication error',
       message: error instanceof Error ? error.message : 'Unknown error'
@@ -295,7 +296,7 @@ function logFailedAdminAuth(
   clientIp: string,
   reason: string
 ): void {
-  console.warn('⚠️ Failed admin authentication attempt', {
+  logger.warn('⚠️ Failed admin authentication attempt', {
     ip: clientIp,
     endpoint: req.path,
     method: req.method,
@@ -329,11 +330,11 @@ function persistAuditLog(
       [ip, endpoint, method, reason, userAgent ?? null]
     ).catch((err: unknown) => {
       // Swallow DB errors — audit persistence must never break auth
-      console.warn('Failed to persist admin audit log:', err instanceof Error ? err.message : err);
+      logger.warn('Failed to persist admin audit log:', err instanceof Error ? err.message : err);
     });
   } catch (err: unknown) {
     // Swallow synchronous errors (e.g. pool not initialised)
-    console.warn('Failed to persist admin audit log:', err instanceof Error ? err.message : err);
+    logger.warn('Failed to persist admin audit log:', err instanceof Error ? err.message : err);
   }
 }
 
@@ -347,13 +348,13 @@ function persistAuditLog(
 export function generateAdminApiKey(): string {
   const apiKey = crypto.randomBytes(32).toString('hex');
   
-  console.log('\n🔑 Generated Admin API Key:');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log(apiKey);
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('\nAdd this to your .env file:');
-  console.log(`ADMIN_API_KEY=${apiKey}`);
-  console.log('\nKeep this secret! Do not commit to version control.\n');
+  logger.info('\n🔑 Generated Admin API Key:');
+  logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  logger.info(apiKey);
+  logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  logger.info('\nAdd this to your .env file:');
+  logger.info(`ADMIN_API_KEY=${apiKey}`);
+  logger.info('\nKeep this secret! Do not commit to version control.\n');
   
   return apiKey;
 }

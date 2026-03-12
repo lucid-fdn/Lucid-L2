@@ -3,6 +3,7 @@
 
 import express from 'express';
 import { verifyAdminAuth } from '../../middleware/adminAuth';
+import { logger } from '../../../../engine/src/lib/logger';
 
 // Lazy imports to avoid circular deps
 function getDeploymentService() {
@@ -45,7 +46,7 @@ a2aRouter.get('/v1/a2a/:passportId/agent.json', async (req, res) => {
     const card = agentCard.generateAgentCard(passportId, deployment.config, baseUrl);
     return res.json(card);
   } catch (error) {
-    console.error('Error in GET /v1/a2a/:passportId/agent.json:', error);
+    logger.error('Error in GET /v1/a2a/:passportId/agent.json:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -100,7 +101,7 @@ a2aRouter.post('/v1/a2a/:passportId/tasks/send', verifyAdminAuth, async (req, re
     a2aServer.addTaskArtifact(task, `Task forwarded to agent ${passportId}`);
     return res.json(task);
   } catch (error) {
-    console.error('Error in POST /v1/a2a/:passportId/tasks/send:', error);
+    logger.error('Error in POST /v1/a2a/:passportId/tasks/send:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -154,7 +155,7 @@ a2aRouter.post('/v1/a2a/discover', verifyAdminAuth, async (req, res) => {
 
     return res.json({ success: true, agent_card: card });
   } catch (error) {
-    console.error('Error in POST /v1/a2a/discover:', error);
+    logger.error('Error in POST /v1/a2a/discover:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -178,7 +179,7 @@ a2aRouter.get('/v1/a2a/:passportId/tasks/:taskId', verifyAdminAuth, async (req, 
 
     return res.json(task);
   } catch (error) {
-    console.error('Error in GET /v1/a2a/:passportId/tasks/:taskId:', error);
+    logger.error('Error in GET /v1/a2a/:passportId/tasks/:taskId:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -211,7 +212,7 @@ a2aRouter.delete('/v1/a2a/:passportId/tasks/:taskId', verifyAdminAuth, async (re
     a2aServer.updateTaskState(task, 'canceled', 'Canceled by user');
     return res.json({ success: true, task });
   } catch (error) {
-    console.error('Error in DELETE /v1/a2a/:passportId/tasks/:taskId:', error);
+    logger.error('Error in DELETE /v1/a2a/:passportId/tasks/:taskId:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -245,7 +246,7 @@ a2aRouter.get('/v1/a2a/:passportId/tasks', verifyAdminAuth, async (req, res) => 
 
     return res.json({ tasks, total, page, per_page: perPage, total_pages: totalPages });
   } catch (error) {
-    console.error('Error in GET /v1/a2a/:passportId/tasks:', error);
+    logger.error('Error in GET /v1/a2a/:passportId/tasks:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',

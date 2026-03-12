@@ -2,6 +2,7 @@ import express from 'express';
 import { FlowSpecService } from '../../../../contrib/integrations/flowspec/flowspecService';
 import { FlowSpec, FlowExecutionContext } from '../../../../contrib/integrations/flowspec/types';
 import { N8N_URL, N8N_HMAC_SECRET, N8N_API_KEY } from '../../../../engine/src/config/config';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export const flowspecApiRouter = express.Router();
 
@@ -40,7 +41,7 @@ async function handleFlowSpecCreate(req: express.Request, res: express.Response)
       message: `Workflow '${spec.name}' created successfully`
     });
   } catch (error) {
-    console.error('Error in handleFlowSpecCreate:', error);
+    logger.error('Error in handleFlowSpecCreate:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -72,7 +73,7 @@ async function handleFlowSpecExecute(req: express.Request, res: express.Response
 
     res.json(result);
   } catch (error) {
-    console.error('Error in handleFlowSpecExecute:', error);
+    logger.error('Error in handleFlowSpecExecute:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -99,7 +100,7 @@ async function handleFlowSpecHistory(req: express.Request, res: express.Response
       message: `Retrieved ${history.length} execution records`
     });
   } catch (error) {
-    console.error('Error in handleFlowSpecHistory:', error);
+    logger.error('Error in handleFlowSpecHistory:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -133,7 +134,7 @@ async function handleFlowSpecUpdate(req: express.Request, res: express.Response)
       message: `Workflow '${spec.name}' updated successfully`
     });
   } catch (error) {
-    console.error('Error in handleFlowSpecUpdate:', error);
+    logger.error('Error in handleFlowSpecUpdate:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -158,7 +159,7 @@ async function handleFlowSpecDelete(req: express.Request, res: express.Response)
       message: 'Workflow deleted successfully'
     });
   } catch (error) {
-    console.error('Error in handleFlowSpecDelete:', error);
+    logger.error('Error in handleFlowSpecDelete:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -182,7 +183,7 @@ async function handleFlowSpecList(req: express.Request, res: express.Response) {
       message: `Retrieved ${workflows.length} workflows`
     });
   } catch (error) {
-    console.error('Error in handleFlowSpecList:', error);
+    logger.error('Error in handleFlowSpecList:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

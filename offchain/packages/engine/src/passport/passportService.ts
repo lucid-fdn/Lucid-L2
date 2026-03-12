@@ -3,6 +3,7 @@ import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
 import { PublicKey, SystemProgram, Keypair } from '@solana/web3.js';
 import { LucidPassports } from '../types/lucid_passports';
 import { initSolana } from '../chain/solana/client';
+import { logger } from '../lib/logger';
 
 // Asset type enum matching the Solana program
 export enum AssetType {
@@ -124,8 +125,8 @@ export class PassportService {
             params.version
         );
 
-        console.log(`📝 Registering passport: ${params.slug} v${params.version.major}.${params.version.minor}.${params.version.patch}`);
-        console.log(`   PDA: ${passportPDA.toBase58()}`);
+        logger.info(`📝 Registering passport: ${params.slug} v${params.version.major}.${params.version.minor}.${params.version.patch}`);
+        logger.info(`   PDA: ${passportPDA.toBase58()}`);
 
         const signature = await this.program.methods
             .registerPassport(
@@ -146,7 +147,7 @@ export class PassportService {
             .signers(owner ? [owner] : [])
             .rpc();
 
-        console.log(`✅ Passport registered: ${signature}`);
+        logger.info(`✅ Passport registered: ${signature}`);
 
         return { signature, passportPDA };
     }
@@ -162,7 +163,7 @@ export class PassportService {
     ): Promise<string> {
         const authority = owner || (this.provider.wallet as any).payer;
 
-        console.log(`🔄 Updating passport: ${passportPDA.toBase58()}`);
+        logger.info(`🔄 Updating passport: ${passportPDA.toBase58()}`);
 
         const signature = await this.program.methods
             .updatePassport(
@@ -176,7 +177,7 @@ export class PassportService {
             .signers(owner ? [owner] : [])
             .rpc();
 
-        console.log(`✅ Passport updated: ${signature}`);
+        logger.info(`✅ Passport updated: ${signature}`);
 
         return signature;
     }
@@ -200,7 +201,7 @@ export class PassportService {
             this.program.programId
         );
 
-        console.log(`🔗 Linking versions: ${currentPassportPDA.toBase58()} → ${previousPassportPDA.toBase58()}`);
+        logger.info(`🔗 Linking versions: ${currentPassportPDA.toBase58()} → ${previousPassportPDA.toBase58()}`);
 
         const signature = await this.program.methods
             .linkVersion(previousVersion)
@@ -214,7 +215,7 @@ export class PassportService {
             .signers(owner ? [owner] : [])
             .rpc();
 
-        console.log(`✅ Versions linked: ${signature}`);
+        logger.info(`✅ Versions linked: ${signature}`);
 
         return signature;
     }
@@ -242,7 +243,7 @@ export class PassportService {
             this.program.programId
         );
 
-        console.log(`📋 Adding attestation to passport: ${passportPDA.toBase58()}`);
+        logger.info(`📋 Adding attestation to passport: ${passportPDA.toBase58()}`);
 
         const signature = await this.program.methods
             .addAttestation(
@@ -259,7 +260,7 @@ export class PassportService {
             .signers(attester ? [attester] : [])
             .rpc();
 
-        console.log(`✅ Attestation added: ${signature}`);
+        logger.info(`✅ Attestation added: ${signature}`);
 
         return signature;
     }
@@ -272,7 +273,7 @@ export class PassportService {
             const passport = await this.program.account.passport.fetch(passportPDA);
             return passport as any;
         } catch (error) {
-            console.error(`Error fetching passport ${passportPDA.toBase58()}:`, error);
+            logger.error(`Error fetching passport ${passportPDA.toBase58()}:`, error);
             return null;
         }
     }
@@ -296,7 +297,7 @@ export class PassportService {
                 data: p.account as any,
             }));
         } catch (error) {
-            console.error(`Error fetching passports for owner ${owner.toBase58()}:`, error);
+            logger.error(`Error fetching passports for owner ${owner.toBase58()}:`, error);
             return [];
         }
     }
@@ -320,7 +321,7 @@ export class PassportService {
                 data: p.account as any,
             }));
         } catch (error) {
-            console.error(`Error searching passports by type:`, error);
+            logger.error(`Error searching passports by type:`, error);
             return [];
         }
     }

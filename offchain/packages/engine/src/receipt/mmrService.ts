@@ -4,6 +4,7 @@ import { AgentMMRRegistry } from '../crypto/ipfsStorage';
 import { createHash } from 'crypto';
 import { initSolana, getKeypair } from '../chain/solana/client';
 import { calculateGasCost } from '../chain/solana/gas';
+import { logger } from '../lib/logger';
 
 /**
  * MMR Service for Lucid L2
@@ -39,7 +40,7 @@ export class MMRService {
    * Initialize an agent's MMR (or load existing from DePIN storage)
    */
   async initializeAgent(agentId: string, depinCid?: string): Promise<AgentMMR> {
-    console.log(`Initializing agent: ${agentId}${depinCid ? ` from DePIN: ${depinCid}` : ''}`);
+    logger.info(`Initializing agent: ${agentId}${depinCid ? ` from DePIN: ${depinCid}` : ''}`);
     return await this.registry.registerAgent(agentId, depinCid);
   }
 
@@ -54,7 +55,7 @@ export class MMRService {
       createHash('sha256').update(text).digest()
     );
 
-    console.log(`Processing epoch ${epochNumber} for agent ${agentId} with ${vectors.length} vectors`);
+    logger.info(`Processing epoch ${epochNumber} for agent ${agentId} with ${vectors.length} vectors`);
 
     // Process the epoch in MMR and upload to DePIN storage
     const { root: mmrRoot, depinCid } = await this.registry.processAgentEpoch(
@@ -66,11 +67,11 @@ export class MMRService {
     // Commit MMR root to Solana
     const { signature, gasCost } = await this.commitRootToChain(mmrRoot, agentId);
 
-    console.log(`Epoch ${epochNumber} committed for agent ${agentId}`);
-    console.log(`   MMR Root: ${mmrRoot.toString('hex')}`);
-    console.log(`   DePIN CID: ${depinCid}`);
-    console.log(`   Tx Signature: ${signature}`);
-    console.log(`   Gas Cost: ${gasCost.total} LUCID (${gasCost.iGas} iGas + ${gasCost.mGas} mGas)`);
+    logger.info(`Epoch ${epochNumber} committed for agent ${agentId}`);
+    logger.info(`   MMR Root: ${mmrRoot.toString('hex')}`);
+    logger.info(`   DePIN CID: ${depinCid}`);
+    logger.info(`   Tx Signature: ${signature}`);
+    logger.info(`   Gas Cost: ${gasCost.total} LUCID (${gasCost.iGas} iGas + ${gasCost.mGas} mGas)`);
 
     return {
       mmrRoot,
@@ -98,7 +99,7 @@ export class MMRService {
 
     // Process each agent's epochs
     for (const [agentId, epochs] of agentGroups) {
-      console.log(`🔄 Processing ${epochs.length} epochs for agent ${agentId}`);
+      logger.info(`🔄 Processing ${epochs.length} epochs for agent ${agentId}`);
       
       for (const epochData of epochs) {
         const result = await this.processAgentEpoch(epochData);
@@ -125,31 +126,31 @@ export class MMRService {
     // Hash the vector text
     const vectorHash = createHash('sha256').update(vectorText).digest();
 
-    console.log(`🔍 DEBUG: Generating proof for agent ${agentId}, epoch ${epochNumber}`);
-    console.log(`   Vector text: "${vectorText}"`);
-    console.log(`   Vector hash: ${vectorHash.toString('hex')}`);
-    console.log(`   MMR size: ${agent.getSize()}`);
+    logger.info(`🔍 DEBUG: Generating proof for agent ${agentId}, epoch ${epochNumber}`);
+    logger.info(`   Vector text: "${vectorText}"`);
+    logger.info(`   Vector hash: ${vectorHash.toString('hex')}`);
+    logger.info(`   MMR size: ${agent.getSize()}`);
 
     // Debug: Check what's in the MMR
     const history = agent.getRootHistory();
-    console.log(`   Root history: ${history.length} epochs`);
+    logger.info(`   Root history: ${history.length} epochs`);
     history.forEach(h => {
-      console.log(`     Epoch ${h.epoch}: ${h.root.toString('hex').substring(0, 16)}...`);
+      logger.info(`     Epoch ${h.epoch}: ${h.root.toString('hex').substring(0, 16)}...`);
     });
 
     // Generate proof
     const proof = agent.generateContributionProof(vectorHash, epochNumber);
     if (!proof) {
-      console.log(`   ❌ No proof found`);
+      logger.info(`   ❌ No proof found`);
       return null;
     }
 
     // Verify the proof
     const verified = agent.verifyContribution(vectorHash, epochNumber, proof);
 
-    console.log(`🔍 Generated contribution proof for agent ${agentId}, epoch ${epochNumber}`);
-    console.log(`   Vector: "${vectorText}"`);
-    console.log(`   Verified: ${verified}`);
+    logger.info(`🔍 Generated contribution proof for agent ${agentId}, epoch ${epochNumber}`);
+    logger.info(`   Vector: "${vectorText}"`);
+    logger.info(`   Verified: ${verified}`);
 
     return { proof, verified };
   }
@@ -242,7 +243,7 @@ export class MMRService {
 
       return { signature, gasCost };
     } catch (error) {
-      console.error('Failed to commit MMR root to chain:', error);
+      logger.error('Failed to commit MMR root to chain:', error);
       throw new Error(`Chain commit failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

@@ -32,6 +32,7 @@ import type {
 import type { IdentityRegistryClient } from '../../identity/registries/evm-identity';
 import type { ValidationRegistryClient } from '../../identity/registries/evm-validation';
 import type { ReputationRegistryClient } from '../../identity/registries/evm-reputation';
+import { logger } from '../../lib/logger';
 
 export class EVMAdapter implements IBlockchainAdapter {
   readonly chainType: ChainType = 'evm';
@@ -117,7 +118,7 @@ export class EVMAdapter implements IBlockchainAdapter {
     }
 
     this._connected = true;
-    console.log(`EVMAdapter connected: ${config.name} (chainId: ${config.evmChainId})`);
+    logger.info(`EVMAdapter connected: ${config.name} (chainId: ${config.evmChainId})`);
   }
 
   async disconnect(): Promise<void> {
@@ -219,11 +220,11 @@ export class EVMAdapter implements IBlockchainAdapter {
           const { getTBAService } = await import('../../identity/tbaService');
           const tbaService = getTBAService();
           const tba = await tbaService.createTBA(this._chainId, identityAddr, mintedTokenId);
-          console.log(`[EVMAdapter] TBA auto-created for token ${mintedTokenId}: ${tba.address}`);
+          logger.info(`[EVMAdapter] TBA auto-created for token ${mintedTokenId}: ${tba.address}`);
         }
       } catch (err) {
         // TBA creation is optional — log but don't fail
-        console.warn(`[EVMAdapter] TBA auto-creation failed:`, err instanceof Error ? err.message : err);
+        logger.warn(`[EVMAdapter] TBA auto-creation failed:`, err instanceof Error ? err.message : err);
       }
     }
 
@@ -401,10 +402,18 @@ export class EVMAdapter implements IBlockchainAdapter {
           { name: 'epochId', type: 'uint64' as const },
         ],
         outputs: [
-          { name: 'mmrRoot', type: 'bytes32' as const },
-          { name: 'leafCount', type: 'uint64' as const },
-          { name: 'mmrSize', type: 'uint64' as const },
-          { name: 'committedAt', type: 'uint64' as const },
+          {
+            name: 'epoch',
+            type: 'tuple' as const,
+            components: [
+              { name: 'mmrRoot', type: 'bytes32' as const },
+              { name: 'epochId', type: 'uint64' as const },
+              { name: 'leafCount', type: 'uint64' as const },
+              { name: 'timestamp', type: 'uint256' as const },
+              { name: 'mmrSize', type: 'uint64' as const },
+              { name: 'finalized', type: 'bool' as const },
+            ],
+          },
         ],
         stateMutability: 'view' as const,
       },
@@ -491,8 +500,9 @@ export class EVMAdapter implements IBlockchainAdapter {
             args: [agentIdBytes, BigInt(epochId)],
           });
 
-          // result is a tuple: [mmrRoot, leafCount, mmrSize, committedAt]
-          const onChainRoot = (result as readonly [string, bigint, bigint, bigint])[0].toLowerCase();
+          // result is a struct tuple: { mmrRoot, epochId, leafCount, timestamp, mmrSize, finalized }
+          const epoch = result as { mmrRoot: string; epochId: bigint; leafCount: bigint; timestamp: bigint; mmrSize: bigint; finalized: boolean };
+          const onChainRoot = epoch.mmrRoot.toLowerCase();
           return onChainRoot === expectedRootNorm;
         } catch {
           return false;

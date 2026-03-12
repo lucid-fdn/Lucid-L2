@@ -3,6 +3,7 @@
 
 import { INFTProvider, MintResult, NFTMetadata } from './INFTProvider';
 import { ChainFeatureUnavailable } from '../../errors';
+import { logger } from '../../lib/logger';
 
 export class EVMNFTProvider implements INFTProvider {
   readonly providerName = 'evm-erc721';
@@ -52,7 +53,7 @@ export class EVMNFTProvider implements INFTProvider {
         );
         result.tbaAddress = tba.address;
       } catch (err) {
-        console.warn(`[EVMNFTProvider] TBA creation failed:`, err instanceof Error ? err.message : err);
+        logger.warn(`[EVMNFTProvider] TBA creation failed:`, err instanceof Error ? err.message : err);
       }
     }
 

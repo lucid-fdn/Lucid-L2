@@ -6,6 +6,7 @@ import path from 'path';
 import { getRPC_URL, getCOMMITMENT, getPROGRAM_ID } from '../../config/config';
 import { PATHS } from '../../config/paths';
 import { getSolanaKeypair } from './keypair';
+import { logger } from '../../lib/logger';
 
 // Cache the program instance to avoid re-initialization issues
 let cachedProgram: Program | null = null;
@@ -16,7 +17,7 @@ let cachedProgram: Program | null = null;
  */
 export function resetSolanaCache(): void {
   cachedProgram = null;
-  console.log('🔄 Solana program cache cleared');
+  logger.info('🔄 Solana program cache cleared');
 }
 
 export function initSolana(): Program {
@@ -41,9 +42,9 @@ export function initSolana(): Program {
   const idlPath = path.join(PATHS.IDL_DIR, 'thought_epoch.json');
   const idlJson = JSON.parse(fs.readFileSync(idlPath, 'utf8'));
   
-  console.log('Program ID:', programId.toString());
-  console.log('IDL name:', idlJson.name || idlJson.metadata?.name);
-  console.log('IDL version:', idlJson.version || idlJson.metadata?.version);
+  logger.info('Program ID:', programId.toString());
+  logger.info('IDL name:', idlJson.name || idlJson.metadata?.name);
+  logger.info('IDL version:', idlJson.version || idlJson.metadata?.version);
 
   // Ensure metadata exists with program address
   if (!idlJson.metadata) {
@@ -52,22 +53,22 @@ export function initSolana(): Program {
   idlJson.metadata.address = programId.toString();
 
   // Create Program using the IDL with embedded address in metadata
-  console.log('Creating Anchor Program...');
+  logger.info('Creating Anchor Program...');
   try {
     // Use two-parameter constructor: Program(idl, provider)
     // The programId is read from idl.metadata.address
     const program = new Program(idlJson as Idl, provider);
-    console.log('✅ Program created successfully');
-    console.log('Program ID:', program.programId.toString());
-    console.log('Available methods:', Object.keys(program.methods));
+    logger.info('✅ Program created successfully');
+    logger.info('Program ID:', program.programId.toString());
+    logger.info('Available methods:', Object.keys(program.methods));
     
     // Cache the successfully created program
     cachedProgram = program;
     
     return program;
   } catch (error) {
-    console.error('❌ Program creation failed:', error);
-    console.error('Error details:', {
+    logger.error('❌ Program creation failed:', error);
+    logger.error('Error details:', {
       programId: programId.toString(),
       idlMetadata: idlJson.metadata
     });

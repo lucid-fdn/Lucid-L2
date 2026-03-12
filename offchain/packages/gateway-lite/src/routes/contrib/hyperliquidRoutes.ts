@@ -8,6 +8,7 @@
 import { Router, Request, Response } from 'express';
 import { HyperliquidTradingService } from '../../../../contrib/integrations/hyperliquid/tradingService';
 import { verifyPrivyToken, PrivyRequest } from '../../middleware/privyAuth';
+import { logger } from '../../../../engine/src/lib/logger';
 
 const router = Router();
 
@@ -84,7 +85,7 @@ router.post('/place-order', async (req: Request, res: Response) => {
       timestamp: Date.now()
     });
   } catch (error) {
-    console.error('Place order error:', error);
+    logger.error('Place order error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -121,7 +122,7 @@ router.post('/cancel-order', async (req: Request, res: Response) => {
       timestamp: Date.now()
     });
   } catch (error) {
-    console.error('Cancel order error:', error);
+    logger.error('Cancel order error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -156,7 +157,7 @@ router.post('/cancel-all-orders', async (req: Request, res: Response) => {
       timestamp: Date.now()
     });
   } catch (error) {
-    console.error('Cancel all orders error:', error);
+    logger.error('Cancel all orders error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -201,7 +202,7 @@ router.post('/modify-order', async (req: Request, res: Response) => {
       timestamp: Date.now()
     });
   } catch (error) {
-    console.error('Modify order error:', error);
+    logger.error('Modify order error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -238,7 +239,7 @@ router.post('/close-position', async (req: Request, res: Response) => {
       timestamp: Date.now()
     });
   } catch (error) {
-    console.error('Close position error:', error);
+    logger.error('Close position error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -280,7 +281,7 @@ router.post('/update-leverage', async (req: Request, res: Response) => {
       timestamp: Date.now()
     });
   } catch (error) {
-    console.error('Update leverage error:', error);
+    logger.error('Update leverage error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

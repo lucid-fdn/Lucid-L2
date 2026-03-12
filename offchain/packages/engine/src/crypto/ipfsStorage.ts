@@ -3,6 +3,7 @@ import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { getEvolvingStorage, IDepinStorage } from '../storage/depin';
+import { logger } from '../lib/logger';
 
 /**
  * File-based Storage Manager for MMR data (simulating IPFS)
@@ -49,9 +50,9 @@ export class IPFSStorageManager {
         fs.mkdirSync(this.storageDir, { recursive: true });
       }
       this.initialized = true;
-      console.log(`📁 File storage initialized: ${this.storageDir}`);
+      logger.info(`📁 File storage initialized: ${this.storageDir}`);
     } catch (error) {
-      console.error('Failed to initialize storage:', error);
+      logger.error('Failed to initialize storage:', error);
       throw new Error(`Storage initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -81,10 +82,10 @@ export class IPFSStorageManager {
       // Write to file
       fs.writeFileSync(filePath, serializedData);
       
-      console.log(`📦 Stored MMR for agent ${agentMMR.getAgentId()} with CID: ${cid}`);
+      logger.info(`📦 Stored MMR for agent ${agentMMR.getAgentId()} with CID: ${cid}`);
       return cid;
     } catch (error) {
-      console.error('Failed to store MMR data:', error);
+      logger.error('Failed to store MMR data:', error);
       throw new Error(`Storage failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -99,7 +100,7 @@ export class IPFSStorageManager {
       const filePath = path.join(this.storageDir, `${cid}.json`);
       
       if (!fs.existsSync(filePath)) {
-        console.warn(`MMR data not found for CID: ${cid}`);
+        logger.warn(`MMR data not found for CID: ${cid}`);
         return null;
       }
       
@@ -115,10 +116,10 @@ export class IPFSStorageManager {
         // For now, we'll create a new instance with the state
       }
       
-      console.log(`📥 Retrieved MMR for agent ${mmrData.agentId} from CID: ${cid}`);
+      logger.info(`📥 Retrieved MMR for agent ${mmrData.agentId} from CID: ${cid}`);
       return agentMMR;
     } catch (error) {
-      console.error('Failed to retrieve MMR data:', error);
+      logger.error('Failed to retrieve MMR data:', error);
       return null;
     }
   }
@@ -138,9 +139,9 @@ export class IPFSStorageManager {
       }
       
       fs.writeFileSync(pinPath, JSON.stringify({ cid, pinnedAt: Date.now() }));
-      console.log(`📌 Pinned MMR data: ${cid}`);
+      logger.info(`📌 Pinned MMR data: ${cid}`);
     } catch (error) {
-      console.error('Failed to pin MMR data:', error);
+      logger.error('Failed to pin MMR data:', error);
       throw new Error(`Pinning failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -156,10 +157,10 @@ export class IPFSStorageManager {
       
       if (fs.existsSync(pinPath)) {
         fs.unlinkSync(pinPath);
-        console.log(`📌❌ Unpinned MMR data: ${cid}`);
+        logger.info(`📌❌ Unpinned MMR data: ${cid}`);
       }
     } catch (error) {
-      console.error('Failed to unpin MMR data:', error);
+      logger.error('Failed to unpin MMR data:', error);
       throw new Error(`Unpinning failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
@@ -182,7 +183,7 @@ export class IPFSStorageManager {
         .filter(file => file.endsWith('.pin'))
         .map(file => file.replace('.pin', ''));
     } catch (error) {
-      console.error('Failed to list pinned MMRs:', error);
+      logger.error('Failed to list pinned MMRs:', error);
       return [];
     }
   }
@@ -216,7 +217,7 @@ export class IPFSStorageManager {
         type: 'file-based-storage'
       };
     } catch (error) {
-      console.error('Failed to get storage info:', error);
+      logger.error('Failed to get storage info:', error);
       return null;
     }
   }
@@ -227,7 +228,7 @@ export class IPFSStorageManager {
   async stop(): Promise<void> {
     if (this.initialized) {
       this.initialized = false;
-      console.log('🛑 File storage stopped');
+      logger.info('🛑 File storage stopped');
     }
   }
 
@@ -314,19 +315,19 @@ export class AgentMMRRegistry {
         if (raw) {
           const mmrData = deserializeMMRData(raw);
           agentMMR = new AgentMMR(mmrData.agentId, mmrData.mmrState);
-          console.log(`Loaded agent ${agentId} from DePIN storage: ${depinCid}`);
+          logger.info(`Loaded agent ${agentId} from DePIN storage: ${depinCid}`);
         } else {
           agentMMR = new AgentMMR(agentId);
-          console.log(`Failed to load agent ${agentId} from DePIN (CID not found), created new MMR`);
+          logger.info(`Failed to load agent ${agentId} from DePIN (CID not found), created new MMR`);
         }
       } catch (err) {
         agentMMR = new AgentMMR(agentId);
-        console.warn(`Failed to load agent ${agentId} from DePIN:`, err instanceof Error ? err.message : err);
+        logger.warn(`Failed to load agent ${agentId} from DePIN:`, err instanceof Error ? err.message : err);
       }
     } else {
       // Create new
       agentMMR = new AgentMMR(agentId);
-      console.log(`Created new MMR for agent ${agentId}`);
+      logger.info(`Created new MMR for agent ${agentId}`);
     }
 
     this.agents.set(agentId, { mmr: agentMMR, depinCid });
@@ -345,7 +346,12 @@ export class AgentMMRRegistry {
     // Process the epoch
     const newRoot = agentData.mmr.processEpoch(vectors, epochNumber);
 
-    // Serialize and upload to DePIN storage
+    // Serialize and upload to DePIN storage (respects kill switch)
+    if (process.env.DEPIN_UPLOAD_ENABLED === 'false') {
+      logger.info(`Skipping DePIN upload for agent ${agentId} epoch ${epochNumber} (DEPIN_UPLOAD_ENABLED=false)`);
+      return { root: newRoot, depinCid: agentData.depinCid || '' };
+    }
+
     const mmrData: StoredMMRData = {
       agentId: agentData.mmr.getAgentId(),
       mmrState: agentData.mmr.getState(),
@@ -362,7 +368,7 @@ export class AgentMMRRegistry {
     // Update registry
     this.agents.set(agentId, { mmr: agentData.mmr, depinCid: newCid });
 
-    console.log(`Updated agent ${agentId} epoch ${epochNumber}, DePIN CID: ${newCid} (${upload.provider})`);
+    logger.info(`Updated agent ${agentId} epoch ${epochNumber}, DePIN CID: ${newCid} (${upload.provider})`);
 
     return { root: newRoot, depinCid: newCid };
   }

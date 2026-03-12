@@ -3,6 +3,7 @@
 
 import { IReputationProvider } from './IReputationProvider';
 import { IReputationSyncer } from './IReputationSyncer';
+import { logger } from '../lib/logger';
 
 export { IReputationProvider } from './IReputationProvider';
 export { IReputationSyncer, ExternalFeedback, ExternalSummary } from './IReputationSyncer';
@@ -31,7 +32,7 @@ export function getReputationProvider(): IReputationProvider {
       break;
     }
   }
-  console.log(`[Reputation] Provider: ${_provider!.providerName}`);
+  logger.info(`[Reputation] Provider: ${_provider!.providerName}`);
   return _provider!;
 }
 
@@ -65,7 +66,7 @@ export function getReputationSyncers(): IReputationSyncer[] {
           const { Solana8004Syncer } = require('./syncers/Solana8004Syncer');
           _syncers.push(new Solana8004Syncer(new SolanaSDK()));
         } catch {
-          console.warn('[Reputation] 8004-solana SDK not available, skipping syncer');
+          logger.warn('[Reputation] 8004-solana SDK not available, skipping syncer');
         }
         break;
       }
@@ -85,11 +86,11 @@ export function getReputationSyncers(): IReputationSyncer[] {
         break;
       }
       default:
-        console.warn(`[Reputation] Unknown syncer: ${name}`);
+        logger.warn(`[Reputation] Unknown syncer: ${name}`);
     }
   }
 
-  console.log(
+  logger.info(
     `[Reputation] Syncers: ${_syncers.length === 0 ? 'none' : _syncers.map((s) => s.syncerName).join(', ')}`,
   );
   return _syncers;

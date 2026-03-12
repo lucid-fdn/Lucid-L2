@@ -3,6 +3,7 @@
 
 import { randomUUID } from 'crypto';
 import { IAgentWalletProvider, AgentWallet, WalletBalance, TransactionRequest, TransactionResult, SpendingLimits } from './IAgentWalletProvider';
+import { logger } from '../../lib/logger';
 
 /**
  * Mock Wallet Provider (Dev/Test)
@@ -35,7 +36,7 @@ export class MockWalletProvider implements IAgentWalletProvider {
       balances: [{ token: 'MOCK', amount: '1000.0', decimals: 6 }],
     });
 
-    console.log(`[AgentWallet] Mock wallet created: ${address} for agent ${agentPassportId}`);
+    logger.info(`[AgentWallet] Mock wallet created: ${address} for agent ${agentPassportId}`);
     return wallet;
   }
 
@@ -54,13 +55,13 @@ export class MockWalletProvider implements IAgentWalletProvider {
       chain: 'mock',
     };
     this.transactions.push(result);
-    console.log(`[AgentWallet] Mock transaction: ${walletAddress} -> ${tx.to} (${tx.amount || tx.value || '0'})`);
+    logger.info(`[AgentWallet] Mock transaction: ${walletAddress} -> ${tx.to} (${tx.amount || tx.value || '0'})`);
     return result;
   }
 
   async setSpendingLimits(walletAddress: string, limits: SpendingLimits): Promise<void> {
     this.limits.set(walletAddress, limits);
-    console.log(`[AgentWallet] Mock spending limits set: $${limits.per_tx_usd}/tx, $${limits.daily_usd}/day`);
+    logger.info(`[AgentWallet] Mock spending limits set: $${limits.per_tx_usd}/tx, $${limits.daily_usd}/day`);
   }
 
   async isHealthy(): Promise<boolean> {

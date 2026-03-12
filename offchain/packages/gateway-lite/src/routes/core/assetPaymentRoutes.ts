@@ -8,6 +8,7 @@ import { Router } from 'express';
 import { PricingService } from '../../../../engine/src/payment/pricingService';
 import { RevenueService } from '../../../../engine/src/payment/revenueService';
 import { verifyAdminAuth } from '../../middleware/adminAuth';
+import { logger } from '../../../../engine/src/lib/logger';
 
 /**
  * Serialize a value that may contain BigInt fields into JSON-safe form.
@@ -48,7 +49,7 @@ export function createAssetPaymentRouter(): Router {
         pricing: serializeBigInts(pricing as unknown as Record<string, unknown>),
       });
     } catch (error) {
-      console.error('Error in GET /:passportId/pricing:', error);
+      logger.error('Error in GET /:passportId/pricing:', error);
       return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -93,7 +94,7 @@ export function createAssetPaymentRouter(): Router {
 
       return res.json({ success: true });
     } catch (error) {
-      console.error('Error in PUT /:passportId/pricing:', error);
+      logger.error('Error in PUT /:passportId/pricing:', error);
       return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -112,7 +113,7 @@ export function createAssetPaymentRouter(): Router {
 
       return res.json({ success: true, deleted });
     } catch (error) {
-      console.error('Error in DELETE /:passportId/pricing:', error);
+      logger.error('Error in DELETE /:passportId/pricing:', error);
       return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -135,7 +136,7 @@ export function createAssetPaymentRouter(): Router {
         revenue: serializeBigInts(revenue as unknown as Record<string, unknown>),
       });
     } catch (error) {
-      console.error('Error in GET /:passportId/revenue:', error);
+      logger.error('Error in GET /:passportId/revenue:', error);
       return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -158,7 +159,7 @@ export function createAssetPaymentRouter(): Router {
         withdrawal: serializeBigInts(result as unknown as Record<string, unknown>),
       });
     } catch (error) {
-      console.error('Error in POST /:passportId/withdraw:', error);
+      logger.error('Error in POST /:passportId/withdraw:', error);
       return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

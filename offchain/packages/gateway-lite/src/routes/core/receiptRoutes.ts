@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { createInferenceReceipt, getInferenceReceipt, verifyInferenceReceiptHash, verifyInferenceReceipt, getInferenceReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey, listInferenceReceipts, listComputeReceipts, getComputeReceipt, verifyComputeReceipt } from '../../../../engine/src/receipt/receiptService';
 import { getAllEpochs, addReceiptToEpoch } from '../../../../engine/src/receipt/epochService';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export const receiptRouter = Router();
 
@@ -22,7 +23,7 @@ receiptRouter.post('/v1/receipts', async (req, res) => {
     addReceiptToEpoch(receipt.run_id);
     return res.json({ success: true, receipt });
   } catch (error) {
-    console.error('Error in POST /v1/receipts:', error);
+    logger.error('Error in POST /v1/receipts:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
@@ -39,7 +40,7 @@ receiptRouter.get('/v1/receipts/:receipt_id', async (req, res) => {
     }
     return res.json({ success: true, receipt });
   } catch (error) {
-    console.error('Error in GET /v1/receipts/:id:', error);
+    logger.error('Error in GET /v1/receipts/:id:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
@@ -66,7 +67,7 @@ receiptRouter.get('/v1/receipts/:receipt_id/verify', async (req, res) => {
       merkle_root: result.merkle_root,
     });
   } catch (error) {
-    console.error('Error in GET /v1/receipts/:id/verify:', error);
+    logger.error('Error in GET /v1/receipts/:id/verify:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
@@ -187,10 +188,13 @@ receiptRouter.get('/v1/verify/:receipt_hash', async (req, res) => {
     // Add MMR proof if available
     if (merkleProof) {
       response.inclusion_proof = {
+        proof_type: 'mmr',
         leaf_index: merkleProof.leafIndex,
-        proof: merkleProof.siblings,
+        leaf_hash: merkleProof.leafHash,
+        siblings: merkleProof.siblings,
+        peaks: merkleProof.peaks,
+        mmr_size: merkleProof.mmrSize,
         root: merkleProof.root,
-        directions: merkleProof.directions,
       };
       response.inclusion_valid = verifyResult.inclusion_valid ?? true;
     } else {
@@ -210,7 +214,7 @@ receiptRouter.get('/v1/verify/:receipt_hash', async (req, res) => {
 
     return res.json(response);
   } catch (error) {
-    console.error('Error in GET /v1/verify/:receipt_hash:', error);
+    logger.error('Error in GET /v1/verify/:receipt_hash:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -237,20 +241,22 @@ receiptRouter.get('/v1/receipts/:receipt_id/proof', async (req, res) => {
       return res.status(404).json({ success: false, error: 'No proof available for this receipt' });
     }
 
-    // Transform MerkleProof to ReceiptProof format (matches openapi.yaml ReceiptProof schema)
+    // Transform SerializedMMRProof to ReceiptProof format
     const proof = {
+      proof_type: 'mmr' as const,
       run_id: receipt.run_id,
       receipt_hash: receipt.receipt_hash,
-      leaf: merkleProof.leaf,
+      leaf_hash: merkleProof.leafHash,
       leaf_index: merkleProof.leafIndex,
-      proof: merkleProof.siblings,
+      siblings: merkleProof.siblings,
+      peaks: merkleProof.peaks,
+      mmr_size: merkleProof.mmrSize,
       root: merkleProof.root,
-      directions: merkleProof.directions,
     };
 
     return res.json({ success: true, proof });
   } catch (error) {
-    console.error('Error in GET /v1/receipts/:id/proof:', error);
+    logger.error('Error in GET /v1/receipts/:id/proof:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
@@ -264,7 +270,7 @@ receiptRouter.get('/v1/signer/pubkey', async (_req, res) => {
     const pubkey = getSignerPublicKey();
     return res.json({ success: true, signer_type: 'orchestrator', pubkey });
   } catch (error) {
-    console.error('Error in GET /v1/signer/pubkey:', error);
+    logger.error('Error in GET /v1/signer/pubkey:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
@@ -279,7 +285,7 @@ receiptRouter.get('/v1/mmr/root', async (_req, res) => {
     const leaf_count = getMmrLeafCount();
     return res.json({ success: true, root, leaf_count });
   } catch (error) {
-    console.error('Error in GET /v1/mmr/root:', error);
+    logger.error('Error in GET /v1/mmr/root:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });

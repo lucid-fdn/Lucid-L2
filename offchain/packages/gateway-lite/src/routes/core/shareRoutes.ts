@@ -27,7 +27,7 @@ shareRouter.post('/v1/passports/:id/token/launch', async (req, res) => {
       return res.status(400).json({ success: false, error: 'name, symbol, and totalSupply are required' });
     }
 
-    // Upload token metadata to DePIN
+    // Upload token metadata to DePIN (respects kill switch)
     const metadataJson = {
       name,
       symbol,
@@ -36,16 +36,20 @@ shareRouter.post('/v1/passports/:id/token/launch', async (req, res) => {
       passport_type: passport.data.type,
     };
 
-    const uploadResult = await getPermanentStorage().uploadJSON(metadataJson, {
-      tags: { 'Content-Type': 'application/json', 'lucid-share-token': 'true' },
-    });
+    let metadataUri = '';
+    if (process.env.DEPIN_UPLOAD_ENABLED !== 'false') {
+      const uploadResult = await getPermanentStorage().uploadJSON(metadataJson, {
+        tags: { 'Content-Type': 'application/json', 'lucid-share-token': 'true' },
+      });
+      metadataUri = uploadResult.url;
+    }
 
     const launcher = getTokenLauncher();
     const result = await launcher.launchToken({
       passportId,
       name,
       symbol,
-      uri: uploadResult.url,
+      uri: metadataUri,
       totalSupply: Number(totalSupply),
       decimals: decimals ? Number(decimals) : undefined,
       owner: passport.data.owner,

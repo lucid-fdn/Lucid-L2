@@ -5,6 +5,7 @@
 
 import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, DeploymentStatus, LogOptions } from './IDeployer';
 import { resilientFetch } from './resilientFetch';
+import { logger } from '../lib/logger';
 
 const IONET_API_URL = 'https://api.io.solutions/enterprise/v1/io-cloud/caas';
 
@@ -138,9 +139,9 @@ export class IoNetDeployer implements IDeployer {
       // Poll for public URL
       const publicUrl = await this.pollForUrl(deploymentId, STARTUP_TIMEOUT_MS);
 
-      console.log(`[Deploy] io.net GPU deployment created: ${deploymentId}`);
-      console.log(`[Deploy]   GPU: ${gpuRequested} (hardware_id: ${hardwareId})`);
-      if (publicUrl) console.log(`[Deploy]   URL: ${publicUrl}`);
+      logger.info(`[Deploy] io.net GPU deployment created: ${deploymentId}`);
+      logger.info(`[Deploy]   GPU: ${gpuRequested} (hardware_id: ${hardwareId})`);
+      if (publicUrl) logger.info(`[Deploy]   URL: ${publicUrl}`);
 
       return {
         success: true,
@@ -225,7 +226,7 @@ export class IoNetDeployer implements IDeployer {
       throw new Error(`Failed to terminate io.net deployment: ${error}`);
     }
 
-    console.log(`[Deploy] io.net deployment terminated: ${deploymentId}`);
+    logger.info(`[Deploy] io.net deployment terminated: ${deploymentId}`);
   }
 
   async scale(deploymentId: string, replicas: number): Promise<void> {
@@ -240,7 +241,7 @@ export class IoNetDeployer implements IDeployer {
       throw new Error(`Failed to scale io.net deployment: ${error}`);
     }
 
-    console.log(`[Deploy] io.net deployment ${deploymentId} scaled to ${replicas} replicas`);
+    logger.info(`[Deploy] io.net deployment ${deploymentId} scaled to ${replicas} replicas`);
   }
 
   async isHealthy(): Promise<boolean> {

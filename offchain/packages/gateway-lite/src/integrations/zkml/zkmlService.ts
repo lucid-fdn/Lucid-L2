@@ -13,6 +13,7 @@ import type {
   CircuitMetadata,
   ZkMLReceiptExtension,
 } from './zkmlTypes';
+import { logger } from '../../../../engine/src/lib/logger';
 
 // ZkMLVerifier ABI (minimal)
 const ZKML_VERIFIER_ABI = [
@@ -348,7 +349,7 @@ export class ZkMLService {
     // 2. Derive bloom PDA from authority
     // 3. Build verify_proof instruction with proof_a, proof_b, proof_c, public_inputs, receipt_hash
     // 4. Submit transaction
-    console.log(`[ZkMLService] Solana proof verification: model=${proof.modelCircuitHash}, proofHash=${proofHash}`);
+    logger.info(`[ZkMLService] Solana proof verification: model=${proof.modelCircuitHash}, proofHash=${proofHash}`);
 
     proof.verified = true;
     return { valid: true, proofHash };
@@ -375,7 +376,7 @@ export class ZkMLService {
       framework: 'ezkl',
     });
 
-    console.log(`[ZkMLService] Solana model registered: ${modelHash}`);
+    logger.info(`[ZkMLService] Solana model registered: ${modelHash}`);
     return { success: true };
   }
 
@@ -400,7 +401,7 @@ export class ZkMLService {
     }
 
     // In production: build verify_batch instruction
-    console.log(`[ZkMLService] Solana batch verification: ${proofs.length} proofs`);
+    logger.info(`[ZkMLService] Solana batch verification: ${proofs.length} proofs`);
     return { valid: true, count: proofs.length };
   }
 

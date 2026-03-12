@@ -12,6 +12,8 @@
  */
 import {
   getEpochsReadyForFinalization,
+  getFailedEpochs,
+  retryEpoch,
   getEpochStats,
   Epoch,
 } from '../receipt/epochService';
@@ -30,6 +32,7 @@ export interface AnchoringJobConfig {
   interval_ms: number;         // How often to run (default: 10 minutes)
   batch_size: number;          // Max epochs to process per run (default: 5)
   retry_failed: boolean;       // Whether to retry failed epochs
+  max_retry_attempts: number;  // Max retries per epoch before giving up (default: 3)
   max_consecutive_failures: number;  // Stop if too many failures in a row
   alert_webhook_url?: string;  // Webhook for failure alerts
   log_level: 'debug' | 'info' | 'warn' | 'error';
@@ -40,6 +43,7 @@ const DEFAULT_CONFIG: AnchoringJobConfig = {
   interval_ms: 10 * 60 * 1000, // 10 minutes
   batch_size: 5,
   retry_failed: true,
+  max_retry_attempts: 3,
   max_consecutive_failures: 3,
   log_level: 'info',
 };
@@ -61,6 +65,7 @@ export interface AnchoringJobResult {
   epochs_checked: number;
   epochs_anchored: number;
   epochs_failed: number;
+  epochs_retried: number;
   results: AnchorResult[];
   errors: string[];
 }
@@ -174,6 +179,7 @@ export async function runAnchoringJob(): Promise<AnchoringJobResult> {
     epochs_checked: 0,
     epochs_anchored: 0,
     epochs_failed: 0,
+    epochs_retried: 0,
     results: [],
     errors: [],
   };
@@ -205,15 +211,14 @@ export async function runAnchoringJob(): Promise<AnchoringJobResult> {
     const readyEpochs = getEpochsReadyForFinalization();
     result.epochs_checked = readyEpochs.length;
 
-    if (readyEpochs.length === 0) {
-      log('debug', 'No epochs ready for finalization');
-      return result;
-    }
-
-    log('info', `Found ${readyEpochs.length} epochs ready for finalization`);
-
     // Process epochs (up to batch_size)
     const epochsToProcess = readyEpochs.slice(0, config.batch_size);
+
+    if (epochsToProcess.length === 0) {
+      log('debug', 'No epochs ready for finalization');
+    } else {
+      log('info', `Found ${readyEpochs.length} epochs ready for finalization`);
+    }
 
     for (const epoch of epochsToProcess) {
       try {
@@ -253,6 +258,71 @@ export async function runAnchoringJob(): Promise<AnchoringJobResult> {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
         result.errors.push(`Exception anchoring epoch ${epoch.epoch_id}: ${errorMsg}`);
         log('error', `Exception anchoring epoch ${epoch.epoch_id}`, error);
+      }
+    }
+
+    // =========================================================================
+    // RETRY FAILED EPOCHS
+    // =========================================================================
+    if (config.retry_failed) {
+      const failedEpochs = getFailedEpochs();
+      const retryable = failedEpochs.filter(
+        e => (e.retry_count || 0) < config.max_retry_attempts
+      );
+
+      if (retryable.length > 0) {
+        log('info', `Found ${retryable.length} failed epoch(s) eligible for retry (of ${failedEpochs.length} total failed)`);
+
+        // Respect batch_size: count slots remaining after the main batch
+        const slotsUsed = epochsToProcess.length;
+        const slotsRemaining = Math.max(0, config.batch_size - slotsUsed);
+        const retryBatch = retryable.slice(0, slotsRemaining);
+
+        for (const failedEpoch of retryBatch) {
+          try {
+            const attempt = (failedEpoch.retry_count || 0) + 1;
+            log('info', `Retrying failed epoch ${failedEpoch.epoch_id} (attempt ${attempt}/${config.max_retry_attempts})`);
+
+            // Reset epoch from 'failed' back to 'open'
+            const resetEpoch = retryEpoch(failedEpoch.epoch_id);
+            if (!resetEpoch) {
+              log('warn', `Could not reset epoch ${failedEpoch.epoch_id} for retry`);
+              continue;
+            }
+
+            // Re-anchor the epoch
+            const anchorResult = await commitEpochRoot(failedEpoch.epoch_id);
+            result.results.push(anchorResult);
+            result.epochs_retried++;
+
+            if (anchorResult.success) {
+              result.epochs_anchored++;
+              log('info', `Successfully re-anchored epoch ${failedEpoch.epoch_id} on attempt ${attempt}`, {
+                tx: anchorResult.signature,
+                root: anchorResult.root,
+              });
+            } else {
+              result.epochs_failed++;
+              result.errors.push(`Retry failed for epoch ${failedEpoch.epoch_id} (attempt ${attempt}): ${anchorResult.error}`);
+              log('warn', `Retry failed for epoch ${failedEpoch.epoch_id} (attempt ${attempt})`, anchorResult);
+            }
+          } catch (error) {
+            result.epochs_failed++;
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            result.errors.push(`Exception retrying epoch ${failedEpoch.epoch_id}: ${errorMsg}`);
+            log('error', `Exception retrying epoch ${failedEpoch.epoch_id}`, error);
+          }
+        }
+      }
+
+      // Alert on permanently failed epochs (exhausted all retries)
+      const exhausted = failedEpochs.filter(
+        e => (e.retry_count || 0) >= config.max_retry_attempts
+      );
+      if (exhausted.length > 0) {
+        log('warn', `${exhausted.length} epoch(s) have exhausted all ${config.max_retry_attempts} retry attempts`, {
+          epoch_ids: exhausted.map(e => e.epoch_id),
+        });
       }
     }
 

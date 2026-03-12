@@ -33,6 +33,7 @@ export class VercelAIAdapter implements IRuntimeAdapter {
 import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import express from "express";
+import { logger } from '../lib/logger';
 
 // --- LLM Provider (routes through TrustGate) ---
 const provider = createOpenAI({
@@ -102,7 +103,7 @@ app.post("/run", async (req, res) => {
       });
     }
   } catch (error) {
-    console.error("Agent error:", error);
+    logger.error("Agent error:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
   }
 });
@@ -148,7 +149,7 @@ app.post("/tasks/send", async (req, res) => {
 
 const PORT = parseInt(process.env.PORT || "3100");
 app.listen(PORT, () => {
-  console.log(\`Agent ${passportId} running on port \${PORT} (vercel-ai adapter)\`);
+  logger.info(\`Agent ${passportId} running on port \${PORT} (vercel-ai adapter)\`);
 });
 `);
 

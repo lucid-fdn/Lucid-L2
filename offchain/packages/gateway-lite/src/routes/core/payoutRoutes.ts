@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { calculatePayoutSplit, createPayoutFromReceipt, getPayout, storePayout, verifyPayoutSplit } from '../../../../engine/src/finance/payoutService';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export const payoutRouter = Router();
 
@@ -59,7 +60,7 @@ payoutRouter.post('/v1/payouts/calculate', async (req, res) => {
 
     return res.json({ success: true, payout: payoutJson });
   } catch (error) {
-    console.error('Error in POST /v1/payouts/calculate:', error);
+    logger.error('Error in POST /v1/payouts/calculate:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
@@ -108,7 +109,7 @@ payoutRouter.post('/v1/payouts/from-receipt', async (req, res) => {
 
     return res.json({ success: true, payout: payoutJson });
   } catch (error) {
-    console.error('Error in POST /v1/payouts/from-receipt:', error);
+    logger.error('Error in POST /v1/payouts/from-receipt:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
@@ -137,7 +138,7 @@ payoutRouter.get('/v1/payouts/:run_id', async (req, res) => {
 
     return res.json({ success: true, payout: payoutJson });
   } catch (error) {
-    console.error('Error in GET /v1/payouts/:run_id:', error);
+    logger.error('Error in GET /v1/payouts/:run_id:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
@@ -157,7 +158,7 @@ payoutRouter.get('/v1/payouts/:run_id/verify', async (req, res) => {
     const result = verifyPayoutSplit(payout);
     return res.json({ success: true, ...result });
   } catch (error) {
-    console.error('Error in GET /v1/payouts/:run_id/verify:', error);
+    logger.error('Error in GET /v1/payouts/:run_id/verify:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });

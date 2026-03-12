@@ -8,6 +8,7 @@ import axios from 'axios';
 import { FlowSpec, FlowExecutionContext, FlowExecutionResult } from '../../../contrib/integrations/flowspec/types';
 import { FlowSpecService } from '../../../contrib/integrations/flowspec/flowspecService';
 import { N8N_URL, N8N_HMAC_SECRET, N8N_API_KEY } from '../../../engine/src/config/config';
+import { logger } from '../../../engine/src/lib/logger';
 
 export type ExecutorType = 'n8n' | 'langgraph';
 
@@ -40,10 +41,10 @@ export class ExecutorRouter {
       ? { executor: preferredExecutor, reason: 'User preference', confidence: 1.0, complexity: this.analyzeComplexity(flowspec) }
       : this.selectBestExecutor(flowspec);
 
-    console.log(`🔀 Routing to ${decision.executor} executor`);
-    console.log(`   Reason: ${decision.reason}`);
-    console.log(`   Complexity: ${decision.complexity}`);
-    console.log(`   Confidence: ${(decision.confidence * 100).toFixed(0)}%`);
+    logger.info(`🔀 Routing to ${decision.executor} executor`);
+    logger.info(`   Reason: ${decision.reason}`);
+    logger.info(`   Complexity: ${decision.complexity}`);
+    logger.info(`   Confidence: ${(decision.confidence * 100).toFixed(0)}%`);
 
     // Route to appropriate executor
     if (decision.executor === 'langgraph') {
@@ -243,7 +244,7 @@ export class ExecutorRouter {
     context: FlowExecutionContext
   ): Promise<FlowExecutionResult> {
     try {
-      console.log('📊 Executing via LangGraph...');
+      logger.info('📊 Executing via LangGraph...');
       
       const response = await axios.post(
         `${this.langGraphUrl}/execute`,
@@ -262,7 +263,7 @@ export class ExecutorRouter {
         throw new Error(response.data.error || 'LangGraph execution failed');
       }
     } catch (error: any) {
-      console.error('❌ LangGraph execution error:', error.message);
+      logger.error('❌ LangGraph execution error:', error.message);
       return {
         success: false,
         executionId: `lg_${Date.now()}`,
@@ -280,7 +281,7 @@ export class ExecutorRouter {
     context: FlowExecutionContext
   ): Promise<FlowExecutionResult> {
     try {
-      console.log('📊 Executing via n8n...');
+      logger.info('📊 Executing via n8n...');
       
       // Create workflow in n8n
       const workflowResult = await this.n8nService.createWorkflow(flowspec);
@@ -293,7 +294,7 @@ export class ExecutorRouter {
 
       return executionResult;
     } catch (error: any) {
-      console.error('❌ n8n execution error:', error.message);
+      logger.error('❌ n8n execution error:', error.message);
       return {
         success: false,
         executionId: `n8n_${Date.now()}`,

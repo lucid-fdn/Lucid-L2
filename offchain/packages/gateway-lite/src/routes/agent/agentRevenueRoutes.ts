@@ -3,6 +3,7 @@
 
 import express from 'express';
 import { verifyAdminAuth } from '../../middleware/adminAuth';
+import { logger } from '../../../../engine/src/lib/logger';
 
 function getRevenueService() {
   const mod = require('../../../engine/src/agent/agentRevenueService');
@@ -43,7 +44,7 @@ agentRevenueRouter.get('/v1/agents/:id/revenue', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error in GET /v1/agents/:id/revenue:', error);
+    logger.error('Error in GET /v1/agents/:id/revenue:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -76,7 +77,7 @@ agentRevenueRouter.post('/v1/agents/:id/revenue/airdrop', verifyAdminAuth, async
       },
     });
   } catch (error) {
-    console.error('Error in POST /v1/agents/:id/revenue/airdrop:', error);
+    logger.error('Error in POST /v1/agents/:id/revenue/airdrop:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -112,7 +113,7 @@ agentRevenueRouter.get('/v1/agents/:id/revenue/history', async (req, res) => {
       })),
     });
   } catch (error) {
-    console.error('Error in GET /v1/agents/:id/revenue/history:', error);
+    logger.error('Error in GET /v1/agents/:id/revenue/history:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',

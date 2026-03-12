@@ -9,6 +9,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { PATHS } from '../config/paths';
+import { logger } from '../lib/logger';
 
 export interface IdentityLink {
   linkId: string;

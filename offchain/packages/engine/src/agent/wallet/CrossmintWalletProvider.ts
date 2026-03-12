@@ -2,6 +2,7 @@
 // Crossmint Smart Wallet provider for Solana agent wallets
 
 import { IAgentWalletProvider, AgentWallet, WalletBalance, TransactionRequest, TransactionResult, SpendingLimits } from './IAgentWalletProvider';
+import { logger } from '../../lib/logger';
 
 /**
  * Crossmint Wallet Provider (Solana)
@@ -58,7 +59,7 @@ export class CrossmintWalletProvider implements IAgentWalletProvider {
     };
 
     this.walletCache.set(agentPassportId, wallet);
-    console.log(`[AgentWallet] Crossmint wallet created: ${wallet.address} for agent ${agentPassportId}`);
+    logger.info(`[AgentWallet] Crossmint wallet created: ${wallet.address} for agent ${agentPassportId}`);
     return wallet;
   }
 
@@ -155,7 +156,7 @@ export class CrossmintWalletProvider implements IAgentWalletProvider {
         daily: limits.daily_usd,
       }),
     });
-    console.log(`[AgentWallet] Spending limits set for ${walletAddress}: $${limits.per_tx_usd}/tx, $${limits.daily_usd}/day`);
+    logger.info(`[AgentWallet] Spending limits set for ${walletAddress}: $${limits.per_tx_usd}/tx, $${limits.daily_usd}/day`);
   }
 
   async isHealthy(): Promise<boolean> {

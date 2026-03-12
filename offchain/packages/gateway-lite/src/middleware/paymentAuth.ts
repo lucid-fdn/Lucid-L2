@@ -13,6 +13,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { verifyPaymentGrant, type PaymentGrant } from '../../../engine/src/finance/paymentGrant';
+import { logger } from '../../../engine/src/lib/logger';
 
 const TRUSTED_SIGNER = process.env.PAYMENT_GRANT_SIGNER_PUBKEY || '';
 
@@ -67,7 +68,7 @@ export function requirePaymentAuth() {
           }
         } catch {
           // DB not available -- fall back to signature-only verification (no spend tracking)
-          console.warn(
+          logger.warn(
             '[paymentAuth] Grant budget tracking failed (DB unavailable), proceeding with signature-only verification',
           );
         }

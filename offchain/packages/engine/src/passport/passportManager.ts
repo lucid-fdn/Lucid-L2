@@ -14,6 +14,7 @@ import { validateWithSchema, SchemaId } from '../crypto/schemaValidator';
 // matchingEngine and modelCatalog stay in gateway-lite (serving layer) — use long path
 import { hasAvailableCompute } from '../../../../src/services/passport/matchingEngine';
 import { MODEL_CATALOG } from '../../../../src/services/passport/modelCatalog';
+import { logger } from '../lib/logger';
 
 // =============================================================================
 // TRUSTGATE CATALOG VALIDATION
@@ -31,7 +32,7 @@ async function getTrustGateCatalog(): Promise<Set<string>> {
   try {
     const response = await fetch(`${TRUSTGATE_URL}/v1/models`);
     if (!response.ok) {
-      console.warn('TrustGate catalog check failed:', response.status);
+      logger.warn('TrustGate catalog check failed:', response.status);
       return new Set();
     }
     const data = await response.json();
@@ -41,7 +42,7 @@ async function getTrustGateCatalog(): Promise<Set<string>> {
     trustgateCatalogCache = { models, expires: Date.now() + CATALOG_CACHE_TTL };
     return models;
   } catch (error) {
-    console.warn('TrustGate catalog unreachable:', error);
+    logger.warn('TrustGate catalog unreachable:', error);
     return new Set();
   }
 }
@@ -57,7 +58,7 @@ async function getTrustGateCatalogFull(): Promise<TrustGateCatalogEntry[]> {
   try {
     const response = await fetch(`${TRUSTGATE_URL}/v1/models`);
     if (!response.ok) {
-      console.warn('TrustGate catalog fetch failed:', response.status);
+      logger.warn('TrustGate catalog fetch failed:', response.status);
       return [];
     }
     const data = await response.json();
@@ -66,7 +67,7 @@ async function getTrustGateCatalogFull(): Promise<TrustGateCatalogEntry[]> {
       owned_by: m.owned_by,
     }));
   } catch (error) {
-    console.warn('TrustGate catalog unreachable:', error);
+    logger.warn('TrustGate catalog unreachable:', error);
     return [];
   }
 }
@@ -171,7 +172,7 @@ export class PassportManager {
     if (this.initialized) return;
     await this.store.init();
     this.initialized = true;
-    console.log('🔐 Passport Manager initialized');
+    logger.info('🔐 Passport Manager initialized');
   }
 
   /**
@@ -179,7 +180,7 @@ export class PassportManager {
    */
   setOnChainSyncHandler(handler: OnChainSyncHandler): void {
     this.syncHandler = handler;
-    console.log('🔗 On-chain sync handler registered');
+    logger.info('🔗 On-chain sync handler registered');
   }
 
   /**
@@ -279,7 +280,7 @@ export class PassportManager {
             error: `Model '${modelId}' not found in TrustGate catalog. Available models can be checked at ${TRUSTGATE_URL}/v1/models`,
           };
         }
-        console.log(`[PassportManager] TrustGate may serve this model — consider setting api_model_id for dual-path routing`);
+        logger.info(`[PassportManager] TrustGate may serve this model — consider setting api_model_id for dual-path routing`);
       }
     }
 
@@ -356,7 +357,7 @@ export class PassportManager {
       const shouldMintNFT = input.mintNFT ?? (process.env.NFT_MINT_ON_CREATE !== 'false');
       if (shouldMintNFT) {
         this.attemptNFTMint(passport).catch(err => {
-          console.warn(`[PassportManager] NFT mint failed for ${passport.passport_id}:`, err instanceof Error ? err.message : err);
+          logger.warn(`[PassportManager] NFT mint failed for ${passport.passport_id}:`, err instanceof Error ? err.message : err);
         });
       }
 
@@ -378,9 +379,8 @@ export class PassportManager {
   private async attemptNFTMint(passport: Passport): Promise<void> {
     try {
       const { getNFTProvider } = await import('../assets/nft');
-      const { getPermanentStorage } = await import('../storage/depin');
 
-      // Upload NFT metadata JSON to permanent storage
+      // Upload NFT metadata JSON to permanent storage (respects kill switch)
       const metadataJson = {
         name: passport.name || passport.passport_id,
         description: passport.description || `Lucid ${passport.type} passport`,
@@ -396,15 +396,20 @@ export class PassportManager {
         },
       };
 
-      const uploadResult = await getPermanentStorage().uploadJSON(metadataJson, {
-        tags: { 'Content-Type': 'application/json', 'lucid-nft': 'true' },
-      });
+      let metadataUri = '';
+      if (process.env.DEPIN_UPLOAD_ENABLED !== 'false') {
+        const { getPermanentStorage } = await import('../storage/depin');
+        const uploadResult = await getPermanentStorage().uploadJSON(metadataJson, {
+          tags: { 'Content-Type': 'application/json', 'lucid-nft': 'true' },
+        });
+        metadataUri = uploadResult.url;
+      }
 
       const nft = getNFTProvider();
       const result = await nft.mint(passport.owner, {
         name: passport.name || passport.passport_id,
         symbol: 'LUCID',
-        uri: uploadResult.url,
+        uri: metadataUri,
         passportId: passport.passport_id,
         passportType: passport.type,
       });
@@ -416,7 +421,7 @@ export class PassportManager {
         metadata: { ...passport.metadata, nft_mint: result.mint, nft_chain: result.chain },
       });
 
-      console.log(`[PassportManager] NFT minted for ${passport.passport_id}: ${result.mint} (${result.chain})`);
+      logger.info(`[PassportManager] NFT minted for ${passport.passport_id}: ${result.mint} (${result.chain})`);
     } catch (err) {
       // Non-blocking — log and continue
       throw err;
@@ -892,11 +897,11 @@ export class PassportManager {
             on_chain_pda: result.pda,
             on_chain_tx: result.tx,
           }).catch(console.error);
-          console.log(`📋 Passport ${passport.passport_id} synced to chain: ${result.pda}`);
+          logger.info(`📋 Passport ${passport.passport_id} synced to chain: ${result.pda}`);
         }
       })
       .catch(error => {
-        console.error(`Failed to sync passport ${passport.passport_id} to chain:`, error);
+        logger.error(`Failed to sync passport ${passport.passport_id} to chain:`, error);
       });
   }
 
@@ -936,7 +941,7 @@ export class PassportManager {
 
     const catalog = await getTrustGateCatalogFull();
     if (catalog.length === 0) {
-      console.warn('[TrustGate Sync] No models returned from TrustGate — skipping sync');
+      logger.warn('[TrustGate Sync] No models returned from TrustGate — skipping sync');
       return { created: 0, skipped: 0, removed: 0 };
     }
 
@@ -1015,7 +1020,7 @@ export class PassportManager {
         });
         created++;
       } catch (err) {
-        console.warn(`[TrustGate Sync] Failed to create passport for ${model.id}:`, err);
+        logger.warn(`[TrustGate Sync] Failed to create passport for ${model.id}:`, err);
       }
     }
 
@@ -1027,12 +1032,12 @@ export class PassportManager {
           await this.store.update(passport.passport_id, { status: 'revoked' });
           removed++;
         } catch (err) {
-          console.warn(`[TrustGate Sync] Failed to revoke stale passport ${passport.passport_id}:`, err);
+          logger.warn(`[TrustGate Sync] Failed to revoke stale passport ${passport.passport_id}:`, err);
         }
       }
     }
 
-    console.log(`[TrustGate Sync] Done: ${created} created, ${skipped} skipped, ${removed} removed (${catalog.length} in catalog)`);
+    logger.info(`[TrustGate Sync] Done: ${created} created, ${skipped} skipped, ${removed} removed (${catalog.length} in catalog)`);
     return { created, skipped, removed };
   }
 
@@ -1053,7 +1058,7 @@ export class PassportManager {
   async shutdown(): Promise<void> {
     await this.store.shutdown();
     this.initialized = false;
-    console.log('🔐 Passport Manager shutdown complete');
+    logger.info('🔐 Passport Manager shutdown complete');
   }
 }
 

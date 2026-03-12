@@ -3,6 +3,7 @@
 import express from 'express';
 import { getRewardService } from '../../services/rewardService';
 import pool, { getClient } from '../../../../engine/src/db/pool';
+import { logger } from '../../../../engine/src/lib/logger';
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ router.post('/earn', async (req, res) => {
       });
     }
 
-    console.log(`💰 Recording ${mGasEarned} mGas earnings for user ${userId}`);
+    logger.info(`💰 Recording ${mGasEarned} mGas earnings for user ${userId}`);
 
     const rewardService = getRewardService();
     const client = await getClient();
@@ -52,7 +53,7 @@ router.post('/earn', async (req, res) => {
 
       const balance = balanceResult.rows[0] || { mgas_balance: 0, lucid_balance: 0 };
 
-      console.log(`✅ Earnings recorded. New balance: ${balance.mgas_balance} mGas`);
+      logger.info(`✅ Earnings recorded. New balance: ${balance.mgas_balance} mGas`);
 
       res.json({
         success: true,
@@ -68,7 +69,7 @@ router.post('/earn', async (req, res) => {
       client.release();
     }
   } catch (error) {
-    console.error('Error recording earnings:', error);
+    logger.error('Error recording earnings:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -99,7 +100,7 @@ router.post('/process-conversation', async (req, res) => {
       });
     }
 
-    console.log(`📝 Processing conversation for user ${userId}, type: ${messageType}`);
+    logger.info(`📝 Processing conversation for user ${userId}, type: ${messageType}`);
 
     const rewardService = getRewardService();
     const result = await rewardService.processConversation({
@@ -110,11 +111,11 @@ router.post('/process-conversation', async (req, res) => {
       outputTokens
     });
 
-    console.log(`✅ Conversation processed: ${result.earned} mGas earned`);
+    logger.info(`✅ Conversation processed: ${result.earned} mGas earned`);
 
     res.json(result);
   } catch (error) {
-    console.error('Error processing conversation:', error);
+    logger.error('Error processing conversation:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -137,7 +138,7 @@ router.get('/balance/:userId', async (req, res) => {
       });
     }
 
-    console.log(`📊 Fetching rewards balance for user ${userId}`);
+    logger.info(`📊 Fetching rewards balance for user ${userId}`);
 
     const rewardService = getRewardService();
     const rewards = await rewardService.getUserRewards(userId);
@@ -147,7 +148,7 @@ router.get('/balance/:userId', async (req, res) => {
       rewards
     });
   } catch (error) {
-    console.error('Error fetching rewards:', error);
+    logger.error('Error fetching rewards:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -171,7 +172,7 @@ router.get('/history/:userId', async (req, res) => {
       });
     }
 
-    console.log(`📜 Fetching conversation history for user ${userId}`);
+    logger.info(`📜 Fetching conversation history for user ${userId}`);
 
     const rewardService = getRewardService();
     const history = await rewardService.getConversationHistory(userId, limit);
@@ -182,7 +183,7 @@ router.get('/history/:userId', async (req, res) => {
       history
     });
   } catch (error) {
-    console.error('Error fetching history:', error);
+    logger.error('Error fetching history:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -212,16 +213,16 @@ router.post('/convert', async (req, res) => {
       });
     }
 
-    console.log(`💱 Converting ${mGasAmount} mGas to LUCID for user ${userId}`);
+    logger.info(`💱 Converting ${mGasAmount} mGas to LUCID for user ${userId}`);
 
     const rewardService = getRewardService();
     const result = await rewardService.convertMGasToLUCID(userId, mGasAmount);
 
-    console.log(`✅ Conversion complete: ${result.lucidReceived} LUCID`);
+    logger.info(`✅ Conversion complete: ${result.lucidReceived} LUCID`);
 
     res.json(result);
   } catch (error) {
-    console.error('Error converting mGas:', error);
+    logger.error('Error converting mGas:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -244,7 +245,7 @@ router.get('/achievements/:userId', async (req, res) => {
       });
     }
 
-    console.log(`🏆 Fetching achievements for user ${userId}`);
+    logger.info(`🏆 Fetching achievements for user ${userId}`);
 
     const rewardService = getRewardService();
     const rewards = await rewardService.getUserRewards(userId);
@@ -255,7 +256,7 @@ router.get('/achievements/:userId', async (req, res) => {
       totalUnlocked: rewards.achievements.length
     });
   } catch (error) {
-    console.error('Error fetching achievements:', error);
+    logger.error('Error fetching achievements:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -279,7 +280,7 @@ router.post('/sync', async (req, res) => {
       });
     }
 
-    console.log(`🔄 Syncing rewards state for user ${userId}`);
+    logger.info(`🔄 Syncing rewards state for user ${userId}`);
 
     const rewardService = getRewardService();
     
@@ -298,7 +299,7 @@ router.post('/sync', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error syncing rewards:', error);
+    logger.error('Error syncing rewards:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -321,7 +322,7 @@ router.post('/share', async (req, res) => {
       });
     }
 
-    console.log(`📢 Recording share for user ${userId}`);
+    logger.info(`📢 Recording share for user ${userId}`);
 
     const rewardService = getRewardService();
     const client = await getClient();
@@ -342,7 +343,7 @@ router.post('/share', async (req, res) => {
       client.release();
     }
   } catch (error) {
-    console.error('Error recording share:', error);
+    logger.error('Error recording share:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -356,7 +357,7 @@ router.post('/share', async (req, res) => {
  */
 router.get('/events', async (req, res) => {
   try {
-    console.log('🎪 Fetching active events');
+    logger.info('🎪 Fetching active events');
     
     const rewardService = getRewardService();
     const events = rewardService.getCurrentEvents();
@@ -367,7 +368,7 @@ router.get('/events', async (req, res) => {
       count: events.length
     });
   } catch (error) {
-    console.error('Error fetching events:', error);
+    logger.error('Error fetching events:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -385,7 +386,7 @@ router.get('/leaderboard', async (req, res) => {
     const category = (req.query.category as string) || 'total_earnings';
     const limit = parseInt(req.query.limit as string) || 10;
     
-    console.log(`🏆 Fetching leaderboard: ${category}, limit: ${limit}`);
+    logger.info(`🏆 Fetching leaderboard: ${category}, limit: ${limit}`);
     
     let query = '';
     
@@ -447,7 +448,7 @@ router.get('/leaderboard', async (req, res) => {
       client.release();
     }
   } catch (error) {
-    console.error('Error fetching leaderboard:', error);
+    logger.error('Error fetching leaderboard:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -461,7 +462,7 @@ router.get('/leaderboard', async (req, res) => {
  */
 router.get('/stats', async (req, res) => {
   try {
-    console.log('📈 Fetching system reward stats');
+    logger.info('📈 Fetching system reward stats');
 
     const client = await getClient();
     try {
@@ -496,7 +497,7 @@ router.get('/stats', async (req, res) => {
       client.release();
     }
   } catch (error) {
-    console.error('Error fetching stats:', error);
+    logger.error('Error fetching stats:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

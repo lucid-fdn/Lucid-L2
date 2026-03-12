@@ -56,6 +56,7 @@ import { getPassportManager, OnChainSyncHandler } from '../../engine/src/passpor
 import type { Passport } from '../../engine/src/storage/passportStore';
 import { initReceiptConsumer, startReceiptConsumer, stopReceiptConsumer } from '../../engine/src/jobs/receiptConsumer';
 import pool from '../../engine/src/db/pool';
+import { initReceiptMMR } from '../../engine/src/crypto/receiptMMR';
 import { setAnchoringConfig, setAuthorityKeypair, commitEpochRoot } from '../../engine/src/receipt/anchoringService';
 import { startAnchoringJob, setAnchoringJobConfig } from '../../engine/src/jobs/anchoringJob';
 import { setAnchorCallback, startAutoFinalization } from '../../engine/src/receipt/epochService';
@@ -308,6 +309,47 @@ getPassportManager().init().then(async () => {
   console.error('Failed to initialize Passport Manager:', err);
 });
 
+// Restore MMR + epoch state from DB (must run before receipt consumer & anchoring)
+// Fallback: if DB is empty, try DePIN checkpoint (bucket 2 → bucket 1 recovery)
+(async () => {
+  try {
+    const mmr = await initReceiptMMR();
+    if (mmr.getLeafCount() === 0) {
+      // Fast DB empty — try DePIN checkpoint fallback
+      const { restoreFromCheckpoint } = await import('../../engine/src/jobs/mmrCheckpoint');
+      const restored = await restoreFromCheckpoint();
+      if (restored) {
+        // Re-init singleton from the now-populated DB
+        const reloaded = await initReceiptMMR();
+        console.log(`🌲 Receipt MMR: restored from DePIN checkpoint (${reloaded.getLeafCount()} leaves)`);
+      } else {
+        console.log('🌲 Receipt MMR: starting fresh (no DB state, no DePIN checkpoint)');
+      }
+    } else {
+      console.log(`🌲 Receipt MMR: ${mmr.getLeafCount()} leaves, size ${mmr.getSize()}`);
+    }
+  } catch (err) {
+    console.warn('⚠️ Receipt MMR restore failed (starting fresh):', err instanceof Error ? err.message : err);
+  }
+  try {
+    const { loadEpochsFromDb } = await import('../../engine/src/receipt/epochService');
+    const loaded = await loadEpochsFromDb();
+    if (loaded > 0) {
+      console.log(`📦 Epoch state: restored ${loaded} active epoch(s) from DB`);
+    }
+  } catch (err) {
+    console.warn('⚠️ Epoch state restore failed (starting fresh):', err instanceof Error ? err.message : err);
+  }
+
+  // Start periodic MMR checkpoint to DePIN (non-blocking)
+  try {
+    const { startCheckpointJob } = await import('../../engine/src/jobs/mmrCheckpoint');
+    startCheckpointJob(parseInt(process.env.MMR_CHECKPOINT_INTERVAL_MS || '1800000'));
+  } catch (err) {
+    console.warn('⚠️ MMR checkpoint job failed to start:', err instanceof Error ? err.message : err);
+  }
+})();
+
 // Initialize Receipt Consumer (polls receipt_events from TrustGate)
 try {
   initReceiptConsumer(
@@ -367,21 +409,22 @@ setInterval(async () => {
   }
 }, RECEIPT_RETENTION_INTERVAL_MS);
 
-// Graceful shutdown — stop receipt consumer & flush observability
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received — shutting down');
+// Graceful shutdown — stop consumers, checkpoint, flush observability
+const gracefulShutdown = async (signal: string) => {
+  console.log(`${signal} received — shutting down`);
   stopReceiptConsumer();
   stopAgentMirrorConsumer();
+  // Final MMR checkpoint before exit (best-effort)
+  try {
+    const { stopCheckpointJob, createCheckpoint } = await import('../../engine/src/jobs/mmrCheckpoint');
+    stopCheckpointJob();
+    await createCheckpoint();
+  } catch { /* best-effort */ }
   await Promise.all([flushSentry(), shutdownTracing()]);
   process.exit(0);
-});
-process.on('SIGINT', async () => {
-  console.log('SIGINT received — shutting down');
-  stopReceiptConsumer();
-  stopAgentMirrorConsumer();
-  await Promise.all([flushSentry(), shutdownTracing()]);
-  process.exit(0);
-});
+};
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Initialize Anchoring Service with Solana keypair
 try {

@@ -3,6 +3,7 @@
 
 import express from 'express';
 import { verifyAdminAuth } from '../../middleware/adminAuth';
+import { logger } from '../../../../engine/src/lib/logger';
 
 function getWalletProvider() {
   const { getAgentWalletProvider } = require('../../../engine/src/agent/wallet');
@@ -28,7 +29,7 @@ agentWalletRouter.get('/v1/agents/:id/wallet/balance', async (req, res) => {
     const balance = await provider.getBalance(wallet.address);
     return res.json({ success: true, balance });
   } catch (error) {
-    console.error('Error in GET /v1/agents/:id/wallet/balance:', error);
+    logger.error('Error in GET /v1/agents/:id/wallet/balance:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -64,7 +65,7 @@ agentWalletRouter.post('/v1/agents/:id/wallet/send', verifyAdminAuth, async (req
 
     return res.json({ success: result.success, transaction: result });
   } catch (error) {
-    console.error('Error in POST /v1/agents/:id/wallet/send:', error);
+    logger.error('Error in POST /v1/agents/:id/wallet/send:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -95,7 +96,7 @@ agentWalletRouter.put('/v1/agents/:id/wallet/limits', verifyAdminAuth, async (re
     await provider.setSpendingLimits(wallet.address, { per_tx_usd, daily_usd });
     return res.json({ success: true, message: 'Spending limits updated' });
   } catch (error) {
-    console.error('Error in PUT /v1/agents/:id/wallet/limits:', error);
+    logger.error('Error in PUT /v1/agents/:id/wallet/limits:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -127,7 +128,7 @@ agentWalletRouter.get('/v1/agents/:id/wallet/policy', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error in GET /v1/agents/:id/wallet/policy:', error);
+    logger.error('Error in GET /v1/agents/:id/wallet/policy:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',

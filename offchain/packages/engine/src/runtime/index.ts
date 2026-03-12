@@ -2,6 +2,7 @@
 // Factory for runtime adapters — singleton pattern matching codebase conventions
 
 import { IRuntimeAdapter } from './IRuntimeAdapter';
+import { logger } from '../lib/logger';
 
 export { IRuntimeAdapter, RuntimeArtifact } from './IRuntimeAdapter';
 
@@ -37,7 +38,7 @@ function loadAdapters(): Map<string, IRuntimeAdapter> {
     adapterRegistry.set(adapter.name, adapter);
   }
 
-  console.log(`[Runtime] Loaded ${adapterRegistry.size} adapters: ${Array.from(adapterRegistry.keys()).join(', ')}`);
+  logger.info(`[Runtime] Loaded ${adapterRegistry.size} adapters: ${Array.from(adapterRegistry.keys()).join(', ')}`);
   return adapterRegistry;
 }
 

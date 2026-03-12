@@ -9,6 +9,7 @@
  */
 
 import type { CapacityBucket } from '../../../engine/src/types/fluidCompute';
+import { logger } from '../../../engine/src/lib/logger';
 
 /**
  * Configuration for the health service
@@ -120,7 +121,7 @@ export class EndpointHealthService {
       lastChecked: new Date(),
       consecutiveFailures: 0,
     });
-    console.log(`[EndpointHealth] Registered endpoint ${endpointId} (${bucket.name})`);
+    logger.info(`[EndpointHealth] Registered endpoint ${endpointId} (${bucket.name})`);
   }
 
   /**
@@ -129,7 +130,7 @@ export class EndpointHealthService {
   unregisterEndpoint(endpointId: string): void {
     this.endpoints.delete(endpointId);
     this.bucketMap.delete(endpointId);
-    console.log(`[EndpointHealth] Unregistered endpoint ${endpointId}`);
+    logger.info(`[EndpointHealth] Unregistered endpoint ${endpointId}`);
   }
 
   /**
@@ -147,7 +148,7 @@ export class EndpointHealthService {
       this.pollAllEndpoints();
     }, this.config.pollIntervalMs);
 
-    console.log(`[EndpointHealth] Started polling (interval: ${this.config.pollIntervalMs}ms)`);
+    logger.info(`[EndpointHealth] Started polling (interval: ${this.config.pollIntervalMs}ms)`);
   }
 
   /**
@@ -162,7 +163,7 @@ export class EndpointHealthService {
       this.pollTimer = null;
     }
 
-    console.log('[EndpointHealth] Stopped polling');
+    logger.info('[EndpointHealth] Stopped polling');
   }
 
   /**
@@ -308,7 +309,7 @@ export class EndpointHealthService {
         consecutiveFailures: 0,
       });
     } catch (error) {
-      console.warn(`[EndpointHealth] Failed to poll ${endpointId}:`, error);
+      logger.warn(`[EndpointHealth] Failed to poll ${endpointId}:`, error);
       this.endpoints.set(endpointId, {
         ...status,
         consecutiveFailures: status.consecutiveFailures + 1,

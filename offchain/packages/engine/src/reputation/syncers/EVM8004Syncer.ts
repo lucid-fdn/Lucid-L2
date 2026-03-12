@@ -13,6 +13,7 @@ import type {
 import type { FeedbackParams, TxReceipt, AssetType } from '../types';
 import type { ValidationRegistryClient } from '../../identity/registries/evm-validation';
 import type { ReputationRegistryClient } from '../../identity/registries/evm-reputation';
+import { logger } from '../../lib/logger';
 
 export class EVM8004Syncer implements IReputationSyncer {
   readonly syncerName = 'evm-8004';
@@ -37,7 +38,7 @@ export class EVM8004Syncer implements IReputationSyncer {
         metadata: { from: d.from },
       }));
     } catch (err) {
-      console.warn(`[EVM8004Syncer] pullFeedback failed for passportId="${passportId}":`, err);
+      logger.warn(`[EVM8004Syncer] pullFeedback failed for passportId="${passportId}":`, err);
       return [];
     }
   }
@@ -55,7 +56,7 @@ export class EVM8004Syncer implements IReputationSyncer {
         lastUpdated: Math.floor(Date.now() / 1000),
       };
     } catch (err) {
-      console.warn(`[EVM8004Syncer] pullSummary failed for passportId="${passportId}":`, err);
+      logger.warn(`[EVM8004Syncer] pullSummary failed for passportId="${passportId}":`, err);
       return null;
     }
   }
@@ -71,7 +72,7 @@ export class EVM8004Syncer implements IReputationSyncer {
       );
       return { success: true, txHash };
     } catch (err) {
-      console.warn(`[EVM8004Syncer] pushFeedback failed for passportId="${params.passportId}", score=${params.score}, category="${params.category}":`, err);
+      logger.warn(`[EVM8004Syncer] pushFeedback failed for passportId="${params.passportId}", score=${params.score}, category="${params.category}":`, err);
       return null;
     }
   }

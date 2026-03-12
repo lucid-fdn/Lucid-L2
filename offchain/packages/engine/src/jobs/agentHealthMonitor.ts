@@ -7,6 +7,7 @@
  */
 
 import type { AgentDeployment, HealthStatus } from '../agent/agentDescriptor';
+import { logger } from '../lib/logger';
 
 // Default check interval: 5 minutes
 const DEFAULT_INTERVAL_MS = 5 * 60 * 1000;
@@ -32,20 +33,20 @@ export interface HealthCheckResult {
  */
 export function startAgentHealthMonitor(intervalMs: number = DEFAULT_INTERVAL_MS): void {
   if (intervalHandle) {
-    console.log('[AgentHealthMonitor] Already running');
+    logger.info('[AgentHealthMonitor] Already running');
     return;
   }
 
-  console.log(`[AgentHealthMonitor] Starting (interval: ${intervalMs}ms)`);
+  logger.info(`[AgentHealthMonitor] Starting (interval: ${intervalMs}ms)`);
 
   // Run immediately
   runHealthCheck().catch(err =>
-    console.error('[AgentHealthMonitor] Initial check error:', err)
+    logger.error('[AgentHealthMonitor] Initial check error:', err)
   );
 
   intervalHandle = setInterval(() => {
     runHealthCheck().catch(err =>
-      console.error('[AgentHealthMonitor] Check error:', err)
+      logger.error('[AgentHealthMonitor] Check error:', err)
     );
   }, intervalMs);
 }
@@ -57,7 +58,7 @@ export function stopAgentHealthMonitor(): void {
   if (intervalHandle) {
     clearInterval(intervalHandle);
     intervalHandle = null;
-    console.log('[AgentHealthMonitor] Stopped');
+    logger.info('[AgentHealthMonitor] Stopped');
   }
 }
 
@@ -82,7 +83,7 @@ export async function runHealthCheck(): Promise<HealthCheckResult[]> {
     const healthy = results.filter(r => r.health === 'healthy').length;
     const unhealthy = results.filter(r => r.health === 'unhealthy').length;
     const extended = results.filter(r => r.extended).length;
-    console.log(
+    logger.info(
       `[AgentHealthMonitor] Checked ${results.length} deployments: ${healthy} healthy, ${unhealthy} unhealthy, ${extended} extended`
     );
   }
@@ -131,7 +132,7 @@ async function checkDeployment(
 
     // Log unhealthy deployments
     if (health === 'unhealthy') {
-      console.warn(
+      logger.warn(
         `[AgentHealthMonitor] Unhealthy deployment: ${passportId} (${deployment.deployment_target})`
       );
     }
@@ -139,7 +140,7 @@ async function checkDeployment(
     return { passportId, status: status.status, health, extended };
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown';
-    console.error(`[AgentHealthMonitor] Error checking ${passportId}: ${msg}`);
+    logger.error(`[AgentHealthMonitor] Error checking ${passportId}: ${msg}`);
     return { passportId, status: deployment.status, health: 'unknown', error: msg };
   }
 }
@@ -161,7 +162,7 @@ async function tryAutoExtend(
     const remainingMs = assumedDurationMs - elapsedMs;
 
     if (remainingMs < EXTEND_THRESHOLD_MS) {
-      console.log(
+      logger.info(
         `[AgentHealthMonitor] Auto-extending ${deployment.agent_passport_id} (${deployment.deployment_target}, ~${Math.round(remainingMs / 60000)}min remaining)`
       );
       await deployer.extend(deployment.deployment_id, DEFAULT_EXTEND_HOURS);
@@ -169,7 +170,7 @@ async function tryAutoExtend(
       return true;
     }
   } catch (error) {
-    console.warn(
+    logger.warn(
       `[AgentHealthMonitor] Extension failed for ${deployment.agent_passport_id}: ${error instanceof Error ? error.message : error}`
     );
   }

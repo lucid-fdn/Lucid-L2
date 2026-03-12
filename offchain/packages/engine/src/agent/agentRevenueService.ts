@@ -12,6 +12,7 @@
  */
 
 import type { SplitConfig } from '../finance/payoutService';
+import { logger } from '../lib/logger';
 
 export interface AgentRevenuePool {
   agent_passport_id: string;
@@ -97,7 +98,7 @@ export async function processAgentRevenue(receipt: {
 
   // 4. Auto-trigger airdrop if accumulated exceeds threshold and share token exists
   if (pool.accumulated_lamports >= AIRDROP_THRESHOLD_LAMPORTS) {
-    console.log(
+    logger.info(
       `[AgentRevenue] Agent ${receipt.agent_passport_id} accumulated ${pool.accumulated_lamports} lamports — eligible for airdrop`,
     );
 
@@ -115,13 +116,13 @@ export async function processAgentRevenue(receipt: {
             tokenInfo.mint,
             Number(result.distributed_lamports),
           );
-          console.log(
+          logger.info(
             `[AgentRevenue] Auto-airdrop completed: ${result.distributed_lamports} lamports to ${tokenInfo.mint} holders`,
           );
         }
       }
     } catch (error) {
-      console.warn(
+      logger.warn(
         `[AgentRevenue] Auto-airdrop failed (non-blocking): ${error instanceof Error ? error.message : error}`,
       );
     }

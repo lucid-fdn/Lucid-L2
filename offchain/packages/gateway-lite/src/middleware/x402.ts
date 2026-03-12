@@ -27,6 +27,7 @@ import type { SpentProofsStore } from '../../../engine/src/payment/spentProofsSt
 import type { FacilitatorRegistry } from '../../../engine/src/payment/facilitators';
 import type { X402ResponseV2 } from '../../../engine/src/payment/types';
 import { PricingService } from '../../../engine/src/payment/pricingService';
+import { logger } from '../../../engine/src/lib/logger';
 
 // =============================================================================
 // Configuration
@@ -53,7 +54,7 @@ export interface X402Config {
 }
 
 const DEFAULT_CONFIG: X402Config = {
-  paymentAddress: process.env.X402_PAYMENT_ADDRESS || '0x0000000000000000000000000000000000000000',
+  paymentAddress: process.env.X402_PAYMENT_ADDRESS || '',
   defaultPriceUSDC: process.env.X402_DEFAULT_PRICE || '0.01',
   paymentChain: (process.env.X402_PAYMENT_CHAIN as 'base' | 'base-sepolia') || 'base-sepolia',
   usdcAddress: process.env.X402_USDC_ADDRESS || '0x036CbD53842c5426634e7929541eC2318f3dCF7e', // USDC on Base Sepolia
@@ -194,6 +195,13 @@ export function requirePayment(optsOrPrice?: string | RequirePaymentOptions) {
       return next();
     }
 
+    // 1b. Fail fast if enabled but no payment address configured
+    if (!config.paymentAddress) {
+      return res.status(500).json({
+        error: 'x402 is enabled but X402_PAYMENT_ADDRESS is not configured',
+      });
+    }
+
     // 2. Skip if skipIf predicate returns true
     if (opts.skipIf) {
       try {
@@ -240,7 +248,7 @@ export function requirePayment(optsOrPrice?: string | RequirePaymentOptions) {
         });
       }
     } catch (err) {
-      console.error('x402 spent-proof check error:', err);
+      logger.error('x402 spent-proof check error:', err);
       // Async store failed (e.g. Redis down) — fall back to in-memory sync cache
       // to prevent replay of proofs verified in this process instance.
       if (syncSpentCache.has(normalizedHash)) {
@@ -279,7 +287,7 @@ export function requirePayment(optsOrPrice?: string | RequirePaymentOptions) {
       try {
         await store.markSpent(normalizedHash, config.maxProofAge);
       } catch (err) {
-        console.error('x402 mark-spent error (continuing):', err);
+        logger.error('x402 mark-spent error (continuing):', err);
       }
 
       (req as any).x402 = {
@@ -292,7 +300,7 @@ export function requirePayment(optsOrPrice?: string | RequirePaymentOptions) {
 
       return next();
     } catch (error) {
-      console.error('x402 verification error:', error);
+      logger.error('x402 verification error:', error);
       return res.status(500).json({
         error: 'Payment verification error',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -372,7 +380,7 @@ async function verifyWithFacilitatorOrFallback(
 
       return { valid: result.valid, reason: result.reason };
     } catch (err) {
-      console.error('Facilitator verify failed, falling back to built-in:', err);
+      logger.error('Facilitator verify failed, falling back to built-in:', err);
       // Fall through to built-in verification
     }
   }

@@ -6,6 +6,7 @@
 
 import { AgentCard, validateAgentCard } from './agentCard';
 import { A2ATask, A2AMessage, A2APart } from './a2aServer';
+import { logger } from '../../lib/logger';
 
 export interface A2AClientOptions {
   timeout_ms?: number;
@@ -36,13 +37,13 @@ export async function discoverAgent(agentUrl: string, options?: A2AClientOptions
     const card = await res.json();
     const validation = validateAgentCard(card);
     if (!validation.valid) {
-      console.warn(`Invalid Agent Card from ${agentUrl}:`, validation.errors);
+      logger.warn(`Invalid Agent Card from ${agentUrl}:`, validation.errors);
       return null;
     }
 
     return card as AgentCard;
   } catch (error) {
-    console.error(`Failed to discover agent at ${agentUrl}:`, error);
+    logger.error(`Failed to discover agent at ${agentUrl}:`, error);
     return null;
   }
 }
@@ -79,13 +80,13 @@ export async function sendTask(
 
     clearTimeout(timeoutId);
     if (!res.ok) {
-      console.error(`A2A task failed: ${res.status}`);
+      logger.error(`A2A task failed: ${res.status}`);
       return null;
     }
 
     return await res.json() as A2ATask;
   } catch (error) {
-    console.error(`Failed to send A2A task to ${agentUrl}:`, error);
+    logger.error(`Failed to send A2A task to ${agentUrl}:`, error);
     return null;
   }
 }

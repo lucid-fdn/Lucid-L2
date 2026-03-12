@@ -1,5 +1,6 @@
 import express from 'express';
 import { getMMRService } from '../../../../engine/src/receipt/mmrService';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export const systemApiRouter = express.Router();
 
@@ -23,7 +24,7 @@ async function handleSystemStatus(req: express.Request, res: express.Response) {
       blockchainConnected = slot > 0;
     } catch (error) {
       blockchainError = error instanceof Error ? error.message : 'Unknown blockchain error';
-      console.log('Blockchain connection check failed:', blockchainError);
+      logger.info('Blockchain connection check failed:', blockchainError);
     }
 
     res.json({
@@ -51,7 +52,7 @@ async function handleSystemStatus(req: express.Request, res: express.Response) {
         : 'System operational (blockchain connection issue - see error details)'
     });
   } catch (error) {
-    console.error('Error in handleSystemStatus:', error);
+    logger.error('Error in handleSystemStatus:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

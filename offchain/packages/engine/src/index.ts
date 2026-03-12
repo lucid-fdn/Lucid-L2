@@ -7,12 +7,12 @@ export * from './errors';
 export * from './crypto/hash';
 export * from './crypto/signing';
 export * from './crypto/canonicalJson';
-export { AgentMMR } from './crypto/mmr';
+export { AgentMMR, MMR } from './crypto/mmr';
+export { MMR as AgentMerkleTree } from './crypto/mmr';
 export type { MMRNode, MMRProof, MMRState } from './crypto/mmr';
-// Note: mmr.ts and merkleTree.ts both export 'MerkleTree'.
-// We re-export mmr's as AgentMerkleTree to disambiguate at the barrel level.
-// Direct imports (e.g., from './crypto/mmr') still work fine.
-export { MerkleTree as AgentMerkleTree } from './crypto/mmr';
+export { getReceiptMMR, resetReceiptMMR, initReceiptMMR, ReceiptMMR } from './crypto/receiptMMR';
+export type { SerializedMMRProof } from './crypto/receiptMMR';
+// Deprecated: binary Merkle tree kept for backward compatibility
 export { MerkleTree, getReceiptTree, resetReceiptTree } from './crypto/merkleTree';
 export type { MerkleProof, MerkleVerifyResult } from './crypto/merkleTree';
 export * from './crypto/schemaValidator';

@@ -9,6 +9,7 @@
  */
 
 import { getClient } from '../db/pool';
+import { logger } from '../lib/logger';
 
 export interface SplitConfig {
   // Basis points (1 bp = 0.01%, 10000 bp = 100%)
@@ -280,7 +281,7 @@ export async function storePayout(payout: PayoutSplit): Promise<void> {
       client.release();
     }
   } catch (err) {
-    console.warn('[PayoutService] DB write failed, using in-memory only:', err instanceof Error ? err.message : err);
+    logger.warn('[PayoutService] DB write failed, using in-memory only:', err instanceof Error ? err.message : err);
   }
 }
 
@@ -321,7 +322,7 @@ export async function getPayout(run_id: string): Promise<PayoutSplit | null> {
       client.release();
     }
   } catch (err) {
-    console.warn('[PayoutService] DB read failed, using in-memory only:', err instanceof Error ? err.message : err);
+    logger.warn('[PayoutService] DB read failed, using in-memory only:', err instanceof Error ? err.message : err);
     return null;
   }
 }
@@ -509,7 +510,7 @@ export async function getPayoutExecution(runId: string, chainId: string): Promis
       client.release();
     }
   } catch (err) {
-    console.warn('[PayoutService] DB read failed, using in-memory only:', err instanceof Error ? err.message : err);
+    logger.warn('[PayoutService] DB read failed, using in-memory only:', err instanceof Error ? err.message : err);
     return null;
   }
 }
@@ -560,7 +561,7 @@ export async function executeSolanaPayoutSplit(
   };
 
   executionStore.set(`${runId}:solana-devnet`, execution);
-  console.log(`[PayoutService] Solana payout executed: ${runId} (distributed: ${distributeAmount}, burned: ${params.totalAmount - distributeAmount})`);
+  logger.info(`[PayoutService] Solana payout executed: ${runId} (distributed: ${distributeAmount}, burned: ${params.totalAmount - distributeAmount})`);
 
   return execution;
 }

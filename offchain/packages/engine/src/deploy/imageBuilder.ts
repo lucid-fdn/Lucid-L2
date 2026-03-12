@@ -7,6 +7,7 @@ import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { logger } from '../lib/logger';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -173,7 +174,7 @@ export class LocalDockerBuilder implements ImageBuilder {
       );
 
       // Build image
-      console.log(`[ImageBuilder] Building image: ${fullRef}`);
+      logger.info(`[ImageBuilder] Building image: ${fullRef}`);
       try {
         execFileSync('docker', ['build', '-t', fullRef, '.'], {
           cwd: tmpDir,
@@ -187,7 +188,7 @@ export class LocalDockerBuilder implements ImageBuilder {
       }
 
       // Push image to registry
-      console.log(`[ImageBuilder] Pushing image: ${fullRef}`);
+      logger.info(`[ImageBuilder] Pushing image: ${fullRef}`);
       try {
         execFileSync('docker', ['push', fullRef], {
           stdio: 'pipe',
@@ -227,14 +228,14 @@ export class LocalDockerBuilder implements ImageBuilder {
         fullRef,
       };
 
-      console.log(`[ImageBuilder] Image built and pushed: ${fullRef}${digest ? ` (${digest})` : ''}`);
+      logger.info(`[ImageBuilder] Image built and pushed: ${fullRef}${digest ? ` (${digest})` : ''}`);
       return ref;
     } finally {
       // Clean up temp directory
       try {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       } catch {
-        console.warn(`[ImageBuilder] Warning: failed to clean up temp dir: ${tmpDir}`);
+        logger.warn(`[ImageBuilder] Warning: failed to clean up temp dir: ${tmpDir}`);
       }
     }
   }

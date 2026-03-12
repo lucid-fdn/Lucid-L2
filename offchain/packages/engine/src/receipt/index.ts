@@ -37,3 +37,5 @@ export { setAnchoringConfig, setAuthorityKeypair, commitEpochRoot, commitEpochRo
 export type { AnchoringConfig, AnchorResult } from './anchoringService';
 export { getMMRService } from './mmrService';
 export type { AgentEpochData } from './mmrService';
+export { getReceiptMMR, resetReceiptMMR, initReceiptMMR, ReceiptMMR } from '../crypto/receiptMMR';
+export type { SerializedMMRProof } from '../crypto/receiptMMR';

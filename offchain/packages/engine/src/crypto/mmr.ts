@@ -30,7 +30,7 @@ export interface MMRState {
   nodes: Map<number, Buffer>;
 }
 
-export class MerkleTree {
+export class MMR {
   private nodes: Map<number, Buffer> = new Map();
   private size: number = 0;
 
@@ -233,7 +233,7 @@ export class MerkleTree {
 
     // Reconstruct the path to the peak
     for (const sibling of proof.siblings) {
-      const height = MerkleTree.prototype.getHeight.call({ getHeight: MerkleTree.prototype.getHeight }, currentPos);
+      const height = MMR.prototype.getHeight.call({ getHeight: MMR.prototype.getHeight }, currentPos);
       const siblingPos = currentPos - (1 << (height + 1)) + 1;
       
       if (siblingPos < currentPos) {
@@ -311,13 +311,13 @@ export class MerkleTree {
  * Agent-specific MMR manager
  */
 export class AgentMMR {
-  private mmr: MerkleTree;
+  private mmr: MMR;
   private agentId: string;
   private rootHistory: { epoch: number; root: Buffer; timestamp: number }[] = [];
 
   constructor(agentId: string, initialState?: MMRState) {
     this.agentId = agentId;
-    this.mmr = new MerkleTree(initialState);
+    this.mmr = new MMR(initialState);
   }
 
   /**
@@ -393,7 +393,7 @@ export class AgentMMR {
       return false;
     }
 
-    return MerkleTree.verifyProof(proof, epochRecord.root);
+    return MMR.verifyProof(proof, epochRecord.root);
   }
 
   /**

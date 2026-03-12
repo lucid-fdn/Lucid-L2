@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requirePayment } from '../../middleware/x402';
 import { blockchainAdapterFactory } from '../../../../engine/src/chains/factory';
+import { logger } from '../../../../engine/src/lib/logger';
 
 /**
  * Subscription Routes
@@ -50,7 +51,7 @@ export function createSubscriptionRouter(): Router {
         } catch (chainErr) {
           // If on-chain call fails (e.g., no adapter registered), log but still
           // return success since the x402 payment was already verified.
-          console.warn(
+          logger.warn(
             '[SubscriptionRoute] On-chain AccessReceipt creation failed (non-blocking):',
             chainErr instanceof Error ? chainErr.message : chainErr,
           );
@@ -65,7 +66,7 @@ export function createSubscriptionRouter(): Router {
           duration_hours: hours,
         });
       } catch (error) {
-        console.error('Error in POST /v1/access/subscribe:', error);
+        logger.error('Error in POST /v1/access/subscribe:', error);
         return res.status(500).json({
           success: false,
           error: error instanceof Error ? error.message : 'Unknown error',

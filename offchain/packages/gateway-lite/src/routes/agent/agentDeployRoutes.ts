@@ -3,6 +3,7 @@
 
 import express from 'express';
 import { verifyAdminAuth } from '../../middleware/adminAuth';
+import { logger } from '../../../../engine/src/lib/logger';
 
 // Lazy import to avoid circular deps — matches codebase convention for engine imports
 function getService() {
@@ -47,7 +48,7 @@ agentDeployRouter.post('/v1/agents/deploy', verifyAdminAuth, async (req, res) =>
 
     return res.status(201).json({ success: true, deployment: result });
   } catch (error) {
-    console.error('Error in POST /v1/agents/deploy:', error);
+    logger.error('Error in POST /v1/agents/deploy:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -77,7 +78,7 @@ agentDeployRouter.post('/v1/agents/preview', verifyAdminAuth, async (req, res) =
 
     return res.json({ success: true, preview: result });
   } catch (error) {
-    console.error('Error in POST /v1/agents/preview:', error);
+    logger.error('Error in POST /v1/agents/preview:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -101,7 +102,7 @@ agentDeployRouter.get('/v1/agents/deployments', verifyAdminAuth, async (req, res
 
     return res.json({ success: true, deployments });
   } catch (error) {
-    console.error('Error in GET /v1/agents/deployments:', error);
+    logger.error('Error in GET /v1/agents/deployments:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -119,7 +120,7 @@ agentDeployRouter.get('/v1/agents/capabilities', async (_req, res) => {
     const capabilities = service.getCapabilities();
     return res.json({ success: true, capabilities });
   } catch (error) {
-    console.error('Error in GET /v1/agents/capabilities:', error);
+    logger.error('Error in GET /v1/agents/capabilities:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -148,7 +149,7 @@ agentDeployRouter.get('/v1/agents/:passportId/status', async (req, res) => {
 
     return res.json({ success: true, status });
   } catch (error) {
-    console.error('Error in GET /v1/agents/:passportId/status:', error);
+    logger.error('Error in GET /v1/agents/:passportId/status:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -174,7 +175,7 @@ agentDeployRouter.get('/v1/agents/:passportId/logs', async (req, res) => {
 
     return res.json({ success: true, logs });
   } catch (error) {
-    console.error('Error in GET /v1/agents/:passportId/logs:', error);
+    logger.error('Error in GET /v1/agents/:passportId/logs:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',
@@ -203,7 +204,7 @@ agentDeployRouter.post('/v1/agents/:passportId/terminate', verifyAdminAuth, asyn
 
     return res.json({ success: true, message: `Agent ${passportId} terminated` });
   } catch (error) {
-    console.error('Error in POST /v1/agents/:passportId/terminate:', error);
+    logger.error('Error in POST /v1/agents/:passportId/terminate:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { PrivyClient } from '@privy-io/server-auth';
+import { logger } from '../../../engine/src/lib/logger';
 
 export interface PrivyRequest extends Request {
   user?: {
@@ -57,7 +58,7 @@ export async function verifyPrivyToken(
     
     next();
   } catch (error: any) {
-    console.error('Privy JWT verification failed:', error);
+    logger.error('Privy JWT verification failed:', error);
     res.status(401).json({ 
       error: 'Authentication failed',
       message: error.message || 'Invalid or expired token'

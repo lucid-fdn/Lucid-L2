@@ -1,4 +1,5 @@
 import express from 'express';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export const toolApiRouter = express.Router();
 
@@ -27,7 +28,7 @@ async function handleToolsList(req: express.Request, res: express.Response) {
       message: `Found ${tools.length} MCP tools`
     });
   } catch (error) {
-    console.error('Error in handleToolsList:', error);
+    logger.error('Error in handleToolsList:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -60,7 +61,7 @@ async function handleToolInfo(req: express.Request, res: express.Response) {
       message: `Retrieved info for tool '${name}'`
     });
   } catch (error) {
-    console.error('Error in handleToolInfo:', error);
+    logger.error('Error in handleToolInfo:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -94,7 +95,7 @@ async function handleToolExecute(req: express.Request, res: express.Response) {
 
     res.json(result);
   } catch (error) {
-    console.error('Error in handleToolExecute:', error);
+    logger.error('Error in handleToolExecute:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -119,7 +120,7 @@ async function handleToolsStats(req: express.Request, res: express.Response) {
       message: 'Registry statistics retrieved'
     });
   } catch (error) {
-    console.error('Error in handleToolsStats:', error);
+    logger.error('Error in handleToolsStats:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -146,7 +147,7 @@ async function handleToolsRefresh(req: express.Request, res: express.Response) {
       message: `Refreshed tool registry - found ${tools.length} tools`
     });
   } catch (error) {
-    console.error('Error in handleToolsRefresh:', error);
+    logger.error('Error in handleToolsRefresh:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

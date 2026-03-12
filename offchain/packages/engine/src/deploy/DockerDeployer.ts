@@ -6,6 +6,7 @@ import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, Deploym
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { logger } from '../lib/logger';
 
 export class DockerDeployer implements IDeployer {
   readonly target = 'docker';
@@ -70,8 +71,8 @@ export class DockerDeployer implements IDeployer {
         createdAt: Date.now(),
       });
 
-      console.log(`[Deploy] Docker deployment created: ${deployDir}`);
-      console.log(`[Deploy]   To start: cd ${deployDir} && docker compose up -d`);
+      logger.info(`[Deploy] Docker deployment created: ${deployDir}`);
+      logger.info(`[Deploy]   To start: cd ${deployDir} && docker compose up -d`);
 
       return {
         success: true,
@@ -114,12 +115,12 @@ export class DockerDeployer implements IDeployer {
     const dep = this.deployments.get(deploymentId);
     if (dep) {
       dep.status = 'terminated';
-      console.log(`[Deploy] Docker deployment terminated: ${deploymentId}`);
+      logger.info(`[Deploy] Docker deployment terminated: ${deploymentId}`);
     }
   }
 
   async scale(deploymentId: string, replicas: number): Promise<void> {
-    console.log(`[Deploy] Scale ${deploymentId} to ${replicas} replicas (update docker-compose.yml manually)`);
+    logger.info(`[Deploy] Scale ${deploymentId} to ${replicas} replicas (update docker-compose.yml manually)`);
   }
 
   async isHealthy(): Promise<boolean> {

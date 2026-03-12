@@ -1,3 +1,5 @@
+import { logger } from '../lib/logger';
+
 /**
  * Circuit Breaker
  *
@@ -92,7 +94,7 @@ export class CircuitBreaker {
     this._successCount++;
     if (this._state === 'HALF_OPEN') {
       // Probe succeeded — close the circuit
-      console.log(`[CircuitBreaker:${this._name}] Probe succeeded, circuit CLOSED`);
+      logger.info(`[CircuitBreaker:${this._name}] Probe succeeded, circuit CLOSED`);
       this._state = 'CLOSED';
       this._failureCount = 0;
     } else {
@@ -107,10 +109,10 @@ export class CircuitBreaker {
 
     if (this._state === 'HALF_OPEN') {
       // Probe failed — reopen
-      console.log(`[CircuitBreaker:${this._name}] Probe failed, circuit OPEN`);
+      logger.info(`[CircuitBreaker:${this._name}] Probe failed, circuit OPEN`);
       this._state = 'OPEN';
     } else if (this._failureCount >= this._failureThreshold) {
-      console.warn(
+      logger.warn(
         `[CircuitBreaker:${this._name}] ${this._failureCount} consecutive failures, circuit OPEN (cooldown: ${this._cooldownMs}ms)`,
       );
       this._state = 'OPEN';

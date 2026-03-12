@@ -27,6 +27,7 @@ import type {
   LogOptions,
 } from './IDeployer';
 import { resilientFetch } from './resilientFetch';
+import { logger } from '../lib/logger';
 
 // ---------------------------------------------------------------------------
 // GPU mapping — abstract name → SDL gpu.units + gpu.attributes vendor/model
@@ -106,7 +107,7 @@ export class AkashDeployer implements IDeployer {
 
       // 2. Generate SDL
       const sdl = this.generateSDL(imageRef, artifact, config, passportId);
-      console.log(`[Deploy:Akash] SDL generated for ${passportId}`);
+      logger.info(`[Deploy:Akash] SDL generated for ${passportId}`);
 
       // 3. Create deployment via Console API
       const deployment = await this.api<AkashDeploymentResponse>(
@@ -125,7 +126,7 @@ export class AkashDeployer implements IDeployer {
       }
 
       const dseq = deployment.dseq;
-      console.log(`[Deploy:Akash] Deployment created: dseq=${dseq}`);
+      logger.info(`[Deploy:Akash] Deployment created: dseq=${dseq}`);
 
       // 4. Wait for bids and accept the best one
       const lease = await this.waitForLease(dseq);
@@ -138,7 +139,7 @@ export class AkashDeployer implements IDeployer {
         };
       }
 
-      console.log(`[Deploy:Akash] Lease accepted: provider=${lease.provider}`);
+      logger.info(`[Deploy:Akash] Lease accepted: provider=${lease.provider}`);
 
       // 5. Send manifest
       await this.api('POST', `/v1/deployments/${dseq}/manifest`, {
@@ -146,7 +147,7 @@ export class AkashDeployer implements IDeployer {
         provider: lease.provider,
       });
 
-      console.log(`[Deploy:Akash] Manifest sent to provider`);
+      logger.info(`[Deploy:Akash] Manifest sent to provider`);
 
       // 6. Poll for running status + URL
       const url = await this.waitForRunning(dseq);
@@ -219,7 +220,7 @@ export class AkashDeployer implements IDeployer {
     await this.api('DELETE', `/v1/deployments/${deploymentId}`, {
       wallet_address: this.walletAddress,
     });
-    console.log(`[Deploy:Akash] Deployment ${deploymentId} closed`);
+    logger.info(`[Deploy:Akash] Deployment ${deploymentId} closed`);
   }
 
   async scale(deploymentId: string, replicas: number): Promise<void> {
@@ -229,7 +230,7 @@ export class AkashDeployer implements IDeployer {
       count: replicas,
       wallet_address: this.walletAddress,
     });
-    console.log(`[Deploy:Akash] Scaled deployment ${deploymentId} to ${replicas} replicas`);
+    logger.info(`[Deploy:Akash] Scaled deployment ${deploymentId} to ${replicas} replicas`);
   }
 
   async isHealthy(): Promise<boolean> {

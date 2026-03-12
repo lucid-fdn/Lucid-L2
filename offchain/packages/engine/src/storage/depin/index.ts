@@ -2,6 +2,7 @@
 // Factory for DePIN storage providers — singleton pattern matching codebase conventions
 
 import { IDepinStorage } from './IDepinStorage';
+import { logger } from '../../lib/logger';
 
 export { IDepinStorage, UploadResult, UploadOptions } from './IDepinStorage';
 
@@ -30,7 +31,7 @@ export function getPermanentStorage(): IDepinStorage {
         break;
       }
     }
-    console.log(`[DePIN] Permanent storage: ${permanentSingleton!.providerName}`);
+    logger.info(`[DePIN] Permanent storage: ${permanentSingleton!.providerName}`);
   }
   return permanentSingleton!;
 }
@@ -54,7 +55,7 @@ export function getEvolvingStorage(): IDepinStorage {
         break;
       }
     }
-    console.log(`[DePIN] Evolving storage: ${evolvingSingleton!.providerName}`);
+    logger.info(`[DePIN] Evolving storage: ${evolvingSingleton!.providerName}`);
   }
   return evolvingSingleton!;
 }

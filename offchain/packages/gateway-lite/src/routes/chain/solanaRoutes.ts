@@ -23,6 +23,7 @@ import {
   createTransferInstruction,
   TOKEN_PROGRAM_ID
 } from '@solana/spl-token';
+import { logger } from '../../../../engine/src/lib/logger';
 
 const router = Router();
 
@@ -764,7 +765,7 @@ router.post('/me/transfer-sol', async (req: Request, res: Response) => {
       });
     }
   } catch (error) {
-    console.error('SOL transfer error:', error);
+    logger.error('SOL transfer error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -888,7 +889,7 @@ router.post('/me/transfer-token', async (req: Request, res: Response) => {
       });
     }
   } catch (error) {
-    console.error('Token transfer error:', error);
+    logger.error('Token transfer error:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

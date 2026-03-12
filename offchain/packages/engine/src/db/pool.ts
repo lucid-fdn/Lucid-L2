@@ -7,11 +7,12 @@
  */
 
 import { Pool, PoolClient } from 'pg';
+import { logger } from '../lib/logger';
 
 const getPassword = (): string => {
   const pwd = process.env.POSTGRES_PASSWORD || process.env.SUPABASE_DB_PASSWORD;
   if (!pwd) {
-    console.warn('⚠️  No PostgreSQL password found in environment variables');
+    logger.warn('⚠️  No PostgreSQL password found in environment variables');
     return '';
   }
   return String(pwd);
@@ -32,11 +33,11 @@ const pool = new Pool({
 });
 
 pool.on('connect', () => {
-  console.log('✅ PostgreSQL shared pool — new connection');
+  logger.info('✅ PostgreSQL shared pool — new connection');
 });
 
 pool.on('error', (err) => {
-  console.error('❌ PostgreSQL shared pool error:', err);
+  logger.error('❌ PostgreSQL shared pool error:', err);
 });
 
 /**
@@ -50,7 +51,7 @@ export async function getClient(retries = 3): Promise<PoolClient> {
     } catch (err) {
       if (attempt === retries) throw err;
       const delay = Math.min(500 * Math.pow(2, attempt - 1), 4000);
-      console.warn(`⚠️  Pool connect attempt ${attempt}/${retries} failed, retrying in ${delay}ms…`);
+      logger.warn(`⚠️  Pool connect attempt ${attempt}/${retries} failed, retrying in ${delay}ms…`);
       await new Promise((r) => setTimeout(r, delay));
     }
   }

@@ -11,6 +11,7 @@ import { getFacilitatorRegistry } from '../../middleware/x402';
 import { verifyAdminAuth } from '../../middleware/adminAuth';
 import { createPaymentGrant } from '../../../../engine/src/finance/paymentGrant';
 import { getOrchestratorKeypair } from '../../../../engine/src/crypto/signing';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export function createPaymentConfigRouter(): Router {
   const router = Router();
@@ -52,7 +53,7 @@ export function createPaymentConfigRouter(): Router {
         },
       });
     } catch (error) {
-      console.error('Error in GET /payment:', error);
+      logger.error('Error in GET /payment:', error);
       return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -87,7 +88,7 @@ export function createPaymentConfigRouter(): Router {
 
       return res.json({ success: true, facilitator: name });
     } catch (error) {
-      console.error('Error in PUT /facilitator:', error);
+      logger.error('Error in PUT /facilitator:', error);
       return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -127,7 +128,7 @@ export function createPaymentConfigRouter(): Router {
         });
       }
     } catch (error) {
-      console.error('Error in GET /chains:', error);
+      logger.error('Error in GET /chains:', error);
       return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -169,7 +170,7 @@ export function createPaymentConfigRouter(): Router {
 
       return res.status(201).json({ success: true, grant });
     } catch (error) {
-      console.error('Error in POST /grants:', error);
+      logger.error('Error in POST /grants:', error);
       return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

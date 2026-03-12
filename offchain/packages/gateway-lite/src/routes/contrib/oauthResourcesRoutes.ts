@@ -2,6 +2,7 @@ import express from 'express';
 import { Nango } from '@nangohq/node';
 import { verifyPrivyToken, PrivyRequest } from '../../middleware/privyAuth';
 import { PROVIDER_TO_NANGO_MAP } from '../../../../contrib/integrations/oauth/nangoService';
+import { logger } from '../../../../engine/src/lib/logger';
 
 const router = express.Router();
 
@@ -119,7 +120,7 @@ router.get('/:provider/resources/:resource', async (req: PrivyRequest, res) => {
 
     return res.json({ options });
   } catch (error: any) {
-    console.error(`[OAuth Resources] Error fetching ${provider}/${resource}:`, error);
+    logger.error(`[OAuth Resources] Error fetching ${provider}/${resource}:`, error);
     return res.status(500).json({ error: 'Failed to fetch options', options: [] });
   }
 });

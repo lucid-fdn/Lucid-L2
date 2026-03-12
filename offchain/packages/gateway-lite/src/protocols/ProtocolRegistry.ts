@@ -7,6 +7,7 @@
 
 import { BaseProtocolAdapter } from './BaseProtocolAdapter';
 import { ProtocolMetadata, ProtocolConfig, HealthStatus } from './types';
+import { logger } from '../../../engine/src/lib/logger';
 
 interface RegisteredProtocol {
   adapter: BaseProtocolAdapter;
@@ -38,7 +39,7 @@ export class ProtocolRegistry {
     const metadata = adapter.getMetadata();
     
     if (this.protocols.has(metadata.id)) {
-      console.warn(`Protocol ${metadata.id} is already registered. Replacing...`);
+      logger.warn(`Protocol ${metadata.id} is already registered. Replacing...`);
     }
 
     this.protocols.set(metadata.id, {
@@ -47,7 +48,7 @@ export class ProtocolRegistry {
       instances: new Map()
     });
 
-    console.log(`✅ Registered protocol: ${metadata.name} v${metadata.version}`);
+    logger.info(`✅ Registered protocol: ${metadata.name} v${metadata.version}`);
   }
 
   /**
@@ -62,12 +63,12 @@ export class ProtocolRegistry {
     // Cleanup all instances
     for (const instance of protocol.instances.values()) {
       instance.cleanup().catch(err => {
-        console.error(`Error cleaning up instance: ${err.message}`);
+        logger.error(`Error cleaning up instance: ${err.message}`);
       });
     }
 
     this.protocols.delete(protocolId);
-    console.log(`❌ Unregistered protocol: ${protocolId}`);
+    logger.info(`❌ Unregistered protocol: ${protocolId}`);
   }
 
   /**
@@ -209,7 +210,7 @@ export class ProtocolRegistry {
       for (const instance of protocol.instances.values()) {
         cleanupPromises.push(
           instance.cleanup().catch(err => {
-            console.error(`Error cleaning up instance: ${err.message}`);
+            logger.error(`Error cleaning up instance: ${err.message}`);
           })
         );
       }

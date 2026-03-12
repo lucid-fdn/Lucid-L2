@@ -1,6 +1,7 @@
 import express from 'express';
 import axios from 'axios';
 import { N8N_URL, N8N_API_KEY } from '../../../../engine/src/config/config';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export const n8nFlowApiRouter = express.Router();
 
@@ -32,15 +33,15 @@ async function handleN8nNodesList(req: express.Request, res: express.Response) {
 
       // Check if reindexing is needed and not already in progress
       if (indexer.needsReindex(60) && !indexerStatus.isIndexing && indexerStatus.cooldownRemaining === 0) {
-        console.log('🔄 Index needs refresh, triggering background reindex...');
+        logger.info('🔄 Index needs refresh, triggering background reindex...');
         // Start reindexing in background (don't wait)
         indexer.indexNodes(false).catch(err => {
-          console.error('Background reindex failed:', err);
+          logger.error('Background reindex failed:', err);
         });
       } else if (indexerStatus.isIndexing) {
-        console.log('⏳ Reindex already in progress, skipping...');
+        logger.info('⏳ Reindex already in progress, skipping...');
       } else if (indexerStatus.cooldownRemaining > 0) {
-        console.log(`⏱️  Reindex cooldown active (${Math.ceil(indexerStatus.cooldownRemaining / 1000)}s remaining), skipping...`);
+        logger.info(`⏱️  Reindex cooldown active (${Math.ceil(indexerStatus.cooldownRemaining / 1000)}s remaining), skipping...`);
       }
 
       // Try to search using Elasticsearch
@@ -70,13 +71,13 @@ async function handleN8nNodesList(req: express.Request, res: express.Response) {
           source: 'elasticsearch',
         });
       } catch (esError) {
-        console.warn('Elasticsearch search failed, falling back to CLI:', esError);
+        logger.warn('Elasticsearch search failed, falling back to CLI:', esError);
         // Fall through to CLI fallback
       }
     }
 
     // Fallback: Use CLI approach (original implementation)
-    console.log('📋 Using CLI fallback for node listing...');
+    logger.info('📋 Using CLI fallback for node listing...');
     const { exec } = await import('child_process');
     const { promisify } = await import('util');
     const execAsync = promisify(exec);
@@ -140,7 +141,7 @@ async function handleN8nNodesList(req: express.Request, res: express.Response) {
       source: 'cli-fallback'
     });
   } catch (error) {
-    console.error('Error in handleN8nNodesList:', error);
+    logger.error('Error in handleN8nNodesList:', error);
 
     res.status(500).json({
       success: false,
@@ -191,7 +192,7 @@ async function handleN8nNodeDetails(req: express.Request, res: express.Response)
       message: `Retrieved details for node '${nodeName}'`
     });
   } catch (error) {
-    console.error('Error in handleN8nNodeDetails:', error);
+    logger.error('Error in handleN8nNodeDetails:', error);
 
     if (axios.isAxiosError(error)) {
       return res.status(error.response?.status || 500).json({
@@ -257,7 +258,7 @@ async function handleN8nIcon(req: express.Request, res: express.Response) {
 
     res.send(response.data);
   } catch (error) {
-    console.error('Error in handleN8nIcon:', error);
+    logger.error('Error in handleN8nIcon:', error);
 
     if (axios.isAxiosError(error)) {
       return res.status(error.response?.status || 500).send('Icon not found');
@@ -304,7 +305,7 @@ async function handleN8nNodeCategories(req: express.Request, res: express.Respon
       message: `Retrieved ${categories.length} node categories`
     });
   } catch (error) {
-    console.error('Error in handleN8nNodeCategories:', error);
+    logger.error('Error in handleN8nNodeCategories:', error);
 
     if (axios.isAxiosError(error)) {
       return res.status(error.response?.status || 500).json({
@@ -334,7 +335,7 @@ async function handleN8nNodesReindex(req: express.Request, res: express.Response
 
     res.json(result);
   } catch (error) {
-    console.error('Error in handleN8nNodesReindex:', error);
+    logger.error('Error in handleN8nNodesReindex:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -359,7 +360,7 @@ async function handleN8nNodesStats(req: express.Request, res: express.Response) 
       message: 'Elasticsearch stats retrieved'
     });
   } catch (error) {
-    console.error('Error in handleN8nNodesStats:', error);
+    logger.error('Error in handleN8nNodesStats:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -383,7 +384,7 @@ async function handleN8nNodesDeleteIndex(req: express.Request, res: express.Resp
       message: 'Index deleted successfully. Run /flow/admin/reindex to rebuild.'
     });
   } catch (error) {
-    console.error('Error in handleN8nNodesDeleteIndex:', error);
+    logger.error('Error in handleN8nNodesDeleteIndex:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -413,7 +414,7 @@ async function handleN8nNodesIndexStatus(req: express.Request, res: express.Resp
       message: 'Index status retrieved'
     });
   } catch (error) {
-    console.error('Error in handleN8nNodesIndexStatus:', error);
+    logger.error('Error in handleN8nNodesIndexStatus:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'

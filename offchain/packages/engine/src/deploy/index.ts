@@ -12,6 +12,7 @@ export {
   RuntimeArtifact,
   LogOptions,
 } from './IDeployer';
+import { logger } from '../lib/logger';
 
 type DeployerTarget = 'docker' | 'railway' | 'akash' | 'phala' | 'ionet' | 'nosana';
 
@@ -42,7 +43,7 @@ function loadDeployers(): Map<string, IDeployer> {
     deployers.set(d.target, d);
   }
 
-  console.log(`[Deploy] Loaded ${deployers.size} deployers: ${Array.from(deployers.keys()).join(', ')}`);
+  logger.info(`[Deploy] Loaded ${deployers.size} deployers: ${Array.from(deployers.keys()).join(', ')}`);
   return deployers;
 }
 

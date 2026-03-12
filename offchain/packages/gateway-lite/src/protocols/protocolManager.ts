@@ -14,6 +14,7 @@ import {
   ProtocolMetadata,
   OperationDefinition
 } from './types';
+import { logger } from '../../../engine/src/lib/logger';
 
 export interface ProtocolExecutionRequest {
   protocolId: string;
@@ -136,7 +137,7 @@ export class ProtocolManager {
           request.executionId,
           result.success
         ).catch(err => {
-          console.error('Failed to log credential usage:', err);
+          logger.error('Failed to log credential usage:', err);
         });
       }
 

@@ -13,6 +13,7 @@ export {
   getAllEpochs,
   getEpochStats,
   getEpochsReadyForFinalization,
+  getFailedEpochs,
   setEpochConfig,
   getEpochConfig,
   startAutoFinalization,

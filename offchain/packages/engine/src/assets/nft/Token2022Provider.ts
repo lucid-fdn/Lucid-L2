@@ -7,6 +7,7 @@ import { ChainFeatureUnavailable } from '../../errors';
 import { SolanaPassportClient } from '../../passport/nft/solana-token2022';
 import { getSolanaKeypair } from '../../chain/solana/keypair';
 import { getChainConfig } from '../../chains/configs';
+import { logger } from '../../lib/logger';
 
 export class Token2022Provider implements INFTProvider {
   readonly providerName = 'token2022';
@@ -29,7 +30,7 @@ export class Token2022Provider implements INFTProvider {
     try {
       payer = getSolanaKeypair('LUCID_ORCHESTRATOR_SECRET_KEY');
     } catch {
-      console.warn('[Token2022Provider] Could not load Solana keypair');
+      logger.warn('[Token2022Provider] Could not load Solana keypair');
     }
 
     this.client = new SolanaPassportClient(connection, payer);

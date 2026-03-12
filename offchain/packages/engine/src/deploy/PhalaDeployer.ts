@@ -5,6 +5,7 @@
 
 import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, DeploymentStatus, LogOptions } from './IDeployer';
 import { resilientFetch } from './resilientFetch';
+import { logger } from '../lib/logger';
 
 const PHALA_API_URL = 'https://cloud-api.phala.com/api/v1';
 const PHALA_API_VERSION = '2026-01-21';
@@ -130,9 +131,9 @@ export class PhalaDeployer implements IDeployer {
       const finalStatus = await this.pollUntilRunning(appId, STARTUP_TIMEOUT_MS);
       const url = `https://${appId}-3100.dstack-prod5.phala.network`;
 
-      console.log(`[Deploy] Phala TEE deployment created: ${appId}`);
-      console.log(`[Deploy]   URL: ${url}`);
-      console.log(`[Deploy]   Instance: ${instanceType}`);
+      logger.info(`[Deploy] Phala TEE deployment created: ${appId}`);
+      logger.info(`[Deploy]   URL: ${url}`);
+      logger.info(`[Deploy]   Instance: ${instanceType}`);
 
       return {
         success: finalStatus === 'running',
@@ -202,7 +203,7 @@ export class PhalaDeployer implements IDeployer {
       throw new Error(`Failed to delete Phala CVM: ${error}`);
     }
 
-    console.log(`[Deploy] Phala deployment terminated: ${deploymentId}`);
+    logger.info(`[Deploy] Phala deployment terminated: ${deploymentId}`);
   }
 
   async scale(_deploymentId: string, _replicas: number): Promise<void> {

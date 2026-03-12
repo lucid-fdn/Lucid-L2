@@ -2,6 +2,7 @@
 // Factory for agent wallet providers — singleton pattern matching codebase conventions
 
 import { IAgentWalletProvider } from './IAgentWalletProvider';
+import { logger } from '../../lib/logger';
 
 export { IAgentWalletProvider, AgentWallet, WalletBalance, TransactionRequest, TransactionResult, SpendingLimits } from './IAgentWalletProvider';
 
@@ -36,7 +37,7 @@ export function getAgentWalletProvider(): IAgentWalletProvider {
         break;
       }
     }
-    console.log(`[AgentWallet] Provider: ${walletSingleton!.providerName} (${walletSingleton!.chain})`);
+    logger.info(`[AgentWallet] Provider: ${walletSingleton!.providerName} (${walletSingleton!.chain})`);
   }
   return walletSingleton!;
 }

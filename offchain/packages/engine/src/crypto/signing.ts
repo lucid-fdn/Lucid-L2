@@ -6,6 +6,7 @@
  */
 import nacl from 'tweetnacl';
 import { Buffer } from 'buffer';
+import { logger } from '../lib/logger';
 
 export interface SigningKeypair {
   publicKey: Uint8Array;
@@ -48,7 +49,7 @@ export function getOrchestratorKeypair(): SigningKeypair {
     // CRITICAL: Never fall back to a dev key in production
     throw new Error(
       'LUCID_ORCHESTRATOR_SECRET_KEY is required in production. ' +
-      'Generate one with: node -e "console.log(require(\'tweetnacl\').sign.keyPair().secretKey.reduce((s,b)=>s+b.toString(16).padStart(2,\'0\'),\'\'))"'
+      'Generate one with: node -e "logger.info(require(\'tweetnacl\').sign.keyPair().secretKey.reduce((s,b)=>s+b.toString(16).padStart(2,\'0\'),\'\'))"'
     );
   } else {
     // Development/test fallback: deterministic keypair from a seed
@@ -59,7 +60,7 @@ export function getOrchestratorKeypair(): SigningKeypair {
       publicKey: keypair.publicKey,
       secretKey: keypair.secretKey,
     };
-    console.warn('[WARN] Using development signing key. Set LUCID_ORCHESTRATOR_SECRET_KEY for production.');
+    logger.warn('[WARN] Using development signing key. Set LUCID_ORCHESTRATOR_SECRET_KEY for production.');
   }
 
   return cachedKeypair;

@@ -3,6 +3,7 @@ import { validateWithSchema } from '../../../../engine/src/crypto/schemaValidato
 import { evaluatePolicy } from '../../compute/policyEngine';
 import { matchComputeForModel } from '../../compute/matchingEngine';
 import { requirePayment } from '../../middleware/x402';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export const matchingRouter = Router();
 
@@ -57,7 +58,7 @@ matchingRouter.post('/v1/match/explain', async (req, res) => {
       policy_hash: evalResult.policy_hash,
     });
   } catch (error) {
-    console.error('Error in /v1/match/explain:', error);
+    logger.error('Error in /v1/match/explain:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -94,7 +95,7 @@ matchingRouter.post('/v1/match', requirePayment({ dynamic: true }), async (req, 
       explain,
     });
   } catch (error) {
-    console.error('Error in /v1/match:', error);
+    logger.error('Error in /v1/match:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
@@ -156,7 +157,7 @@ matchingRouter.post('/v1/route', async (req, res) => {
       explain,
     });
   } catch (error) {
-    console.error('Error in /v1/route:', error);
+    logger.error('Error in /v1/route:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });

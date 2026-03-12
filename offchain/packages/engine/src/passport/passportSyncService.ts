@@ -11,6 +11,7 @@ import { getSolanaKeypair } from '../chain/solana/keypair';
 
 import { Passport, PassportType } from '../storage/passportStore';
 import { OnChainSyncHandler } from './passportManager';
+import { logger } from '../lib/logger';
 
 // Program ID - deployed to devnet on Jan 27, 2026
 const PASSPORT_PROGRAM_ID = process.env.PASSPORT_PROGRAM_ID || 'FhoemNdqwPMt8nmX4HT3WpSqUuqeAUXRb7WchAehmSaL';
@@ -183,9 +184,9 @@ export class PassportSyncService implements OnChainSyncHandler {
     this.provider = new AnchorProvider(this.connection, this.wallet, { commitment });
     setProvider(this.provider);
 
-    console.log('PassportSyncService created');
-    console.log('   RPC:', rpcUrl);
-    console.log('   Program:', programIdStr);
+    logger.info('PassportSyncService created');
+    logger.info('   RPC:', rpcUrl);
+    logger.info('   Program:', programIdStr);
   }
 
   /**
@@ -196,9 +197,9 @@ export class PassportSyncService implements OnChainSyncHandler {
     try {
       return getSolanaKeypair();
     } catch (e) {
-      console.warn('Could not load keypair via shared parser:', e);
+      logger.warn('Could not load keypair via shared parser:', e);
       // Last resort: generate new keypair (for testing only)
-      console.warn('No keypair found, generating new one (testing only)');
+      logger.warn('No keypair found, generating new one (testing only)');
       return Keypair.generate();
     }
   }
@@ -228,13 +229,13 @@ export class PassportSyncService implements OnChainSyncHandler {
       // Create program
       this.program = new Program(idlJson as Idl, this.provider);
 
-      console.log('PassportSyncService initialized');
-      console.log('   Program ID:', this.program.programId.toString());
-      console.log('   Authority:', this.wallet.publicKey.toString());
+      logger.info('PassportSyncService initialized');
+      logger.info('   Program ID:', this.program.programId.toString());
+      logger.info('   Authority:', this.wallet.publicKey.toString());
 
       this.initialized = true;
     } catch (error) {
-      console.error('Failed to initialize PassportSyncService:', error);
+      logger.error('Failed to initialize PassportSyncService:', error);
       throw error;
     }
   }
@@ -294,7 +295,7 @@ export class PassportSyncService implements OnChainSyncHandler {
     }
 
     if (!this.program) {
-      console.error('Program not initialized');
+      logger.error('Program not initialized');
       return null;
     }
 
@@ -325,9 +326,9 @@ export class PassportSyncService implements OnChainSyncHandler {
           // Store DePIN info on the passport record
           passport.depin_metadata_cid = result.cid;
           passport.depin_provider = result.provider;
-          console.log(`   DePIN: uploaded metadata -> ${result.cid} (${result.provider})`);
+          logger.info(`   DePIN: uploaded metadata -> ${result.cid} (${result.provider})`);
         } catch (err) {
-          console.warn(`   DePIN upload failed, continuing without:`, err instanceof Error ? err.message : err);
+          logger.warn(`   DePIN upload failed, continuing without:`, err instanceof Error ? err.message : err);
         }
       }
       const policyFlags = getPolicyFlags(passport);
@@ -340,16 +341,16 @@ export class PassportSyncService implements OnChainSyncHandler {
         version
       );
 
-      console.log(`Syncing passport ${passport.passport_id} to chain...`);
-      console.log(`   Slug: ${slug}`);
-      console.log(`   Version: ${version.major}.${version.minor}.${version.patch}`);
-      console.log(`   PDA: ${passportPDA.toString()}`);
+      logger.info(`Syncing passport ${passport.passport_id} to chain...`);
+      logger.info(`   Slug: ${slug}`);
+      logger.info(`   Version: ${version.major}.${version.minor}.${version.patch}`);
+      logger.info(`   PDA: ${passportPDA.toString()}`);
 
       // Check if passport already exists
       const existingAccount = await this.connection.getAccountInfo(passportPDA);
 
       if (existingAccount) {
-        console.log(`   Passport already exists on-chain, updating...`);
+        logger.info(`   Passport already exists on-chain, updating...`);
 
         // Call update_passport instruction
         const tx = await this.program.methods
@@ -364,7 +365,7 @@ export class PassportSyncService implements OnChainSyncHandler {
           .signers([])
           .rpc();
 
-        console.log(`   Passport updated: ${tx}`);
+        logger.info(`   Passport updated: ${tx}`);
         return { pda: passportPDA.toString(), tx };
       }
 
@@ -391,13 +392,13 @@ export class PassportSyncService implements OnChainSyncHandler {
         .signers([])
         .rpc();
 
-      console.log(`   Passport registered on-chain: ${tx}`);
+      logger.info(`   Passport registered on-chain: ${tx}`);
       return { pda: passportPDA.toString(), tx };
 
     } catch (error: any) {
       // Handle "already in use" error gracefully
       if (error.message?.includes('already in use')) {
-        console.log(`   Passport already exists on-chain`);
+        logger.info(`   Passport already exists on-chain`);
         const ownerPubkey = new PublicKey(passport.owner);
         const assetType = ASSET_TYPE_MAP[passport.type] ?? 5;
         const slug = this.buildSlug(passport);
@@ -406,7 +407,7 @@ export class PassportSyncService implements OnChainSyncHandler {
         return { pda: passportPDA.toString(), tx: 'existing' };
       }
 
-      console.error(`   Failed to sync passport ${passport.passport_id}:`, error.message || error);
+      logger.error(`   Failed to sync passport ${passport.passport_id}:`, error.message || error);
       return null;
     }
   }
@@ -429,7 +430,7 @@ export class PassportSyncService implements OnChainSyncHandler {
       const account = await (this.program.account as any).passport.fetch(pdaPubkey);
       return account;
     } catch (error) {
-      console.error('Failed to fetch on-chain passport:', error);
+      logger.error('Failed to fetch on-chain passport:', error);
       return null;
     }
   }
@@ -484,7 +485,7 @@ export class PassportSyncService implements OnChainSyncHandler {
     }
 
     if (!this.program) {
-      console.error('Program not initialized');
+      logger.error('Program not initialized');
       return new Map();
     }
 
@@ -496,7 +497,7 @@ export class PassportSyncService implements OnChainSyncHandler {
       chunks.push(passports.slice(i, i + MAX_IX_PER_TX));
     }
 
-    console.log(`Batch syncing ${passports.length} passports in ${chunks.length} transactions (${MAX_IX_PER_TX} per tx)`);
+    logger.info(`Batch syncing ${passports.length} passports in ${chunks.length} transactions (${MAX_IX_PER_TX} per tx)`);
 
     for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
       const chunk = chunks[chunkIdx];
@@ -532,7 +533,7 @@ export class PassportSyncService implements OnChainSyncHandler {
             // Check if already exists — skip if so
             const existing = await this.connection.getAccountInfo(passportPDA);
             if (existing) {
-              console.log(`   Skipping ${passport.passport_id} (already on-chain)`);
+              logger.info(`   Skipping ${passport.passport_id} (already on-chain)`);
               results.set(passport.passport_id, { pda: passportPDA.toString(), tx: 'existing' });
               continue;
             }
@@ -577,7 +578,7 @@ export class PassportSyncService implements OnChainSyncHandler {
             commitment: 'confirmed',
           });
 
-          console.log(`   Tx ${chunkIdx + 1}/${chunks.length}: ${txSig} (${pdaMap.length} passports)`);
+          logger.info(`   Tx ${chunkIdx + 1}/${chunks.length}: ${txSig} (${pdaMap.length} passports)`);
 
           // Record results
           for (const { passportId, pda } of pdaMap) {
@@ -587,7 +588,7 @@ export class PassportSyncService implements OnChainSyncHandler {
           success = true;
         } catch (error: any) {
           attempt++;
-          console.error(`   Tx ${chunkIdx + 1} attempt ${attempt} failed:`, error.message || error);
+          logger.error(`   Tx ${chunkIdx + 1} attempt ${attempt} failed:`, error.message || error);
 
           if (attempt < MAX_RETRIES) {
             await sleepWithBackoff(attempt);
@@ -647,10 +648,10 @@ export class PassportSyncService implements OnChainSyncHandler {
         .signers([])
         .rpc();
 
-      console.log(`   Passport ${pda} status updated to ${statusEnum}: ${tx}`);
+      logger.info(`   Passport ${pda} status updated to ${statusEnum}: ${tx}`);
       return tx;
     } catch (error: any) {
-      console.error(`Failed to update passport status:`, error.message || error);
+      logger.error(`Failed to update passport status:`, error.message || error);
       return null;
     }
   }

@@ -17,6 +17,7 @@
 
 import crypto from 'crypto';
 import pool, { getClient } from '../../../../engine/src/db/pool';
+import { logger } from '../../../../engine/src/lib/logger';
 
 // Types
 export interface UserProfile {
@@ -85,7 +86,7 @@ export async function resolveInternalUserId(
     // STEP 2: If found, return existing user
     if (linkResult.rows.length > 0) {
       const row = linkResult.rows[0];
-      console.log('✅ Existing user found for Privy ID:', privyUserId, '→', row.user_id);
+      logger.info('✅ Existing user found for Privy ID:', privyUserId, '→', row.user_id);
       
       // Update last_login_at
       await client.query(
@@ -110,7 +111,7 @@ export async function resolveInternalUserId(
     }
 
     // STEP 3: If NOT found, create new user atomically
-    console.log('🆕 Creating new user for Privy ID:', privyUserId);
+    logger.info('🆕 Creating new user for Privy ID:', privyUserId);
     
     await client.query('BEGIN');
     
@@ -136,7 +137,7 @@ export async function resolveInternalUserId(
       await client.query('COMMIT');
       
       const profile = profileResult.rows[0];
-      console.log('✅ New user created:', userId, 'with handle:', handle);
+      logger.info('✅ New user created:', userId, 'with handle:', handle);
       
       return {
         userId,
@@ -201,7 +202,7 @@ export async function getUserByPrivyId(privyUserId: string): Promise<ResolvedUse
   try {
     return await resolveInternalUserId(privyUserId);
   } catch (error) {
-    console.error('Error getting user by Privy ID:', error);
+    logger.error('Error getting user by Privy ID:', error);
     return null;
   }
 }

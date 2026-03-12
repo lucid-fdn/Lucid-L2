@@ -10,6 +10,7 @@ import {
   ReadOptions,
   AssetType,
 } from '../types';
+import { logger } from '../../lib/logger';
 
 export class LucidDBProvider implements IReputationProvider {
   readonly providerName = 'lucid-db';
@@ -34,7 +35,7 @@ export class LucidDBProvider implements IReputationProvider {
       const id = result.rows[0]?.id;
       return { success: true, id: String(id) };
     } catch (err) {
-      console.error('LucidDBProvider.submitFeedback error:', err);
+      logger.error('LucidDBProvider.submitFeedback error:', err);
       return { success: false };
     }
   }
@@ -135,7 +136,7 @@ export class LucidDBProvider implements IReputationProvider {
       const id = result.rows[0]?.id;
       return { success: true, id: String(id) };
     } catch (err) {
-      console.error('LucidDBProvider.submitValidation error:', err);
+      logger.error('LucidDBProvider.submitValidation error:', err);
       return { success: false };
     }
   }

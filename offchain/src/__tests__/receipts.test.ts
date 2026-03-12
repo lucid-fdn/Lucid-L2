@@ -66,10 +66,13 @@ describe('receipts pipeline', () => {
     expect(r.status).toBe(200);
     expect(r.body.success).toBe(true);
     expect(r.body.proof).toBeDefined();
-    expect(r.body.proof.leaf).toMatch(/^[0-9a-f]{64}$/);
+    expect(r.body.proof.proof_type).toBe('mmr');
+    expect(r.body.proof.leaf_hash).toMatch(/^[0-9a-f]{64}$/);
     expect(r.body.proof.root).toMatch(/^[0-9a-f]{64}$/);
-    expect(Array.isArray(r.body.proof.proof)).toBe(true);
-    expect(Array.isArray(r.body.proof.directions)).toBe(true);
+    expect(Array.isArray(r.body.proof.siblings)).toBe(true);
+    expect(Array.isArray(r.body.proof.peaks)).toBe(true);
+    expect(typeof r.body.proof.mmr_size).toBe('number');
+    expect(typeof r.body.proof.leaf_index).toBe('number');
   });
 
   test('GET /v1/signer/pubkey returns orchestrator public key', async () => {

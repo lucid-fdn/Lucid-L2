@@ -4,6 +4,7 @@
 
 import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, DeploymentStatus, LogOptions } from './IDeployer';
 import { resilientFetch } from './resilientFetch';
+import { logger } from '../lib/logger';
 
 const RAILWAY_API_URL = 'https://backboard.railway.app/graphql/v2';
 
@@ -135,7 +136,7 @@ export class RailwayDeployer implements IDeployer {
         });
 
         if (varResult.errors?.length) {
-          console.warn(`[Deploy] Railway env var upsert warning: ${varResult.errors[0].message}`);
+          logger.warn(`[Deploy] Railway env var upsert warning: ${varResult.errors[0].message}`);
           // Fall back to individual upserts
           for (const [key, value] of Object.entries(envInput)) {
             await this.graphql(`
@@ -176,12 +177,12 @@ export class RailwayDeployer implements IDeployer {
           url = `https://${domain}`;
         }
       } catch (domainErr) {
-        console.warn(`[Deploy] Railway domain creation failed (non-fatal): ${domainErr}`);
+        logger.warn(`[Deploy] Railway domain creation failed (non-fatal): ${domainErr}`);
       }
 
-      console.log(`[Deploy] Railway service created: ${serviceId} (image: ${imageRef})`);
+      logger.info(`[Deploy] Railway service created: ${serviceId} (image: ${imageRef})`);
       if (url) {
-        console.log(`[Deploy]   URL: ${url}`);
+        logger.info(`[Deploy]   URL: ${url}`);
       }
 
       // Wait for initial deployment to reach a terminal state
@@ -308,7 +309,7 @@ export class RailwayDeployer implements IDeployer {
       throw new Error(`Failed to terminate Railway service: ${result.errors[0].message}`);
     }
 
-    console.log(`[Deploy] Railway service terminated: ${deploymentId}`);
+    logger.info(`[Deploy] Railway service terminated: ${deploymentId}`);
   }
 
   async scale(deploymentId: string, replicas: number): Promise<void> {
@@ -323,9 +324,9 @@ export class RailwayDeployer implements IDeployer {
     });
 
     if (result.errors?.length) {
-      console.warn(`[Deploy] Railway scaling via API failed: ${result.errors[0].message}. Use Railway dashboard.`);
+      logger.warn(`[Deploy] Railway scaling via API failed: ${result.errors[0].message}. Use Railway dashboard.`);
     } else {
-      console.log(`[Deploy] Railway service ${deploymentId} scaled to ${replicas} replicas`);
+      logger.info(`[Deploy] Railway service ${deploymentId} scaled to ${replicas} replicas`);
     }
   }
 

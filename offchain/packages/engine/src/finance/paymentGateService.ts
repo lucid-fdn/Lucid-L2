@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import path from 'path';
 import { PATHS } from '../config/paths';
 import { getSolanaKeypair } from '../chain/solana/keypair';
+import { logger } from '../lib/logger';
 
 const PASSPORT_PROGRAM_ID = process.env.PASSPORT_PROGRAM_ID || 'FhoemNdqwPMt8nmX4HT3WpSqUuqeAUXRb7WchAehmSaL';
 
@@ -130,7 +131,7 @@ export class PaymentGateService {
             })
             .rpc();
 
-        console.log(`Payment gate set on ${passportPDA}: ${tx}`);
+        logger.info(`Payment gate set on ${passportPDA}: ${tx}`);
         return tx;
     }
 
@@ -165,7 +166,7 @@ export class PaymentGateService {
             .signers([payer])
             .rpc();
 
-        console.log(`Access purchased for ${passportPDA}: ${tx}`);
+        logger.info(`Access purchased for ${passportPDA}: ${tx}`);
         return tx;
     }
 
@@ -224,7 +225,7 @@ export class PaymentGateService {
             })
             .rpc();
 
-        console.log(`Revenue withdrawn from ${passportPDA}: ${withdrawAmount} lamports, tx: ${tx}`);
+        logger.info(`Revenue withdrawn from ${passportPDA}: ${withdrawAmount} lamports, tx: ${tx}`);
         return tx;
     }
 

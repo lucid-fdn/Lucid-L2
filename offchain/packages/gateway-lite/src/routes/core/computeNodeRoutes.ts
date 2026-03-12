@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getComputeRegistry } from '../../compute/computeRegistry';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export const computeNodeRouter = Router();
 
@@ -31,7 +32,7 @@ computeNodeRouter.post('/v1/compute/nodes/heartbeat', async (req, res) => {
 
     return res.json({ success: true, state });
   } catch (error) {
-    console.error('Error in /v1/compute/nodes/heartbeat:', error);
+    logger.error('Error in /v1/compute/nodes/heartbeat:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
@@ -49,7 +50,7 @@ computeNodeRouter.get('/v1/compute/nodes/:computePassportId/health', async (req,
     }
     return res.json({ success: true, state });
   } catch (error) {
-    console.error('Error in /v1/compute/nodes/:id/health:', error);
+    logger.error('Error in /v1/compute/nodes/:id/health:', error);
     return res.status(500).json({ success: false, error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });

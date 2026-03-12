@@ -226,23 +226,28 @@ describe('Receipt Routes', () => {
   // GET /v1/receipts/:receipt_id/proof
   // =========================================================================
   describe('GET /v1/receipts/:receipt_id/proof', () => {
-    it('should return merkle proof when available', async () => {
+    it('should return MMR proof when available', async () => {
       mockGetInferenceReceipt.mockReturnValue(SAMPLE_RECEIPT);
       mockGetInferenceReceiptProof.mockReturnValue({
-        leaf: 'leaf1',
         leafIndex: 0,
+        leafHash: 'leaf1',
         siblings: ['sib1'],
+        peaks: ['peak1'],
+        mmrSize: 3,
         root: 'root1',
-        directions: ['left'],
       });
 
       const res = await request(buildApp()).get('/v1/receipts/run-001/proof');
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
+      expect(res.body.proof.proof_type).toBe('mmr');
       expect(res.body.proof.run_id).toBe('run-001');
       expect(res.body.proof.leaf_index).toBe(0);
-      expect(res.body.proof.proof).toEqual(['sib1']);
+      expect(res.body.proof.leaf_hash).toBe('leaf1');
+      expect(res.body.proof.siblings).toEqual(['sib1']);
+      expect(res.body.proof.peaks).toEqual(['peak1']);
+      expect(res.body.proof.mmr_size).toBe(3);
     });
 
     it('should return 404 when receipt not found', async () => {

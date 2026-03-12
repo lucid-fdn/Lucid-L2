@@ -2,6 +2,7 @@
 // ERC-6551 Token Bound Account wallet provider for EVM agent wallets
 
 import { IAgentWalletProvider, AgentWallet, WalletBalance, TransactionRequest, TransactionResult, SpendingLimits } from './IAgentWalletProvider';
+import { logger } from '../../lib/logger';
 
 /**
  * ERC-6551 Token Bound Account Wallet Provider (EVM)
@@ -44,8 +45,8 @@ export class ERC6551WalletProvider implements IAgentWalletProvider {
     };
 
     this.walletCache.set(agentPassportId, wallet);
-    console.log(`[AgentWallet] ERC-6551 TBA address: ${address} for agent ${agentPassportId}`);
-    console.log(`[AgentWallet]   Note: TBA must be deployed on-chain after NFT minting`);
+    logger.info(`[AgentWallet] ERC-6551 TBA address: ${address} for agent ${agentPassportId}`);
+    logger.info(`[AgentWallet]   Note: TBA must be deployed on-chain after NFT minting`);
     return wallet;
   }
 
@@ -86,7 +87,7 @@ export class ERC6551WalletProvider implements IAgentWalletProvider {
   async executeTransaction(walletAddress: string, tx: TransactionRequest): Promise<TransactionResult> {
     // ERC-6551 execution requires calling the TBA's execute() function
     // This needs the NFT owner's signature
-    console.log(`[AgentWallet] ERC-6551 transaction queued for ${walletAddress}: ${JSON.stringify(tx)}`);
+    logger.info(`[AgentWallet] ERC-6551 transaction queued for ${walletAddress}: ${JSON.stringify(tx)}`);
     return {
       success: false,
       tx_signature: '',
@@ -96,7 +97,7 @@ export class ERC6551WalletProvider implements IAgentWalletProvider {
   }
 
   async setSpendingLimits(_walletAddress: string, _limits: SpendingLimits): Promise<void> {
-    console.log(`[AgentWallet] ERC-6551 spending limits require custom guard contract deployment`);
+    logger.info(`[AgentWallet] ERC-6551 spending limits require custom guard contract deployment`);
   }
 
   async isHealthy(): Promise<boolean> {

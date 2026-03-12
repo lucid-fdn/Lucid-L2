@@ -3,6 +3,7 @@
 // Lazy-loaded: @irys/upload + @irys/upload-solana only imported when first upload happens
 
 import { IDepinStorage, UploadResult, UploadOptions } from './IDepinStorage';
+import { logger } from '../../lib/logger';
 
 export class ArweaveStorage implements IDepinStorage {
   readonly providerName = 'arweave';
@@ -41,7 +42,7 @@ export class ArweaveStorage implements IDepinStorage {
         .devnet(this.network !== 'mainnet');
 
       const balance = await this.uploader.getBalance();
-      console.log(`[ArweaveStorage] Connected to Irys (${this.network}), balance: ${balance}`);
+      logger.info(`[ArweaveStorage] Connected to Irys (${this.network}), balance: ${balance}`);
       return this.uploader;
     } catch (err) {
       this.uploader = null;

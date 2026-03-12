@@ -22,6 +22,7 @@ import { getRuntimeAdapter, selectBestAdapter, listAdapterNames } from '../runti
 import { getDeployer, listDeployerTargets } from '../deploy';
 import { getAgentWalletProvider } from './wallet';
 import { generateAgentCard } from './a2a/agentCard';
+import { logger } from '../lib/logger';
 // WIP: marketplace moved to _wip/ — needs DB persistence before ship
 // import { getMarketplaceService } from './marketplace';
 
@@ -74,13 +75,13 @@ export class AgentDeploymentService {
    */
   async deployAgent(input: DeployAgentInput): Promise<DeployAgentResult> {
     const startTime = Date.now();
-    console.log(`[AgentDeploy] Starting deployment: ${input.name}`);
+    logger.info(`[AgentDeploy] Starting deployment: ${input.name}`);
 
     // Step 1: Validate descriptor
-    console.log(`[AgentDeploy] Step 1: Validating agent descriptor...`);
+    logger.info(`[AgentDeploy] Step 1: Validating agent descriptor...`);
     const validation = validateWithSchema('AgentDescriptor', input.descriptor);
     if (!validation.ok) {
-      console.error(`[AgentDeploy] Validation failed:`, validation.errors);
+      logger.error(`[AgentDeploy] Validation failed:`, validation.errors);
       return {
         success: false,
         error: `Descriptor validation failed: ${JSON.stringify(validation.errors)}`,
@@ -100,7 +101,7 @@ export class AgentDeploymentService {
     }
 
     // Step 2: Create agent passport
-    console.log(`[AgentDeploy] Step 2: Creating agent passport...`);
+    logger.info(`[AgentDeploy] Step 2: Creating agent passport...`);
     let passportId: string;
     try {
       const pm = getPassportManager();
@@ -118,7 +119,7 @@ export class AgentDeploymentService {
         return { success: false, error: `Passport creation failed: ${result.error}` };
       }
       passportId = result.data.passport_id;
-      console.log(`[AgentDeploy] Passport created: ${passportId}`);
+      logger.info(`[AgentDeploy] Passport created: ${passportId}`);
     } catch (error) {
       return {
         success: false,
@@ -127,7 +128,7 @@ export class AgentDeploymentService {
     }
 
     // Step 3: Select adapter and generate code
-    console.log(`[AgentDeploy] Step 3: Generating agent code...`);
+    logger.info(`[AgentDeploy] Step 3: Generating agent code...`);
     let adapter;
     let artifact;
     try {
@@ -135,9 +136,9 @@ export class AgentDeploymentService {
         ? getRuntimeAdapter(input.preferred_adapter)
         : selectBestAdapter(input.descriptor);
 
-      console.log(`[AgentDeploy]   Using adapter: ${adapter.name} (${adapter.language})`);
+      logger.info(`[AgentDeploy]   Using adapter: ${adapter.name} (${adapter.language})`);
       artifact = await adapter.generate(input.descriptor, passportId);
-      console.log(`[AgentDeploy] Generated ${artifact.files.size} files (entrypoint: ${artifact.entrypoint})`);
+      logger.info(`[AgentDeploy] Generated ${artifact.files.size} files (entrypoint: ${artifact.entrypoint})`);
     } catch (error) {
       return {
         success: false,
@@ -149,12 +150,12 @@ export class AgentDeploymentService {
     // Step 4: Create agent wallet (if enabled)
     let walletAddress: string | undefined;
     if (input.descriptor.wallet_config?.enabled) {
-      console.log(`[AgentDeploy] Step 4: Creating agent wallet...`);
+      logger.info(`[AgentDeploy] Step 4: Creating agent wallet...`);
       try {
         const walletProvider = getAgentWalletProvider();
         const wallet = await walletProvider.createWallet(passportId);
         walletAddress = wallet.address;
-        console.log(`[AgentDeploy] Wallet created: ${walletAddress} (${wallet.provider})`);
+        logger.info(`[AgentDeploy] Wallet created: ${walletAddress} (${wallet.provider})`);
 
         // Set spending limits if configured
         if (input.descriptor.wallet_config.spending_limits) {
@@ -164,14 +165,14 @@ export class AgentDeploymentService {
           );
         }
       } catch (error) {
-        console.warn(`[AgentDeploy] Wallet creation failed (non-blocking): ${error instanceof Error ? error.message : 'Unknown'}`);
+        logger.warn(`[AgentDeploy] Wallet creation failed (non-blocking): ${error instanceof Error ? error.message : 'Unknown'}`);
       }
     } else {
-      console.log(`[AgentDeploy] Step 4: Wallet disabled, skipping...`);
+      logger.info(`[AgentDeploy] Step 4: Wallet disabled, skipping...`);
     }
 
     // Step 5: Deploy to target
-    console.log(`[AgentDeploy] Step 5: Deploying to ${input.descriptor.deployment_config.target.type}...`);
+    logger.info(`[AgentDeploy] Step 5: Deploying to ${input.descriptor.deployment_config.target.type}...`);
     let deployerResult: DeployerResult;
     try {
       const deployer = getDeployer(input.descriptor.deployment_config.target.type);
@@ -195,7 +196,7 @@ export class AgentDeploymentService {
           error: `Deployment failed: ${deployerResult.error}`,
         };
       }
-      console.log(`[AgentDeploy] Deployed: ${deployerResult.deployment_id} -> ${deployerResult.url || 'pending'}`);
+      logger.info(`[AgentDeploy] Deployed: ${deployerResult.deployment_id} -> ${deployerResult.url || 'pending'}`);
     } catch (error) {
       return {
         success: false,
@@ -209,11 +210,11 @@ export class AgentDeploymentService {
     // Step 6: Configure A2A (if enabled)
     let a2aEndpoint: string | undefined;
     if (input.descriptor.agent_config.a2a_enabled && deployerResult.url) {
-      console.log(`[AgentDeploy] Step 6: Configuring A2A protocol...`);
+      logger.info(`[AgentDeploy] Step 6: Configuring A2A protocol...`);
       a2aEndpoint = `${deployerResult.url}/.well-known/agent.json`;
       const agentCard = generateAgentCard(passportId, input.descriptor, deployerResult.url);
-      console.log(`[AgentDeploy] A2A Agent Card ready at: ${a2aEndpoint}`);
-      console.log(`[AgentDeploy]   Capabilities: ${agentCard.capabilities.join(', ') || 'general'}`);
+      logger.info(`[AgentDeploy] A2A Agent Card ready at: ${a2aEndpoint}`);
+      logger.info(`[AgentDeploy]   Capabilities: ${agentCard.capabilities.join(', ') || 'general'}`);
     }
 
     // WIP: marketplace listing creation moved to _wip/ — needs DB persistence
@@ -221,7 +222,7 @@ export class AgentDeploymentService {
 
     // Step 7.5: Auto-launch share token (if configured)
     if (input.descriptor.monetization?.share_token?.auto_launch) {
-      console.log(`[AgentDeploy] Step 7.5: Auto-launching share token...`);
+      logger.info(`[AgentDeploy] Step 7.5: Auto-launching share token...`);
       try {
         const { getTokenLauncher } = await import('../assets/shares');
         const launcher = getTokenLauncher();
@@ -237,9 +238,9 @@ export class AgentDeploymentService {
         });
         // Store mint address in monetization config for downstream use
         input.descriptor.monetization.share_token_mint = launchResult.mint;
-        console.log(`[AgentDeploy] Share token launched: ${launchResult.mint} (${shareConfig.symbol})`);
+        logger.info(`[AgentDeploy] Share token launched: ${launchResult.mint} (${shareConfig.symbol})`);
       } catch (error) {
-        console.warn(`[AgentDeploy] Share token launch failed (non-blocking): ${error instanceof Error ? error.message : 'Unknown'}`);
+        logger.warn(`[AgentDeploy] Share token launch failed (non-blocking): ${error instanceof Error ? error.message : 'Unknown'}`);
       }
     }
 
@@ -255,9 +256,9 @@ export class AgentDeploymentService {
             adapter: adapter.name,
             deployed_at: new Date().toISOString(),
           }, { tags: { type: 'agent-deployment', passport_id: passportId } });
-        console.log(`[AgentDeploy] Deployment artifact stored on DePIN`);
+        logger.info(`[AgentDeploy] Deployment artifact stored on DePIN`);
       } catch (error) {
-        console.warn(`[AgentDeploy] DePIN storage failed (non-blocking): ${error instanceof Error ? error.message : 'Unknown'}`);
+        logger.warn(`[AgentDeploy] DePIN storage failed (non-blocking): ${error instanceof Error ? error.message : 'Unknown'}`);
       }
     }
 
@@ -286,11 +287,11 @@ export class AgentDeploymentService {
     }
 
     const totalTime = Date.now() - startTime;
-    console.log(`[AgentDeploy] Agent deployed successfully in ${totalTime}ms`);
-    console.log(`[AgentDeploy]   Passport: ${passportId}`);
-    console.log(`[AgentDeploy]   Adapter: ${adapter.name}`);
-    console.log(`[AgentDeploy]   Target: ${input.descriptor.deployment_config.target.type}`);
-    console.log(`[AgentDeploy]   URL: ${deployerResult.url || 'pending'}`);
+    logger.info(`[AgentDeploy] Agent deployed successfully in ${totalTime}ms`);
+    logger.info(`[AgentDeploy]   Passport: ${passportId}`);
+    logger.info(`[AgentDeploy]   Adapter: ${adapter.name}`);
+    logger.info(`[AgentDeploy]   Target: ${input.descriptor.deployment_config.target.type}`);
+    logger.info(`[AgentDeploy]   URL: ${deployerResult.url || 'pending'}`);
 
     return {
       success: true,
@@ -341,7 +342,7 @@ export class AgentDeploymentService {
       }
       deployment.status = 'terminated';
       deployment.updated_at = Date.now();
-      console.log(`[AgentDeploy] Agent terminated: ${passportId}`);
+      logger.info(`[AgentDeploy] Agent terminated: ${passportId}`);
       return { success: true };
     } catch (error) {
       return {

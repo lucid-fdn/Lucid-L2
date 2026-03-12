@@ -37,6 +37,7 @@ import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID
 } from '@solana/spl-token';
+import { logger } from '../../../../../engine/src/lib/logger';
 
 export class SolanaProtocolAdapter extends BaseProtocolAdapter {
   private connection: Connection | null = null;
@@ -167,12 +168,12 @@ export class SolanaProtocolAdapter extends BaseProtocolAdapter {
         const secretKey = this.decodeBase58(credentials.privateKey);
         this.keypair = Keypair.fromSecretKey(secretKey);
       } catch (error) {
-        console.warn('Failed to initialize keypair:', error);
+        logger.warn('Failed to initialize keypair:', error);
         // Don't throw - allow read-only operations
       }
     }
 
-    console.log(`✅ Solana adapter initialized for ${network.name}`);
+    logger.info(`✅ Solana adapter initialized for ${network.name}`);
   }
 
   async cleanup(): Promise<void> {

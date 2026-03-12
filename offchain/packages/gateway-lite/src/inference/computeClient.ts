@@ -1,5 +1,6 @@
 // offchain/src/services/computeClient.ts
 // HTTP client for calling inference endpoints (vLLM, TGI, TensorRT-LLM)
+import { logger } from '../../../engine/src/lib/logger';
 
 /**
  * Compute Client - Handles communication with inference endpoints.
@@ -390,7 +391,7 @@ export async function executeInference(
       
       // Check if retryable
       if (error instanceof ComputeClientError && error.retryable && attempt < (cfg.max_retries || 1) - 1) {
-        console.warn(`Compute request failed (attempt ${attempt + 1}), retrying...`, error.message);
+        logger.warn(`Compute request failed (attempt ${attempt + 1}), retrying...`, error.message);
         await sleep((cfg.retry_delay_ms || 1000) * (attempt + 1));
         continue;
       }
@@ -398,7 +399,7 @@ export async function executeInference(
       // Connection errors are retryable
       if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
         if (attempt < (cfg.max_retries || 1) - 1) {
-          console.warn(`Connection failed (attempt ${attempt + 1}), retrying...`);
+          logger.warn(`Connection failed (attempt ${attempt + 1}), retrying...`);
           await sleep((cfg.retry_delay_ms || 1000) * (attempt + 1));
           continue;
         }
@@ -561,7 +562,7 @@ export async function* executeStreamingInference(
               return;
             }
           } catch (parseError) {
-            console.warn('Failed to parse SSE chunk:', parseError);
+            logger.warn('Failed to parse SSE chunk:', parseError);
           }
         }
       }

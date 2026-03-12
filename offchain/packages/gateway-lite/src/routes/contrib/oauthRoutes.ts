@@ -3,6 +3,7 @@ import { NangoService, SUPPORTED_PROVIDERS } from '../../../../contrib/integrati
 import { verifyPrivyToken, PrivyRequest } from '../../middleware/privyAuth';
 import { verifyHmacSignature, HmacRequest } from '../../middleware/hmacAuth';
 import { verifyAdminAuth, AdminRequest } from '../../middleware/adminAuth';
+import { logger } from '../../../../engine/src/lib/logger';
 
 const router = express.Router();
 const nangoService = new NangoService();
@@ -40,7 +41,7 @@ router.get('/providers', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
-    console.error('Error fetching providers:', error);
+    logger.error('Error fetching providers:', error);
     // Fallback to static list if Nango check fails
     res.json({
       providers: SUPPORTED_PROVIDERS.map(p => ({ ...p, configured: false })),
@@ -68,7 +69,7 @@ router.get('/connections', async (req: PrivyRequest, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
-    console.error('Error listing connections:', error);
+    logger.error('Error listing connections:', error);
     res.status(500).json({ 
       error: 'Failed to list connections',
       message: error.message 
@@ -93,7 +94,7 @@ router.get('/connections/:provider/stats', async (req: PrivyRequest, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
-    console.error('Error fetching connection stats:', error);
+    logger.error('Error fetching connection stats:', error);
     res.status(500).json({ 
       error: 'Failed to fetch stats',
       message: error.message 
@@ -136,7 +137,7 @@ router.post('/:provider/initiate', async (req: PrivyRequest, res) => {
       expiresIn: 300 // 5 minutes
     });
   } catch (error: any) {
-    console.error('Error initiating OAuth flow:', error);
+    logger.error('Error initiating OAuth flow:', error);
     res.status(500).json({ 
       error: 'Failed to initiate OAuth flow',
       message: error.message 
@@ -155,7 +156,7 @@ router.get('/callback', async (req, res) => {
     
     // Handle OAuth errors
     if (oauthError) {
-      console.error('OAuth error:', oauthError, error_description);
+      logger.error('OAuth error:', oauthError, error_description);
       return res.redirect(`/dashboard?oauth_error=${oauthError}&message=${error_description || 'OAuth flow failed'}`);
     }
     
@@ -172,7 +173,7 @@ router.get('/callback', async (req, res) => {
     // Redirect to dashboard with success message
     res.redirect(`/dashboard?oauth_success=${result.provider}&provider=${result.provider}`);
   } catch (error: any) {
-    console.error('OAuth callback error:', error);
+    logger.error('OAuth callback error:', error);
     res.redirect(`/dashboard?oauth_error=callback_failed&message=${encodeURIComponent(error.message)}`);
   }
 });
@@ -202,7 +203,7 @@ router.get('/:privyUserId/:provider/token', verifyHmacSignature, async (req: Hma
     });
   } catch (error: any) {
     const { provider: providerParam } = req.params;
-    console.error('Error getting access token:', error);
+    logger.error('Error getting access token:', error);
     
     if (error.message.includes('No') && error.message.includes('connection found')) {
       return res.status(404).json({ 
@@ -267,7 +268,7 @@ router.post('/:privyUserId/:provider/proxy', async (req, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
-    console.error('Error proxying API call:', error);
+    logger.error('Error proxying API call:', error);
     
     // Handle rate limit errors specially
     if (error.message.includes('Rate limit exceeded')) {
@@ -304,7 +305,7 @@ router.delete('/:provider', async (req: PrivyRequest, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
-    console.error('Error revoking connection:', error);
+    logger.error('Error revoking connection:', error);
     res.status(500).json({ 
       error: 'Failed to revoke connection',
       message: error.message 
@@ -343,7 +344,7 @@ router.post('/:provider/sync', async (req: PrivyRequest, res) => {
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
-    console.error('Error syncing connection:', error);
+    logger.error('Error syncing connection:', error);
 
     // If Nango doesn't have the connection yet
     if (error.message?.toLowerCase().includes('no nango connection')) {
@@ -376,7 +377,7 @@ router.get('/admin/anomalies', verifyAdminAuth, async (req: AdminRequest, res) =
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
-    console.error('Error checking anomalies:', error);
+    logger.error('Error checking anomalies:', error);
     res.status(500).json({ 
       error: 'Failed to check anomalies',
       message: error.message 
@@ -400,7 +401,7 @@ router.post('/admin/cleanup', verifyAdminAuth, async (req: AdminRequest, res) =>
       timestamp: new Date().toISOString()
     });
   } catch (error: any) {
-    console.error('Error cleaning up states:', error);
+    logger.error('Error cleaning up states:', error);
     res.status(500).json({ 
       error: 'Failed to cleanup states',
       message: error.message 

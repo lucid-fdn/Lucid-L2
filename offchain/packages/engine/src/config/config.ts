@@ -1,5 +1,6 @@
 // offchain/src/utils/config.ts
 import { PublicKey } from '@solana/web3.js';
+import { logger } from '../lib/logger';
 
 // Version 1.1 - Lucid L2 Configuration with Environment Support
 export const CONFIG_VERSION = '1.1';
@@ -74,7 +75,7 @@ export class ConfigurationManager {
   }
 
   private notifyEnvironmentChange(env: Environment): void {
-    console.log(`Environment switched to: ${env}`);
+    logger.info(`Environment switched to: ${env}`);
 
     // Update browser extension with new config if available
     if (typeof window !== 'undefined' && (window as any).chrome && (window as any).chrome.storage) {

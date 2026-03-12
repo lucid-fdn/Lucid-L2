@@ -9,10 +9,15 @@ export {
   generateKeypair,
   canonicalJson,
   AgentMMR,
+  MMR,
   MerkleTree,
   AgentMerkleTree,
   getReceiptTree,
   resetReceiptTree,
+  getReceiptMMR,
+  resetReceiptMMR,
+  initReceiptMMR,
+  ReceiptMMR,
   getSignerPublicKey,
 } from '@lucid-l2/engine';
 
@@ -24,4 +29,5 @@ export type {
   MMRState,
   MerkleProof,
   MerkleVerifyResult,
+  SerializedMMRProof,
 } from '@lucid-l2/engine';

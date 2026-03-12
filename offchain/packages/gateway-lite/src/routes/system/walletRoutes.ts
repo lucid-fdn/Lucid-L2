@@ -3,6 +3,7 @@ import { protocolManager } from '../../protocols/protocolManager';
 import { SessionSignerService } from '../../services/sessionSignerService';
 import path from 'path';
 import { PATHS } from '../../../../engine/src/config/paths';
+import { logger } from '../../../../engine/src/lib/logger';
 
 const router = express.Router();
 
@@ -45,7 +46,7 @@ router.get('/options/:optionType', async (req, res) => {
   try {
     const { optionType } = req.params;
     
-    console.log(`🔧 Fetching options for type: ${optionType}`);
+    logger.info(`🔧 Fetching options for type: ${optionType}`);
     
     switch (optionType) {
       case 'chains':
@@ -117,7 +118,7 @@ router.get('/options/:optionType', async (req, res) => {
         });
     }
   } catch (error) {
-    console.error('Error fetching options:', error);
+    logger.error('Error fetching options:', error);
     res.status(500).json({ 
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error' 
@@ -133,13 +134,13 @@ router.get('/options/:optionType', async (req, res) => {
  */
 router.get('/auth', (req, res) => {
   try {
-    console.log('🔐 Serving Privy auth page from Vite build...');
+    logger.info('🔐 Serving Privy auth page from Vite build...');
     
     // Serve the built index.html from auth-frontend/dist
     const authHtmlPath = path.join(PATHS.AUTH_FRONTEND_DIST, 'index.html');
     res.sendFile(authHtmlPath);
   } catch (error) {
-    console.error('Error serving auth page:', error);
+    logger.error('Error serving auth page:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to serve authentication page'
@@ -160,7 +161,7 @@ router.get('/auth/assets/*', (req, res) => {
 // Legacy inline HTML version (fallback)
 router.get('/auth-inline', (req, res) => {
   try {
-    console.log('🔐 Serving inline Privy auth page (fallback)...');
+    logger.info('🔐 Serving inline Privy auth page (fallback)...');
     const extensionId = req.query.extension_id || 'your-extension-id';
     const authHtml = `
 <!DOCTYPE html>
@@ -254,11 +255,11 @@ router.get('/auth-inline', (req, res) => {
                 const script = document.createElement('script');
                 script.src = 'https://unpkg.com/@privy-io/react-auth@1.55.5/dist/index.umd.js';
                 script.onload = () => {
-                    console.log('✅ Privy SDK loaded');
+                    logger.info('✅ Privy SDK loaded');
                     resolve();
                 };
                 script.onerror = () => {
-                    console.error('❌ Failed to load Privy SDK');
+                    logger.error('❌ Failed to load Privy SDK');
                     reject(new Error('Failed to load Privy SDK'));
                 };
                 document.head.appendChild(script);
@@ -267,14 +268,14 @@ router.get('/auth-inline', (req, res) => {
         
         // Wait for libraries to load
         window.addEventListener('load', async function() {
-            console.log('🔐 Initializing Privy from CDN...');
+            logger.info('🔐 Initializing Privy from CDN...');
             
             try {
                 // Check React loaded
                 if (!window.React || !window.ReactDOM) {
                     throw new Error('React libraries not loaded');
                 }
-                console.log('✅ React and ReactDOM loaded');
+                logger.info('✅ React and ReactDOM loaded');
                 
                 // Load Privy SDK
                 await loadPrivySDK();
@@ -296,7 +297,7 @@ router.get('/auth-inline', (req, res) => {
                     const { ready, authenticated, user, logout } = usePrivy();
                     const { login } = useLogin({
                         onComplete: () => {
-                            console.log('✅ Authentication complete');
+                            logger.info('✅ Authentication complete');
                         }
                     });
                     const { wallets } = useWallets();
@@ -321,7 +322,7 @@ router.get('/auth-inline', (req, res) => {
                                 preferredWallet: solanaWallet ? 'solana' : 'evm'
                             };
                             
-                            console.log('✅ Authentication successful:', payload);
+                            logger.info('✅ Authentication successful:', payload);
                             
                             // Send to extension
                             if (window.chrome && window.chrome.runtime) {
@@ -403,10 +404,10 @@ router.get('/auth-inline', (req, res) => {
                 const root = ReactDOM.createRoot(container);
                 root.render(React.createElement(App));
                 
-                console.log('✅ Privy initialized successfully');
+                logger.info('✅ Privy initialized successfully');
                 
             } catch (error) {
-                console.error('❌ Failed to initialize Privy:', error);
+                logger.error('❌ Failed to initialize Privy:', error);
                 document.getElementById('privy-container').innerHTML =
                     '<p>❌ Failed to load wallet connection. Please refresh and try again.</p>';
                 document.getElementById('status').textContent = 'Error: ' + error.message;
@@ -422,7 +423,7 @@ router.get('/auth-inline', (req, res) => {
     res.send(authHtml);
 
   } catch (error) {
-    console.error('Error serving auth page:', error);
+    logger.error('Error serving auth page:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to serve authentication page'
@@ -445,7 +446,7 @@ router.post('/onboard', async (req, res) => {
       });
     }
 
-    console.log(`📝 Onboarding user ${userId} with ${chainType} wallet...`);
+    logger.info(`📝 Onboarding user ${userId} with ${chainType} wallet...`);
     
     // Create wallet via Privy adapter
     const walletResult = await protocolManager.execute({
@@ -456,7 +457,7 @@ router.post('/onboard', async (req, res) => {
       config: getPrivyConfig() as any
     });
     
-    console.log(`🔍 Wallet result:`, JSON.stringify(walletResult, null, 2));
+    logger.info(`🔍 Wallet result:`, JSON.stringify(walletResult, null, 2));
     
     if (!walletResult.success) {
       return res.status(400).json({ 
@@ -465,12 +466,12 @@ router.post('/onboard', async (req, res) => {
       });
     }
     
-    console.log(`🔍 walletResult.data:`, walletResult.data);
+    logger.info(`🔍 walletResult.data:`, walletResult.data);
     const walletId = (walletResult.data as any).walletId;
-    console.log(`🔍 Extracted walletId: ${walletId}`);
+    logger.info(`🔍 Extracted walletId: ${walletId}`);
     
     // Add session signer with policies
-    console.log(`📝 Adding session signer for wallet ${walletId}...`);
+    logger.info(`📝 Adding session signer for wallet ${walletId}...`);
     
     const signerResult = await protocolManager.execute({
       protocolId: 'privy',
@@ -484,17 +485,17 @@ router.post('/onboard', async (req, res) => {
       config: getPrivyConfig() as any
     });
     
-    console.log(`🔍 Signer result:`, JSON.stringify(signerResult, null, 2));
+    logger.info(`🔍 Signer result:`, JSON.stringify(signerResult, null, 2));
     
     if (!signerResult.success) {
-      console.error(`❌ Session signer creation failed:`, signerResult.error);
+      logger.error(`❌ Session signer creation failed:`, signerResult.error);
       return res.status(400).json({
         success: false,
         error: `Wallet created but session signer failed: ${signerResult.error}`
       });
     }
     
-    console.log(`✅ User ${userId} onboarded successfully`);
+    logger.info(`✅ User ${userId} onboarded successfully`);
     
     res.json({
       success: true,
@@ -504,7 +505,7 @@ router.post('/onboard', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error in wallet onboarding:', error);
+    logger.error('Error in wallet onboarding:', error);
     res.status(500).json({ 
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error' 
@@ -529,7 +530,7 @@ router.get('/:walletId/session-signers', async (req, res) => {
       });
     }
 
-    console.log(`📋 Listing session signers for wallet ${walletId}...`);
+    logger.info(`📋 Listing session signers for wallet ${walletId}...`);
 
     const result = await protocolManager.execute({
       protocolId: 'privy',
@@ -547,7 +548,7 @@ router.get('/:walletId/session-signers', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error listing session signers:', error);
+    logger.error('Error listing session signers:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -570,7 +571,7 @@ router.get('/:userId/:chainType', async (req, res) => {
       });
     }
 
-    console.log(`🔍 Fetching wallet for user ${userId} (${chainType})...`);
+    logger.info(`🔍 Fetching wallet for user ${userId} (${chainType})...`);
     
     const result = await protocolManager.execute({
       protocolId: 'privy',
@@ -594,7 +595,7 @@ router.get('/:userId/:chainType', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error fetching wallet:', error);
+    logger.error('Error fetching wallet:', error);
     res.status(500).json({ 
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error' 
@@ -618,7 +619,7 @@ router.post('/:walletId/sign-transaction', async (req, res) => {
       });
     }
 
-    console.log(`🔐 Signing transaction for wallet ${walletId} (${chainType})...`);
+    logger.info(`🔐 Signing transaction for wallet ${walletId} (${chainType})...`);
     
     const service = getSessionSignerService();
     
@@ -626,7 +627,7 @@ router.post('/:walletId/sign-transaction', async (req, res) => {
     const canSign = await service.canSign(userId, walletId, transaction);
     
     if (!canSign.allowed) {
-      console.log(`❌ Transaction denied: ${canSign.reason}`);
+      logger.info(`❌ Transaction denied: ${canSign.reason}`);
       
       // Log denial in audit log
       if (canSign.signer) {
@@ -694,7 +695,7 @@ router.post('/:walletId/sign-transaction', async (req, res) => {
         n8nExecutionId
       });
       
-      console.log(`✅ Transaction signed and sent successfully`);
+      logger.info(`✅ Transaction signed and sent successfully`);
     }
     
     res.json({
@@ -705,7 +706,7 @@ router.post('/:walletId/sign-transaction', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error signing transaction:', error);
+    logger.error('Error signing transaction:', error);
     res.status(500).json({ 
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error' 
@@ -729,7 +730,7 @@ router.delete('/:walletId/session-signers/:signerId', async (req, res) => {
       });
     }
 
-    console.log(`🚫 Revoking session signer ${signerId} for wallet ${walletId}...`);
+    logger.info(`🚫 Revoking session signer ${signerId} for wallet ${walletId}...`);
     
     const result = await protocolManager.execute({
       protocolId: 'privy',
@@ -740,7 +741,7 @@ router.delete('/:walletId/session-signers/:signerId', async (req, res) => {
     });
     
     if (result.success) {
-      console.log(`✅ Session signer revoked successfully`);
+      logger.info(`✅ Session signer revoked successfully`);
     }
     
     res.json({
@@ -751,7 +752,7 @@ router.delete('/:walletId/session-signers/:signerId', async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error revoking session signer:', error);
+    logger.error('Error revoking session signer:', error);
     res.status(500).json({ 
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error' 

@@ -14,6 +14,7 @@ import type { ChainConfig } from '../../../engine/src/chain/blockchain/types';
 import type { ReputationService } from './reputationService';
 import { getIdentityBridgeService } from '../../../engine/src/identity/identityBridgeService';
 import { fromCaip10, isEvmCaip10 } from '../../../engine/src/identity/caip10';
+import { logger } from '../../../engine/src/lib/logger';
 
 // =============================================================================
 // Types
@@ -99,11 +100,11 @@ export class ReputationAggregator {
    */
   startIndexing(intervalMs: number = 60_000): void {
     if (this.intervalHandle) {
-      console.log('[ReputationAggregator] Already running');
+      logger.info('[ReputationAggregator] Already running');
       return;
     }
 
-    console.log(`[ReputationAggregator] Starting indexing (interval: ${intervalMs}ms)`);
+    logger.info(`[ReputationAggregator] Starting indexing (interval: ${intervalMs}ms)`);
 
     // Initialize indexer states for chains with reputation registries
     for (const config of getEVMChains()) {
@@ -118,13 +119,13 @@ export class ReputationAggregator {
 
     // Run initial index
     this.indexAllChains().catch(err =>
-      console.error('[ReputationAggregator] Initial index error:', err)
+      logger.error('[ReputationAggregator] Initial index error:', err)
     );
 
     // Set up periodic polling
     this.intervalHandle = setInterval(() => {
       this.indexAllChains().catch(err =>
-        console.error('[ReputationAggregator] Polling error:', err)
+        logger.error('[ReputationAggregator] Polling error:', err)
       );
     }, intervalMs);
   }
@@ -136,7 +137,7 @@ export class ReputationAggregator {
     if (this.intervalHandle) {
       clearInterval(this.intervalHandle);
       this.intervalHandle = null;
-      console.log('[ReputationAggregator] Stopped indexing');
+      logger.info('[ReputationAggregator] Stopped indexing');
     }
   }
 
@@ -224,7 +225,7 @@ export class ReputationAggregator {
 
       state.lastIndexedBlock = currentBlock;
     } catch (error) {
-      console.error(`[ReputationAggregator] Error indexing ${chainId}:`, error);
+      logger.error(`[ReputationAggregator] Error indexing ${chainId}:`, error);
     } finally {
       state.isRunning = false;
     }
@@ -299,7 +300,7 @@ export class ReputationAggregator {
           extraCount = lucidSummary.feedbackCount;
         }
       } catch (err) {
-        console.warn(`[ReputationAggregator] ReputationService.getSummary failed for agentId="${agentId}", continuing with EVM data only:`, err);
+        logger.warn(`[ReputationAggregator] ReputationService.getSummary failed for agentId="${agentId}", continuing with EVM data only:`, err);
       }
     }
 
@@ -389,7 +390,7 @@ export class ReputationAggregator {
         }
       }
     } catch (err) {
-      console.warn(`[ReputationAggregator] Identity bridge resolution failed for passportId="${agentPassportId}", falling back to direct lookup:`, err);
+      logger.warn(`[ReputationAggregator] Identity bridge resolution failed for passportId="${agentPassportId}", falling back to direct lookup:`, err);
     }
 
     // If no bridge resolution found, check if agentPassportId is directly in the store
@@ -437,7 +438,7 @@ export class ReputationAggregator {
           nativeCount = summary.feedbackCount;
         }
       } catch (err) {
-        console.warn(`[ReputationAggregator] ReputationService.getSummary failed for passportId="${agentPassportId}", skipping native reputation merge:`, err);
+        logger.warn(`[ReputationAggregator] ReputationService.getSummary failed for passportId="${agentPassportId}", skipping native reputation merge:`, err);
       }
     }
 

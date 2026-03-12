@@ -14,6 +14,7 @@ import { Router, Request, Response } from 'express'
 import { verifyAdminAuth } from '../../middleware/adminAuth'
 import { getCurrentEpoch } from '../../../../engine/src/receipt/epochService'
 import pool from '../../../../engine/src/db/pool'
+import { logger } from '../../../../engine/src/lib/logger';
 
 const router = Router()
 
@@ -51,7 +52,7 @@ router.get('/v1/agents/:passportId/receipts', verifyAdminAuth, async (req: Reque
       total_pages: Math.ceil(total / perPage),
     })
   } catch (err) {
-    console.error('[agentMirrorRoutes] receipts query failed:', err)
+    logger.error('[agentMirrorRoutes] receipts query failed:', err)
     return res.status(500).json({ error: 'Failed to fetch receipts' })
   }
 })
@@ -78,7 +79,7 @@ router.get('/v1/agents/:passportId/epoch', verifyAdminAuth, async (req: Request,
     )
     dbEpoch = result.rows[0] || null
   } catch (err) {
-    console.error('[agentMirrorRoutes] epoch query failed:', err)
+    logger.error('[agentMirrorRoutes] epoch query failed:', err)
   }
 
   return res.json({
@@ -138,7 +139,7 @@ router.get('/v1/agents/:passportId/proof', verifyAdminAuth, async (req: Request,
       total_receipts: totalReceipts,
     })
   } catch (err) {
-    console.error('[agentMirrorRoutes] proof query failed:', err)
+    logger.error('[agentMirrorRoutes] proof query failed:', err)
     return res.status(500).json({ error: 'Failed to fetch proof' })
   }
 })
@@ -183,7 +184,7 @@ router.get('/v1/agents/:passportId/proof/:runId', verifyAdminAuth, async (req: R
       created_at: row.created_at,
     })
   } catch (err) {
-    console.error('[agentMirrorRoutes] proof/runId query failed:', err)
+    logger.error('[agentMirrorRoutes] proof/runId query failed:', err)
     return res.status(500).json({ error: 'Failed to fetch proof for run' })
   }
 })

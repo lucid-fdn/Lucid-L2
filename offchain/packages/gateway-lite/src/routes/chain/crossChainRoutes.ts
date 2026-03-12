@@ -7,6 +7,7 @@ import { CHAIN_CONFIGS } from '../../../../engine/src/chain/blockchain/chains';
 import { getReputationAggregator } from '../../reputation/reputationAggregator';
 import { getReceiptReputation, submitReceiptReputation } from '../../reputation/receiptReputationService';
 import { getReputationProvider } from '../../../../engine/src/reputation';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export const crossChainRouter = Router();
 
@@ -43,7 +44,7 @@ crossChainRouter.get('/v2/chains', async (_req, res) => {
       chains: allChains,
     });
   } catch (error) {
-    console.error('Error in GET /v2/chains:', error);
+    logger.error('Error in GET /v2/chains:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -95,7 +96,7 @@ crossChainRouter.get('/v2/chains/:chainId/status', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error in GET /v2/chains/:chainId/status:', error);
+    logger.error('Error in GET /v2/chains/:chainId/status:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -175,7 +176,7 @@ crossChainRouter.post('/v2/validate', async (req, res) => {
 
     return res.json(response);
   } catch (error) {
-    console.error('Error in POST /v2/validate:', error);
+    logger.error('Error in POST /v2/validate:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -254,7 +255,7 @@ crossChainRouter.post('/v2/route', async (req, res) => {
 
     return res.json(response);
   } catch (error) {
-    console.error('Error in POST /v2/route:', error);
+    logger.error('Error in POST /v2/route:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -304,7 +305,7 @@ crossChainRouter.post('/v2/agents/register', async (req, res) => {
       block_number: txReceipt.blockNumber,
     });
   } catch (error) {
-    console.error('Error in POST /v2/agents/register:', error);
+    logger.error('Error in POST /v2/agents/register:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -341,7 +342,7 @@ crossChainRouter.get('/v2/agents/:agentId/reputation', async (req, res) => {
       results,
     });
   } catch (error) {
-    console.error('Error in GET /v2/agents/:agentId/reputation:', error);
+    logger.error('Error in GET /v2/agents/:agentId/reputation:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -382,7 +383,7 @@ crossChainRouter.get('/v2/reputation/:agentId', async (req, res) => {
       ...unified,
     });
   } catch (error) {
-    console.error('Error in GET /v2/reputation/:agentId:', error);
+    logger.error('Error in GET /v2/reputation/:agentId:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -409,7 +410,7 @@ crossChainRouter.get('/v2/reputation/:agentId/breakdown', async (req, res) => {
       chains,
     });
   } catch (error) {
-    console.error('Error in GET /v2/reputation/:agentId/breakdown:', error);
+    logger.error('Error in GET /v2/reputation/:agentId/breakdown:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -434,7 +435,7 @@ crossChainRouter.get('/v2/reputation/:agentId/receipt-based', async (req, res) =
       ...score,
     });
   } catch (error) {
-    console.error('Error in GET /v2/reputation/:agentId/receipt-based:', error);
+    logger.error('Error in GET /v2/reputation/:agentId/receipt-based:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -466,7 +467,7 @@ crossChainRouter.post('/v2/reputation/:agentId/submit', async (req, res) => {
       error: result.error,
     });
   } catch (error) {
-    console.error('Error in POST /v2/reputation/:agentId/submit:', error);
+    logger.error('Error in POST /v2/reputation/:agentId/submit:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -489,7 +490,7 @@ crossChainRouter.get('/v2/reputation/indexer/status', async (_req, res) => {
       chains: status,
     });
   } catch (error) {
-    console.error('Error in GET /v2/reputation/indexer/status:', error);
+    logger.error('Error in GET /v2/reputation/indexer/status:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -522,7 +523,7 @@ crossChainRouter.post('/v2/payouts/execute', async (req, res) => {
       execution,
     });
   } catch (error) {
-    console.error('Error in POST /v2/payouts/execute:', error);
+    logger.error('Error in POST /v2/payouts/execute:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -558,7 +559,7 @@ crossChainRouter.get('/v2/payouts/:runId/execution', async (req, res) => {
       execution,
     });
   } catch (error) {
-    console.error('Error in GET /v2/payouts/:runId/execution:', error);
+    logger.error('Error in GET /v2/payouts/:runId/execution:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

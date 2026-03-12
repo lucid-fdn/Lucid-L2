@@ -12,6 +12,7 @@
 import { v4 as uuid } from 'uuid';
 import { getMmrRoot, getMmrLeafCount, listInferenceReceipts, InferenceReceipt } from './receiptService';
 import pool from '../db/pool';
+import { logger } from '../lib/logger';
 
 // =============================================================================
 // TYPES
@@ -35,6 +36,7 @@ export interface Epoch {
   start_leaf_index: number;   // First leaf index in this epoch
   end_leaf_index?: number;    // Last leaf index in this epoch (set on finalization)
   receipt_run_ids: string[];  // Run IDs of receipts in this epoch
+  retry_count: number;        // Number of times this epoch has been retried after failure
 }
 
 export interface EpochSummary {
@@ -117,8 +119,8 @@ export function getEpochConfig(): EpochConfig {
 async function persistEpochToDb(epoch: Epoch): Promise<void> {
   try {
     await pool.query(
-      `INSERT INTO epochs (epoch_id, epoch_index, project_id, agent_passport_id, status, mmr_root, leaf_count, start_leaf_index, end_leaf_index, chain_tx, error, finalized_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `INSERT INTO epochs (epoch_id, epoch_index, project_id, agent_passport_id, status, mmr_root, leaf_count, start_leaf_index, end_leaf_index, chain_tx, error, finalized_at, retry_count)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        ON CONFLICT (epoch_id) DO UPDATE SET
          status = EXCLUDED.status,
          mmr_root = EXCLUDED.mmr_root,
@@ -126,7 +128,8 @@ async function persistEpochToDb(epoch: Epoch): Promise<void> {
          end_leaf_index = EXCLUDED.end_leaf_index,
          chain_tx = EXCLUDED.chain_tx,
          error = EXCLUDED.error,
-         finalized_at = EXCLUDED.finalized_at`,
+         finalized_at = EXCLUDED.finalized_at,
+         retry_count = EXCLUDED.retry_count`,
       [
         epoch.epoch_id,
         epoch.epoch_index,
@@ -140,10 +143,11 @@ async function persistEpochToDb(epoch: Epoch): Promise<void> {
         epoch.chain_tx ? JSON.stringify(epoch.chain_tx) : null,
         epoch.error || null,
         epoch.finalized_at ? new Date(epoch.finalized_at * 1000) : null,
+        epoch.retry_count || 0,
       ]
     );
   } catch (err) {
-    console.warn('[EpochService] DB persist failed (non-blocking):', err instanceof Error ? err.message : err);
+    logger.warn('[EpochService] DB persist failed (non-blocking):', err instanceof Error ? err.message : err);
   }
 }
 
@@ -154,7 +158,7 @@ async function persistEpochReceiptToDb(epoch_id: string, receipt_hash: string): 
       [epoch_id, receipt_hash]
     );
   } catch (err) {
-    console.warn('[EpochService] DB epoch_receipt persist failed (non-blocking):', err instanceof Error ? err.message : err);
+    logger.warn('[EpochService] DB epoch_receipt persist failed (non-blocking):', err instanceof Error ? err.message : err);
   }
 }
 
@@ -164,8 +168,9 @@ export async function loadEpochsFromDb(): Promise<number> {
       `SELECT epoch_id, epoch_index, project_id, status, mmr_root, leaf_count,
               start_leaf_index, end_leaf_index, chain_tx, error,
               EXTRACT(EPOCH FROM created_at)::integer as created_at_unix,
-              EXTRACT(EPOCH FROM finalized_at)::integer as finalized_at_unix
-       FROM epochs WHERE status IN ('open', 'anchoring')
+              EXTRACT(EPOCH FROM finalized_at)::integer as finalized_at_unix,
+              COALESCE(retry_count, 0) as retry_count
+       FROM epochs WHERE status IN ('open', 'anchoring', 'failed')
        ORDER BY epoch_index ASC`
     );
 
@@ -191,6 +196,7 @@ export async function loadEpochsFromDb(): Promise<number> {
         chain_tx: row.chain_tx ? (typeof row.chain_tx === 'string' ? JSON.parse(row.chain_tx) : row.chain_tx) : undefined,
         error: row.error || undefined,
         receipt_run_ids: receiptsResult.rows.map((r: any) => r.run_id),
+        retry_count: parseInt(row.retry_count, 10) || 0,
       };
 
       epochStore.set(epoch.epoch_id, epoch);
@@ -205,7 +211,7 @@ export async function loadEpochsFromDb(): Promise<number> {
     }
     return loaded;
   } catch (err) {
-    console.warn('[EpochService] DB load failed (continuing with in-memory):', err instanceof Error ? err.message : err);
+    logger.warn('[EpochService] DB load failed (continuing with in-memory):', err instanceof Error ? err.message : err);
     return 0;
   }
 }
@@ -248,6 +254,7 @@ export function createEpoch(project_id?: string): Epoch {
     status: 'open',
     start_leaf_index: currentLeafCount,
     receipt_run_ids: [],
+    retry_count: 0,
   };
 
   // Store epoch
@@ -425,12 +432,12 @@ export async function prepareEpochForFinalization(epoch_id: string): Promise<Epo
     const lockResult = await client.query('SELECT pg_try_advisory_lock($1) AS acquired', [lockKey]);
     if (!lockResult.rows[0]?.acquired) {
       // Another instance is already finalizing this epoch
-      console.warn(`[EpochService] Advisory lock not acquired for epoch ${epoch_id} — another instance is finalizing`);
+      logger.warn(`[EpochService] Advisory lock not acquired for epoch ${epoch_id} — another instance is finalizing`);
       return null;
     }
   } catch (err) {
     // DB unavailable — fall through to in-memory-only path (safe for single-instance)
-    console.warn('[EpochService] Advisory lock unavailable, proceeding with in-memory guard:', err instanceof Error ? err.message : err);
+    logger.warn('[EpochService] Advisory lock unavailable, proceeding with in-memory guard:', err instanceof Error ? err.message : err);
   }
 
   try {
@@ -549,6 +556,7 @@ export function retryEpoch(epoch_id: string): Epoch | null {
 
   // Reset to open
   epoch.status = 'open';
+  epoch.retry_count = (epoch.retry_count || 0) + 1;
   delete epoch.error;
   delete epoch.finalized_at;
 
@@ -557,6 +565,9 @@ export function retryEpoch(epoch_id: string): Epoch | null {
   if (!activeEpochs.has(activeKey)) {
     activeEpochs.set(activeKey, epoch);
   }
+
+  // Persist to DB (non-blocking)
+  persistEpochToDb(epoch).catch(() => {});
 
   return epoch;
 }
@@ -575,6 +586,14 @@ export function getEpochsReadyForFinalization(): Epoch[] {
   }
 
   return ready;
+}
+
+/**
+ * Get all epochs with 'failed' status.
+ * Used by the anchoring job to retry failed epochs.
+ */
+export function getFailedEpochs(): Epoch[] {
+  return Array.from(epochStore.values()).filter(e => e.status === 'failed');
 }
 
 /**
@@ -633,38 +652,38 @@ export function setAnchorCallback(callback: AnchorCallback): void {
  */
 export function startAutoFinalization(intervalMs: number = 60000): void {
   if (finalizationInterval) {
-    console.warn('[EpochService] Auto-finalization already running');
+    logger.warn('[EpochService] Auto-finalization already running');
     return;
   }
 
-  console.log(`[EpochService] Starting auto-finalization scheduler (interval: ${intervalMs}ms)`);
+  logger.info(`[EpochService] Starting auto-finalization scheduler (interval: ${intervalMs}ms)`);
 
   finalizationInterval = setInterval(async () => {
     const readyEpochs = getEpochsReadyForFinalization();
     
     if (readyEpochs.length === 0) return;
 
-    console.log(`[EpochService] Found ${readyEpochs.length} epoch(s) ready for finalization`);
+    logger.info(`[EpochService] Found ${readyEpochs.length} epoch(s) ready for finalization`);
 
     for (const epoch of readyEpochs) {
       const reason = shouldFinalizeEpoch(epoch);
-      console.log(`[EpochService] Finalizing epoch ${epoch.epoch_id} (reason: ${reason.reason})`);
+      logger.info(`[EpochService] Finalizing epoch ${epoch.epoch_id} (reason: ${reason.reason})`);
 
       if (anchorCallback) {
         try {
           const result = await anchorCallback(epoch.epoch_id);
           if (result.success) {
-            console.log(`[EpochService] Epoch ${epoch.epoch_id} anchored successfully`);
+            logger.info(`[EpochService] Epoch ${epoch.epoch_id} anchored successfully`);
           } else {
-            console.error(`[EpochService] Failed to anchor epoch ${epoch.epoch_id}: ${result.error}`);
+            logger.error(`[EpochService] Failed to anchor epoch ${epoch.epoch_id}: ${result.error}`);
           }
         } catch (error) {
-          console.error(`[EpochService] Error anchoring epoch ${epoch.epoch_id}:`, error);
+          logger.error(`[EpochService] Error anchoring epoch ${epoch.epoch_id}:`, error);
         }
       } else {
         // No anchor callback - just prepare epoch (mock mode)
         const prepared = await prepareEpochForFinalization(epoch.epoch_id);
-        console.log(`[EpochService] Epoch ${epoch.epoch_id} prepared for finalization (no anchor callback)`);
+        logger.info(`[EpochService] Epoch ${epoch.epoch_id} prepared for finalization (no anchor callback)`);
       }
     }
   }, intervalMs);
@@ -677,7 +696,7 @@ export function stopAutoFinalization(): void {
   if (finalizationInterval) {
     clearInterval(finalizationInterval);
     finalizationInterval = null;
-    console.log('[EpochService] Auto-finalization scheduler stopped');
+    logger.info('[EpochService] Auto-finalization scheduler stopped');
   }
 }
 

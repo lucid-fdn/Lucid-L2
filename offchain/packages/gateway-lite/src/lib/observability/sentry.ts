@@ -6,6 +6,7 @@
 
 import * as Sentry from '@sentry/node'
 import type { Application } from 'express'
+import { logger } from '../../../../engine/src/lib/logger';
 
 /**
  * Initialize Sentry SDK.  Must be called as early as possible so that the
@@ -17,7 +18,7 @@ import type { Application } from 'express'
 export function initSentry(): void {
   const dsn = process.env.SENTRY_DSN
   if (!dsn) {
-    console.warn('[sentry] No SENTRY_DSN - disabled')
+    logger.warn('[sentry] No SENTRY_DSN - disabled')
     return
   }
 
@@ -40,7 +41,7 @@ export function initSentry(): void {
     },
   })
 
-  console.log('[sentry] Initialized for lucid-l2')
+  logger.info('[sentry] Initialized for lucid-l2')
 }
 
 /**

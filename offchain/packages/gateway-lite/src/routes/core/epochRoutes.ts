@@ -16,6 +16,7 @@ import {
   getAnchorTransaction,
   checkAnchoringHealth,
 } from '../../../../engine/src/receipt/anchoringService';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export const epochRouter = Router();
 
@@ -44,7 +45,7 @@ epochRouter.get('/v1/epochs/current', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error in GET /v1/epochs/current:', error);
+    logger.error('Error in GET /v1/epochs/current:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -65,7 +66,7 @@ epochRouter.get('/v1/epochs/stats', async (_req, res) => {
       stats,
     });
   } catch (error) {
-    console.error('Error in GET /v1/epochs/stats:', error);
+    logger.error('Error in GET /v1/epochs/stats:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -94,7 +95,7 @@ epochRouter.get('/v1/epochs/ready', async (_req, res) => {
       })),
     });
   } catch (error) {
-    console.error('Error in GET /v1/epochs/ready:', error);
+    logger.error('Error in GET /v1/epochs/ready:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -135,7 +136,7 @@ epochRouter.get('/v1/epochs/:epoch_id', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error in GET /v1/epochs/:epoch_id:', error);
+    logger.error('Error in GET /v1/epochs/:epoch_id:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -174,7 +175,7 @@ epochRouter.get('/v1/epochs', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error in GET /v1/epochs:', error);
+    logger.error('Error in GET /v1/epochs:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -203,7 +204,7 @@ epochRouter.post('/v1/epochs', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error in POST /v1/epochs:', error);
+    logger.error('Error in POST /v1/epochs:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -235,7 +236,7 @@ epochRouter.post('/v1/epochs/:epoch_id/retry', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error in POST /v1/epochs/:epoch_id/retry:', error);
+    logger.error('Error in POST /v1/epochs/:epoch_id/retry:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -319,7 +320,7 @@ epochRouter.post('/v1/receipts/commit-root', async (req, res) => {
       leaf_count: currentEpoch.leaf_count,
     });
   } catch (error) {
-    console.error('Error in POST /v1/receipts/commit-root:', error);
+    logger.error('Error in POST /v1/receipts/commit-root:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -366,7 +367,7 @@ epochRouter.post('/v1/receipts/commit-roots-batch', async (req, res) => {
       results,
     });
   } catch (error) {
-    console.error('Error in POST /v1/receipts/commit-roots-batch:', error);
+    logger.error('Error in POST /v1/receipts/commit-roots-batch:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -392,7 +393,7 @@ epochRouter.get('/v1/epochs/:epoch_id/verify', async (req, res) => {
       error: result.error,
     });
   } catch (error) {
-    console.error('Error in GET /v1/epochs/:epoch_id/verify:', error);
+    logger.error('Error in GET /v1/epochs/:epoch_id/verify:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -423,7 +424,7 @@ epochRouter.get('/v1/epochs/:epoch_id/transaction', async (req, res) => {
       block_time: result.block_time,
     });
   } catch (error) {
-    console.error('Error in GET /v1/epochs/:epoch_id/transaction:', error);
+    logger.error('Error in GET /v1/epochs/:epoch_id/transaction:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -445,7 +446,7 @@ epochRouter.get('/v1/anchoring/health', async (_req, res) => {
       ...health,
     });
   } catch (error) {
-    console.error('Error in GET /v1/anchoring/health:', error);
+    logger.error('Error in GET /v1/anchoring/health:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',

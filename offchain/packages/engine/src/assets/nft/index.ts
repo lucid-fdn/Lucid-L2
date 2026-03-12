@@ -2,6 +2,7 @@
 // Factory for NFT providers — singleton pattern matching codebase conventions
 
 import { INFTProvider } from './INFTProvider';
+import { logger } from '../../lib/logger';
 
 export { INFTProvider, MintResult, NFTMetadata } from './INFTProvider';
 
@@ -36,7 +37,7 @@ export function getNFTProvider(): INFTProvider {
         break;
       }
     }
-    console.log(`[NFT] Provider: ${nftSingleton!.providerName} (${nftSingleton!.chain})`);
+    logger.info(`[NFT] Provider: ${nftSingleton!.providerName} (${nftSingleton!.chain})`);
   }
   return nftSingleton!;
 }

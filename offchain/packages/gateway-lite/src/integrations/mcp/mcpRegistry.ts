@@ -5,6 +5,7 @@
 
 import axios from 'axios';
 import { MCPTool, MCPToolExecuteRequest, MCPToolExecuteResponse } from './mcpTypes';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export class MCPToolRegistry {
   private tools: Map<string, MCPTool> = new Map();
@@ -25,7 +26,7 @@ export class MCPToolRegistry {
       return;
     }
 
-    console.log('🔍 Discovering MCP tools...');
+    logger.info('🔍 Discovering MCP tools...');
 
     // Default tool ports
     const toolPorts = [
@@ -40,12 +41,12 @@ export class MCPToolRegistry {
       try {
         await this.discoverTool(name, port);
       } catch (error: any) {
-        console.warn(`⚠️  Failed to discover tool ${name} on port ${port}:`, error.message);
+        logger.warn(`⚠️  Failed to discover tool ${name} on port ${port}:`, error.message);
       }
     }
 
     this.initialized = true;
-    console.log(`✅ Discovered ${this.tools.size} MCP tools`);
+    logger.info(`✅ Discovered ${this.tools.size} MCP tools`);
   }
 
   /**
@@ -76,9 +77,9 @@ export class MCPToolRegistry {
       };
 
       this.tools.set(tool.name, tool);
-      console.log(`  ✓ Discovered: ${tool.name} (${tool.type}) - ${tool.operations.length} operations`);
+      logger.info(`  ✓ Discovered: ${tool.name} (${tool.type}) - ${tool.operations.length} operations`);
     } catch (error: any) {
-      console.error(`  ✗ Failed to discover ${name}:`, error.message);
+      logger.error(`  ✗ Failed to discover ${name}:`, error.message);
       
       // Register as unavailable
       this.tools.set(name, {
@@ -155,7 +156,7 @@ export class MCPToolRegistry {
         };
       }
 
-      console.log(`🔧 Executing: ${toolName}.${operation}`);
+      logger.info(`🔧 Executing: ${toolName}.${operation}`);
 
       // For placeholder tools, return simulated responses
       // In production, this would call the actual MCP server endpoint

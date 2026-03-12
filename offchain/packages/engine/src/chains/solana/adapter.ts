@@ -32,6 +32,7 @@ import type {
 import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter, IGasAdapter, IIdentityAdapter, IValidationAdapter, ChainCapabilities } from '../domain-interfaces';
 import { ChainFeatureUnavailable } from '../../errors';
 import { SolanaPassportClient } from '../../passport/nft/solana-token2022';
+import { logger } from '../../lib/logger';
 
 // =============================================================================
 // ANCHOR INSTRUCTION DISCRIMINATORS
@@ -120,7 +121,7 @@ export class SolanaAdapter implements IBlockchainAdapter {
     );
 
     this._connected = true;
-    console.log(`SolanaAdapter connected: ${config.name} (chainId: ${config.chainId})`);
+    logger.info(`SolanaAdapter connected: ${config.name} (chainId: ${config.chainId})`);
   }
 
   async disconnect(): Promise<void> {
@@ -336,7 +337,7 @@ export class SolanaAdapter implements IBlockchainAdapter {
       { commitment: this._commitment, maxRetries: 2 },
     );
 
-    console.log(`[SolanaAdapter] createAgentWallet: PDA=${walletPda.toBase58()} tx=${signature}`);
+    logger.info(`[SolanaAdapter] createAgentWallet: PDA=${walletPda.toBase58()} tx=${signature}`);
     return { walletPda: walletPda.toBase58(), txHash: signature };
   }
 
@@ -417,7 +418,7 @@ export class SolanaAdapter implements IBlockchainAdapter {
       { commitment: this._commitment, maxRetries: 2 },
     );
 
-    console.log(`[SolanaAdapter] setPolicy: wallet=${walletPda} tx=${signature}`);
+    logger.info(`[SolanaAdapter] setPolicy: wallet=${walletPda} tx=${signature}`);
     return { txHash: signature };
   }
 
@@ -516,7 +517,7 @@ export class SolanaAdapter implements IBlockchainAdapter {
       { commitment: this._commitment, maxRetries: 2 },
     );
 
-    console.log(`[SolanaAdapter] createEscrow: escrow=${escrowPda.toBase58()} tx=${signature}`);
+    logger.info(`[SolanaAdapter] createEscrow: escrow=${escrowPda.toBase58()} tx=${signature}`);
     return { escrowPda: escrowPda.toBase58(), txHash: signature };
   }
 
@@ -601,7 +602,7 @@ export class SolanaAdapter implements IBlockchainAdapter {
       { commitment: this._commitment, maxRetries: 2 },
     );
 
-    console.log(`[SolanaAdapter] releaseEscrow: escrow=${escrowPda} tx=${signature}`);
+    logger.info(`[SolanaAdapter] releaseEscrow: escrow=${escrowPda} tx=${signature}`);
     return { txHash: signature };
   }
 
@@ -1140,7 +1141,7 @@ export class SolanaAdapter implements IBlockchainAdapter {
           { commitment, maxRetries: 2 },
         );
 
-        console.log(`[SolanaAdapter] createSession: wallet=${walletAddress} delegate=${delegate} tx=${signature}`);
+        logger.info(`[SolanaAdapter] createSession: wallet=${walletAddress} delegate=${delegate} tx=${signature}`);
         return { hash: signature, chainId, success: true };
       },
 
@@ -1183,7 +1184,7 @@ export class SolanaAdapter implements IBlockchainAdapter {
           { commitment, maxRetries: 2 },
         );
 
-        console.log(`[SolanaAdapter] revokeSession: wallet=${walletAddress} delegate=${delegate} tx=${signature}`);
+        logger.info(`[SolanaAdapter] revokeSession: wallet=${walletAddress} delegate=${delegate} tx=${signature}`);
         return { hash: signature, chainId, success: true };
       },
     };
@@ -1241,7 +1242,7 @@ export class SolanaAdapter implements IBlockchainAdapter {
         }
 
         const sig = await sendAndConfirmTransaction(conn, transaction, [keypair], { commitment: adapter._commitment, maxRetries: 2 });
-        console.log(`[SolanaAdapter] gas.collectAndSplit: burn=${burnAmount} distribute=${distributeAmount} tx=${sig}`);
+        logger.info(`[SolanaAdapter] gas.collectAndSplit: burn=${burnAmount} distribute=${distributeAmount} tx=${sig}`);
         return { hash: sig, chainId, success: true };
       },
     };
@@ -1272,7 +1273,7 @@ export class SolanaAdapter implements IBlockchainAdapter {
         try {
           return Keypair.fromSecretKey(bs58.decode(privateKey));
         } catch {
-          console.warn('Failed to parse SOLANA_PRIVATE_KEY');
+          logger.warn('Failed to parse SOLANA_PRIVATE_KEY');
         }
       }
     }
@@ -1285,7 +1286,7 @@ export class SolanaAdapter implements IBlockchainAdapter {
         const bytes = JSON.parse(data);
         return Keypair.fromSecretKey(Uint8Array.from(bytes));
       } catch {
-        console.warn(`Failed to load keypair from ANCHOR_WALLET: ${walletPath}`);
+        logger.warn(`Failed to load keypair from ANCHOR_WALLET: ${walletPath}`);
       }
     }
 

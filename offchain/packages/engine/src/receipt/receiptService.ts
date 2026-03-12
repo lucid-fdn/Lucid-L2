@@ -17,7 +17,7 @@ import { v4 as uuid } from 'uuid';
 import { canonicalSha256Hex } from '../crypto/hash';
 import { validateWithSchema } from '../crypto/schemaValidator';
 import { signMessage, verifySignature, getOrchestratorPublicKey } from '../crypto/signing';
-import { getReceiptTree, MerkleTree, MerkleProof } from '../crypto/merkleTree';
+import { getReceiptMMR, ReceiptMMR, SerializedMMRProof } from '../crypto/receiptMMR';
 import pool from '../db/pool';
 import type {
   ExecutionMode,
@@ -28,6 +28,7 @@ import type {
   ReceiptMetrics,
   ReceiptBilling,
 } from '../types/fluidCompute';
+import { logger } from '../lib/logger';
 
 /**
  * Receipt body - the data that gets hashed for receipt_hash.
@@ -527,8 +528,8 @@ const idempotencyStore = new Map<string, string>();
 async function persistReceiptToDb(receipt: InferenceReceipt): Promise<void> {
   try {
     await pool.query(
-      `INSERT INTO receipts (receipt_hash, signature, signer_pubkey, signer_type, body, run_id, anchor_chain, anchor_tx, anchor_root, anchor_epoch_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO receipts (receipt_hash, signature, signer_pubkey, signer_type, body, run_id, leaf_index, anchor_chain, anchor_tx, anchor_root, anchor_epoch_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        ON CONFLICT (receipt_hash) DO NOTHING`,
       [
         receipt.receipt_hash,
@@ -547,6 +548,7 @@ async function persistReceiptToDb(receipt: InferenceReceipt): Promise<void> {
           metrics: receipt.metrics,
         }),
         receipt.run_id,
+        receipt._mmr_leaf_index ?? null,
         receipt.anchor?.chain || null,
         receipt.anchor?.tx || null,
         receipt.anchor?.root || null,
@@ -554,7 +556,7 @@ async function persistReceiptToDb(receipt: InferenceReceipt): Promise<void> {
       ]
     );
   } catch (err) {
-    console.warn('[ReceiptService] DB persist failed (non-blocking):', err instanceof Error ? err.message : err);
+    logger.warn('[ReceiptService] DB persist failed (non-blocking):', err instanceof Error ? err.message : err);
   }
 }
 
@@ -562,7 +564,7 @@ async function loadReceiptFromDb(run_id: string): Promise<InferenceReceipt | nul
   try {
     const result = await pool.query(
       `SELECT receipt_hash, signature, signer_pubkey, signer_type, body, run_id,
-              anchor_chain, anchor_tx, anchor_root, anchor_epoch_id
+              leaf_index, anchor_chain, anchor_tx, anchor_root, anchor_epoch_id
        FROM receipts WHERE run_id = $1 LIMIT 1`,
       [run_id]
     );
@@ -576,6 +578,7 @@ async function loadReceiptFromDb(run_id: string): Promise<InferenceReceipt | nul
       receipt_signature: row.signature,
       signer_pubkey: row.signer_pubkey,
       signer_type: row.signer_type,
+      _mmr_leaf_index: row.leaf_index ?? undefined,
       ...(row.anchor_chain ? {
         anchor: {
           chain: row.anchor_chain,
@@ -714,9 +717,9 @@ export function createInferenceReceipt(input: InferenceReceiptInput, idempotency
     throw new Error('Invalid receipt schema: ' + JSON.stringify(v.errors));
   }
 
-  // Add to Merkle tree
-  const tree = getReceiptTree();
-  const leafIndex = tree.addLeaf(receipt_hash);
+  // Add to MMR
+  const mmr = getReceiptMMR();
+  const leafIndex = mmr.addLeaf(receipt_hash);
   signed._mmr_leaf_index = leafIndex;
 
   // Phase 3: Optionally attach zkML proof if enabled
@@ -814,17 +817,16 @@ export function verifyInferenceReceipt(run_id: string): ReceiptVerifyResult {
     receipt.signer_pubkey
   );
 
-  // Verify Merkle inclusion
+  // Verify MMR inclusion
   let inclusion_valid: boolean | undefined;
   let merkle_root: string | undefined;
-  
+
   if (receipt._mmr_leaf_index !== undefined) {
-    const tree = getReceiptTree();
-    const proof = tree.getProof(receipt._mmr_leaf_index);
+    const mmr = getReceiptMMR();
+    const proof = mmr.getProof(receipt._mmr_leaf_index);
     if (proof) {
-      const result = MerkleTree.verifyProof(proof);
-      inclusion_valid = result.valid;
-      merkle_root = result.expectedRoot;
+      inclusion_valid = ReceiptMMR.verifyProof(proof);
+      merkle_root = proof.root;
     }
   }
 
@@ -841,43 +843,35 @@ export function verifyInferenceReceipt(run_id: string): ReceiptVerifyResult {
 /**
  * Get inclusion proof for a receipt.
  */
-export function getInferenceReceiptProof(run_id: string): MerkleProof | null {
+export function getInferenceReceiptProof(run_id: string): SerializedMMRProof | null {
   const receipt = receiptStore.get(run_id);
   if (!receipt || receipt.receipt_type !== 'inference' || receipt._mmr_leaf_index === undefined) {
     return null;
   }
 
-  const tree = getReceiptTree();
-  return tree.getProof(receipt._mmr_leaf_index);
+  const mmr = getReceiptMMR();
+  return mmr.getProof(receipt._mmr_leaf_index);
 }
 
 /**
  * Verify an inclusion proof against the current or specific root.
  */
-export function verifyReceiptProof(proof: MerkleProof, expectedRoot?: string): boolean {
-  if (expectedRoot) {
-    const result = MerkleTree.verifyProofAgainstRoot(proof, expectedRoot);
-    return result.valid;
-  }
-  
-  const result = MerkleTree.verifyProof(proof);
-  return result.valid;
+export function verifyReceiptProof(proof: SerializedMMRProof, expectedRoot?: string): boolean {
+  return ReceiptMMR.verifyProof(proof, expectedRoot);
 }
 
 /**
- * Get the current Merkle root.
+ * Get the current MMR root.
  */
 export function getMmrRoot(): string {
-  const tree = getReceiptTree();
-  return tree.getRoot();
+  return getReceiptMMR().getRoot();
 }
 
 /**
- * Get the number of receipts in the tree.
+ * Get the number of receipts in the MMR.
  */
 export function getMmrLeafCount(): number {
-  const tree = getReceiptTree();
-  return tree.getLeafCount();
+  return getReceiptMMR().getLeafCount();
 }
 
 /**
@@ -1284,9 +1278,9 @@ export function createComputeReceipt(
     throw new Error('Invalid extended receipt schema: ' + JSON.stringify(v.errors));
   }
 
-  // Add to Merkle tree
-  const tree = getReceiptTree();
-  const leafIndex = tree.addLeaf(receipt_hash);
+  // Add to MMR
+  const mmr = getReceiptMMR();
+  const leafIndex = mmr.addLeaf(receipt_hash);
   signed._mmr_leaf_index = leafIndex;
 
   // Store receipt
@@ -1329,17 +1323,16 @@ export function verifyComputeReceipt(run_id: string): ReceiptVerifyResult {
     receipt.signer_pubkey
   );
 
-  // Verify Merkle inclusion
+  // Verify MMR inclusion
   let inclusion_valid: boolean | undefined;
   let merkle_root: string | undefined;
-  
+
   if (receipt._mmr_leaf_index !== undefined) {
-    const tree = getReceiptTree();
-    const proof = tree.getProof(receipt._mmr_leaf_index);
+    const mmr = getReceiptMMR();
+    const proof = mmr.getProof(receipt._mmr_leaf_index);
     if (proof) {
-      const result = MerkleTree.verifyProof(proof);
-      inclusion_valid = result.valid;
-      merkle_root = result.expectedRoot;
+      inclusion_valid = ReceiptMMR.verifyProof(proof);
+      merkle_root = proof.root;
     }
   }
 
@@ -1543,9 +1536,9 @@ function createReceiptGeneric<TBody extends { run_id: string }, TReceipt extends
     signer_type: opts.signerType || 'orchestrator',
   } as unknown as TReceipt;
 
-  // Add to Merkle tree
-  const tree = getReceiptTree();
-  const leafIndex = tree.addLeaf(receipt_hash);
+  // Add to MMR
+  const mmr = getReceiptMMR();
+  const leafIndex = mmr.addLeaf(receipt_hash);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (signed as any)._mmr_leaf_index = leafIndex;
 
@@ -1721,12 +1714,11 @@ export function verifyReceipt(run_id: string): ReceiptVerifyResult {
   let merkle_root: string | undefined;
 
   if (receipt._mmr_leaf_index !== undefined) {
-    const tree = getReceiptTree();
-    const proof = tree.getProof(receipt._mmr_leaf_index);
+    const mmr = getReceiptMMR();
+    const proof = mmr.getProof(receipt._mmr_leaf_index);
     if (proof) {
-      const result = MerkleTree.verifyProof(proof);
-      inclusion_valid = result.valid;
-      merkle_root = result.expectedRoot;
+      inclusion_valid = ReceiptMMR.verifyProof(proof);
+      merkle_root = proof.root;
     }
   }
 
@@ -1743,14 +1735,14 @@ export function verifyReceipt(run_id: string): ReceiptVerifyResult {
 /**
  * Get inclusion proof for any receipt.
  */
-export function getReceiptProof(run_id: string): MerkleProof | null {
+export function getReceiptProof(run_id: string): SerializedMMRProof | null {
   const receipt = receiptStore.get(run_id);
   if (!receipt || receipt._mmr_leaf_index === undefined) {
     return null;
   }
 
-  const tree = getReceiptTree();
-  return tree.getProof(receipt._mmr_leaf_index);
+  const mmr = getReceiptMMR();
+  return mmr.getProof(receipt._mmr_leaf_index);
 }
 
 /**

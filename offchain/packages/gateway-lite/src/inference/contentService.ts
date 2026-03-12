@@ -1,5 +1,6 @@
 // services/contentService.ts
 import { createHash } from 'crypto';
+import { logger } from '../../../engine/src/lib/logger';
 
 /**
  * Content addressing and IPFS service for Lucid Passports
@@ -9,7 +10,7 @@ export class ContentService {
     private ipfsEnabled: boolean = false;
 
     constructor() {
-        console.warn('⚠️  Using mock CIDs (IPFS disabled for now)');
+        logger.warn('⚠️  Using mock CIDs (IPFS disabled for now)');
     }
 
     /**
@@ -57,7 +58,7 @@ export class ContentService {
     async uploadToIPFS(content: string | Buffer): Promise<string> {
         const contentString = typeof content === 'string' ? content : content.toString();
         const mockCid = this.generateMockCID(contentString);
-        console.log(`📦 Generated mock CID: ${mockCid.substring(0, 20)}...`);
+        logger.info(`📦 Generated mock CID: ${mockCid.substring(0, 20)}...`);
         return mockCid;
     }
 

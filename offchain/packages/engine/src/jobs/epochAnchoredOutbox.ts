@@ -1,3 +1,5 @@
+import { logger } from '../lib/logger';
+
 /**
  * Epoch Anchored Outbox
  *
@@ -34,6 +36,6 @@ export async function writeEpochAnchoredEvent(event: EpochAnchoredEvent): Promis
     );
   } catch (err) {
     // Best-effort: outbox write failure should not block anchoring
-    console.warn(`[EpochOutbox] Failed to write event for ${event.epoch_id}:`, err);
+    logger.warn(`[EpochOutbox] Failed to write event for ${event.epoch_id}:`, err);
   }
 }

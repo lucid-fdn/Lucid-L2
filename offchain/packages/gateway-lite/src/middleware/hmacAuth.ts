@@ -6,6 +6,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import { logger } from '../../../engine/src/lib/logger';
 
 export interface HmacRequest extends Request {
   hmacVerified?: boolean;
@@ -86,7 +87,7 @@ export function verifyHmacSignature(
     // Get shared secret
     const secret = process.env.N8N_HMAC_SECRET;
     if (!secret) {
-      console.error('❌ N8N_HMAC_SECRET not configured');
+      logger.error('❌ N8N_HMAC_SECRET not configured');
       return res.status(500).json({
         error: 'Server misconfiguration',
         message: 'HMAC authentication not properly configured'
@@ -117,7 +118,7 @@ export function verifyHmacSignature(
     const isValid = crypto.timingSafeEqual(signatureBuffer, expectedBuffer);
     
     if (!isValid) {
-      console.warn('⚠️ HMAC signature verification failed', {
+      logger.warn('⚠️ HMAC signature verification failed', {
         endpoint: req.path,
         timestamp: timestamp,
         nonce: nonce.substring(0, 8) + '...'
@@ -136,7 +137,7 @@ export function verifyHmacSignature(
 
     next();
   } catch (error) {
-    console.error('HMAC verification error:', error);
+    logger.error('HMAC verification error:', error);
     res.status(500).json({
       error: 'HMAC verification failed',
       message: error instanceof Error ? error.message : 'Unknown error'

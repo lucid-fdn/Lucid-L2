@@ -2,6 +2,7 @@
 // Factory for token launchers — singleton pattern
 
 import { ITokenLauncher } from './ITokenLauncher';
+import { logger } from '../../lib/logger';
 
 export { ITokenLauncher, TokenLaunchResult, TokenLaunchParams, TokenInfo } from './ITokenLauncher';
 
@@ -31,7 +32,7 @@ export function getTokenLauncher(): ITokenLauncher {
         break;
       }
     }
-    console.log(`[Shares] Token launcher: ${launcherSingleton!.providerName}`);
+    logger.info(`[Shares] Token launcher: ${launcherSingleton!.providerName}`);
   }
   return launcherSingleton!;
 }

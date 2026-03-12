@@ -1,6 +1,7 @@
 import express from 'express';
 import { getMMRService, AgentEpochData } from '../../../../engine/src/receipt/mmrService';
 import { FlowSpec, FlowExecutionContext } from '../../../../contrib/integrations/flowspec/types';
+import { logger } from '../../../../engine/src/lib/logger';
 
 export const agentOrchestratorApiRouter = express.Router();
 
@@ -37,7 +38,7 @@ async function handleAgentInit(req: express.Request, res: express.Response) {
       message: depinCid ? `Agent loaded from DePIN: ${depinCid}` : 'New agent initialized'
     });
   } catch (error) {
-    console.error('Error in handleAgentInit:', error);
+    logger.error('Error in handleAgentInit:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -103,7 +104,7 @@ async function handleAgentEpoch(req: express.Request, res: express.Response) {
       message: `Epoch ${finalEpochNumber} processed successfully for agent ${agentId}`
     });
   } catch (error) {
-    console.error('Error in handleAgentEpoch:', error);
+    logger.error('Error in handleAgentEpoch:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -182,7 +183,7 @@ async function handleAgentBatchEpochs(req: express.Request, res: express.Respons
       message: `Successfully processed ${results.length} epochs across ${new Set(validEpochs.map(e => e.agentId)).size} agents`
     });
   } catch (error) {
-    console.error('Error in handleAgentBatchEpochs:', error);
+    logger.error('Error in handleAgentBatchEpochs:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -226,12 +227,12 @@ async function handleAgentProof(req: express.Request, res: express.Response) {
 
     const mmrService = getMMRService();
 
-    console.log(`🔍 API: Proof request for agent ${agentId}, epoch ${epochNumber}, vector: "${vectorText}"`);
+    logger.info(`🔍 API: Proof request for agent ${agentId}, epoch ${epochNumber}, vector: "${vectorText}"`);
 
     const proofResult = await mmrService.generateContributionProof(agentId, vectorText, epochNumber);
 
     if (!proofResult) {
-      console.log(`❌ API: No proof result returned from MMR service`);
+      logger.info(`❌ API: No proof result returned from MMR service`);
       return res.status(404).json({
         success: false,
         error: `No proof found for vector "${vectorText}" in epoch ${epochNumber} for agent ${agentId}`
@@ -248,7 +249,7 @@ async function handleAgentProof(req: express.Request, res: express.Response) {
       message: `Proof generated and ${proofResult.verified ? 'verified' : 'failed verification'}`
     });
   } catch (error) {
-    console.error('Error in handleAgentProof:', error);
+    logger.error('Error in handleAgentProof:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -287,7 +288,7 @@ async function handleAgentStats(req: express.Request, res: express.Response) {
       message: `Statistics retrieved for agent ${agentId}`
     });
   } catch (error) {
-    console.error('Error in handleAgentStats:', error);
+    logger.error('Error in handleAgentStats:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -326,7 +327,7 @@ async function handleAgentHistory(req: express.Request, res: express.Response) {
       message: `History retrieved for agent ${agentId}`
     });
   } catch (error) {
-    console.error('Error in handleAgentHistory:', error);
+    logger.error('Error in handleAgentHistory:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -366,7 +367,7 @@ async function handleAgentCurrentRoot(req: express.Request, res: express.Respons
       message: `Current root retrieved for agent ${agentId}`
     });
   } catch (error) {
-    console.error('Error in handleAgentCurrentRoot:', error);
+    logger.error('Error in handleAgentCurrentRoot:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -398,7 +399,7 @@ async function handleListAgents(req: express.Request, res: express.Response) {
       message: `Retrieved ${agents.length} registered agents`
     });
   } catch (error) {
-    console.error('Error in handleListAgents:', error);
+    logger.error('Error in handleListAgents:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -431,7 +432,7 @@ async function handleAgentVerify(req: express.Request, res: express.Response) {
       message: `MMR verification ${verification.valid ? 'passed' : 'failed'} for agent ${agentId}`
     });
   } catch (error) {
-    console.error('Error in handleAgentVerify:', error);
+    logger.error('Error in handleAgentVerify:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -528,7 +529,7 @@ async function handleAgentPlan(req: express.Request, res: express.Response) {
       message: 'Workflow planned successfully'
     });
   } catch (error) {
-    console.error('Error in handleAgentPlan:', error);
+    logger.error('Error in handleAgentPlan:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -563,7 +564,7 @@ async function handleAgentAccomplish(req: express.Request, res: express.Response
 
     res.json(result);
   } catch (error) {
-    console.error('Error in handleAgentAccomplish:', error);
+    logger.error('Error in handleAgentAccomplish:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -593,7 +594,7 @@ async function handleAgentAccomplishPreview(req: express.Request, res: express.R
 
     res.json(result);
   } catch (error) {
-    console.error('Error in handleAgentAccomplishPreview:', error);
+    logger.error('Error in handleAgentAccomplishPreview:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -630,7 +631,7 @@ async function handleAgentOrchestratorHistory(req: express.Request, res: express
       message: `Retrieved ${history.length} execution records for tenant ${tenantId}`
     });
   } catch (error) {
-    console.error('Error in handleAgentOrchestratorHistory:', error);
+    logger.error('Error in handleAgentOrchestratorHistory:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -655,7 +656,7 @@ async function handleAgentOrchestratorHealth(req: express.Request, res: express.
       message: health.healthy ? 'All agent services operational' : 'Some agent services unavailable'
     });
   } catch (error) {
-    console.error('Error in handleAgentOrchestratorHealth:', error);
+    logger.error('Error in handleAgentOrchestratorHealth:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -690,7 +691,7 @@ async function handleAgentValidate(req: express.Request, res: express.Response) 
       message: validation.valid ? 'FlowSpec is valid' : 'FlowSpec validation failed'
     });
   } catch (error) {
-    console.error('Error in handleAgentValidate:', error);
+    logger.error('Error in handleAgentValidate:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -726,7 +727,7 @@ async function handleAgentPlannerInfo(req: express.Request, res: express.Respons
       message: 'Planner service is operational'
     });
   } catch (error) {
-    console.error('Error in handleAgentPlannerInfo:', error);
+    logger.error('Error in handleAgentPlannerInfo:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -764,7 +765,7 @@ async function handleAgentExecute(req: express.Request, res: express.Response) {
 
     res.json(result);
   } catch (error) {
-    console.error('Error in handleAgentExecute:', error);
+    logger.error('Error in handleAgentExecute:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -789,7 +790,7 @@ async function handleExecutorHealth(req: express.Request, res: express.Response)
       message: `n8n: ${health.n8n ? 'healthy' : 'unavailable'}, LangGraph: ${health.langgraph ? 'healthy' : 'unavailable'}`
     });
   } catch (error) {
-    console.error('Error in handleExecutorHealth:', error);
+    logger.error('Error in handleExecutorHealth:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -823,7 +824,7 @@ async function handleExecutorDecision(req: express.Request, res: express.Respons
       message: `Recommended executor: ${decision.executor} (${decision.reason})`
     });
   } catch (error) {
-    console.error('Error in handleExecutorDecision:', error);
+    logger.error('Error in handleExecutorDecision:', error);
     res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
