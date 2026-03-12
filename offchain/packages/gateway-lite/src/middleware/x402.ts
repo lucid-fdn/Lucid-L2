@@ -241,7 +241,20 @@ export function requirePayment(optsOrPrice?: string | RequirePaymentOptions) {
       }
     } catch (err) {
       console.error('x402 spent-proof check error:', err);
-      // On store failure, fall through to verification (fail-open for reads)
+      // Async store failed (e.g. Redis down) — fall back to in-memory sync cache
+      // to prevent replay of proofs verified in this process instance.
+      if (syncSpentCache.has(normalizedHash)) {
+        return res.status(402).json({
+          error: 'Payment already used',
+          reason: 'This transaction hash has already been used as payment proof.',
+          x402: buildX402Block(price, facilitatorName, recipient),
+        });
+      }
+      // If not in sync cache either, reject — fail-closed to prevent replay attacks.
+      return res.status(503).json({
+        error: 'Payment service temporarily unavailable',
+        reason: 'Replay protection store is unreachable. Please retry shortly.',
+      });
     }
 
     // 6. Verify via facilitator or built-in fallback

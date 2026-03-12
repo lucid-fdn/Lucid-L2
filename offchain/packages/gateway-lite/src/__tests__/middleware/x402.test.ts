@@ -14,8 +14,10 @@ import {
   getSpentProofsCount,
   parseUSDCAmount,
   resetSpentProofs,
+  setSpentProofsStore,
 } from '../../middleware/x402';
 import type { RequirePaymentOptions } from '../../middleware/x402';
+import type { SpentProofsStore } from '../../../../engine/src/payment/spentProofsStore';
 
 // ---------------------------------------------------------------------------
 // Helper: build a minimal Express app with x402 middleware on /protected
@@ -270,5 +272,36 @@ describe('requirePayment return type', () => {
     expect(requirePayment('0.01').length).toBe(3);
     expect(requirePayment({}).length).toBe(3);
     expect(requirePayment({ priceUSDC: '0.01', dynamic: true }).length).toBe(3);
+  });
+});
+
+// =============================================================================
+// 9. Replay protection: fail-closed when store is unavailable
+// =============================================================================
+
+describe('replay protection on store failure', () => {
+  beforeEach(() => {
+    setX402Config({ enabled: true });
+  });
+
+  function createFailingStore(): SpentProofsStore {
+    return {
+      isSpent: () => Promise.reject(new Error('Redis connection refused')),
+      markSpent: () => Promise.reject(new Error('Redis connection refused')),
+      count: () => Promise.reject(new Error('Redis connection refused')),
+      close: () => Promise.resolve(),
+    };
+  }
+
+  it('returns 503 when spent-proof store is unavailable and proof not in sync cache', async () => {
+    setSpentProofsStore(createFailingStore());
+    const app = buildApp('0.01');
+
+    const res = await request(app)
+      .get('/protected')
+      .set('X-Payment-Proof', '0xneverseenbefore');
+
+    expect(res.status).toBe(503);
+    expect(res.body.error).toContain('temporarily unavailable');
   });
 });
