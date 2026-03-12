@@ -11,7 +11,7 @@ import type { ValidationRecord } from './types';
 import ValidationRegistryABI from './abis/ValidationRegistry.json';
 
 /** LucidValidator-specific ABI entries */
-const LUCID_VALIDATOR_ABI = [
+export const LUCID_VALIDATOR_ABI = [
   {
     type: 'function',
     name: 'submitValidation',

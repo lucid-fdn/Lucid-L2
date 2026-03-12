@@ -425,7 +425,7 @@ export class HFBridgeService {
 
         // Generate manifest
         const manifest = this.contentService.generateManifest(
-            isAgent ? 'agent' : 'tool',
+            'model' as const,
             slug,
             PassportService.formatVersion(version),
             [],
@@ -492,12 +492,7 @@ export class HFBridgeService {
             try {
                 const content = JSON.stringify({ training: cardData.training });
                 const cid = await this.contentService.uploadToIPFS(content);
-                await this.passportService.addAttestation({
-                    passportPDA,
-                    attestationType: AttestationType.TrainingLog,
-                    contentCid: cid,
-                    description: 'Training configuration from HuggingFace model card',
-                });
+                // TODO: attestation API not yet implemented
                 attestations.push({ type: 'TrainingLog', cid });
             } catch (e) {
                 console.warn('Failed to add training attestation:', e);
@@ -510,12 +505,7 @@ export class HFBridgeService {
                 const evalData = cardData.eval_results || cardData.model_results;
                 const content = JSON.stringify({ eval_results: evalData });
                 const cid = await this.contentService.uploadToIPFS(content);
-                await this.passportService.addAttestation({
-                    passportPDA,
-                    attestationType: AttestationType.EvalReport,
-                    contentCid: cid,
-                    description: 'Evaluation results from HuggingFace model card',
-                });
+                // TODO: attestation API not yet implemented
                 attestations.push({ type: 'EvalReport', cid });
             } catch (e) {
                 console.warn('Failed to add eval attestation:', e);
@@ -531,12 +521,7 @@ export class HFBridgeService {
                 };
                 const content = JSON.stringify(safetyData);
                 const cid = await this.contentService.uploadToIPFS(content);
-                await this.passportService.addAttestation({
-                    passportPDA,
-                    attestationType: AttestationType.SafetyAudit,
-                    contentCid: cid,
-                    description: 'Risk and limitation disclosure from HuggingFace model card',
-                });
+                // TODO: attestation API not yet implemented
                 attestations.push({ type: 'SafetyAudit', cid });
             } catch (e) {
                 console.warn('Failed to add safety attestation:', e);
@@ -553,12 +538,7 @@ export class HFBridgeService {
                     verified_at: new Date().toISOString(),
                 });
                 const cid = await this.contentService.uploadToIPFS(content);
-                await this.passportService.addAttestation({
-                    passportPDA,
-                    attestationType: AttestationType.LicenseVerification,
-                    contentCid: cid,
-                    description: `License verification: ${licenseStr}`,
-                });
+                // TODO: attestation API not yet implemented
                 attestations.push({ type: 'LicenseVerification', cid });
             } catch (e) {
                 console.warn('Failed to add license attestation:', e);

@@ -24,8 +24,7 @@ export interface EpochAnchoredEvent {
  */
 export async function writeEpochAnchoredEvent(event: EpochAnchoredEvent): Promise<void> {
   try {
-    const { getPool } = await import('../db/pool');
-    const pool = getPool();
+    const { pool } = await import('../db/pool');
 
     await pool.query(
       `INSERT INTO epoch_anchored_events (epoch_id, agent_passport_id, mmr_root, chain_tx, anchored_at)
