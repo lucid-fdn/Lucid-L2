@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createInferenceReceipt, getInferenceReceipt, verifyInferenceReceiptHash, verifyInferenceReceipt, getInferenceReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey, listInferenceReceipts, listComputeReceipts, getComputeReceipt, verifyComputeReceipt } from '../../../../engine/src/receipt/receiptService';
+import { createInferenceReceipt, getInferenceReceipt, getInferenceReceiptAsync, verifyInferenceReceiptHash, verifyInferenceReceipt, getInferenceReceiptProof, getInferenceReceiptProofAsync, getMmrRoot, getMmrLeafCount, getSignerPublicKey, listInferenceReceipts, listComputeReceipts, getComputeReceipt, verifyComputeReceipt } from '../../../../engine/src/receipt/receiptService';
 import { getAllEpochs, addReceiptToEpoch } from '../../../../engine/src/receipt/epochService';
 import { logger } from '../../../../engine/src/lib/logger';
 
@@ -230,13 +230,14 @@ receiptRouter.get('/v1/receipts/:receipt_id/proof', async (req, res) => {
   try {
     const { receipt_id } = req.params;
 
-    // Get the receipt first to get run_id and receipt_hash
-    const receipt = getInferenceReceipt(receipt_id);
+    // Try in-memory first, fall back to DB (post-restart scenario)
+    const receipt = getInferenceReceipt(receipt_id) ?? await getInferenceReceiptAsync(receipt_id);
     if (!receipt) {
       return res.status(404).json({ success: false, error: 'Receipt not found' });
     }
 
-    const merkleProof = getInferenceReceiptProof(receipt_id);
+    // Async proof lookup with DB fallback for leaf_index
+    const merkleProof = await getInferenceReceiptProofAsync(receipt_id);
     if (!merkleProof) {
       return res.status(404).json({ success: false, error: 'No proof available for this receipt' });
     }

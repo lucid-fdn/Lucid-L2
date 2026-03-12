@@ -841,13 +841,29 @@ export function verifyInferenceReceipt(run_id: string): ReceiptVerifyResult {
 }
 
 /**
- * Get inclusion proof for a receipt.
+ * Get inclusion proof for a receipt (sync, in-memory only).
  */
 export function getInferenceReceiptProof(run_id: string): SerializedMMRProof | null {
   const receipt = receiptStore.get(run_id);
   if (!receipt || receipt.receipt_type !== 'inference' || receipt._mmr_leaf_index === undefined) {
     return null;
   }
+
+  const mmr = getReceiptMMR();
+  return mmr.getProof(receipt._mmr_leaf_index);
+}
+
+/**
+ * Get inclusion proof with DB fallback (for post-restart scenarios).
+ */
+export async function getInferenceReceiptProofAsync(run_id: string): Promise<SerializedMMRProof | null> {
+  // Try in-memory first
+  const syncResult = getInferenceReceiptProof(run_id);
+  if (syncResult) return syncResult;
+
+  // Fall back to DB for the receipt (loads leaf_index)
+  const receipt = await getInferenceReceiptAsync(run_id);
+  if (!receipt || receipt._mmr_leaf_index === undefined) return null;
 
   const mmr = getReceiptMMR();
   return mmr.getProof(receipt._mmr_leaf_index);

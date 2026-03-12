@@ -225,32 +225,56 @@ export class MMR {
   }
 
   /**
-   * Verify a proof against a given root
+   * Calculate height of a position in the MMR (static utility).
+   */
+  static positionHeight(position: number): number {
+    let height = 0;
+    let pos = position;
+    while (pos > 0) {
+      if (pos % 2 === 0) break;
+      pos = (pos - 1) / 2;
+      height++;
+    }
+    return height;
+  }
+
+  /**
+   * Verify a proof against a given root.
+   *
+   * 1. Climb siblings from leaf to peak → reconstructedPeak
+   * 2. Verify reconstructedPeak matches exactly one entry in proof.peaks
+   * 3. Bag all peaks right-to-left and check against root
    */
   static verifyProof(proof: MMRProof, root: Buffer): boolean {
+    if (proof.peaks.length === 0) return false;
+
     let currentHash = proof.leafHash;
     let currentPos = proof.leafIndex;
 
-    // Reconstruct the path to the peak
+    // Reconstruct the path from leaf to its peak
     for (const sibling of proof.siblings) {
-      const height = MMR.prototype.getHeight.call({ getHeight: MMR.prototype.getHeight }, currentPos);
+      const height = MMR.positionHeight(currentPos);
       const siblingPos = currentPos - (1 << (height + 1)) + 1;
-      
+
       if (siblingPos < currentPos) {
         currentHash = createHash('sha256').update(Buffer.concat([sibling, currentHash])).digest();
       } else {
         currentHash = createHash('sha256').update(Buffer.concat([currentHash, sibling])).digest();
       }
-      
+
       currentPos = currentPos + (1 << height);
     }
 
-    // Verify against the bagged peaks
+    // currentHash should now equal exactly one peak
+    const matchesPeak = proof.peaks.some(p => p.equals(currentHash));
+    if (!matchesPeak) return false;
+
+    // Single peak: root IS the peak
     if (proof.peaks.length === 1) {
       return currentHash.equals(root);
     }
 
-    // Find which peak contains our leaf and bag the peaks
+    // Multi-peak: bag right-to-left and verify against root
     let baggedRoot = proof.peaks[proof.peaks.length - 1];
     for (let i = proof.peaks.length - 2; i >= 0; i--) {
       baggedRoot = createHash('sha256').update(Buffer.concat([proof.peaks[i], baggedRoot])).digest();

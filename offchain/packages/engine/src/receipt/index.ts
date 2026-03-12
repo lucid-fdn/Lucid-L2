@@ -2,7 +2,7 @@ export {
   // Inference receipts
   createInferenceReceipt, getInferenceReceipt, getInferenceReceiptAsync,
   verifyInferenceReceiptHash, verifyInferenceReceipt,
-  getInferenceReceiptProof, getMmrRoot, getMmrLeafCount, getSignerPublicKey,
+  getInferenceReceiptProof, getInferenceReceiptProofAsync, getMmrRoot, getMmrLeafCount, getSignerPublicKey,
   listInferenceReceipts,
   // Compute receipts
   createComputeReceipt, createComputeReceiptFromJob,

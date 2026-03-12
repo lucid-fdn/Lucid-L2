@@ -7,8 +7,10 @@ import express from 'express';
 
 const mockCreateInferenceReceipt = jest.fn();
 const mockGetInferenceReceipt = jest.fn();
+const mockGetInferenceReceiptAsync = jest.fn();
 const mockVerifyInferenceReceipt = jest.fn();
 const mockGetInferenceReceiptProof = jest.fn();
+const mockGetInferenceReceiptProofAsync = jest.fn();
 const mockGetMmrRoot = jest.fn();
 const mockGetMmrLeafCount = jest.fn();
 const mockGetSignerPublicKey = jest.fn();
@@ -19,9 +21,11 @@ const mockVerifyComputeReceipt = jest.fn();
 jest.mock('../../../../engine/src/receipt/receiptService', () => ({
   createInferenceReceipt: mockCreateInferenceReceipt,
   getInferenceReceipt: mockGetInferenceReceipt,
+  getInferenceReceiptAsync: mockGetInferenceReceiptAsync,
   verifyInferenceReceiptHash: jest.fn(),
   verifyInferenceReceipt: mockVerifyInferenceReceipt,
   getInferenceReceiptProof: mockGetInferenceReceiptProof,
+  getInferenceReceiptProofAsync: mockGetInferenceReceiptProofAsync,
   getMmrRoot: mockGetMmrRoot,
   getMmrLeafCount: mockGetMmrLeafCount,
   getSignerPublicKey: mockGetSignerPublicKey,
@@ -228,7 +232,8 @@ describe('Receipt Routes', () => {
   describe('GET /v1/receipts/:receipt_id/proof', () => {
     it('should return MMR proof when available', async () => {
       mockGetInferenceReceipt.mockReturnValue(SAMPLE_RECEIPT);
-      mockGetInferenceReceiptProof.mockReturnValue({
+      mockGetInferenceReceiptAsync.mockResolvedValue(null); // not needed, sync found it
+      mockGetInferenceReceiptProofAsync.mockResolvedValue({
         leafIndex: 0,
         leafHash: 'leaf1',
         siblings: ['sib1'],
@@ -252,6 +257,7 @@ describe('Receipt Routes', () => {
 
     it('should return 404 when receipt not found', async () => {
       mockGetInferenceReceipt.mockReturnValue(null);
+      mockGetInferenceReceiptAsync.mockResolvedValue(null);
 
       const res = await request(buildApp()).get('/v1/receipts/nonexistent/proof');
 
@@ -261,7 +267,7 @@ describe('Receipt Routes', () => {
 
     it('should return 404 when no proof is available', async () => {
       mockGetInferenceReceipt.mockReturnValue(SAMPLE_RECEIPT);
-      mockGetInferenceReceiptProof.mockReturnValue(null);
+      mockGetInferenceReceiptProofAsync.mockResolvedValue(null);
 
       const res = await request(buildApp()).get('/v1/receipts/run-001/proof');
 

@@ -10,7 +10,7 @@
  * - Manual trigger via API
  */
 import { v4 as uuid } from 'uuid';
-import { getMmrRoot, getMmrLeafCount, listInferenceReceipts, InferenceReceipt } from './receiptService';
+import { getMmrRoot, getMmrLeafCount, listInferenceReceipts, getInferenceReceipt, InferenceReceipt } from './receiptService';
 import pool from '../db/pool';
 import { logger } from '../lib/logger';
 
@@ -349,7 +349,7 @@ export function listEpochs(filters: EpochFilters = {}): PaginatedEpochs {
  */
 export function addReceiptToEpoch(run_id: string, project_id?: string): void {
   const epoch = getCurrentEpoch(project_id);
-  
+
   // Don't add to non-open epochs
   if (epoch.status !== 'open') {
     // Create new epoch
@@ -357,6 +357,12 @@ export function addReceiptToEpoch(run_id: string, project_id?: string): void {
     newEpoch.receipt_run_ids.push(run_id);
     newEpoch.leaf_count++;
     receiptToEpoch.set(run_id, newEpoch.epoch_id);
+
+    // Persist join row (non-blocking)
+    const receipt = getInferenceReceipt(run_id);
+    if (receipt?.receipt_hash) {
+      persistEpochReceiptToDb(newEpoch.epoch_id, receipt.receipt_hash).catch(() => {});
+    }
     return;
   }
 
@@ -369,6 +375,12 @@ export function addReceiptToEpoch(run_id: string, project_id?: string): void {
 
   // Persist to DB (non-blocking)
   persistEpochToDb(epoch).catch(() => {});
+
+  // Persist join row so epoch archives include receipt hashes
+  const receipt = getInferenceReceipt(run_id);
+  if (receipt?.receipt_hash) {
+    persistEpochReceiptToDb(epoch.epoch_id, receipt.receipt_hash).catch(() => {});
+  }
 }
 
 /**
