@@ -36,7 +36,8 @@ export class EVM8004Syncer implements IReputationSyncer {
         timestamp: d.timestamp,
         metadata: { from: d.from },
       }));
-    } catch {
+    } catch (err) {
+      console.warn(`[EVM8004Syncer] pullFeedback failed for passportId="${passportId}":`, err);
       return [];
     }
   }
@@ -53,7 +54,8 @@ export class EVM8004Syncer implements IReputationSyncer {
         feedbackCount: summary.totalFeedback,
         lastUpdated: Math.floor(Date.now() / 1000),
       };
-    } catch {
+    } catch (err) {
+      console.warn(`[EVM8004Syncer] pullSummary failed for passportId="${passportId}":`, err);
       return null;
     }
   }
@@ -68,7 +70,8 @@ export class EVM8004Syncer implements IReputationSyncer {
         params.category,
       );
       return { success: true, txHash };
-    } catch {
+    } catch (err) {
+      console.warn(`[EVM8004Syncer] pushFeedback failed for passportId="${params.passportId}", score=${params.score}, category="${params.category}":`, err);
       return null;
     }
   }

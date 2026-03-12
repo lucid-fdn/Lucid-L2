@@ -6,10 +6,109 @@
 
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import pool from '../../../engine/src/db/pool';
 
 export interface AdminRequest extends Request {
   isAdmin?: boolean;
   adminApiKey?: string;
+}
+
+/* ------------------------------------------------------------------ */
+/*  In-memory rate limiter for failed admin auth attempts              */
+/* ------------------------------------------------------------------ */
+
+interface FailedAttemptRecord {
+  count: number;
+  firstAttemptAt: number;  // epoch ms
+  blockedUntil: number;    // epoch ms — 0 means not blocked
+}
+
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;   // 15 minutes
+const RATE_LIMIT_MAX_FAILURES = 10;
+const RATE_LIMIT_BLOCK_MS = 15 * 60 * 1000;    // 15-minute block
+const RATE_LIMIT_ALERT_THRESHOLD = 5;
+
+/** IP -> failure tracking */
+const failedAttempts = new Map<string, FailedAttemptRecord>();
+
+/** Periodic cleanup of stale entries (every 5 minutes) */
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+let cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+function ensureCleanupTimer(): void {
+  if (cleanupTimer) return;
+  cleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [ip, record] of failedAttempts) {
+      const windowExpired = now - record.firstAttemptAt > RATE_LIMIT_WINDOW_MS;
+      const blockExpired = record.blockedUntil > 0 && now > record.blockedUntil;
+      if (windowExpired && (record.blockedUntil === 0 || blockExpired)) {
+        failedAttempts.delete(ip);
+      }
+    }
+    if (failedAttempts.size === 0 && cleanupTimer) {
+      clearInterval(cleanupTimer);
+      cleanupTimer = null;
+    }
+  }, CLEANUP_INTERVAL_MS);
+  // Allow Node to exit even if the timer is running
+  if (cleanupTimer && typeof cleanupTimer === 'object' && 'unref' in cleanupTimer) {
+    cleanupTimer.unref();
+  }
+}
+
+/**
+ * Check whether the given IP is currently rate-limited.
+ * Returns true if the request should be blocked.
+ */
+function isRateLimited(ip: string): boolean {
+  const record = failedAttempts.get(ip);
+  if (!record) return false;
+
+  const now = Date.now();
+
+  // If explicitly blocked, check whether the block has expired
+  if (record.blockedUntil > 0) {
+    if (now < record.blockedUntil) return true;
+    // Block expired — reset the record
+    failedAttempts.delete(ip);
+    return false;
+  }
+
+  return false;
+}
+
+/**
+ * Record a failed authentication attempt for the given IP.
+ */
+function recordFailedAttempt(ip: string): void {
+  ensureCleanupTimer();
+
+  const now = Date.now();
+  let record = failedAttempts.get(ip);
+
+  if (!record || now - record.firstAttemptAt > RATE_LIMIT_WINDOW_MS) {
+    // Start a new window
+    record = { count: 1, firstAttemptAt: now, blockedUntil: 0 };
+    failedAttempts.set(ip, record);
+  } else {
+    record.count += 1;
+  }
+
+  // Alert threshold
+  if (record.count === RATE_LIMIT_ALERT_THRESHOLD) {
+    console.error(
+      `[SECURITY] IP ${ip} has ${record.count} failed admin auth attempts in the last 15 minutes`
+    );
+  }
+
+  // Block threshold
+  if (record.count >= RATE_LIMIT_MAX_FAILURES) {
+    record.blockedUntil = now + RATE_LIMIT_BLOCK_MS;
+    console.error(
+      `[SECURITY] IP ${ip} blocked for 15 minutes after ${record.count} failed admin auth attempts`
+    );
+  }
 }
 
 /**
@@ -68,7 +167,15 @@ export function verifyAdminAuth(
     const authHeader = req.headers.authorization;
     const clientIp = getClientIp(req);
     const ipWhitelist = getAdminIpWhitelist();
-    
+
+    // Rate limit check — block IPs with too many failed attempts
+    if (isRateLimited(clientIp)) {
+      return res.status(429).json({
+        error: 'Too Many Requests',
+        message: 'Too many failed authentication attempts. Try again later.'
+      });
+    }
+
     // Method 1: API Key Authentication
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const apiKey = authHeader.substring(7);
@@ -149,15 +256,22 @@ export function optionalAdminAuth(
   const clientIp = getClientIp(req);
   const ipWhitelist = getAdminIpWhitelist();
   
-  // Try API key auth
+  // Try API key auth (constant-time comparison to prevent timing attacks)
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const apiKey = authHeader.substring(7);
     const adminApiKey = process.env.ADMIN_API_KEY;
-    
-    if (adminApiKey && apiKey === adminApiKey) {
-      req.isAdmin = true;
-      req.adminApiKey = apiKey;
-      return next();
+
+    if (adminApiKey) {
+      const providedBuffer = Buffer.from(apiKey);
+      const expectedBuffer = Buffer.from(adminApiKey);
+      if (
+        providedBuffer.length === expectedBuffer.length &&
+        crypto.timingSafeEqual(providedBuffer, expectedBuffer)
+      ) {
+        req.isAdmin = true;
+        req.adminApiKey = apiKey;
+        return next();
+      }
     }
   }
   
@@ -189,10 +303,38 @@ function logFailedAdminAuth(
     timestamp: new Date().toISOString(),
     userAgent: req.headers['user-agent']
   });
-  
-  // TODO: Store in database for security monitoring
-  // TODO: Implement rate limiting on failed attempts
-  // TODO: Alert on multiple failed attempts from same IP
+
+  // Record for rate limiting
+  recordFailedAttempt(clientIp);
+
+  // Persist to admin_audit_log (non-blocking — failures must not break auth)
+  persistAuditLog(clientIp, req.path, req.method, reason, req.headers['user-agent']);
+}
+
+/**
+ * Write a row to admin_audit_log.
+ * Fire-and-forget — errors are caught and logged, never propagated.
+ */
+function persistAuditLog(
+  ip: string,
+  endpoint: string,
+  method: string,
+  reason: string,
+  userAgent: string | undefined
+): void {
+  try {
+    pool.query(
+      `INSERT INTO admin_audit_log (ip, endpoint, method, reason, user_agent)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [ip, endpoint, method, reason, userAgent ?? null]
+    ).catch((err: unknown) => {
+      // Swallow DB errors — audit persistence must never break auth
+      console.warn('Failed to persist admin audit log:', err instanceof Error ? err.message : err);
+    });
+  } catch (err: unknown) {
+    // Swallow synchronous errors (e.g. pool not initialised)
+    console.warn('Failed to persist admin audit log:', err instanceof Error ? err.message : err);
+  }
 }
 
 /**

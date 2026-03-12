@@ -298,8 +298,8 @@ export class ReputationAggregator {
           extraScore = lucidSummary.avgScore * lucidSummary.feedbackCount;
           extraCount = lucidSummary.feedbackCount;
         }
-      } catch {
-        // ReputationService unavailable, continue with EVM data only
+      } catch (err) {
+        console.warn(`[ReputationAggregator] ReputationService.getSummary failed for agentId="${agentId}", continuing with EVM data only:`, err);
       }
     }
 
@@ -388,8 +388,8 @@ export class ReputationAggregator {
           }
         }
       }
-    } catch {
-      // Identity bridge not available, try direct lookup
+    } catch (err) {
+      console.warn(`[ReputationAggregator] Identity bridge resolution failed for passportId="${agentPassportId}", falling back to direct lookup:`, err);
     }
 
     // If no bridge resolution found, check if agentPassportId is directly in the store
@@ -436,8 +436,8 @@ export class ReputationAggregator {
           nativeScore = summary.avgScore * summary.feedbackCount;
           nativeCount = summary.feedbackCount;
         }
-      } catch {
-        // ReputationService unavailable
+      } catch (err) {
+        console.warn(`[ReputationAggregator] ReputationService.getSummary failed for passportId="${agentPassportId}", skipping native reputation merge:`, err);
       }
     }
 

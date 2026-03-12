@@ -115,6 +115,112 @@ interface ValidationResult {
   warnings: string[];
 }
 
+// ---------------------------------------------------------------------------
+// Soft Validations — warn-only checks for runtime env vars that have defaults
+// or are conditionally required.  These never throw; they only append warnings.
+// ---------------------------------------------------------------------------
+
+/**
+ * Helper: returns true when `value` represents a positive finite number.
+ */
+function isPositiveNumber(value: string): boolean {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0;
+}
+
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
+/**
+ * Run soft (warn-only) validations against the current process.env.
+ * Returns an array of warning strings.  Nothing here should cause startup
+ * to fail — each message is purely informational.
+ */
+function runSoftValidations(): string[] {
+  const warnings: string[] = [];
+
+  // ── 1. Blockchain config (warn if missing, have defaults) ──────────────
+
+  if (process.env.SOLANA_NETWORK && !process.env.SOLANA_RPC_URL) {
+    warnings.push(
+      `⚠️  SOLANA_NETWORK is set ("${process.env.SOLANA_NETWORK}") but SOLANA_RPC_URL is not — the default public RPC will be used`
+    );
+  }
+
+  if (!process.env.ANCHORING_CHAINS) {
+    warnings.push(
+      '⚠️  ANCHORING_CHAINS is not set — defaulting to "solana-devnet"'
+    );
+  }
+
+  // ── 2. Feature-flag format validation (when present) ───────────────────
+
+  if (process.env.EVM_ENABLED_CHAINS) {
+    const valid = process.env.EVM_ENABLED_CHAINS.split(',').every(
+      (id) => id.trim().length > 0
+    );
+    if (!valid) {
+      warnings.push(
+        '⚠️  EVM_ENABLED_CHAINS contains empty segments — expected comma-separated chain IDs (e.g. "base,base-sepolia")'
+      );
+    }
+  }
+
+  if (process.env.ANCHORING_MOCK_MODE && !['true', 'false'].includes(process.env.ANCHORING_MOCK_MODE)) {
+    warnings.push(
+      `⚠️  ANCHORING_MOCK_MODE has invalid value "${process.env.ANCHORING_MOCK_MODE}" — must be "true" or "false"`
+    );
+  }
+
+  if (process.env.X402_ENABLED && !['true', 'false'].includes(process.env.X402_ENABLED)) {
+    warnings.push(
+      `⚠️  X402_ENABLED has invalid value "${process.env.X402_ENABLED}" — must be "true" or "false"`
+    );
+  }
+
+  // ── 3. Conditional requirements (feature enabled but dependency missing)
+
+  if (process.env.AGENT_MIRROR_ENABLED === 'true' && !process.env.PLATFORM_CORE_DB_URL) {
+    warnings.push(
+      '⚠️  AGENT_MIRROR_ENABLED=true but PLATFORM_CORE_DB_URL is not set — agent mirroring will not function'
+    );
+  }
+
+  if (process.env.X402_ENABLED === 'true') {
+    const addr = process.env.X402_PAYMENT_ADDRESS;
+    if (!addr || addr === ZERO_ADDRESS) {
+      warnings.push(
+        '⚠️  X402_ENABLED=true but X402_PAYMENT_ADDRESS is missing or set to the zero address — payments will fail'
+      );
+    }
+  }
+
+  if (process.env.RECEIPT_CONSUMER_ENABLED === 'true' && !process.env.PLATFORM_CORE_DB_URL) {
+    warnings.push(
+      '⚠️  RECEIPT_CONSUMER_ENABLED=true but PLATFORM_CORE_DB_URL is not set — receipt consumption may not function correctly'
+    );
+  }
+
+  // ── 4. Numeric validation (warn if non-numeric when present) ───────────
+
+  const numericVars: Array<{ name: string; label: string }> = [
+    { name: 'ANCHORING_JOB_INTERVAL_MS', label: 'anchoring job interval' },
+    { name: 'EPOCH_FINALIZATION_INTERVAL_MS', label: 'epoch finalization interval' },
+    { name: 'RECEIPT_CONSUMER_INTERVAL_MS', label: 'receipt consumer interval' },
+    { name: 'RECEIPT_CONSUMER_BATCH_SIZE', label: 'receipt consumer batch size' },
+  ];
+
+  for (const { name, label } of numericVars) {
+    const val = process.env[name];
+    if (val !== undefined && !isPositiveNumber(val)) {
+      warnings.push(
+        `⚠️  ${name} has non-numeric or non-positive value "${val}" — ${label} must be a positive number`
+      );
+    }
+  }
+
+  return warnings;
+}
+
 /**
  * Validate all environment variables
  * @throws Error if critical validation fails
@@ -167,7 +273,10 @@ export function validateEnvironment(): ValidationResult {
       warnings.push('⚠️  Using localhost Redis URL in production');
     }
   }
-  
+
+  // Run soft validations (warn-only, never adds to errors)
+  warnings.push(...runSoftValidations());
+
   // Print results
   const valid = errors.length === 0;
   
