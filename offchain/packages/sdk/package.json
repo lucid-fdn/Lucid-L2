@@ -64,6 +64,16 @@
       "import": "./dist/esm/preview/index.js",
       "require": "./dist/cjs/preview/index.js",
       "types": "./dist/types/preview/index.d.ts"
+    },
+    "./a2a": {
+      "import": "./dist/esm/a2a.js",
+      "require": "./dist/cjs/a2a.js",
+      "types": "./dist/types/a2a.d.ts"
+    },
+    "./marketplace": {
+      "import": "./dist/esm/marketplace.js",
+      "require": "./dist/cjs/marketplace.js",
+      "types": "./dist/types/marketplace.d.ts"
     }
   },
   "sideEffects": false,

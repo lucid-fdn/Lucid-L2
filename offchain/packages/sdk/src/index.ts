@@ -19,6 +19,10 @@ export type {
   MMRNamespace,
   ChainNamespace,
   PreviewNamespace,
+  IdentityNamespace,
+  MarketplaceNamespace,
+  A2ANamespace,
+  ReputationNamespace,
 } from './lucid';
 
 // Re-export errors for convenience

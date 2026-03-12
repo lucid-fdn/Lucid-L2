@@ -163,9 +163,8 @@ export interface AgentNamespace {
     create(passportId: string): Promise<{ walletAddress: string; tx: TxReceipt }>;
     balance(passportId: string): Promise<WalletBalance>;
   };
-  marketplace: {
-    list(passportId: string): Promise<AgentRevenuePool | null>;
-  };
+  marketplace: MarketplaceNamespace;
+  a2a: A2ANamespace;
 }
 
 export interface PaymentNamespace {
@@ -215,6 +214,48 @@ export interface PreviewNamespace {
   readonly zkml: Record<string, unknown>;
 }
 
+export interface IdentityNamespace {
+  register(chain: string, metadataURI: string, to: string): Promise<TxReceipt>;
+  query(chain: string, tokenId: string): Promise<unknown | null>;
+  createTBA(chain: string, tokenContract: string, tokenId: string): Promise<{ address: string; hash: string }>;
+  getTBA(chain: string, tokenContract: string, tokenId: string): Promise<string>;
+  isTBADeployed(chain: string, address: string): Promise<boolean>;
+  installModule(chain: string, accountAddress: string, moduleType: number, moduleAddress: string, initData: string): Promise<TxReceipt>;
+  uninstallModule(chain: string, accountAddress: string, moduleType: number, moduleAddress: string): Promise<TxReceipt>;
+  configurePolicy(chain: string, accountAddress: string, policyHashes: string[]): Promise<TxReceipt>;
+  configurePayout(chain: string, accountAddress: string, recipients: Array<{ address: string; bps: number }>): Promise<TxReceipt>;
+}
+
+export interface MarketplaceNamespace {
+  createListing(passportId: string, params: {
+    listing_type: 'free' | 'per_call' | 'subscription' | 'token_gated';
+    pricing?: { amount: number; currency: string };
+    category?: string;
+  }): Promise<unknown>;
+  getListing(passportId: string): Promise<unknown | null>;
+  list(filters?: Record<string, unknown>): Promise<{ items: unknown[]; total: number }>;
+  deleteListing(passportId: string): Promise<boolean>;
+  addReview(passportId: string, reviewerTenantId: string, rating: number, text?: string): Promise<unknown>;
+  getReviews(passportId: string): Promise<unknown[]>;
+  trackUsage(record: Record<string, unknown>): Promise<unknown>;
+  getUsageStats(passportId: string): Promise<{ total_calls: number; total_revenue_usd: number; avg_duration_ms: number; success_rate: number }>;
+}
+
+export interface A2ANamespace {
+  generateCard(passportId: string, descriptor: Record<string, unknown>, agentUrl: string): Promise<unknown>;
+  validateCard(card: Record<string, unknown>): boolean;
+  discover(agentUrl: string): Promise<unknown>;
+  sendTask(agentUrl: string, text: string): Promise<unknown>;
+  getTaskStatus(agentUrl: string, taskId: string): Promise<unknown>;
+  cancelTask(agentUrl: string, taskId: string): Promise<boolean>;
+}
+
+export interface ReputationNamespace {
+  getScore(passportId: string): Promise<{ score: number; confidence: number; feedbackCount: number }>;
+  submitFeedback(passportId: string, params: { rating: number; category?: string; comment?: string }): Promise<unknown>;
+  sync(passportId: string): Promise<void>;
+}
+
 // =============================================================================
 // Lucid Class
 // =============================================================================
@@ -244,6 +285,8 @@ export class Lucid {
   readonly deploy: DeployNamespace;
   readonly crypto: CryptoNamespace;
   readonly chain: ChainNamespace;
+  readonly identity: IdentityNamespace;
+  readonly reputation: ReputationNamespace;
 
   constructor(config: LucidConfig) {
     this._config = config;
@@ -268,6 +311,8 @@ export class Lucid {
     this.deploy = this._buildDeployNamespace();
     this.crypto = this._buildCryptoNamespace();
     this.chain = this._buildChainNamespace();
+    this.identity = this._buildIdentityNamespace();
+    this.reputation = this._buildReputationNamespace();
   }
 
   /**
@@ -497,9 +542,67 @@ export class Lucid {
         },
       },
       marketplace: {
-        list: (passportId) => this._wrap(async () => {
-          const { getAgentRevenuePool } = require('@lucid-l2/engine');
-          return getAgentRevenuePool(passportId);
+        createListing: (passportId, params) => this._wrap(async () => {
+          const { getMarketplaceService } = require('@lucid-l2/engine');
+          return getMarketplaceService().createListing(passportId, {
+            listing_type: params.listing_type,
+            price_per_call_usd: params.pricing?.amount,
+            category: params.category,
+          });
+        }),
+        getListing: (passportId) => this._wrap(async () => {
+          const { getMarketplaceService } = require('@lucid-l2/engine');
+          return getMarketplaceService().getListing(passportId);
+        }),
+        list: (filters) => this._wrap(async () => {
+          const { getMarketplaceService } = require('@lucid-l2/engine');
+          return getMarketplaceService().listListings(filters);
+        }),
+        deleteListing: (passportId) => this._wrap(async () => {
+          const { getMarketplaceService } = require('@lucid-l2/engine');
+          return getMarketplaceService().deleteListing(passportId);
+        }),
+        addReview: (passportId, reviewerTenantId, rating, text) => this._wrap(async () => {
+          const { getMarketplaceService } = require('@lucid-l2/engine');
+          return getMarketplaceService().addReview(passportId, reviewerTenantId, rating, text);
+        }),
+        getReviews: (passportId) => this._wrap(async () => {
+          const { getMarketplaceService } = require('@lucid-l2/engine');
+          return getMarketplaceService().getReviews(passportId);
+        }),
+        trackUsage: (record) => this._wrap(async () => {
+          const { getMarketplaceService } = require('@lucid-l2/engine');
+          return getMarketplaceService().trackUsage(record as any);
+        }),
+        getUsageStats: (passportId) => this._wrap(async () => {
+          const { getMarketplaceService } = require('@lucid-l2/engine');
+          return getMarketplaceService().getUsageStats(passportId);
+        }),
+      },
+      a2a: {
+        generateCard: (passportId, descriptor, agentUrl) => this._wrap(async () => {
+          const { generateAgentCard } = require('@lucid-l2/engine');
+          return generateAgentCard(passportId, descriptor, agentUrl);
+        }),
+        validateCard: (card) => {
+          const { validateAgentCard } = require('@lucid-l2/engine');
+          return validateAgentCard(card).valid;
+        },
+        discover: (agentUrl) => this._wrap(async () => {
+          const { discoverAgent } = require('@lucid-l2/engine');
+          return discoverAgent(agentUrl);
+        }),
+        sendTask: (agentUrl, text) => this._wrap(async () => {
+          const { sendTask } = require('@lucid-l2/engine');
+          return sendTask(agentUrl, text);
+        }),
+        getTaskStatus: (agentUrl, taskId) => this._wrap(async () => {
+          const { getTaskStatus } = require('@lucid-l2/engine');
+          return getTaskStatus(agentUrl, taskId);
+        }),
+        cancelTask: (agentUrl, taskId) => this._wrap(async () => {
+          const { cancelTask } = require('@lucid-l2/engine');
+          return cancelTask(agentUrl, taskId);
         }),
       },
     };
@@ -611,10 +714,10 @@ export class Lucid {
 
         // Fallback: conservative static capability map (matches actual adapter defaults)
         if (chain.includes('solana') || chain === 'solana') {
-          return { epoch: true, passport: true, escrow: false, verifyAnchor: true, sessionKeys: false, zkml: false, paymaster: false };
+          return { epoch: true, passport: true, escrow: false, verifyAnchor: true, sessionKeys: false, zkml: false, paymaster: false, identity: false, validation: false, bridge: false };
         }
         // EVM chains — conservative defaults (contract-dependent features default to false)
-        return { epoch: true, passport: true, escrow: false, verifyAnchor: true, sessionKeys: false, zkml: true, paymaster: false };
+        return { epoch: true, passport: true, escrow: false, verifyAnchor: true, sessionKeys: false, zkml: true, paymaster: false, identity: true, validation: true, bridge: false };
       },
       health: (chain) => this._wrap(async () => {
         const { blockchainAdapterFactory } = require('@lucid-l2/engine');
@@ -628,12 +731,96 @@ export class Lucid {
     };
   }
 
+  private _buildIdentityNamespace(): IdentityNamespace {
+    return {
+      register: (chain, metadataURI, to) => this._wrap(async () => {
+        const { blockchainAdapterFactory } = require('@lucid-l2/engine');
+        const adapter = await blockchainAdapterFactory.getAdapter(chain);
+        return adapter.identity().register(metadataURI, to);
+      }),
+      query: (chain, tokenId) => this._wrap(async () => {
+        const { blockchainAdapterFactory } = require('@lucid-l2/engine');
+        const adapter = await blockchainAdapterFactory.getAdapter(chain);
+        return adapter.identity().query(tokenId);
+      }),
+      createTBA: (chain, tokenContract, tokenId) => this._wrap(async () => {
+        const { blockchainAdapterFactory } = require('@lucid-l2/engine');
+        const adapter = await blockchainAdapterFactory.getAdapter(chain);
+        return adapter.identity().createTBA(tokenContract, tokenId);
+      }),
+      getTBA: (chain, tokenContract, tokenId) => this._wrap(async () => {
+        const { blockchainAdapterFactory } = require('@lucid-l2/engine');
+        const adapter = await blockchainAdapterFactory.getAdapter(chain);
+        return adapter.identity().getTBA(tokenContract, tokenId);
+      }),
+      isTBADeployed: (chain, address) => this._wrap(async () => {
+        const { blockchainAdapterFactory } = require('@lucid-l2/engine');
+        const adapter = await blockchainAdapterFactory.getAdapter(chain);
+        return adapter.identity().isTBADeployed(address);
+      }),
+      installModule: (chain, accountAddress, moduleType, moduleAddress, initData) => this._wrap(async () => {
+        const { blockchainAdapterFactory } = require('@lucid-l2/engine');
+        const adapter = await blockchainAdapterFactory.getAdapter(chain);
+        return adapter.identity().installModule(accountAddress, moduleType, moduleAddress, initData);
+      }),
+      uninstallModule: (chain, accountAddress, moduleType, moduleAddress) => this._wrap(async () => {
+        const { blockchainAdapterFactory } = require('@lucid-l2/engine');
+        const adapter = await blockchainAdapterFactory.getAdapter(chain);
+        return adapter.identity().uninstallModule(accountAddress, moduleType, moduleAddress);
+      }),
+      configurePolicy: (chain, accountAddress, policyHashes) => this._wrap(async () => {
+        const { blockchainAdapterFactory } = require('@lucid-l2/engine');
+        const adapter = await blockchainAdapterFactory.getAdapter(chain);
+        return adapter.identity().configurePolicy(accountAddress, policyHashes);
+      }),
+      configurePayout: (chain, accountAddress, recipients) => this._wrap(async () => {
+        const { blockchainAdapterFactory } = require('@lucid-l2/engine');
+        const adapter = await blockchainAdapterFactory.getAdapter(chain);
+        return adapter.identity().configurePayout(accountAddress, recipients);
+      }),
+    };
+  }
+
+  private _buildReputationNamespace(): ReputationNamespace {
+    return {
+      getScore: (passportId) => this._wrap(async () => {
+        const { getReputationProvider } = require('@lucid-l2/engine/reputation');
+        const provider = getReputationProvider();
+        const summary = await provider.getSummary(passportId);
+        return {
+          score: summary.avgScore,
+          confidence: Math.min(summary.feedbackCount / 100, 1),
+          feedbackCount: summary.feedbackCount,
+        };
+      }),
+      submitFeedback: (passportId, params) => this._wrap(async () => {
+        const { getReputationProvider } = require('@lucid-l2/engine/reputation');
+        const provider = getReputationProvider();
+        return provider.submitFeedback({
+          passportId,
+          score: params.rating,
+          category: params.category || 'general',
+          receiptHash: '',
+          assetType: 'agent',
+          metadata: params.comment,
+        });
+      }),
+      sync: (passportId) => this._wrap(async () => {
+        const { getReputationSyncers } = require('@lucid-l2/engine/reputation');
+        const syncers = getReputationSyncers();
+        await Promise.allSettled(syncers.map((s: any) => s.pushFeedback({ passportId, score: 0, category: '', receiptHash: '', assetType: 'agent' })));
+      }),
+    };
+  }
+
   private _buildPreviewNamespace(): PreviewNamespace {
     return {
       get reputation() {
+        console.warn('[Lucid SDK] preview.reputation is deprecated — use lucid.reputation instead');
         try { return require('@lucid-l2/engine/reputation'); } catch { return {}; }
       },
       get identity() {
+        console.warn('[Lucid SDK] preview.identity is deprecated — use lucid.identity instead');
         try { return require('@lucid-l2/engine/identity'); } catch { return {}; }
       },
       get zkml() {

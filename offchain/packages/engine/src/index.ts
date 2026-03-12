@@ -83,7 +83,8 @@ export type {
 } from './chains/types';
 export type {
   IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter,
-  IGasAdapter, ChainCapabilities, EscrowCreateParams, WalletPolicy, GasRecipient,
+  IGasAdapter, IIdentityAdapter, IValidationAdapter, ICrossChainAdapter,
+  ChainCapabilities, EscrowCreateParams, WalletPolicy, GasRecipient,
 } from './chains/domain-interfaces';
 export { EVMAdapter } from './chains/evm/adapter';
 export { SolanaAdapter } from './chains/solana/adapter';
@@ -115,6 +116,26 @@ export { getAgentDeploymentService, AgentDeploymentService } from './agent/agent
 export type { DeployAgentInput, DeployAgentResult } from './agent/agentDeploymentService';
 export { processAgentRevenue, triggerAgentAirdrop, getAgentRevenuePool, getAllRevenuePools } from './agent/agentRevenueService';
 export type { AgentRevenuePool } from './agent/agentRevenueService';
+
+// ─── A2A Protocol ──────────────────────────────────────────────────────────
+export {
+  generateAgentCard, validateAgentCard,
+  createA2ATask, updateTaskState, addTaskArtifact, createTaskStore,
+  discoverAgent, sendTask, getTaskStatus, cancelTask,
+} from './agent/a2a';
+export type {
+  AgentCard, AgentCardSkill,
+  A2ATask, A2AMessage, A2APart, A2ATaskState, A2ATaskStore,
+  A2AClientOptions,
+} from './agent/a2a';
+
+// ─── Marketplace ───────────────────────────────────────────────────────────
+export {
+  getMarketplaceService, resetMarketplaceService, MarketplaceService,
+} from './agent/marketplace';
+export type {
+  MarketplaceListing, AgentReview, AgentUsageRecord, ListingFilters,
+} from './agent/marketplace';
 
 // ─── Storage ────────────────────────────────────────────────────────────────
 export { getPassportStore } from './storage/passportStore';
