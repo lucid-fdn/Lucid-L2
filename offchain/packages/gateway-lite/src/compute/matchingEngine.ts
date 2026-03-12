@@ -2,6 +2,16 @@ import { validateWithSchema } from '../../../engine/src/crypto/schemaValidator';
 import { evaluatePolicy, Policy, ReasonCode as PolicyReasonCode } from './policyEngine';
 import { getComputeRegistry, ComputeLiveState } from './computeRegistry';
 
+// ── Configurable scoring weights ─────────────────────────────────────
+// Override via environment variables. Defaults match original hardcoded values.
+const WEIGHT_COST_MAX     = Number(process.env.MATCH_WEIGHT_COST_MAX     ?? 50);
+const WEIGHT_COST_NEUTRAL = Number(process.env.MATCH_WEIGHT_COST_NEUTRAL ?? 25);
+const WEIGHT_LATENCY_MAX  = Number(process.env.MATCH_WEIGHT_LATENCY_MAX  ?? 50);
+const WEIGHT_LATENCY_NEUTRAL = Number(process.env.MATCH_WEIGHT_LATENCY_NEUTRAL ?? 25);
+const WEIGHT_LATENCY_NORM_MS = Number(process.env.MATCH_WEIGHT_LATENCY_NORM_MS ?? 1000);
+const WEIGHT_QUEUE_PENALTY_MAX = Number(process.env.MATCH_WEIGHT_QUEUE_PENALTY_MAX ?? 20);
+const WEIGHT_QUEUE_PENALTY_PER = Number(process.env.MATCH_WEIGHT_QUEUE_PENALTY_PER ?? 2);
+
 export type MatchRejectReason =
   | PolicyReasonCode
   | 'NO_RUNTIME_MATCH'
@@ -117,35 +127,35 @@ function getEffectiveMetrics(computeMeta: any, liveState: ComputeLiveState | nul
 }
 
 function scoreCompute(policy: any, computeMeta: any, liveState: ComputeLiveState | null): { score: number; p95: number; cost: number } {
-  // MVP score: prefer lower cost, then lower latency.
-  // Missing values get neutral score.
+  // Score: prefer lower cost, then lower latency.
+  // Missing values get neutral score. All weights configurable via MATCH_WEIGHT_* env vars.
   const costMax = Number(policy?.cost?.max_price_per_1k_tokens_usd ?? 0);
   const { p95, cost } = getEffectiveMetrics(computeMeta, liveState);
 
   let score = 0;
-  
-  // Cost scoring (50 points max)
+
+  // Cost scoring
   if (cost > 0) {
-    // If policy provides max, scale relative; else just inverse.
-    score += costMax > 0 ? Math.max(0, (costMax - cost) / costMax) * 50 : Math.min(50, 25 / cost);
+    score += costMax > 0
+      ? Math.max(0, (costMax - cost) / costMax) * WEIGHT_COST_MAX
+      : Math.min(WEIGHT_COST_MAX, WEIGHT_COST_NEUTRAL / cost);
   } else {
-    score += 25; // Neutral if no cost info
+    score += WEIGHT_COST_NEUTRAL;
   }
-  
-  // Latency scoring (50 points max)
+
+  // Latency scoring
   if (p95 > 0) {
-    score += 50 * (1 / (1 + p95 / 1000));
+    score += WEIGHT_LATENCY_MAX * (1 / (1 + p95 / WEIGHT_LATENCY_NORM_MS));
   } else {
-    score += 25; // Neutral if no latency info
+    score += WEIGHT_LATENCY_NEUTRAL;
   }
-  
+
   // Queue depth penalty (from live state)
   if (liveState && liveState.queue_depth !== undefined && liveState.queue_depth > 0) {
-    // Reduce score based on queue depth (up to 20 points penalty)
-    const queuePenalty = Math.min(20, liveState.queue_depth * 2);
+    const queuePenalty = Math.min(WEIGHT_QUEUE_PENALTY_MAX, liveState.queue_depth * WEIGHT_QUEUE_PENALTY_PER);
     score -= queuePenalty;
   }
-  
+
   return { score, p95, cost };
 }
 

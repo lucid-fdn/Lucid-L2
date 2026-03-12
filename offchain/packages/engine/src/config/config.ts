@@ -89,10 +89,10 @@ export class ConfigurationManager {
 // Global configuration manager instance
 export const configManager = new ConfigurationManager();
 
-// Gas rates and costs
-export const IGAS_PER_CALL = 1;      // 1 LUCID per inference call
-export const MGAS_PER_ROOT = 5;      // 5 LUCID per memory write
-export const IGAS_PER_BATCH = 2;     // 2 LUCID per batch operation
+// Gas rates and costs (configurable via env)
+export const IGAS_PER_CALL = parseInt(process.env.IGAS_PER_CALL || '1', 10);
+export const MGAS_PER_ROOT = parseInt(process.env.MGAS_PER_ROOT || '5', 10);
+export const IGAS_PER_BATCH = parseInt(process.env.IGAS_PER_BATCH || '2', 10);
 
 // Token configuration - now uses configManager for environment-aware settings
 export const LUCID_DECIMALS = 9;

@@ -25,7 +25,7 @@ const pool = new Pool({
   password: getPassword(),
   ssl: { rejectUnauthorized: false },
   // Shared pool settings — sized for the whole application
-  max: 10,
+  max: parseInt(process.env.POSTGRES_POOL_MAX || '10', 10),
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 15000,
   allowExitOnIdle: true,

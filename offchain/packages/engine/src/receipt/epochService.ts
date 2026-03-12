@@ -69,8 +69,8 @@ export interface EpochConfig {
 }
 
 const DEFAULT_CONFIG: EpochConfig = {
-  max_receipts_per_epoch: 100,
-  max_epoch_duration_ms: 60 * 60 * 1000, // 1 hour
+  max_receipts_per_epoch: parseInt(process.env.MAX_RECEIPTS_PER_EPOCH || '100', 10),
+  max_epoch_duration_ms: parseInt(process.env.MAX_EPOCH_DURATION_MS || '3600000', 10),
 };
 
 // =============================================================================
@@ -400,8 +400,12 @@ export function shouldFinalizeEpoch(epoch: Epoch): { should: boolean; reason?: s
 /**
  * Prepare an epoch for finalization (marks as 'anchoring').
  * Returns the epoch data needed for anchoring.
+ *
+ * Uses a PostgreSQL advisory lock to prevent multi-instance races.
+ * If the DB lock cannot be acquired (e.g. DB down), falls back to
+ * the in-memory status check which is safe for single-instance.
  */
-export function prepareEpochForFinalization(epoch_id: string): Epoch | null {
+export async function prepareEpochForFinalization(epoch_id: string): Promise<Epoch | null> {
   const epoch = epochStore.get(epoch_id);
   if (!epoch) {
     return null;
@@ -412,24 +416,62 @@ export function prepareEpochForFinalization(epoch_id: string): Epoch | null {
     return null;
   }
 
-  // Update status
-  epoch.status = 'anchoring';
-  epoch.finalized_at = Math.floor(Date.now() / 1000);
-  
-  // Capture final state
-  epoch.mmr_root = getMmrRoot();
-  epoch.end_leaf_index = getMmrLeafCount() - 1;
-
-  // Remove from active epochs (so a new one can be created)
-  const activeKey = getActiveKey(epoch.project_id);
-  if (activeEpochs.get(activeKey)?.epoch_id === epoch_id) {
-    activeEpochs.delete(activeKey);
+  // Acquire a distributed advisory lock keyed on a hash of the epoch_id.
+  // This prevents two instances from finalizing the same epoch concurrently.
+  const lockKey = epochIdToLockKey(epoch_id);
+  let client: import('pg').PoolClient | null = null;
+  try {
+    client = await pool.connect();
+    const lockResult = await client.query('SELECT pg_try_advisory_lock($1) AS acquired', [lockKey]);
+    if (!lockResult.rows[0]?.acquired) {
+      // Another instance is already finalizing this epoch
+      console.warn(`[EpochService] Advisory lock not acquired for epoch ${epoch_id} — another instance is finalizing`);
+      return null;
+    }
+  } catch (err) {
+    // DB unavailable — fall through to in-memory-only path (safe for single-instance)
+    console.warn('[EpochService] Advisory lock unavailable, proceeding with in-memory guard:', err instanceof Error ? err.message : err);
   }
 
-  // Persist to DB (non-blocking)
-  persistEpochToDb(epoch).catch(() => {});
+  try {
+    // Update status
+    epoch.status = 'anchoring';
+    epoch.finalized_at = Math.floor(Date.now() / 1000);
 
-  return epoch;
+    // Capture final state
+    epoch.mmr_root = getMmrRoot();
+    epoch.end_leaf_index = getMmrLeafCount() - 1;
+
+    // Remove from active epochs (so a new one can be created)
+    const activeKey = getActiveKey(epoch.project_id);
+    if (activeEpochs.get(activeKey)?.epoch_id === epoch_id) {
+      activeEpochs.delete(activeKey);
+    }
+
+    // Persist to DB (blocking — must succeed before we anchor on-chain)
+    await persistEpochToDb(epoch);
+
+    return epoch;
+  } finally {
+    // Release advisory lock
+    if (client) {
+      try {
+        await client.query('SELECT pg_advisory_unlock($1)', [lockKey]);
+      } catch { /* best-effort */ }
+      client.release();
+    }
+  }
+}
+
+/**
+ * Convert epoch_id string to a 32-bit integer for pg_advisory_lock.
+ */
+function epochIdToLockKey(epoch_id: string): number {
+  let hash = 0;
+  for (let i = 0; i < epoch_id.length; i++) {
+    hash = ((hash << 5) - hash + epoch_id.charCodeAt(i)) | 0;
+  }
+  return hash;
 }
 
 /**
@@ -621,7 +663,7 @@ export function startAutoFinalization(intervalMs: number = 60000): void {
         }
       } else {
         // No anchor callback - just prepare epoch (mock mode)
-        const prepared = prepareEpochForFinalization(epoch.epoch_id);
+        const prepared = await prepareEpochForFinalization(epoch.epoch_id);
         console.log(`[EpochService] Epoch ${epoch.epoch_id} prepared for finalization (no anchor callback)`);
       }
     }

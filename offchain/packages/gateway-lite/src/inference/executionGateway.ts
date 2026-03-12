@@ -552,8 +552,8 @@ export async function executeInferenceRequest(
       throw computeError;
     }
     
-    // 5. Create receipt asynchronously (don't block response)
-    createReceiptAsync({
+    // 5. Create receipt before returning response (crash-safe)
+    createReceiptSync({
       model_passport_id,
       compute_passport_id: result.compute_passport_id,
       policy_hash: explain.policy_hash,
@@ -711,8 +711,8 @@ export async function executeStreamingInferenceRequest(
     const finalize = async () => {
       const total_latency_ms = Date.now() - startTime;
 
-      // Create receipt
-      createReceiptAsync({
+      // Create receipt (crash-safe)
+      createReceiptSync({
         model_passport_id,
         compute_passport_id: match.compute_passport_id,
         policy_hash: explain.policy_hash,
@@ -996,20 +996,19 @@ async function executeWithFallback(
 }
 
 /**
- * Create receipt asynchronously (non-blocking).
+ * Create receipt synchronously before returning the response.
+ * Receipt is persisted to DB and wired into the current epoch for anchoring.
+ * This ensures no receipts are lost on process crash.
  */
-function createReceiptAsync(input: InferenceReceiptInput): void {
-  // Run in next tick to not block response
-  setImmediate(() => {
-    try {
-      createInferenceReceipt(input);
-      // Wire receipt into current epoch for anchoring
-      addReceiptToEpoch(input.run_id!);
-      console.log(`📝 Receipt created for run ${input.run_id}`);
-    } catch (error) {
-      console.error(`Failed to create receipt for run ${input.run_id}:`, error);
-    }
-  });
+function createReceiptSync(input: InferenceReceiptInput): void {
+  try {
+    createInferenceReceipt(input);
+    // Wire receipt into current epoch for anchoring
+    addReceiptToEpoch(input.run_id!);
+    console.log(`📝 Receipt created for run ${input.run_id}`);
+  } catch (error) {
+    console.error(`Failed to create receipt for run ${input.run_id}:`, error);
+  }
 }
 
 /**

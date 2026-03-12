@@ -1,10 +1,14 @@
-// offchain/src/index.ts
+// Copyright 2024-2026 Raijin Labs. Licensed under AGPL-3.0 — see LICENSE in this package.
 import 'dotenv/config';
+import { hijackConsole } from '../../engine/src/lib/logger';
+hijackConsole(); // Redirect console.* to structured JSON logging (must be first)
+
 import express from 'express';
-import bodyParser from 'body-parser';
+import helmet from 'helmet';
 import path from 'path';
 import swaggerUi from 'swagger-ui-express';
 import fs from 'fs';
+// Note: body-parser no longer needed — using express.json() with size limit
 import { createApiRouter } from './api';
 import { API_PORT } from '../../engine/src/config/config';
 import { PATHS } from '../../engine/src/config/paths';
@@ -90,6 +94,16 @@ import { createSubscriptionRouter } from './routes/core/subscriptionRoutes';
 
 const app = express();
 
+// Security headers (OWASP best practice)
+app.use(helmet({
+  contentSecurityPolicy: false, // CSP disabled — API-only server, no HTML to protect
+}));
+
+// Body size limit — prevent OOM from oversized payloads
+const BODY_LIMIT = process.env.BODY_SIZE_LIMIT || '5mb';
+app.use(express.json({ limit: BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: BODY_LIMIT }));
+
 // CORS — restrict to known origins (env-configurable)
 const ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:3001').split(',').map(o => o.trim());
 
@@ -111,8 +125,6 @@ app.use((req, res, next) => {
 
   next();
 });
-
-app.use(bodyParser.json());
 
 // -----------------------------------------------------------------------------
 // OpenAPI / Swagger UI

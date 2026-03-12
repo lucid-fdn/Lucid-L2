@@ -256,11 +256,11 @@ inferenceRouter.post('/v1/chat/completions', requirePayment({ dynamic: true }), 
           chunkIndex++;
         }
 
+        // Finalize receipt before ending response (crash-safe)
+        await streamResult.finalize().catch(console.error);
+
         res.write('data: [DONE]\n\n');
         res.end();
-
-        // Finalize asynchronously (receipt creation)
-        streamResult.finalize().catch(console.error);
       } catch (streamError) {
         const errorMsg = streamError instanceof Error ? streamError.message : 'Stream error';
         if (!res.headersSent) {

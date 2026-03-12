@@ -1,7 +1,12 @@
 /**
- * Dispute Service
+ * Dispute Service (ALPHA)
  *
  * Off-chain service for managing LucidArbitration contract interactions.
+ *
+ * Status:
+ * - On-chain calls: functional via adapter (EVM only)
+ * - Persistence: IN-MEMORY ONLY — disputes are lost on restart
+ * - Production use requires: DB migration for disputes table, contract deployment
  */
 
 import { encodeFunctionData } from 'viem';

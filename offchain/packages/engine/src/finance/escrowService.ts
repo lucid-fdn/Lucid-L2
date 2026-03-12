@@ -1,8 +1,12 @@
 /**
- * Escrow Service
+ * Escrow Service (ALPHA)
  *
  * Off-chain service for managing LucidEscrow contract interactions.
- * Singleton pattern matching existing service conventions.
+ *
+ * Status:
+ * - EVM path: functional (delegates to adapter.sendTransaction)
+ * - Solana path: DB-only stub — no on-chain transaction submission
+ * - Production use requires deployed contracts + configured adapter
  */
 
 import { encodeFunctionData } from 'viem';

@@ -92,3 +92,37 @@ export function extractText(message: A2AMessage): string {
 export function createTaskStore(): A2ATaskStore {
   return { tasks: new Map() };
 }
+
+// ── Shared singleton task store ──────────────────────────────────────
+// Used by gateway routes so tasks persist across requests within the process.
+let sharedStore: A2ATaskStore | null = null;
+
+export function getSharedTaskStore(): A2ATaskStore {
+  if (!sharedStore) sharedStore = createTaskStore();
+  return sharedStore;
+}
+
+/** Save a task to the shared store. */
+export function storeTask(task: A2ATask): void {
+  getSharedTaskStore().tasks.set(task.id, task);
+}
+
+/** Retrieve a task by ID from the shared store. */
+export function getTask(taskId: string): A2ATask | null {
+  return getSharedTaskStore().tasks.get(taskId) ?? null;
+}
+
+/** List tasks, optionally filtered by agent passport and/or state. */
+export function listTasks(opts?: { agentPassportId?: string; state?: A2ATaskState }): A2ATask[] {
+  const tasks = Array.from(getSharedTaskStore().tasks.values());
+  return tasks.filter(t => {
+    if (opts?.agentPassportId && t.metadata?.agent_passport_id !== opts.agentPassportId) return false;
+    if (opts?.state && t.status.state !== opts.state) return false;
+    return true;
+  });
+}
+
+/** Reset the shared store (for testing). */
+export function resetSharedTaskStore(): void {
+  sharedStore = null;
+}

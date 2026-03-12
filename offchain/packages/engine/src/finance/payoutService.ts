@@ -42,8 +42,8 @@ export const DEFAULT_SPLIT_CONFIG: SplitConfig = {
   orchestrator_bp: 0,         // 0% (optional)
 };
 
-// Protocol treasury address (MVP placeholder)
-const PROTOCOL_TREASURY_ADDRESS = 'LucidTreasury111111111111111111111111111111';
+// Protocol treasury address — must be set by operator
+const PROTOCOL_TREASURY_ADDRESS = process.env.PROTOCOL_TREASURY_ADDRESS || '';
 
 /**
  * Validate split configuration (must sum to 10000 bp = 100%)
@@ -405,10 +405,9 @@ export async function executePayoutSplit(
   const transfers: PayoutTransfer[] = [];
 
   for (const recipient of payout.recipients) {
-    // Convert lamports to USDC (6 decimals)
-    // Lamports are 9 decimals (SOL), USDC is 6 decimals
-    // For EVM payout, we treat lamports as micro-units and convert
-    const amountUSDC = recipient.amount_lamports.toString();
+    // Convert lamports (9 decimals) to USDC (6 decimals)
+    const amountMicroUsdc = recipient.amount_lamports / 1000n;
+    const amountUSDC = amountMicroUsdc.toString();
 
     // Skip zero amounts
     if (recipient.amount_lamports === 0n) {
@@ -421,8 +420,8 @@ export async function executePayoutSplit(
       continue;
     }
 
-    // Skip placeholder treasury address
-    if (recipient.wallet_address === PROTOCOL_TREASURY_ADDRESS) {
+    // Skip if treasury address is not configured
+    if (!recipient.wallet_address || recipient.wallet_address === PROTOCOL_TREASURY_ADDRESS) {
       transfers.push({
         recipient: recipient.wallet_address,
         role: recipient.role,
@@ -436,7 +435,7 @@ export async function executePayoutSplit(
       // Encode ERC-20 transfer calldata
       // transfer(address to, uint256 amount)
       const toAddressPadded = recipient.wallet_address.replace('0x', '').padStart(64, '0');
-      const amountHex = recipient.amount_lamports.toString(16).padStart(64, '0');
+      const amountHex = amountMicroUsdc.toString(16).padStart(64, '0');
       const calldata = `${TRANSFER_SELECTOR}${toAddressPadded}${amountHex}`;
 
       const txReceipt = await adapter.sendTransaction({

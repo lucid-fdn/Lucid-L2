@@ -3,6 +3,7 @@
 // Requires RAILWAY_API_TOKEN and RAILWAY_PROJECT_ID environment variables.
 
 import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, DeploymentStatus, LogOptions } from './IDeployer';
+import { resilientFetch } from './resilientFetch';
 
 const RAILWAY_API_URL = 'https://backboard.railway.app/graphql/v2';
 
@@ -386,7 +387,7 @@ export class RailwayDeployer implements IDeployer {
   }
 
   private async graphql(query: string, variables: Record<string, any> = {}): Promise<any> {
-    const res = await fetch(RAILWAY_API_URL, {
+    const res = await resilientFetch(RAILWAY_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

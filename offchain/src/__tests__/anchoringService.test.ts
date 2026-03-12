@@ -215,10 +215,10 @@ describe('Epoch Service', () => {
       expect(result.reason).toBe('max_duration_reached');
     });
 
-    it('should not finalize non-open epochs', () => {
+    it('should not finalize non-open epochs', async () => {
       const epoch = getCurrentEpoch();
       addReceiptToEpoch('run_1');
-      prepareEpochForFinalization(epoch.epoch_id);
+      await prepareEpochForFinalization(epoch.epoch_id);
       
       const anchoring = getEpoch(epoch.epoch_id)!;
       const result = shouldFinalizeEpoch(anchoring);
@@ -228,60 +228,60 @@ describe('Epoch Service', () => {
   });
 
   describe('prepareEpochForFinalization', () => {
-    it('should transition epoch to anchoring status', () => {
+    it('should transition epoch to anchoring status', async () => {
       const epoch = getCurrentEpoch();
       addReceiptToEpoch('run_1');
-      
-      const prepared = prepareEpochForFinalization(epoch.epoch_id);
+
+      const prepared = await prepareEpochForFinalization(epoch.epoch_id);
       
       expect(prepared).not.toBeNull();
       expect(prepared?.status).toBe('anchoring');
       expect(prepared?.finalized_at).toBeDefined();
     });
 
-    it('should capture final MMR root', () => {
+    it('should capture final MMR root', async () => {
       const epoch = getCurrentEpoch();
       const receipt = createTestReceipt();
       addReceiptToEpoch(receipt.run_id);
-      
-      const prepared = prepareEpochForFinalization(epoch.epoch_id);
+
+      const prepared = await prepareEpochForFinalization(epoch.epoch_id);
       
       expect(prepared?.mmr_root).toBeDefined();
       expect(prepared?.end_leaf_index).toBeDefined();
     });
 
-    it('should remove from active epochs', () => {
+    it('should remove from active epochs', async () => {
       const epoch = getCurrentEpoch();
       addReceiptToEpoch('run_1');
-      
-      prepareEpochForFinalization(epoch.epoch_id);
+
+      await prepareEpochForFinalization(epoch.epoch_id);
       
       // Getting current epoch should create a new one
       const newEpoch = getCurrentEpoch();
       expect(newEpoch.epoch_id).not.toBe(epoch.epoch_id);
     });
 
-    it('should return null for non-existent epoch', () => {
-      const result = prepareEpochForFinalization('non-existent');
+    it('should return null for non-existent epoch', async () => {
+      const result = await prepareEpochForFinalization('non-existent');
       expect(result).toBeNull();
     });
 
-    it('should return null for non-open epoch', () => {
+    it('should return null for non-open epoch', async () => {
       const epoch = getCurrentEpoch();
       addReceiptToEpoch('run_1');
-      prepareEpochForFinalization(epoch.epoch_id);
-      
+      await prepareEpochForFinalization(epoch.epoch_id);
+
       // Try to prepare again
-      const result = prepareEpochForFinalization(epoch.epoch_id);
+      const result = await prepareEpochForFinalization(epoch.epoch_id);
       expect(result).toBeNull();
     });
   });
 
   describe('finalizeEpoch', () => {
-    it('should mark epoch as anchored', () => {
+    it('should mark epoch as anchored', async () => {
       const epoch = getCurrentEpoch();
       addReceiptToEpoch('run_1');
-      prepareEpochForFinalization(epoch.epoch_id);
+      await prepareEpochForFinalization(epoch.epoch_id);
       
       const finalized = finalizeEpoch(epoch.epoch_id, 'tx_signature_123', epoch.mmr_root);
       
@@ -302,10 +302,10 @@ describe('Epoch Service', () => {
   });
 
   describe('failEpoch', () => {
-    it('should mark epoch as failed with error', () => {
+    it('should mark epoch as failed with error', async () => {
       const epoch = getCurrentEpoch();
       addReceiptToEpoch('run_1');
-      prepareEpochForFinalization(epoch.epoch_id);
+      await prepareEpochForFinalization(epoch.epoch_id);
       
       const failed = failEpoch(epoch.epoch_id, 'Network error');
       
@@ -316,10 +316,10 @@ describe('Epoch Service', () => {
   });
 
   describe('retryEpoch', () => {
-    it('should reset failed epoch to open', () => {
+    it('should reset failed epoch to open', async () => {
       const epoch = getCurrentEpoch();
       addReceiptToEpoch('run_1');
-      prepareEpochForFinalization(epoch.epoch_id);
+      await prepareEpochForFinalization(epoch.epoch_id);
       failEpoch(epoch.epoch_id, 'Error');
       
       const retried = retryEpoch(epoch.epoch_id);
@@ -361,11 +361,11 @@ describe('Epoch Service', () => {
       expect(result.total).toBe(2);
     });
 
-    it('should filter by status', () => {
+    it('should filter by status', async () => {
       const epoch1 = createEpoch();
       const epoch2 = createEpoch('p2');
       addReceiptToEpoch('r1');
-      prepareEpochForFinalization(epoch1.epoch_id);
+      await prepareEpochForFinalization(epoch1.epoch_id);
       
       const openResult = listEpochs({ status: 'open' });
       const anchoringResult = listEpochs({ status: 'anchoring' });
@@ -389,16 +389,16 @@ describe('Epoch Service', () => {
   });
 
   describe('getEpochStats', () => {
-    it('should return correct statistics', () => {
+    it('should return correct statistics', async () => {
       const epoch1 = createEpoch();
       addReceiptToEpoch('r1');
-      prepareEpochForFinalization(epoch1.epoch_id);
+      await prepareEpochForFinalization(epoch1.epoch_id);
       finalizeEpoch(epoch1.epoch_id, 'tx1', epoch1.mmr_root);
-      
+
       const epoch2 = createEpoch('p2');
       addReceiptToEpoch('r2', 'p2');
       addReceiptToEpoch('r3', 'p2');
-      prepareEpochForFinalization(epoch2.epoch_id);
+      await prepareEpochForFinalization(epoch2.epoch_id);
       failEpoch(epoch2.epoch_id, 'Error');
       
       createEpoch('p3');
@@ -649,7 +649,7 @@ describe('Epoch + Anchoring Integration', () => {
     addReceiptToEpoch('r1');
     
     // Prepare and manually fail
-    prepareEpochForFinalization(epoch.epoch_id);
+    await prepareEpochForFinalization(epoch.epoch_id);
     failEpoch(epoch.epoch_id, 'Simulated failure');
     
     const failedEpoch = getEpoch(epoch.epoch_id)!;

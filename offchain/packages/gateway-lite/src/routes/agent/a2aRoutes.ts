@@ -71,8 +71,9 @@ a2aRouter.post('/v1/a2a/:passportId/tasks/send', verifyAdminAuth, async (req, re
 
     const { a2aServer, a2aClient } = getA2AModules();
 
-    // Create A2A task
+    // Create A2A task and persist to shared store
     const task = a2aServer.createA2ATask(message, { agent_passport_id: passportId });
+    a2aServer.storeTask(task);
 
     // Update to working state
     a2aServer.updateTaskState(task, 'working');
@@ -154,6 +155,97 @@ a2aRouter.post('/v1/a2a/discover', verifyAdminAuth, async (req, res) => {
     return res.json({ success: true, agent_card: card });
   } catch (error) {
     console.error('Error in POST /v1/a2a/discover:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Internal server error',
+    });
+  }
+});
+
+/**
+ * GET /v1/a2a/:passportId/tasks/:taskId
+ * Get task status by ID
+ */
+a2aRouter.get('/v1/a2a/:passportId/tasks/:taskId', verifyAdminAuth, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { a2aServer } = getA2AModules();
+    const task = a2aServer.getTask(taskId);
+
+    if (!task) {
+      return res.status(404).json({ success: false, error: 'Task not found' });
+    }
+
+    return res.json(task);
+  } catch (error) {
+    console.error('Error in GET /v1/a2a/:passportId/tasks/:taskId:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Internal server error',
+    });
+  }
+});
+
+/**
+ * DELETE /v1/a2a/:passportId/tasks/:taskId
+ * Cancel a task
+ */
+a2aRouter.delete('/v1/a2a/:passportId/tasks/:taskId', verifyAdminAuth, async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { a2aServer } = getA2AModules();
+    const task = a2aServer.getTask(taskId);
+
+    if (!task) {
+      return res.status(404).json({ success: false, error: 'Task not found' });
+    }
+
+    // Only cancel tasks that are still in progress
+    if (task.status.state === 'completed' || task.status.state === 'failed' || task.status.state === 'canceled') {
+      return res.status(409).json({
+        success: false,
+        error: `Cannot cancel task in '${task.status.state}' state`,
+      });
+    }
+
+    a2aServer.updateTaskState(task, 'canceled', 'Canceled by user');
+    return res.json({ success: true, task });
+  } catch (error) {
+    console.error('Error in DELETE /v1/a2a/:passportId/tasks/:taskId:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Internal server error',
+    });
+  }
+});
+
+/**
+ * GET /v1/a2a/:passportId/tasks
+ * List tasks for an agent, with optional state filter and pagination
+ */
+a2aRouter.get('/v1/a2a/:passportId/tasks', verifyAdminAuth, async (req, res) => {
+  try {
+    const { passportId } = req.params;
+    const state = req.query.state as string | undefined;
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const perPage = Math.min(100, Math.max(1, parseInt(req.query.per_page as string) || 20));
+
+    const { a2aServer } = getA2AModules();
+    const all = a2aServer.listTasks({
+      agentPassportId: passportId,
+      state: state || undefined,
+    });
+
+    // Sort newest first
+    all.sort((a: any, b: any) => b.status.timestamp.localeCompare(a.status.timestamp));
+
+    const total = all.length;
+    const totalPages = Math.ceil(total / perPage) || 1;
+    const tasks = all.slice((page - 1) * perPage, page * perPage);
+
+    return res.json({ tasks, total, page, per_page: perPage, total_pages: totalPages });
+  } catch (error) {
+    console.error('Error in GET /v1/a2a/:passportId/tasks:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',

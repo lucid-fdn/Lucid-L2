@@ -4,6 +4,7 @@
 // Requires NOSANA_API_KEY environment variable.
 
 import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, DeploymentStatus, DeploymentStatusType, LogOptions } from './IDeployer';
+import { resilientFetch } from './resilientFetch';
 
 /**
  * GPU market addresses — Solana pubkeys for Nosana GPU node markets.
@@ -285,7 +286,7 @@ export class NosanaDeployer implements IDeployer {
       init.body = JSON.stringify(body);
     }
 
-    const res = await fetch(url, init);
+    const res = await resilientFetch(url, init);
     return res;
   }
 }

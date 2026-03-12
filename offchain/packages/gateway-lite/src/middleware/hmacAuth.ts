@@ -12,6 +12,27 @@ export interface HmacRequest extends Request {
   hmacSignature?: string;
 }
 
+// ── Nonce replay protection ──────────────────────────────────────────
+// Tracks used nonces within the 5-minute timestamp window to prevent replay.
+const usedNonces = new Set<string>();
+
+const NONCE_CLEANUP_INTERVAL_MS = 6 * 60 * 1000; // 6 minutes
+const NONCE_MAX_AGE_S = 360; // 6 minutes (5-min window + 1-min buffer)
+
+const nonceCleanupTimer = setInterval(() => {
+  const now = Math.floor(Date.now() / 1000);
+  for (const key of usedNonces) {
+    const ts = parseInt(key.split(':')[0], 10);
+    if (now - ts > NONCE_MAX_AGE_S) usedNonces.delete(key);
+  }
+}, NONCE_CLEANUP_INTERVAL_MS);
+nonceCleanupTimer.unref();
+
+/** Exported for testing — clears the nonce registry. */
+export function resetNonceRegistry(): void {
+  usedNonces.clear();
+}
+
 /**
  * Verify HMAC signature on incoming request
  * 
@@ -52,7 +73,16 @@ export function verifyHmacSignature(
         message: 'Request must be made within 5 minutes of signature generation'
       });
     }
-    
+
+    // Nonce replay check — reject if this timestamp:nonce pair was already used
+    const nonceKey = `${timestamp}:${nonce}`;
+    if (usedNonces.has(nonceKey)) {
+      return res.status(401).json({
+        error: 'Nonce already used',
+        message: 'This request has already been processed'
+      });
+    }
+
     // Get shared secret
     const secret = process.env.N8N_HMAC_SECRET;
     if (!secret) {
@@ -99,10 +129,11 @@ export function verifyHmacSignature(
       });
     }
     
-    // Store verification status
+    // Store verification status and register nonce
     req.hmacVerified = true;
     req.hmacSignature = signature;
-    
+    usedNonces.add(nonceKey);
+
     next();
   } catch (error) {
     console.error('HMAC verification error:', error);

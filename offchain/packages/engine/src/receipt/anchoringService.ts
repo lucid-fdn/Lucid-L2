@@ -23,7 +23,7 @@ import {
   failEpoch,
   Epoch,
 } from './epochService';
-// receiptService is used by updateReceiptsWithAnchor (future: per-receipt updates)
+import { pool } from '../db/pool';
 
 // =============================================================================
 // CONFIGURATION
@@ -426,6 +426,10 @@ export interface AnchorResult {
   root: string;
   epoch_id: string;
   error?: string;
+  /** Per-chain transaction hashes (only present for multi-chain anchoring) */
+  chain_txs?: Record<string, string>;
+  /** Chains that failed during multi-chain anchoring */
+  chain_errors?: string[];
 }
 
 /**
@@ -441,7 +445,7 @@ function sleep(ms: number): Promise<void> {
  */
 export async function commitEpochRoot(epoch_id: string): Promise<AnchorResult> {
   // Get and prepare epoch
-  const epoch = prepareEpochForFinalization(epoch_id);
+  const epoch = await prepareEpochForFinalization(epoch_id);
   if (!epoch) {
     return {
       success: false,
@@ -468,7 +472,7 @@ export async function commitEpochRoot(epoch_id: string): Promise<AnchorResult> {
     const result = finalizeEpoch(epoch_id, mockTx, epoch.mmr_root);
     if (result) {
       // Update receipts with anchor info
-      await updateReceiptsWithAnchor(epoch, mockTx);
+      await updateReceiptsWithAnchor(epoch, { 'mock': mockTx });
     }
     return {
       success: true,
@@ -533,7 +537,7 @@ export async function commitEpochRoot(epoch_id: string): Promise<AnchorResult> {
   if (Object.keys(txResults).length > 0) {
     const result = finalizeEpoch(epoch_id, txResults, epoch.mmr_root);
     if (result) {
-      await updateReceiptsWithAnchor(epoch, Object.values(txResults)[0]);
+      await updateReceiptsWithAnchor(epoch, txResults);
     }
 
     // Upload epoch proof to DePIN permanent storage (non-blocking)
@@ -558,11 +562,16 @@ export async function commitEpochRoot(epoch_id: string): Promise<AnchorResult> {
     }
 
     const firstSig = Object.values(txResults)[0];
+    if (errors.length > 0) {
+      console.warn(`[Anchoring] Epoch ${epoch_id} partially anchored: ${Object.keys(txResults).join(', ')} succeeded; failures: ${errors.join('; ')}`);
+    }
     return {
       success: true,
       signature: firstSig,
       root: epoch.mmr_root,
       epoch_id,
+      chain_txs: txResults,
+      chain_errors: errors.length > 0 ? errors : undefined,
     };
   }
 
@@ -574,6 +583,7 @@ export async function commitEpochRoot(epoch_id: string): Promise<AnchorResult> {
     root: epoch.mmr_root,
     epoch_id,
     error: combinedError,
+    chain_errors: errors,
   };
 }
 
@@ -595,7 +605,7 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
   const resultsByEpochId = new Map<string, AnchorResult>();
 
   for (const epoch_id of epoch_ids) {
-    const epoch = prepareEpochForFinalization(epoch_id);
+    const epoch = await prepareEpochForFinalization(epoch_id);
     if (!epoch) {
       resultsByEpochId.set(epoch_id, {
         success: false,
@@ -627,7 +637,7 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
     const mockTx = `mock_batch_tx_${Date.now()}`;
     for (const epoch of epochs) {
       finalizeEpoch(epoch.epoch_id, mockTx, epoch.mmr_root);
-      await updateReceiptsWithAnchor(epoch, mockTx);
+      await updateReceiptsWithAnchor(epoch, { 'mock': mockTx });
       resultsByEpochId.set(epoch.epoch_id, {
         success: true,
         signature: mockTx,
@@ -687,7 +697,7 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
       // Success! Finalize all epochs
       for (const epoch of epochs) {
         finalizeEpoch(epoch.epoch_id, signature, epoch.mmr_root);
-        await updateReceiptsWithAnchor(epoch, signature);
+        await updateReceiptsWithAnchor(epoch, { 'solana-devnet': signature });
         resultsByEpochId.set(epoch.epoch_id, {
           success: true,
           signature,
@@ -744,14 +754,35 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
 
 /**
  * Update receipts with anchor information after successful anchoring.
+ * Writes anchor metadata (chain, tx, root, epoch_id) back to each receipt
+ * so callers can reconstruct the full proof chain.
  */
-async function updateReceiptsWithAnchor(epoch: Epoch, tx_signature: string): Promise<void> {
-  // Note: This requires modifying receipts in the receipt store
-  // For MVP, we'll just log this - full implementation would update each receipt
-  console.log(`Anchored ${epoch.leaf_count} receipts in epoch ${epoch.epoch_id} with tx ${tx_signature}`);
-  
-  // In production, iterate through epoch.receipt_run_ids and update each receipt
-  // with anchor info: { chain: 'solana', tx: tx_signature, root: epoch.mmr_root, epoch_id: epoch.epoch_id }
+async function updateReceiptsWithAnchor(
+  epoch: Epoch,
+  chainTxs: Record<string, string>,
+): Promise<void> {
+  const runIds = epoch.receipt_run_ids;
+  if (!runIds || runIds.length === 0) return;
+
+  // Pick the first chain/tx for the per-receipt anchor columns
+  const [[anchorChain, anchorTx]] = Object.entries(chainTxs);
+
+  try {
+    // Batch update in DB — single query for all receipts in this epoch
+    await pool.query(
+      `UPDATE receipts
+         SET anchor_chain = $1,
+             anchor_tx    = $2,
+             anchor_root  = $3,
+             anchor_epoch_id = $4
+       WHERE run_id = ANY($5)`,
+      [anchorChain, anchorTx, epoch.mmr_root, epoch.epoch_id, runIds],
+    );
+    console.log(`[Anchoring] Updated ${runIds.length} receipts with anchor (${anchorChain}: ${anchorTx.slice(0, 16)}…)`);
+  } catch (err) {
+    // Non-blocking: anchor is on-chain regardless, this is convenience metadata
+    console.warn('[Anchoring] Failed to update receipt anchor metadata (non-blocking):', err instanceof Error ? err.message : err);
+  }
 }
 
 // =============================================================================

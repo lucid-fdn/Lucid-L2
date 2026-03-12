@@ -9,6 +9,8 @@ import { Router } from 'express';
 import { getX402Config } from '../../middleware/x402';
 import { getFacilitatorRegistry } from '../../middleware/x402';
 import { verifyAdminAuth } from '../../middleware/adminAuth';
+import { createPaymentGrant } from '../../../../engine/src/finance/paymentGrant';
+import { getOrchestratorKeypair } from '../../../../engine/src/crypto/signing';
 
 export function createPaymentConfigRouter(): Router {
   const router = Router();
@@ -126,6 +128,48 @@ export function createPaymentConfigRouter(): Router {
       }
     } catch (error) {
       console.error('Error in GET /chains:', error);
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+
+  /**
+   * POST /grants
+   * Issue a signed payment grant. Requires admin authentication.
+   * Body: { tenant_id, agent_passport_id, run_id, scope, limits, attestation }
+   */
+  router.post('/grants', verifyAdminAuth, async (req, res) => {
+    try {
+      const { tenant_id, agent_passport_id, run_id, scope, limits, attestation } = req.body || {};
+
+      if (!tenant_id || !agent_passport_id || !run_id || !scope || !limits) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required fields: tenant_id, agent_passport_id, run_id, scope, limits',
+        });
+      }
+
+      const keypair = getOrchestratorKeypair();
+      const grant = await createPaymentGrant(
+        {
+          tenant_id,
+          agent_passport_id,
+          run_id,
+          scope,
+          limits,
+          attestation: attestation || {
+            balance_verified_at: Math.floor(Date.now() / 1000),
+            balance_source: 'credit',
+          },
+        },
+        keypair.secretKey,
+      );
+
+      return res.status(201).json({ success: true, grant });
+    } catch (error) {
+      console.error('Error in POST /grants:', error);
       return res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

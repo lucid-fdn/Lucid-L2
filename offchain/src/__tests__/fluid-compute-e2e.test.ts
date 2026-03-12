@@ -379,14 +379,14 @@ describe('Fluid Compute v0 - E2E Tests', () => {
       expect(shouldFinalizeEpoch(updatedEpoch).should).toBe(true);
     });
 
-    it('should prepare epoch for finalization', () => {
+    it('should prepare epoch for finalization', async () => {
       const epoch = getCurrentEpoch();
 
       // Add a receipt
       const receipt = createComputeReceipt(createValidReceiptInput());
       addReceiptToEpoch(receipt.run_id);
 
-      const prepared = prepareEpochForFinalization(epoch.epoch_id);
+      const prepared = await prepareEpochForFinalization(epoch.epoch_id);
 
       expect(prepared).not.toBeNull();
       expect(prepared?.status).toBe('anchoring');

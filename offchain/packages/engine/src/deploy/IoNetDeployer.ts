@@ -4,6 +4,7 @@
 // Requires IONET_API_KEY environment variable.
 
 import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, DeploymentStatus, LogOptions } from './IDeployer';
+import { resilientFetch } from './resilientFetch';
 
 const IONET_API_URL = 'https://api.io.solutions/enterprise/v1/io-cloud/caas';
 
@@ -304,6 +305,6 @@ export class IoNetDeployer implements IDeployer {
       init.body = JSON.stringify(body);
     }
 
-    return fetch(`${IONET_API_URL}${path}`, init);
+    return resilientFetch(`${IONET_API_URL}${path}`, init);
   }
 }

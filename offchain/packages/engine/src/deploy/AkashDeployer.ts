@@ -26,6 +26,7 @@ import type {
   DeploymentStatus,
   LogOptions,
 } from './IDeployer';
+import { resilientFetch } from './resilientFetch';
 
 // ---------------------------------------------------------------------------
 // GPU mapping — abstract name → SDL gpu.units + gpu.attributes vendor/model
@@ -423,7 +424,7 @@ deployment:
   }
 
   private async api<T>(method: string, path: string, body?: unknown): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, {
+    const res = await resilientFetch(`${this.baseUrl}${path}`, {
       method,
       headers: {
         'Authorization': `Bearer ${this.apiKey}`,

@@ -4,6 +4,7 @@
 // Requires PHALA_CLOUD_API_KEY environment variable.
 
 import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, DeploymentStatus, LogOptions } from './IDeployer';
+import { resilientFetch } from './resilientFetch';
 
 const PHALA_API_URL = 'https://cloud-api.phala.com/api/v1';
 const PHALA_API_VERSION = '2026-01-21';
@@ -274,6 +275,6 @@ ${envLines}
       init.body = JSON.stringify(body);
     }
 
-    return fetch(`${PHALA_API_URL}${path}`, init);
+    return resilientFetch(`${PHALA_API_URL}${path}`, init);
   }
 }
