@@ -204,7 +204,7 @@ All 5 cloud deployers use `resilientFetch()` — 3 retries, exponential backoff 
 | Area | Status | Gaps |
 |------|--------|------|
 | CI/CD (GitHub Actions) | **PROD** | Type-check + test + lint; deploy is operator's responsibility (self-hosted OSS) |
-| SQL migrations | **PROD** | All tables covered |
+| SQL migrations | **PROD** | All tables covered; 21 migration files applied to Supabase (2026-03-12) |
 | OpenAPI spec | **PROD** | 144 operations documented; 116 schemas; 25 tags; legacy `/api/agents/*` deprecated |
 | Environment docs | **PROD** | `.env.example` complete |
 | LICENSE (Apache 2.0) | **PROD** | Added |
