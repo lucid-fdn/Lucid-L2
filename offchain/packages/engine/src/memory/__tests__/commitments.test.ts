@@ -106,7 +106,7 @@ describe('Commitments', () => {
       });
       await store.write({
         agent_passport_id: 'a', type: 'semantic', namespace: 'ns',
-        content: 'F1', metadata: {}, fact: 'F1', confidence: 1,
+        memory_lane: 'self', content: 'F1', metadata: {}, fact: 'F1', confidence: 1,
         source_memory_ids: [], content_hash: h1, prev_hash: null,
       });
 
@@ -116,7 +116,7 @@ describe('Commitments', () => {
       });
       await store.write({
         agent_passport_id: 'a', type: 'semantic', namespace: 'ns',
-        content: 'F2', metadata: {}, fact: 'F2', confidence: 0.9,
+        memory_lane: 'self', content: 'F2', metadata: {}, fact: 'F2', confidence: 0.9,
         source_memory_ids: [], content_hash: h2, prev_hash: h1,
       });
 
@@ -133,7 +133,7 @@ describe('Commitments', () => {
       });
       await store.write({
         agent_passport_id: 'a', type: 'semantic', namespace: 'ns',
-        content: 'Tampered', metadata: {}, fact: 'Tampered', confidence: 1,
+        memory_lane: 'self', content: 'Tampered', metadata: {}, fact: 'Tampered', confidence: 1,
         source_memory_ids: [], content_hash: h1, prev_hash: null,
       });
 

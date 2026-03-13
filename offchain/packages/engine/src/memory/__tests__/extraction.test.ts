@@ -16,6 +16,16 @@ const testConfig: MemoryServiceConfig = {
   max_episodic_window: 50,
   max_semantic_per_agent: 1000,
   compaction_idle_timeout_ms: 1800000,
+  recall_similarity_threshold: 0.65,
+  recall_candidate_pool_size: 50,
+  recall_min_results: 3,
+  recall_similarity_weight: 0.55,
+  recall_recency_weight: 0.20,
+  recall_type_weight: 0.15,
+  recall_quality_weight: 0.10,
+  extraction_max_tokens: 8000,
+  extraction_max_facts: 20,
+  extraction_max_rules: 10,
 };
 
 describe('ExtractionPipeline', () => {

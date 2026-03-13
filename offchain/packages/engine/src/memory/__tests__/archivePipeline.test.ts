@@ -39,13 +39,13 @@ describe('ArchivePipeline', () => {
       });
       await store.write({
         agent_passport_id: 'agent-1', type: 'semantic', namespace: 'agent:agent-1',
-        content: 'Fact 1', metadata: {}, fact: 'F1', confidence: 1,
+        memory_lane: 'self', content: 'Fact 1', metadata: {}, fact: 'F1', confidence: 1,
         source_memory_ids: [], content_hash: h1, prev_hash: null,
       });
 
       await store.createSession({
         session_id: 's1', agent_passport_id: 'agent-1',
-        namespace: 'agent:agent-1', status: 'active', last_receipted_turn_index: -1,
+        namespace: 'agent:agent-1', status: 'active',
       });
 
       const result = await pipeline.createSnapshot('agent-1', 'checkpoint');
@@ -73,7 +73,7 @@ describe('ArchivePipeline', () => {
       });
       await store.write({
         agent_passport_id: 'agent-1', type: 'semantic', namespace: 'agent:agent-1',
-        content: 'Existing fact', metadata: {}, fact: 'Existing', confidence: 1,
+        memory_lane: 'self', content: 'Existing fact', metadata: {}, fact: 'Existing', confidence: 1,
         source_memory_ids: [], content_hash: h1, prev_hash: null,
       });
 
@@ -119,7 +119,7 @@ describe('ArchivePipeline', () => {
     it('should produce a valid LMF structure', () => {
       const entries = [{
         memory_id: 'm1', agent_passport_id: 'a', type: 'semantic' as const,
-        namespace: 'ns', content: 'F', status: 'active' as const,
+        namespace: 'ns', memory_lane: 'self' as const, content: 'F', status: 'active' as const,
         created_at: Date.now(), updated_at: Date.now(), metadata: {},
         content_hash: 'h1', prev_hash: null,
       }];
