@@ -365,7 +365,7 @@ interface CompactionConfig {
 - If DePIN storage is not configured, cold tier does not activate (warm compaction still works)
 - Warm compaction is idempotent via watermark + extraction content-hash dedup
 
-**Cold gate definition:** A snapshot "covers" a cold candidate set if the snapshot was taken after all entries in the set were written. To handle clock drift and out-of-order writes, compare against the newest entry's `created_at` in the cold set: `SELECT 1 FROM memory_snapshots WHERE agent_passport_id = $1 AND created_at >= $2 LIMIT 1` where `$2` is `MAX(created_at)` of the cold candidate set. For extra safety, add a small buffer (e.g., 60 seconds) to account for clock skew: `created_at >= $2 + interval '60 seconds'`.
+**Cold gate definition:** A snapshot "covers" a cold candidate set if the snapshot was taken after all entries in the set were written. To handle clock drift and out-of-order writes, compare against the newest entry's `created_at` in the cold set: `SELECT 1 FROM memory_snapshots WHERE agent_passport_id = $1 AND created_at >= $2 LIMIT 1` where `$2` is `MAX(created_at)` of the cold candidate set. For extra safety, add a heuristic buffer (e.g., 60 seconds) to account for clock skew: `created_at >= $2 + interval '60 seconds'`. **This is a practical safeguard, not a cryptographic proof of coverage** — the `.lmf` file on DePIN is the authoritative record of what was archived.
 
 #### 3.10 New IMemoryStore methods required
 
@@ -544,7 +544,7 @@ Entity, trust_weighted, and temporal types are fully defined in `types.ts` with 
 Validates:
 - `entity_name: string` — non-empty
 - `entity_type: string` — non-empty (free-form string for v1; future: controlled vocabulary converging toward `person`, `organization`, `tool`, `protocol`, `dataset`, `contract`, `wallet`, `token`)
-- `entity_id?: string` — optional stable identifier (future-proofing; when omitted, `memory_id` serves as identifier. Long-term, entity dedup and graph traversal will use this field)
+- `entity_id?: string` — optional stable identifier (future-proofing; when omitted, `memory_id` serves as identifier. Long-term, entity dedup and graph traversal will use this field). **Hash preimage:** if present, `entity_id` is included in the hash preimage; if absent, it is omitted (no impact on hash chain compatibility)
 - `attributes: Record<string, unknown>` — required (can be empty `{}`)
 - `relationships: EntityRelation[]` — required (can be empty `[]`); each element validated:
   - `target_entity_id: string` — non-empty
@@ -562,6 +562,8 @@ Validates:
 - `source_memory_ids: string[]` — optional, for provenance linkage
 
 **Exposure:** Implemented in engine/service layer. REST/MCP endpoints marked as **advanced/optional** — available but not prominently documented for external users. Primary consumers are internal systems (reputation sync, agent-to-agent trust).
+
+**Recall note:** Trust-weighted memories do not automatically influence recall ranking in v2. They participate in standard recall like any other type. Trust-aware reranking (where `trust_score` modulates relevance) is future work — callers must explicitly request `types: ['trust_weighted']` to retrieve these entries.
 
 #### 5.3 Temporal Manager (`managers/temporal.ts`)
 
@@ -700,7 +702,7 @@ Lane provides a natural ACL hint:
 - `self` — only the owning agent can read/write
 - `user` — owning agent + the specific user (when user auth is implemented)
 - `shared` — owning agent + agents with `read` grant on the namespace
-- `market` — read-open by default (world-state is public)
+- `market` — conceptually read-open (world-state is public), but current enforcement still follows namespace ACL until lane-aware ACL ships
 
 v1 implementation: ACL continues to use namespace-based ownership. Lane-based ACL refinement is additive — it narrows access, never broadens it.
 
@@ -708,7 +710,13 @@ v1 implementation: ACL continues to use namespace-based ownership. Lane-based AC
 
 All `addEpisodic()`, `addSemantic()`, `addProcedural()`, `addEntity()`, `addTrustWeighted()`, `addTemporal()` accept optional `memory_lane?: MemoryLane` in their input. Default: `'self'`. Routes, MCP tools, and SDK methods pass through the field.
 
-#### 6.7 Backward compatibility
+#### 6.7 Snapshot lane preservation
+
+Snapshots preserve original `memory_lane` values. On restore:
+- `replace` and `merge` modes: lanes are restored as-is
+- `fork` mode: changes namespace, **not** lane — the lane semantic is independent of namespace scoping
+
+#### 6.8 Backward compatibility
 
 All existing v1 entries have `memory_lane = 'self'` (DB default). No migration of existing data needed. All queries that don't specify lane filter return entries from all lanes (existing behavior preserved).
 
@@ -727,7 +735,8 @@ recall_similarity_weight: number;           // default: 0.55
 recall_recency_weight: number;              // default: 0.20
 recall_type_weight: number;                 // default: 0.15
 recall_quality_weight: number;              // default: 0.10
-// Invariant: similarity + recency + type + quality weights MUST sum to 1.0. Validated at config load time.
+// Invariant: similarity + recency + type + quality weights MUST sum to 1.0.
+// Validated at config load time — throws on startup if invalid (no silent normalization).
 
 // CompactionConfig (new)
 compact_on_session_close: boolean;          // default: true
@@ -790,6 +799,19 @@ The recall pipeline emits structured log events per query:
 - `intent_classification`: fact | policy | recent | default
 
 Not required for functionality but critical for tuning weights and detecting degradation.
+
+---
+
+## Non-goals of v2 Recall
+
+To set expectations clearly, the following are **not** in v2:
+
+- No entity graph traversal (entity memories participate in flat recall only)
+- No temporal validity reasoning (expired entries are filtered, not reasoned about)
+- No trust-aware reranking (trust_weighted type exists but does not modulate scores)
+- No lane-aware ACL enforcement (lanes are a recall/compaction dimension, not an auth boundary yet)
+- No contradiction detection beyond exact-match supersession
+- No cross-agent recall (each agent's memory is isolated; shared lanes are within a single agent's space)
 
 ---
 
