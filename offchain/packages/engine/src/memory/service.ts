@@ -7,13 +7,20 @@ import type {
 import { MemoryACLEngine } from './acl';
 import { computeMemoryHash, verifyChainIntegrity as verifyChain, ChainVerifyResult } from './commitments';
 import { getManager } from './managers';
+import { rerankCandidates } from './recall/reranker';
 
 export class MemoryService {
   constructor(
     private store: IMemoryStore,
     private acl: MemoryACLEngine,
     private config: MemoryServiceConfig,
-  ) {}
+  ) {
+    const weightSum = config.recall_similarity_weight + config.recall_recency_weight
+      + config.recall_type_weight + config.recall_quality_weight;
+    if (Math.abs(weightSum - 1.0) > 0.001) {
+      throw new Error(`Recall weights must sum to 1.0, got ${weightSum}`);
+    }
+  }
 
   async addEpisodic(callerPassportId: string, input: {
     session_id: string; namespace: string; role: string;
@@ -169,28 +176,79 @@ export class MemoryService {
     const namespace = request.namespace || `agent:${callerPassportId}`;
     this.acl.assertReadPermission(callerPassportId, namespace);
 
-    const entries = await this.store.query({
-      agent_passport_id: request.agent_passport_id,
-      namespace: request.namespace,
-      types: request.types,
-      session_id: request.session_id,
-      status: request.include_archived ? ['active', 'archived'] : ['active'],
-      limit: request.limit || 20,
-      order_by: 'created_at',
-      order_dir: 'desc',
-    });
+    const weights = {
+      similarity_weight: this.config.recall_similarity_weight,
+      recency_weight: this.config.recall_recency_weight,
+      type_weight: this.config.recall_type_weight,
+      quality_weight: this.config.recall_quality_weight,
+    };
 
-    // Without embeddings, score by recency (basic fallback)
-    const now = Date.now();
-    const scored = entries.map(e => ({
-      ...e,
-      score: Math.max(0, 1 - (now - e.created_at) / (30 * 24 * 60 * 60 * 1000)), // decay over 30 days
-    }));
+    const limit = request.limit || 20;
+    const threshold = request.min_similarity ?? this.config.recall_similarity_threshold;
+
+    let candidates: (MemoryEntry & { similarity: number })[];
+
+    // Stage 1: Fast candidate retrieval
+    if (request.semantic_query_embedding) {
+      candidates = await this.store.nearestByEmbedding(
+        request.semantic_query_embedding,
+        request.agent_passport_id,
+        request.namespace,
+        request.types,
+        this.config.recall_candidate_pool_size,
+        threshold,
+        request.lanes,
+      );
+    } else {
+      // Fallback: recency + keyword
+      const entries = await this.store.query({
+        agent_passport_id: request.agent_passport_id,
+        namespace: request.namespace,
+        types: request.types,
+        session_id: request.session_id,
+        status: request.include_archived ? ['active', 'archived', 'expired'] : ['active'],
+        limit: this.config.recall_candidate_pool_size,
+        order_by: 'created_at',
+        order_dir: 'desc',
+        memory_lane: request.lanes,
+      });
+      // Keyword content filter
+      const filtered = request.query
+        ? entries.filter(e => e.content.toLowerCase().includes(request.query!.toLowerCase()))
+        : entries;
+      candidates = filtered.map(e => ({ ...e, similarity: 0.0 }));
+    }
+
+    // Fallback safety: if semantic search returned too few results, backfill
+    if (request.semantic_query_embedding && candidates.length < this.config.recall_min_results) {
+      const backfill = await this.store.query({
+        agent_passport_id: request.agent_passport_id,
+        namespace: request.namespace,
+        types: request.types,
+        session_id: request.session_id,
+        status: request.include_archived ? ['active', 'archived', 'expired'] : ['active'],
+        limit: this.config.recall_candidate_pool_size,
+        order_by: 'created_at',
+        order_dir: 'desc',
+        memory_lane: request.lanes,
+      });
+      const existingIds = new Set(candidates.map(c => c.memory_id));
+      for (const entry of backfill) {
+        if (!existingIds.has(entry.memory_id)) {
+          candidates.push({ ...entry, similarity: 0.0 });
+          if (candidates.length >= this.config.recall_candidate_pool_size) break;
+        }
+      }
+    }
+
+    // Stage 2: Rerank
+    const scored = rerankCandidates(candidates, request.query || '', weights);
+    const result = scored.slice(0, limit);
 
     return {
-      memories: scored,
-      query_embedding_model: this.config.embedding_model,
-      total_candidates: scored.length,
+      memories: result,
+      query_embedding_model: request.semantic_query_embedding ? this.config.embedding_model : null,
+      total_candidates: candidates.length,
     };
   }
 

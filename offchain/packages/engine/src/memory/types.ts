@@ -190,8 +190,8 @@ export interface RecallRequest {
 }
 
 export interface RecallResponse {
-  memories: (MemoryEntry & { score: number })[];
-  query_embedding_model: string;
+  memories: (MemoryEntry & { similarity: number; score: number })[];
+  query_embedding_model: string | null;
   total_candidates: number;
 }
 

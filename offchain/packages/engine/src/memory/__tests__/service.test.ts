@@ -61,6 +61,18 @@ describe('MemoryService', () => {
     service = new MemoryService(store, acl, testConfig);
   });
 
+  describe('constructor', () => {
+    it('should throw if recall weights do not sum to 1.0', () => {
+      expect(() => new MemoryService(store, new MemoryACLEngine(), {
+        ...testConfig,
+        recall_similarity_weight: 0.5,
+        recall_recency_weight: 0.5,
+        recall_type_weight: 0.5,
+        recall_quality_weight: 0.5,
+      })).toThrow('Recall weights must sum to 1.0');
+    });
+  });
+
   describe('addEpisodic', () => {
     it('should write an episodic entry with auto-assigned turn_index', async () => {
       const sessionId = await service.startSession('agent-1', 'agent:agent-1');
