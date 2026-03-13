@@ -6,7 +6,7 @@ const PREIMAGE_FIELDS: Record<MemoryType, string[]> = {
   episodic: ['content', 'session_id', 'role', 'turn_index', 'tokens', 'tool_calls'],
   semantic: ['content', 'fact', 'confidence', 'source_memory_ids', 'supersedes'],
   procedural: ['content', 'rule', 'trigger', 'priority', 'source_memory_ids'],
-  entity: ['content', 'entity_name', 'entity_type', 'attributes', 'relationships'],
+  entity: ['content', 'entity_name', 'entity_type', 'entity_id', 'attributes', 'relationships'],
   trust_weighted: ['content', 'source_agent_passport_id', 'trust_score', 'decay_factor'],
   temporal: ['content', 'valid_from', 'valid_to', 'recorded_at'],
 };

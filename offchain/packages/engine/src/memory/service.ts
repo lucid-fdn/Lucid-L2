@@ -154,7 +154,6 @@ export class MemoryService {
       agent_passport_id: callerPassportId,
       namespace,
       status: 'active',
-      last_receipted_turn_index: -1,
     });
     return session_id;
   }

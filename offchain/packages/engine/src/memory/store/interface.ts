@@ -1,6 +1,6 @@
 import type {
   MemoryEntry, MemoryType, MemoryStatus, WritableMemoryEntry,
-  ProvenanceRecord, MemorySession, MemorySnapshot,
+  ProvenanceRecord, MemorySession, MemorySnapshot, MemoryLane,
 } from '../types';
 
 export interface MemoryQuery {
@@ -16,6 +16,7 @@ export interface MemoryQuery {
   content_hash?: string;
   since?: number;
   before?: number;
+  memory_lane?: MemoryLane[];
 }
 
 export interface MemoryWriteResult {
@@ -48,7 +49,7 @@ export interface IMemoryStore {
   getProvenanceChain(agent_passport_id: string, namespace: string, limit?: number): Promise<ProvenanceRecord[]>;
   getProvenanceForMemory(memory_id: string): Promise<ProvenanceRecord[]>;
   getLatestHash(agent_passport_id: string, namespace: string): Promise<string | null>;
-  createSession(session: Omit<MemorySession, 'turn_count' | 'total_tokens' | 'created_at' | 'last_activity'>): Promise<string>;
+  createSession(session: Omit<MemorySession, 'turn_count' | 'total_tokens' | 'created_at' | 'last_activity' | 'last_compacted_turn_index' | 'last_receipted_turn_index'>): Promise<string>;
   getSession(session_id: string): Promise<MemorySession | null>;
   updateSessionStats(session_id: string, turn_delta: number, token_delta: number): Promise<void>;
   closeSession(session_id: string, summary?: string): Promise<void>;
@@ -59,4 +60,15 @@ export interface IMemoryStore {
   listSnapshots(agent_passport_id: string): Promise<MemorySnapshot[]>;
   getEntriesSince(agent_passport_id: string, since: number): Promise<MemoryEntry[]>;
   getStats(agent_passport_id: string): Promise<MemoryStats>;
+  nearestByEmbedding(
+    embedding: number[],
+    agent_passport_id: string,
+    namespace?: string,
+    types?: MemoryType[],
+    limit?: number,
+    similarity_threshold?: number,
+    lanes?: MemoryLane[],
+  ): Promise<(MemoryEntry & { similarity: number })[]>;
+  deleteBatch(memory_ids: string[]): Promise<void>;
+  updateCompactionWatermark(session_id: string, turn_index: number): Promise<void>;
 }
