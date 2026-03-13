@@ -611,6 +611,109 @@ No special recall logic for v1:
 
 ---
 
+## Section 6: Memory Lanes
+
+### Problem
+
+All memories for an agent sit in the same flat space, distinguished only by type, namespace, and status. As agents become multi-tenant (serving users), collaborative (sharing context), and market-aware (consuming external data), recall ambiguity increases. An agent's self-learned rules, a specific user's preferences, shared team knowledge, and market facts are structurally indistinguishable.
+
+### Design
+
+#### 6.1 New dimension
+
+Add `memory_lane` to `MemoryEntry`:
+
+```typescript
+export type MemoryLane = 'self' | 'user' | 'shared' | 'market';
+```
+
+| Lane | What lives here | Examples |
+|------|----------------|---------|
+| **self** | Agent's own operating memory | Procedural rules, self-improvement notes, internal strategies |
+| **user** | Per-user memory | Preferences, history, tone, account-specific facts |
+| **shared** | Shared workspace/team context | Org policies, common playbooks, team knowledge |
+| **market** | Externally sourced world-state | Prices, protocol state, trust-weighted external facts, temporal observations |
+
+Default: `'self'`. Optional on all write methods — backward compatible with v1 (all v1 entries are implicitly `self`).
+
+#### 6.2 Schema change
+
+```typescript
+// Add to MemoryEntry interface
+memory_lane: MemoryLane;  // default: 'self'
+```
+
+```sql
+-- Add to memory_entries
+ALTER TABLE memory_entries
+  ADD COLUMN memory_lane TEXT NOT NULL DEFAULT 'self'
+  CHECK (memory_lane IN ('self', 'user', 'shared', 'market'));
+
+CREATE INDEX idx_memory_lane ON memory_entries(agent_passport_id, memory_lane, status);
+```
+
+#### 6.3 Recall integration
+
+Add optional lane filter to `RecallRequest`:
+
+```typescript
+lanes?: MemoryLane[]  // optional — when omitted, search all lanes
+```
+
+Lane participates in two-stage retrieval:
+- **Stage 1:** `nearestByEmbedding()` accepts optional `lanes` filter (appended to dynamic WHERE)
+- **Stage 2:** Query intent heuristic boosts lanes alongside types:
+
+| Query intent | Lane boost |
+|-------------|-----------|
+| User question / preference | user +0.2 |
+| Internal planning / self-reflection | self +0.2 |
+| Coordination / team task | shared +0.2 |
+| Market / price / state query | market +0.2 |
+
+Lane boost follows the same intent overfitting guard: `effective_lane_bonus = min(lane_bonus, similarity)`.
+
+#### 6.4 Compaction per lane
+
+Different lanes can have different lifecycle policies:
+
+| Lane | Hot window | Cold retention | Rationale |
+|------|-----------|----------------|-----------|
+| self | Long (50 turns / 24h) | Long (30d) | Agent's core identity — retain longer |
+| user | Medium (30 turns / 12h) | Medium (14d) | Per-user context — summarize faster |
+| shared | Long (50 turns / 24h) | Long (30d) | Team knowledge — important to keep |
+| market | Short (10 turns / 4h) | Short (7d) | World-state — expires fast, refresh often |
+
+These are **default** policies. `CompactionConfig` can override per-lane via:
+
+```typescript
+lane_overrides?: Partial<Record<MemoryLane, {
+  hot_window_turns?: number;
+  hot_window_ms?: number;
+  cold_retention_ms?: number;
+}>>;
+```
+
+#### 6.5 ACL reinforcement
+
+Lane provides a natural ACL hint:
+- `self` — only the owning agent can read/write
+- `user` — owning agent + the specific user (when user auth is implemented)
+- `shared` — owning agent + agents with `read` grant on the namespace
+- `market` — read-open by default (world-state is public)
+
+v1 implementation: ACL continues to use namespace-based ownership. Lane-based ACL refinement is additive — it narrows access, never broadens it.
+
+#### 6.6 All write methods accept lane
+
+All `addEpisodic()`, `addSemantic()`, `addProcedural()`, `addEntity()`, `addTrustWeighted()`, `addTemporal()` accept optional `memory_lane?: MemoryLane` in their input. Default: `'self'`. Routes, MCP tools, and SDK methods pass through the field.
+
+#### 6.7 Backward compatibility
+
+All existing v1 entries have `memory_lane = 'self'` (DB default). No migration of existing data needed. All queries that don't specify lane filter return entries from all lanes (existing behavior preserved).
+
+---
+
 ## New Configuration Summary
 
 All new config fields with defaults:
@@ -665,6 +768,12 @@ ALTER TABLE memory_provenance
 -- Preserve content_hash in provenance after hard delete
 ALTER TABLE memory_provenance
   ADD COLUMN deleted_memory_hash TEXT;
+
+-- Memory lanes (Section 6)
+ALTER TABLE memory_entries
+  ADD COLUMN memory_lane TEXT NOT NULL DEFAULT 'self'
+  CHECK (memory_lane IN ('self', 'user', 'shared', 'market'));
+CREATE INDEX idx_memory_lane ON memory_entries(agent_passport_id, memory_lane, status);
 ```
 
 No other schema changes — all new types already have columns in the v1 migration.
@@ -701,7 +810,7 @@ Not required for functionality but critical for tuning weights and detecting deg
 | Managers (entity, trust_weighted, temporal) | 3 | Create |
 | Manager index | 1 | Modify (register new managers) |
 | MemoryService | 1 | Modify (add 3 methods, compaction trigger) |
-| Types | 1 | Modify (config extensions, `last_compacted_turn_index` on MemorySession) |
+| Types | 1 | Modify (config extensions, `last_compacted_turn_index` on MemorySession, `MemoryLane` type + field on MemoryEntry) |
 | Routes | 1 | Modify (wire snapshot/restore/compact, add 3 new type routes) |
 | MCP tools | 1 | Modify (extend memory_add type enum) |
 | SDK | 1 | Modify (add 3 new type methods) |
