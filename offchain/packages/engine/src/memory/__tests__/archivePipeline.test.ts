@@ -178,4 +178,86 @@ describe('ArchivePipeline', () => {
       expect(result.valid).toBe(false);
     });
   });
+
+  describe('namespace scoping + identity verification', () => {
+    it('should only include entries from specified namespace in snapshot', async () => {
+      await store.write({
+        agent_passport_id: 'agent-1', type: 'episodic', namespace: 'ns-a',
+        content: 'A', metadata: {}, session_id: 'sess-1', role: 'user', tokens: 5, turn_index: 0,
+        content_hash: 'h-a', prev_hash: null, memory_lane: 'self',
+      } as any);
+      await store.write({
+        agent_passport_id: 'agent-1', type: 'episodic', namespace: 'ns-b',
+        content: 'B', metadata: {}, session_id: 'sess-1', role: 'user', tokens: 5, turn_index: 1,
+        content_hash: 'h-b', prev_hash: null, memory_lane: 'self',
+      } as any);
+
+      // Reset mock so we can capture the uploaded data
+      mockStorage.uploadJSON.mockResolvedValueOnce({ cid: 'bafyns-a', url: 'http://mock/bafyns-a' });
+
+      const result = await pipeline.createSnapshot('agent-1', 'checkpoint', 'ns-a');
+      expect(result.cid).toBe('bafyns-a');
+
+      const uploadedData = mockStorage.uploadJSON.mock.calls[0][0] as LucidMemoryFile;
+      expect(uploadedData.entry_count).toBe(1);
+      expect(uploadedData.entries).toHaveLength(1);
+      expect(uploadedData.entries[0].namespace).toBe('ns-a');
+    });
+
+    it('should reject restore when agent_passport_id does not match LMF', async () => {
+      await store.write({
+        agent_passport_id: 'agent-1', type: 'episodic', namespace: 'agent:agent-1',
+        content: 'test', metadata: {}, session_id: 'sess-1', role: 'user', tokens: 5, turn_index: 0,
+        content_hash: 'h-t', prev_hash: null, memory_lane: 'self',
+      } as any);
+      const { cid } = await pipeline.createSnapshot('agent-1', 'checkpoint');
+
+      // Build a valid LMF with agent-1 as owner and put it in mock storage
+      const lmf: LucidMemoryFile = {
+        version: '1.0',
+        agent_passport_id: 'agent-1',
+        created_at: Date.now(),
+        chain_head_hash: 'h-t',
+        entries: [],
+        provenance: [],
+        sessions: [],
+        entry_count: 0,
+        content_mmr_root: '',
+        signature: 'mocksig123',
+        signer_pubkey: 'mockpub456',
+      };
+      mockStorage.retrieve.mockResolvedValue(lmf);
+
+      await expect(pipeline.restoreSnapshot('agent-2', { cid, mode: 'replace' }))
+        .rejects.toThrow('Identity mismatch');
+    });
+
+    it('should allow admin to bypass identity check on restore', async () => {
+      await store.write({
+        agent_passport_id: 'agent-1', type: 'episodic', namespace: 'agent:agent-1',
+        content: 'test', metadata: {}, session_id: 'sess-1', role: 'user', tokens: 5, turn_index: 0,
+        content_hash: 'h-a2', prev_hash: null, memory_lane: 'self',
+      } as any);
+      const { cid } = await pipeline.createSnapshot('agent-1', 'checkpoint');
+
+      const lmf: LucidMemoryFile = {
+        version: '1.0',
+        agent_passport_id: 'agent-1',
+        created_at: Date.now(),
+        chain_head_hash: 'h-a2',
+        entries: [],
+        provenance: [],
+        sessions: [],
+        entry_count: 0,
+        content_mmr_root: '',
+        signature: 'mocksig123',
+        signer_pubkey: 'mockpub456',
+      };
+      mockStorage.retrieve.mockResolvedValue(lmf);
+
+      // Restore as __admin__ should succeed
+      await expect(pipeline.restoreSnapshot('__admin__', { cid, mode: 'replace' }))
+        .resolves.not.toThrow();
+    });
+  });
 });

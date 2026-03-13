@@ -17,10 +17,18 @@ export class ArchivePipeline {
   async createSnapshot(
     agent_passport_id: string,
     snapshot_type: MemorySnapshot['snapshot_type'],
+    namespace?: string,
   ): Promise<{ cid: string; snapshot_id: string }> {
     // Gather all entries
-    const entries = await this.store.getEntriesSince(agent_passport_id, 0);
-    const provenance = await this.store.getProvenanceChain(agent_passport_id, `agent:${agent_passport_id}`, 10000);
+    let entries = await this.store.getEntriesSince(agent_passport_id, 0);
+    if (namespace) {
+      entries = entries.filter(e => e.namespace === namespace);
+    }
+    const provenance = await this.store.getProvenanceChain(
+      agent_passport_id,
+      namespace || `agent:${agent_passport_id}`,
+      10000,
+    );
     const sessions = await this.store.listSessions(agent_passport_id);
 
     // Serialize
@@ -60,6 +68,17 @@ export class ArchivePipeline {
   ): Promise<RestoreResult> {
     const lmf = await this.depinStorage.retrieve(request.cid) as LucidMemoryFile;
     if (!lmf) throw new Error(`Snapshot not found: ${request.cid}`);
+
+    // Identity verification: prevent cross-agent memory injection
+    if (lmf.agent_passport_id !== agent_passport_id) {
+      const isAdmin = agent_passport_id === '__admin__';
+      if (!isAdmin) {
+        throw new Error(
+          `Identity mismatch: snapshot belongs to ${lmf.agent_passport_id}, ` +
+          `but restore requested by ${agent_passport_id}`
+        );
+      }
+    }
 
     // Verify structure
     const verification = ArchivePipeline.verifyLMF(lmf);
