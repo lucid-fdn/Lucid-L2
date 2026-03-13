@@ -221,7 +221,7 @@ export interface ProvenanceRecord {
   agent_passport_id: string;
   namespace: string;
   memory_id: string;
-  operation: 'create' | 'update' | 'supersede' | 'archive' | 'delete';
+  operation: 'create' | 'update' | 'supersede' | 'archive';
   content_hash: string;
   prev_hash: string | null;
   receipt_hash?: string;
@@ -230,8 +230,48 @@ export interface ProvenanceRecord {
   created_at: number;
 }
 
+// ─── Session ─────────────────────────────────────────────────────────
+export interface MemorySession {
+  session_id: string;
+  agent_passport_id: string;
+  namespace: string;
+  status: 'active' | 'closed' | 'archived';
+  turn_count: number;
+  total_tokens: number;
+  summary?: string;
+  created_at: number;
+  last_activity: number;
+  closed_at?: number;
+}
+
+// ─── Snapshot ────────────────────────────────────────────────────────
+export interface MemorySnapshot {
+  snapshot_id: string;
+  agent_passport_id: string;
+  depin_cid: string;
+  entry_count: number;
+  chain_head_hash: string;
+  snapshot_type: 'checkpoint' | 'migration' | 'archive';
+  created_at: number;
+}
+
+// ─── Tool Call Record ────────────────────────────────────────────────
+export interface ToolCallRecord {
+  tool_name: string;
+  arguments: Record<string, unknown>;
+  result?: unknown;
+}
+
 // ─── Write type safety ──────────────────────────────────────────────
-type Writable<T> = Omit<T, 'memory_id' | 'content_hash' | 'prev_hash'>;
+// System-managed fields omitted from write input.
+// `type` is the discriminator — callers must set it (or use typed methods like addEpisodic()).
+// `turn_index` is auto-assigned by the episodic manager (MAX(turn_index)+1 for session).
+type Writable<T> = Omit<T,
+  'memory_id' | 'content_hash' | 'prev_hash' |
+  'receipt_hash' | 'receipt_run_id' |
+  'status' | 'created_at' | 'updated_at' |
+  'embedding' | 'embedding_model' | 'turn_index'
+>;
 
 export type WritableMemoryEntry =
   | Writable<EpisodicMemory>
@@ -240,6 +280,45 @@ export type WritableMemoryEntry =
   | Writable<EntityMemory>
   | Writable<TrustWeightedMemory>
   | Writable<TemporalMemory>;
+
+// ─── Restore types ──────────────────────────────────────────────────
+export type RestoreMode = 'replace' | 'merge' | 'fork';
+
+export interface RestoreRequest {
+  cid: string;
+  mode: RestoreMode;
+  target_namespace?: string;        // Required for 'fork' mode
+}
+
+export interface RestoreResult {
+  entries_imported: number;
+  entries_skipped: number;          // Duplicates in 'merge' mode
+  chain_head_hash: string;
+  source_agent_passport_id: string;
+}
+
+// ─── Receipt integration ────────────────────────────────────────────
+// Extends ReceiptType in receiptService.ts with 'memory'.
+// Follow existing pattern: createMemoryReceipt(), getMemoryReceipt().
+export interface MemoryReceiptInput {
+  agent_passport_id: string;
+  memory_id: string;
+  memory_type: MemoryType;
+  content_hash: string;
+  prev_hash: string | null;
+  namespace: string;
+  run_id?: string;                  // Auto-generated if omitted
+}
+
+export interface MemoryReceipt {
+  receipt_type: 'memory';
+  receipt_hash: string;
+  signature: string;
+  signer_pubkey: string;
+  signer_type: string;              // 'orchestrator'
+  body: MemoryReceiptBody;
+  _mmr_leaf_index?: number;
+}
 ```
 
 ### Hash Chain Scope
@@ -247,6 +326,14 @@ export type WritableMemoryEntry =
 `prev_hash` = the `content_hash` of the previous committed memory write for the **same `agent_passport_id` + `namespace`**.
 
 Not global per agent. Not global per type. Scoped to the namespace.
+
+### Timestamp Convention
+
+All TypeScript timestamps are `number` (Unix milliseconds). The Postgres store converts:
+- **On write:** `to_timestamp(ms / 1000.0)` → `TIMESTAMPTZ`
+- **On read:** `EXTRACT(EPOCH FROM ts) * 1000` → `number`
+
+This matches the existing pattern in `receiptService.ts` (`Date.now()`). Note: `epochService.ts` uses Unix seconds for `created_at_unix` — the implementer must ensure memory receipt timestamps use milliseconds (matching `MemoryReceiptBody.timestamp`).
 
 ### Metadata Policy
 
@@ -269,7 +356,7 @@ export interface MemoryQuery {
   status?: MemoryStatus[];        // Default: ['active']
   limit?: number;                 // Default: 50, max: 500
   offset?: number;
-  order_by?: 'created_at' | 'updated_at' | 'turn_index';
+  order_by?: 'created_at' | 'updated_at' | 'turn_index';  // turn_index only valid with types: ['episodic']
   order_dir?: 'asc' | 'desc';
   content_hash?: string;          // Exact lookup by hash
   since?: number;                 // Unix ms
@@ -301,9 +388,24 @@ export interface IMemoryStore {
   getProvenanceForMemory(memory_id: string): Promise<ProvenanceRecord[]>;
   getLatestHash(agent_passport_id: string, namespace: string): Promise<string | null>;
 
+  // Soft-delete (admin only — records provenance with operation='delete')
+  softDelete(memory_id: string): Promise<void>;
+
+  // Sessions
+  createSession(session: Omit<MemorySession, 'turn_count' | 'total_tokens' | 'created_at' | 'last_activity'>): Promise<string>;
+  getSession(session_id: string): Promise<MemorySession | null>;
+  updateSessionStats(session_id: string, turn_delta: number, token_delta: number): Promise<void>;
+  closeSession(session_id: string, summary?: string): Promise<void>;
+  listSessions(agent_passport_id: string, status?: MemorySession['status'][]): Promise<MemorySession[]>;
+
+  // Embeddings (async write-back after vector computation)
+  updateEmbedding(memory_id: string, embedding: number[], model: string): Promise<void>;
+
   // Snapshots
-  getEntriesSince(agent_passport_id: string, since: number): Promise<MemoryEntry[]>;
+  saveSnapshot(snapshot: Omit<MemorySnapshot, 'snapshot_id'>): Promise<string>;
   getLatestSnapshot(agent_passport_id: string): Promise<MemorySnapshot | null>;
+  listSnapshots(agent_passport_id: string): Promise<MemorySnapshot[]>;
+  getEntriesSince(agent_passport_id: string, since: number): Promise<MemoryEntry[]>;
   getStats(agent_passport_id: string): Promise<MemoryStats>;
 }
 
@@ -356,10 +458,12 @@ CREATE TABLE IF NOT EXISTS memory_entries (
   tokens              INTEGER,
   tool_calls          JSONB,
 
+  -- Semantic + Procedural shared
+  source_memory_ids   TEXT[],        -- Episodic entries this was derived from
+
   -- Semantic-specific
   fact                TEXT,
   confidence          REAL,
-  source_memory_ids   TEXT[],
   supersedes          TEXT[],
 
   -- Procedural-specific
@@ -396,7 +500,7 @@ CREATE TABLE IF NOT EXISTS memory_provenance (
   namespace           TEXT        NOT NULL,
   memory_id           UUID        NOT NULL REFERENCES memory_entries(memory_id),
   operation           TEXT        NOT NULL CHECK (
-    operation IN ('create', 'update', 'supersede', 'archive', 'delete')
+    operation IN ('create', 'update', 'supersede', 'archive')
   ),
   content_hash        TEXT        NOT NULL,
   prev_hash           TEXT,
@@ -438,16 +542,20 @@ CREATE TABLE IF NOT EXISTS memory_snapshots (
 -- Indexes
 CREATE INDEX idx_memory_agent_ns_type ON memory_entries(agent_passport_id, namespace, type, status);
 CREATE INDEX idx_memory_session ON memory_entries(session_id, turn_index) WHERE session_id IS NOT NULL;
+CREATE UNIQUE INDEX idx_memory_session_turn ON memory_entries(session_id, turn_index) WHERE type = 'episodic';
 CREATE INDEX idx_memory_content_hash ON memory_entries(content_hash);
 CREATE INDEX idx_memory_created ON memory_entries(created_at DESC);
 CREATE INDEX idx_memory_receipt ON memory_entries(receipt_hash) WHERE receipt_hash IS NOT NULL;
-CREATE UNIQUE INDEX idx_memory_agent_ns_hash ON memory_entries(agent_passport_id, namespace, content_hash);
+CREATE UNIQUE INDEX idx_memory_agent_ns_hash ON memory_entries(agent_passport_id, namespace, content_hash) WHERE status = 'active';
 CREATE INDEX idx_provenance_agent_ns ON memory_provenance(agent_passport_id, namespace, created_at DESC);
 CREATE INDEX idx_provenance_memory ON memory_provenance(memory_id);
 CREATE INDEX idx_sessions_agent ON memory_sessions(agent_passport_id, status);
 CREATE INDEX idx_snapshots_agent ON memory_snapshots(agent_passport_id, created_at DESC);
 
--- Vector similarity (requires pgvector extension)
+-- Prerequisite: CREATE EXTENSION IF NOT EXISTS vector;
+-- The embedding column uses vector(1536) for text-embedding-3-small.
+-- To change dimensions, update the column type AND the MEMORY_EMBEDDING_MODEL env var.
+-- Vector similarity index (create after initial data load for optimal IVFFlat training):
 -- CREATE INDEX idx_memory_embedding ON memory_entries
 --   USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100)
 --   WHERE embedding IS NOT NULL;
@@ -471,7 +579,7 @@ COMMIT;
 **Rationale:**
 - Single table with discriminated union — avoids join complexity, matches Letta/Supabase pattern
 - pgvector embedding column is nullable, computed async, with `embedding_model` to avoid model lock-in
-- `(agent_passport_id, namespace, content_hash)` uniqueness prevents silent duplicates
+- `(agent_passport_id, namespace, content_hash) WHERE status = 'active'` prevents silent duplicates while allowing previously-superseded facts to be re-learned
 - `updated_at` trigger keeps timestamps accurate without application-level code
 - Separate append-only provenance table for immutable audit trail
 - Vector index commented out (requires pgvector extension, operator enables)
@@ -486,6 +594,9 @@ COMMIT;
 export interface MemoryServiceConfig {
   extraction_enabled: boolean;      // LLM extraction on episodic writes
   extraction_model?: string;        // Model for extraction
+  extraction_batch_size: number;    // Extract every N messages (default: 5)
+  extraction_debounce_ms: number;   // Debounce window (default: 2000)
+  trigger_on_session_close: boolean; // Run extraction on session close (default: true)
   embedding_enabled: boolean;       // Compute embeddings on write
   embedding_model: string;          // e.g., 'text-embedding-3-small'
   provenance_enabled: boolean;      // Hash chain + provenance records (default: true)
@@ -493,6 +604,7 @@ export interface MemoryServiceConfig {
   auto_archive_after_ms?: number;   // Auto-archive sessions older than this
   max_episodic_window: number;      // Default: 50 turns
   max_semantic_per_agent: number;   // Soft cap before compaction (default: 1000)
+  compaction_idle_timeout_ms: number; // Idle timeout before compaction (default: 1800000)
 }
 ```
 
@@ -556,9 +668,66 @@ Episodic → semantic compaction runs when:
 ### Commitments Module
 
 Handles the cryptographic side:
-- `computeMemoryHash(entry)` — `SHA-256(canonicalJson(content + type-specific fields))`
-- `linkToReceipt(memory_id, content_hash, agent_passport_id)` — creates a 'memory' receipt in receiptService, hash enters MMR, anchored in next epoch
+- `computeMemoryHash(entry)` — `SHA-256(canonicalJson(hashPreimage))` (see preimage table below)
+- `linkToReceipt(memory_id, content_hash, agent_passport_id)` — creates a `'memory'` receipt in receiptService, hash enters MMR, anchored in next epoch
 - `verifyChainIntegrity(agent_passport_id, namespace)` — walk the chain, verify each `content_hash` matches content and `prev_hash` links correctly
+
+**Prerequisite:** Extend `ReceiptType` in `receiptService.ts` to include `'memory'`. Define `MemoryReceiptBody`:
+
+```typescript
+export interface MemoryReceiptBody {
+  schema_version: '1.0';
+  run_id: string;               // Unique per memory write
+  timestamp: number;
+  agent_passport_id: string;
+  memory_id: string;
+  memory_type: MemoryType;
+  content_hash: string;
+  prev_hash: string | null;
+  namespace: string;
+}
+```
+
+**Batched episodic receipt preimage** (emitted per-session checkpoint):
+```typescript
+{
+  schema_version: '1.0',
+  run_id: string,              // checkpoint run_id
+  timestamp: number,
+  agent_passport_id: string,
+  session_id: string,
+  entry_hashes: string[],      // content_hash of each episodic entry in batch
+  entry_count: number,
+  namespace: string,
+}
+```
+
+**Hash preimage per memory type:**
+
+| Type | Fields included in `canonicalJson()` |
+|------|--------------------------------------|
+| Episodic | `content`, `session_id`, `role`, `turn_index`, `tokens`, `tool_calls` |
+| Semantic | `content`, `fact`, `confidence`, `source_memory_ids`, `supersedes` |
+| Procedural | `content`, `rule`, `trigger`, `priority`, `source_memory_ids` |
+| Entity | `content`, `entity_name`, `entity_type`, `attributes`, `relationships` |
+| Trust-weighted | `content`, `source_agent_passport_id`, `trust_score`, `decay_factor` |
+| Temporal | `content`, `valid_from`, `valid_to`, `recorded_at` |
+
+All preimages also include `agent_passport_id`, `namespace`, and `type`. The `canonicalJson()` function (RFC 8785) is the same one used by receipt hashing.
+
+### Hash Chain Concurrency Control
+
+Concurrent writes to the same `agent_passport_id + namespace` can create a stale `prev_hash`. To prevent this:
+
+```sql
+-- Acquire exclusive lock on the chain head before writing
+SELECT content_hash FROM memory_entries
+WHERE agent_passport_id = $1 AND namespace = $2
+ORDER BY created_at DESC LIMIT 1
+FOR UPDATE;
+```
+
+Steps 4-6 of the write pipeline (prev_hash lookup → store write → provenance record) run inside a single `SERIALIZABLE` transaction. If two concurrent writes race, the second will fail with a serialization error and retry with the updated `prev_hash`.
 
 ### ACL
 
@@ -631,6 +800,47 @@ GET    /v1/memory/stats/:agent_id              # Memory stats
 **Route semantics:**
 - `POST /v1/memory/recall` — for semantic search queries and complex filter bodies
 - `GET /v1/memory/entries` — for structured filtering via query params
+
+**No delete endpoint.** Memory entries are never hard-deleted via API. The lifecycle is:
+- `active` → `superseded` (via new fact replacing old) → `archived` (via cold lane) → pruned from hot DB (CID pointer remains).
+- Admin soft-delete: `IMemoryStore.softDelete()` sets `status='archived'` + provenance record with `operation='archive'`.
+
+### Recall Request / Response Schema
+
+```typescript
+// POST /v1/memory/recall
+export interface RecallRequest {
+  query: string;                    // Natural language query
+  agent_passport_id: string;        // Required (auto-set from API key scope)
+  namespace?: string;               // Filter to specific namespace
+  types?: MemoryType[];             // Default: all active types
+  limit?: number;                   // Default: 10, max: 100
+  min_similarity?: number;          // Cosine threshold (default: 0.7)
+  include_archived?: boolean;       // Default: false
+  session_id?: string;              // Restrict to single session
+}
+
+export interface RecallResponse {
+  memories: (MemoryEntry & { score: number })[];
+  query_embedding_model: string;
+  total_candidates: number;
+}
+```
+
+### Validation Rules
+
+Write-time validation per type (enforced by managers):
+
+| Type | Required Fields | Constraint |
+|------|----------------|------------|
+| Episodic | `session_id`, `role`, `content`, `tokens` | `turn_index` auto-assigned by manager (`MAX(turn_index)+1` for session) |
+| Semantic | `fact`, `confidence`, `content` | `confidence` in [0, 1] |
+| Procedural | `rule`, `trigger`, `content` | `priority` >= 0, defaults to 0 |
+| Entity | `entity_name`, `entity_type`, `content` | — |
+| Trust-weighted | `source_agent_passport_id`, `trust_score`, `content` | `trust_score` in [0, 1] |
+| Temporal | `valid_from`, `content` | `valid_to` null or > `valid_from` |
+
+All types: `agent_passport_id`, `namespace`, `content` always required. `content` max 100KB. `metadata` max 64KB.
 
 **Auth:** Agent API key (auto-scoped) or admin API key (any namespace) or passport-based with grants.
 
