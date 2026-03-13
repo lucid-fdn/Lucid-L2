@@ -211,7 +211,7 @@ export interface ComputeReceipt extends ComputeReceiptBody {
 // ============================================================================
 
 /** All supported receipt types in the Lucid execution layer */
-export type ReceiptType = 'inference' | 'compute' | 'tool' | 'agent' | 'dataset';
+export type ReceiptType = 'inference' | 'compute' | 'tool' | 'agent' | 'dataset' | 'memory';
 
 // ============================================================================
 // TOOL RECEIPT — Tool invocation receipts
@@ -369,11 +369,49 @@ export interface DatasetReceipt extends DatasetReceiptBody {
 }
 
 // ============================================================================
+// MEMORY RECEIPT — Memory write receipts
+// ============================================================================
+
+export interface MemoryReceiptBody {
+  schema_version: '1.0';
+  run_id: string;
+  timestamp: number;
+  agent_passport_id: string;
+  memory_id: string;
+  memory_type: string;
+  content_hash: string;
+  prev_hash: string | null;
+  namespace: string;
+}
+
+export interface BatchedEpisodicReceiptBody {
+  schema_version: '1.0';
+  run_id: string;
+  timestamp: number;
+  agent_passport_id: string;
+  session_id: string;
+  entry_hashes: string[];
+  entry_count: number;
+  namespace: string;
+}
+
+export interface MemoryReceipt {
+  receipt_type: 'memory';
+  run_id: string;
+  receipt_hash: string;
+  receipt_signature: string;
+  signer_pubkey: string;
+  signer_type: SignerType;
+  body: MemoryReceiptBody | BatchedEpisodicReceiptBody;
+  _mmr_leaf_index?: number;
+}
+
+// ============================================================================
 // UNIFIED RECEIPT MODEL
 // ============================================================================
 
 /** Discriminated union of all receipt types */
-export type Receipt = InferenceReceipt | ComputeReceipt | ToolReceipt | AgentReceipt | DatasetReceipt;
+export type Receipt = InferenceReceipt | ComputeReceipt | ToolReceipt | AgentReceipt | DatasetReceipt | MemoryReceipt;
 
 /** Options for the unified createReceipt function */
 export interface ReceiptCreateOptions {
@@ -1506,6 +1544,10 @@ function extractDatasetReceiptBody(receipt: DatasetReceipt | DatasetReceiptBody)
   return body;
 }
 
+function extractMemoryReceiptBody(receipt: MemoryReceipt): MemoryReceiptBody | BatchedEpisodicReceiptBody {
+  return receipt.body;
+}
+
 // ============================================================================
 // GENERIC RECEIPT PIPELINE (shared by new receipt types)
 // ============================================================================
@@ -1652,6 +1694,51 @@ export function createDatasetReceipt(input: DatasetReceiptInput, opts: ReceiptCr
   return createReceiptGeneric<DatasetReceiptBody, DatasetReceipt>('dataset', body, opts);
 }
 
+export function createMemoryReceipt(input: {
+  agent_passport_id: string;
+  memory_id: string;
+  memory_type: string;
+  content_hash: string;
+  prev_hash: string | null;
+  namespace: string;
+  run_id?: string;
+}): MemoryReceipt {
+  const run_id = input.run_id || `mem_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const body: MemoryReceiptBody = {
+    schema_version: '1.0',
+    run_id,
+    timestamp: Math.floor(Date.now() / 1000),
+    agent_passport_id: input.agent_passport_id,
+    memory_id: input.memory_id,
+    memory_type: input.memory_type,
+    content_hash: input.content_hash,
+    prev_hash: input.prev_hash,
+    namespace: input.namespace,
+  };
+  return createReceiptGeneric<MemoryReceiptBody, MemoryReceipt>('memory', body);
+}
+
+export function createBatchedEpisodicReceipt(input: {
+  agent_passport_id: string;
+  session_id: string;
+  entry_hashes: string[];
+  namespace: string;
+  run_id?: string;
+}): MemoryReceipt {
+  const run_id = input.run_id || `mem_batch_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const body: BatchedEpisodicReceiptBody = {
+    schema_version: '1.0',
+    run_id,
+    timestamp: Math.floor(Date.now() / 1000),
+    agent_passport_id: input.agent_passport_id,
+    session_id: input.session_id,
+    entry_hashes: input.entry_hashes,
+    entry_count: input.entry_hashes.length,
+    namespace: input.namespace,
+  };
+  return createReceiptGeneric<BatchedEpisodicReceiptBody, MemoryReceipt>('memory', body as any);
+}
+
 // ============================================================================
 // UNIFIED RECEIPT FUNCTIONS
 // ============================================================================
@@ -1663,6 +1750,7 @@ const bodyExtractors: Record<ReceiptType, (receipt: Receipt) => object> = {
   tool: (r) => extractToolReceiptBody(r as ToolReceipt),
   agent: (r) => extractAgentReceiptBody(r as AgentReceipt),
   dataset: (r) => extractDatasetReceiptBody(r as DatasetReceipt),
+  memory: (r) => extractMemoryReceiptBody(r as MemoryReceipt),
 };
 
 /**
@@ -1694,6 +1782,8 @@ export function createReceipt(
       return createAgentReceipt(input as AgentReceiptInput, opts);
     case 'dataset':
       return createDatasetReceipt(input as DatasetReceiptInput, opts);
+    case 'memory':
+      return createMemoryReceipt(input as any) as unknown as Receipt;
     default:
       throw new Error(`Unknown receipt type: ${type}`);
   }

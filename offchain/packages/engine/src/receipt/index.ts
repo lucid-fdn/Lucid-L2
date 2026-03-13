@@ -14,6 +14,8 @@ export {
   createAgentReceipt,
   // Dataset receipts
   createDatasetReceipt,
+  // Memory receipts
+  createMemoryReceipt, createBatchedEpisodicReceipt,
   // Unified receipt functions
   createReceipt, getReceipt, verifyReceipt, getReceiptProof, listReceipts,
   // Hash functions
@@ -28,6 +30,7 @@ export type {
   ToolReceipt, ToolReceiptInput, ToolReceiptBody,
   AgentReceipt, AgentReceiptInput, AgentReceiptBody,
   DatasetReceipt, DatasetReceiptInput, DatasetReceiptBody,
+  MemoryReceiptBody, BatchedEpisodicReceiptBody, MemoryReceipt,
   ReceiptVerifyResult,
 } from './receiptService';
 export type { ComputeReceiptInput } from '../types/fluidCompute';
