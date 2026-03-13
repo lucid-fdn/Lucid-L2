@@ -224,4 +224,39 @@ describe('MemoryService', () => {
       expect(stats.total_entries).toBe(1);
     });
   });
+
+  describe('addEntity', () => {
+    it('should write an entity entry', async () => {
+      const result = await service.addEntity('agent-1', {
+        namespace: 'agent:agent-1', content: 'Vitalik Buterin',
+        entity_name: 'Vitalik Buterin', entity_type: 'person',
+        attributes: {}, relationships: [],
+      });
+      expect(result.memory_id).toBeDefined();
+      const entry = await store.read(result.memory_id);
+      expect(entry!.type).toBe('entity');
+    });
+  });
+
+  describe('addTrustWeighted', () => {
+    it('should write a trust-weighted entry', async () => {
+      const result = await service.addTrustWeighted('agent-1', {
+        namespace: 'agent:agent-1', content: 'Trust agent-2',
+        source_agent_passport_id: 'agent-2',
+        trust_score: 0.8, decay_factor: 0.1, weighted_relevance: 0.7,
+      });
+      expect(result.memory_id).toBeDefined();
+    });
+  });
+
+  describe('addTemporal', () => {
+    it('should write a temporal entry', async () => {
+      const now = Date.now();
+      const result = await service.addTemporal('agent-1', {
+        namespace: 'agent:agent-1', content: 'ETH at $4000',
+        valid_from: now - 86400000, valid_to: null, recorded_at: now,
+      });
+      expect(result.memory_id).toBeDefined();
+    });
+  });
 });

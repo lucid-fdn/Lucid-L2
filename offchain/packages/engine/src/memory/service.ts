@@ -2,7 +2,7 @@ import { v4 as uuid } from 'uuid';
 import type { IMemoryStore, MemoryWriteResult, MemoryStats } from './store/interface';
 import type {
   MemoryServiceConfig, RecallRequest, RecallResponse,
-  EpisodicMemory, MemoryEntry,
+  EpisodicMemory, MemoryEntry, MemoryLane,
 } from './types';
 import { MemoryACLEngine } from './acl';
 import { computeMemoryHash, verifyChainIntegrity as verifyChain, ChainVerifyResult } from './commitments';
@@ -39,6 +39,7 @@ export class MemoryService {
       role: input.role,
       tokens: input.tokens,
       tool_calls: input.tool_calls,
+      memory_lane: 'self' as MemoryLane,
     };
 
     getManager('episodic')(entryBase as any);
@@ -94,9 +95,11 @@ export class MemoryService {
     namespace: string; content: string; fact: string;
     confidence: number; source_memory_ids: string[];
     supersedes?: string[]; metadata?: Record<string, unknown>;
+    memory_lane?: MemoryLane;
   }): Promise<MemoryWriteResult> {
     return this.writeGeneric(callerPassportId, 'semantic', {
       ...input, type: 'semantic', agent_passport_id: callerPassportId,
+      memory_lane: input.memory_lane ?? 'self',
     });
   }
 
@@ -104,10 +107,53 @@ export class MemoryService {
     namespace: string; content: string; rule: string;
     trigger: string; priority?: number; source_memory_ids: string[];
     metadata?: Record<string, unknown>;
+    memory_lane?: MemoryLane;
   }): Promise<MemoryWriteResult> {
     return this.writeGeneric(callerPassportId, 'procedural', {
       ...input, priority: input.priority ?? 0,
       type: 'procedural', agent_passport_id: callerPassportId,
+      memory_lane: input.memory_lane ?? 'self',
+    });
+  }
+
+  async addEntity(callerPassportId: string, input: {
+    namespace: string; content: string; entity_name: string;
+    entity_type: string; entity_id?: string;
+    attributes: Record<string, unknown>; relationships: any[];
+    source_memory_ids?: string[]; metadata?: Record<string, unknown>;
+    memory_lane?: MemoryLane;
+  }): Promise<MemoryWriteResult> {
+    return this.writeGeneric(callerPassportId, 'entity', {
+      ...input, type: 'entity', agent_passport_id: callerPassportId,
+      source_memory_ids: input.source_memory_ids ?? [],
+      memory_lane: input.memory_lane ?? 'self',
+    });
+  }
+
+  async addTrustWeighted(callerPassportId: string, input: {
+    namespace: string; content: string;
+    source_agent_passport_id: string; trust_score: number;
+    decay_factor: number; weighted_relevance: number;
+    source_memory_ids?: string[]; metadata?: Record<string, unknown>;
+    memory_lane?: MemoryLane;
+  }): Promise<MemoryWriteResult> {
+    return this.writeGeneric(callerPassportId, 'trust_weighted', {
+      ...input, type: 'trust_weighted', agent_passport_id: callerPassportId,
+      source_memory_ids: input.source_memory_ids ?? [],
+      memory_lane: input.memory_lane ?? 'self',
+    });
+  }
+
+  async addTemporal(callerPassportId: string, input: {
+    namespace: string; content: string;
+    valid_from: number; valid_to: number | null; recorded_at: number;
+    source_memory_ids?: string[]; metadata?: Record<string, unknown>;
+    memory_lane?: MemoryLane;
+  }): Promise<MemoryWriteResult> {
+    return this.writeGeneric(callerPassportId, 'temporal', {
+      ...input, type: 'temporal', agent_passport_id: callerPassportId,
+      source_memory_ids: input.source_memory_ids ?? [],
+      memory_lane: input.memory_lane ?? 'self',
     });
   }
 
