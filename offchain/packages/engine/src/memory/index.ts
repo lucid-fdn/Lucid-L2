@@ -6,8 +6,10 @@ export type {
   RestoreMode, RestoreRequest, RestoreResult,
   RecallRequest, RecallResponse, MemoryServiceConfig,
   PermissionLevel, LucidMemoryFile,
+  MemoryLane, CompactionConfig, CompactionResult, ExtractionOutputSchema, ValidatedExtractionResult,
 } from './types';
 export { MEMORY_TYPES, MEMORY_STATUSES, MAX_CONTENT_SIZE, MAX_METADATA_SIZE, getDefaultConfig } from './types';
+export { MEMORY_LANES, getDefaultCompactionConfig } from './types';
 export { isEpisodicMemory, isSemanticMemory, isProceduralMemory } from './types';
 
 export type { IMemoryStore, MemoryQuery, MemoryWriteResult, MemoryStats } from './store';

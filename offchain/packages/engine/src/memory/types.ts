@@ -5,6 +5,8 @@ export const MEMORY_TYPES = [
 ] as const;
 
 export const MEMORY_STATUSES = ['active', 'superseded', 'archived', 'expired'] as const;
+export const MEMORY_LANES = ['self', 'user', 'shared', 'market'] as const;
+export type MemoryLane = (typeof MEMORY_LANES)[number];
 
 // ─── Base ───────────────────────────────────────────────────────────
 export type MemoryType = (typeof MEMORY_TYPES)[number];
@@ -15,6 +17,7 @@ export interface MemoryEntry<T extends MemoryType = MemoryType> {
   agent_passport_id: string;
   type: T;
   namespace: string;
+  memory_lane: MemoryLane;
   content: string;
   structured_content?: Record<string, unknown>;
   embedding?: number[];
@@ -70,8 +73,10 @@ export interface EntityRelation {
 export interface EntityMemory extends MemoryEntry<'entity'> {
   entity_name: string;
   entity_type: string;
+  entity_id?: string;
   attributes: Record<string, unknown>;
   relationships: EntityRelation[];
+  source_memory_ids?: string[];
 }
 
 // ─── Trust-Weighted (STAGED) ────────────────────────────────────────
@@ -80,6 +85,7 @@ export interface TrustWeightedMemory extends MemoryEntry<'trust_weighted'> {
   trust_score: number;
   decay_factor: number;
   weighted_relevance: number;
+  source_memory_ids?: string[];
 }
 
 // ─── Temporal (STAGED) ─────────────────────────────────────────────
@@ -88,6 +94,7 @@ export interface TemporalMemory extends MemoryEntry<'temporal'> {
   valid_to: number | null;
   recorded_at: number;
   superseded_by?: string;
+  source_memory_ids?: string[];
 }
 
 // ─── Provenance ─────────────────────────────────────────────────────
@@ -96,7 +103,7 @@ export interface ProvenanceRecord {
   agent_passport_id: string;
   namespace: string;
   memory_id: string;
-  operation: 'create' | 'update' | 'supersede' | 'archive';
+  operation: 'create' | 'update' | 'supersede' | 'archive' | 'delete';
   content_hash: string;
   prev_hash: string | null;
   receipt_hash?: string;
@@ -114,6 +121,7 @@ export interface MemorySession {
   turn_count: number;
   total_tokens: number;
   last_receipted_turn_index: number;
+  last_compacted_turn_index: number;
   summary?: string;
   created_at: number;
   last_activity: number;
@@ -177,6 +185,8 @@ export interface RecallRequest {
   min_similarity?: number;
   include_archived?: boolean;
   session_id?: string;
+  semantic_query_embedding?: number[];
+  lanes?: MemoryLane[];
 }
 
 export interface RecallResponse {
@@ -200,6 +210,16 @@ export interface MemoryServiceConfig {
   max_episodic_window: number;
   max_semantic_per_agent: number;
   compaction_idle_timeout_ms: number;
+  recall_similarity_threshold: number;
+  recall_candidate_pool_size: number;
+  recall_min_results: number;
+  recall_similarity_weight: number;
+  recall_recency_weight: number;
+  recall_type_weight: number;
+  recall_quality_weight: number;
+  extraction_max_tokens: number;
+  extraction_max_facts: number;
+  extraction_max_rules: number;
 }
 
 export function getDefaultConfig(): MemoryServiceConfig {
@@ -218,7 +238,72 @@ export function getDefaultConfig(): MemoryServiceConfig {
     max_episodic_window: parseInt(process.env.MEMORY_MAX_EPISODIC_WINDOW || '50', 10),
     max_semantic_per_agent: parseInt(process.env.MEMORY_MAX_SEMANTIC_PER_AGENT || '1000', 10),
     compaction_idle_timeout_ms: parseInt(process.env.MEMORY_COMPACTION_IDLE_TIMEOUT_MS || '1800000', 10),
+    recall_similarity_threshold: parseFloat(process.env.MEMORY_RECALL_SIMILARITY_THRESHOLD || '0.65'),
+    recall_candidate_pool_size: parseInt(process.env.MEMORY_RECALL_CANDIDATE_POOL_SIZE || '50', 10),
+    recall_min_results: parseInt(process.env.MEMORY_RECALL_MIN_RESULTS || '3', 10),
+    recall_similarity_weight: 0.55,
+    recall_recency_weight: 0.20,
+    recall_type_weight: 0.15,
+    recall_quality_weight: 0.10,
+    extraction_max_tokens: parseInt(process.env.MEMORY_EXTRACTION_MAX_TOKENS || '8000', 10),
+    extraction_max_facts: parseInt(process.env.MEMORY_EXTRACTION_MAX_FACTS || '20', 10),
+    extraction_max_rules: parseInt(process.env.MEMORY_EXTRACTION_MAX_RULES || '10', 10),
   };
+}
+
+// ─── Compaction ─────────────────────────────────────────────────────
+export interface CompactionConfig {
+  compact_on_session_close: boolean;
+  hot_window_turns: number;
+  hot_window_ms: number;
+  cold_retention_ms: number;
+  cold_requires_snapshot: boolean;
+  lane_overrides?: Partial<Record<MemoryLane, {
+    hot_window_turns?: number;
+    hot_window_ms?: number;
+    cold_retention_ms?: number;
+  }>>;
+}
+
+export function getDefaultCompactionConfig(): CompactionConfig {
+  return {
+    compact_on_session_close: true,
+    hot_window_turns: 50,
+    hot_window_ms: 86_400_000,
+    cold_retention_ms: 2_592_000_000,
+    cold_requires_snapshot: true,
+  };
+}
+
+export interface CompactionResult {
+  sessions_compacted: number;
+  episodic_archived: number;
+  extraction_triggered: boolean;
+  cold_pruned: number;
+  snapshot_cid: string | null;
+}
+
+// ─── Extraction Output ───────────────────────────────────────────────
+export interface ExtractionOutputSchema {
+  schema_version: '1.0';
+  facts: Array<{ fact: string; confidence: number }>;
+  rules: Array<{ rule: string; trigger: string; priority: number }>;
+}
+
+export interface ValidatedExtractionResult {
+  facts: Array<{
+    fact: string;
+    confidence: number;
+    source_memory_ids?: string[];
+    supersedes?: string[];
+  }>;
+  rules: Array<{
+    rule: string;
+    trigger: string;
+    priority: number;
+    source_memory_ids?: string[];
+  }>;
+  warnings: string[];
 }
 
 // ─── ACL ────────────────────────────────────────────────────────────

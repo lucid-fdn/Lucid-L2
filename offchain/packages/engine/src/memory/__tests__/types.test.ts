@@ -1,7 +1,7 @@
 import {
   MemoryType, MemoryStatus, MemoryEntry, EpisodicMemory, SemanticMemory,
   ProceduralMemory, WritableMemoryEntry, isEpisodicMemory, isSemanticMemory,
-  isProceduralMemory, MEMORY_TYPES, MEMORY_STATUSES,
+  isProceduralMemory, MEMORY_TYPES, MEMORY_STATUSES, MEMORY_LANES, getDefaultCompactionConfig,
 } from '../types';
 
 describe('Memory Types', () => {
@@ -10,6 +10,7 @@ describe('Memory Types', () => {
     agent_passport_id: 'agent-1',
     type: 'episodic',
     namespace: 'agent:agent-1',
+    memory_lane: 'self',
     content: 'Hello world',
     status: 'active',
     created_at: Date.now(),
@@ -76,6 +77,28 @@ describe('Memory Types', () => {
         source_memory_ids: [],
       };
       expect(isProceduralMemory(procedural)).toBe(true);
+    });
+  });
+
+  describe('MEMORY_LANES constant', () => {
+    it('should have exactly 4 entries', () => {
+      expect(MEMORY_LANES).toHaveLength(4);
+    });
+
+    it('should include all expected lanes', () => {
+      expect(MEMORY_LANES).toEqual(['self', 'user', 'shared', 'market']);
+    });
+  });
+
+  describe('getDefaultCompactionConfig', () => {
+    it('should return correct defaults', () => {
+      const config = getDefaultCompactionConfig();
+      expect(config.compact_on_session_close).toBe(true);
+      expect(config.hot_window_turns).toBe(50);
+      expect(config.hot_window_ms).toBe(86_400_000);
+      expect(config.cold_retention_ms).toBe(2_592_000_000);
+      expect(config.cold_requires_snapshot).toBe(true);
+      expect(config.lane_overrides).toBeUndefined();
     });
   });
 });
