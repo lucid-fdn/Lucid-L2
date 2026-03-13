@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { MemoryService } from '../../../../engine/src/memory/service';
 import { MemoryACLEngine } from '../../../../engine/src/memory/acl';
 import { getDefaultConfig } from '../../../../engine/src/memory/types';
@@ -17,16 +18,42 @@ function getService(): MemoryService {
 
 // Helper: extract agent passport ID from request
 function getCallerPassportId(req: any): string {
-  // Admin key check
+  // Admin key check (timing-safe)
   const adminKey = req.headers['x-admin-key'] || req.headers['x-api-key'];
-  if (adminKey && adminKey === process.env.LUCID_ADMIN_KEY) {
-    return '__admin__';
+  const expectedKey = process.env.LUCID_ADMIN_KEY;
+  if (adminKey && expectedKey && typeof adminKey === 'string') {
+    const a = Buffer.from(adminKey);
+    const b = Buffer.from(expectedKey);
+    if (a.length === b.length && timingSafeEqual(a, b)) {
+      return '__admin__';
+    }
   }
+
   // Agent passport ID from header
   const passportId = req.headers['x-agent-passport-id'] as string;
   if (!passportId) {
     throw new Error('Missing X-Agent-Passport-Id header');
   }
+
+  // Verify passport ownership via HMAC signature
+  const sig = req.headers['x-agent-passport-signature'] as string;
+  if (sig && expectedKey) {
+    const expected = createHmac('sha256', expectedKey).update(passportId).digest('hex');
+    const sigBuf = Buffer.from(sig);
+    const expectedBuf = Buffer.from(expected);
+    if (sigBuf.length === expectedBuf.length && timingSafeEqual(sigBuf, expectedBuf)) {
+      return passportId;
+    }
+    throw new Error('Invalid X-Agent-Passport-Signature');
+  }
+
+  // Strict mode: require signature
+  if (process.env.MEMORY_AUTH_STRICT === 'true') {
+    throw new Error('X-Agent-Passport-Signature header required in strict auth mode');
+  }
+
+  // Non-strict mode: allow unauthenticated access with warning
+  console.warn(`[memoryRoutes] WARNING: Unauthenticated passport access for ${passportId}. Set MEMORY_AUTH_STRICT=true to enforce signatures.`);
   return passportId;
 }
 

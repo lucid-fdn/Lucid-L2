@@ -1,9 +1,7 @@
 export { getPassportManager, resetPassportManager, PassportManager } from './passportManager';
-export type { CreatePassportInput, OperationResult, OnChainSyncHandler } from './passportManager';
-// matchingEngine and modelCatalog stay in gateway-lite (serving layer) — use long path
-export { hasAvailableCompute, matchComputeForModel } from '../../../../src/services/passport/matchingEngine';
-export type { MatchResult } from '../../../../src/services/passport/matchingEngine';
-export { MODEL_CATALOG } from '../../../../src/services/passport/modelCatalog';
+export type { CreatePassportInput, OperationResult, OnChainSyncHandler, ComputeAvailabilityChecker, ModelCatalogLookup } from './passportManager';
+// matchingEngine and modelCatalog live in gateway-lite (serving layer).
+// Consumers should import from gateway-lite directly, not via engine.
 export { getPassportSyncService, PassportSyncService } from './passportSyncService';
 export { getPassportService } from './passportService';
 

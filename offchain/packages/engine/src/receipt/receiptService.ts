@@ -553,11 +553,49 @@ export function verifyJobHash(job: JobRequest): boolean {
   return computed === job.job_hash;
 }
 
+/**
+ * Bounded in-memory cache with LRU eviction.
+ * Oldest entries are evicted when the cache exceeds maxSize.
+ */
+class BoundedMap<K, V> {
+  private map = new Map<K, V>();
+  private readonly maxSize: number;
+
+  constructor(maxSize: number) {
+    this.maxSize = maxSize;
+  }
+
+  get(key: K): V | undefined { return this.map.get(key); }
+
+  has(key: K): boolean { return this.map.has(key); }
+
+  set(key: K, value: V): this {
+    // Delete first so re-insertion moves key to end (most recent)
+    if (this.map.has(key)) this.map.delete(key);
+    this.map.set(key, value);
+    // Evict oldest entries if over limit
+    if (this.map.size > this.maxSize) {
+      const it = this.map.keys();
+      const oldest = it.next().value;
+      if (oldest !== undefined) this.map.delete(oldest);
+    }
+    return this;
+  }
+
+  delete(key: K): boolean { return this.map.delete(key); }
+  values(): IterableIterator<V> { return this.map.values(); }
+  get size(): number { return this.map.size; }
+  [Symbol.iterator](): IterableIterator<[K, V]> { return this.map[Symbol.iterator](); }
+}
+
+const RECEIPT_STORE_MAX = parseInt(process.env.RECEIPT_STORE_MAX_SIZE || '50000', 10);
+const IDEMPOTENCY_STORE_MAX = parseInt(process.env.IDEMPOTENCY_STORE_MAX_SIZE || '10000', 10);
+
 // In-memory store (unified — all receipt types)
-const receiptStore = new Map<string, Receipt>();
+const receiptStore = new BoundedMap<string, Receipt>(RECEIPT_STORE_MAX);
 
 // Idempotency store: maps idempotency key -> run_id
-const idempotencyStore = new Map<string, string>();
+const idempotencyStore = new BoundedMap<string, string>(IDEMPOTENCY_STORE_MAX);
 
 // ============================================================================
 // DATABASE PERSISTENCE (write-through, non-blocking)
@@ -702,6 +740,12 @@ export function createInferenceReceipt(input: InferenceReceiptInput, idempotency
   // Generate run_id (use provided or generate new)
   const run_id = input.run_id || `run_${uuid().replace(/-/g, '')}`;
 
+  // Eagerly reserve idempotency key to close check-then-set race window
+  // (between concurrent requests hitting this code path across event loop ticks)
+  if (idempotencyKey) {
+    idempotencyStore.set(idempotencyKey, run_id);
+  }
+
   // Check if run_id already exists
   const existingById = receiptStore.get(run_id);
   if (existingById?.receipt_type === 'inference') {
@@ -786,13 +830,10 @@ export function createInferenceReceipt(input: InferenceReceiptInput, idempotency
   // Store receipt
   receiptStore.set(run_id, signed);
 
-  // Store idempotency mapping
-  if (idempotencyKey) {
-    idempotencyStore.set(idempotencyKey, run_id);
-  }
-
   // Persist to DB (non-blocking)
-  persistReceiptToDb(signed).catch(() => {});
+  persistReceiptToDb(signed).catch(err => {
+    logger.error('[ReceiptService] CRITICAL: DB persist failed for receipt', signed.run_id, ':', err instanceof Error ? err.message : err);
+  });
 
   return signed;
 }
@@ -1250,7 +1291,12 @@ export function createComputeReceipt(
 
   // Generate run_id (use provided or generate new)
   const run_id = input.run_id || `run_${uuid().replace(/-/g, '')}`;
-  
+
+  // Eagerly reserve idempotency key to close check-then-set race window
+  if (idempotencyKey) {
+    idempotencyStore.set(idempotencyKey, run_id);
+  }
+
   // Check if run_id already exists
   if (receiptStore.has(run_id)) {
     return receiptStore.get(run_id)! as ComputeReceipt;
@@ -1339,11 +1385,6 @@ export function createComputeReceipt(
 
   // Store receipt
   receiptStore.set(run_id, signed);
-
-  // Store idempotency mapping
-  if (idempotencyKey) {
-    idempotencyStore.set(idempotencyKey, run_id);
-  }
 
   return signed;
 }
@@ -1571,6 +1612,8 @@ function createReceiptGeneric<TBody extends { run_id: string }, TReceipt extends
       const existing = receiptStore.get(existingRunId);
       if (existing) return existing as TReceipt;
     }
+    // Eagerly reserve idempotency key to close check-then-set race window
+    idempotencyStore.set(opts.idempotencyKey, run_id);
   }
 
   // Check existing
@@ -1602,11 +1645,6 @@ function createReceiptGeneric<TBody extends { run_id: string }, TReceipt extends
 
   // Store
   receiptStore.set(run_id, signed as Receipt);
-
-  // Idempotency
-  if (opts.idempotencyKey) {
-    idempotencyStore.set(opts.idempotencyKey, run_id);
-  }
 
   return signed;
 }

@@ -146,6 +146,13 @@ async function persistEpochToDb(epoch: Epoch): Promise<void> {
         epoch.retry_count || 0,
       ]
     );
+
+    // Sync epoch index counter with DB to prevent drift in multi-instance deployments
+    const maxResult = await pool.query('SELECT MAX(epoch_index) as max_idx FROM epochs');
+    const dbMax = maxResult.rows[0]?.max_idx;
+    if (dbMax && dbMax > epochIndexCounter) {
+      epochIndexCounter = dbMax;
+    }
   } catch (err) {
     logger.warn('[EpochService] DB persist failed (non-blocking):', err instanceof Error ? err.message : err);
   }

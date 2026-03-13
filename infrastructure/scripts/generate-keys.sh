@@ -34,18 +34,8 @@ NANGO_SECRET=$(openssl rand -hex 32)
 echo "✅ Keys generated successfully!"
 echo ""
 echo "========================================"
-echo "Add these to your .env file:"
-echo "========================================"
-echo ""
-echo "# Database Password"
-echo "SUPABASE_DB_PASSWORD=$DB_PASSWORD"
-echo ""
-echo "# JWT Secret"
-echo "JWT_SECRET=$JWT_SECRET"
-echo ""
-echo "# Nango Secret"
-echo "NANGO_SECRET_KEY=$NANGO_SECRET"
-echo ""
+echo "Keys ready (values hidden for security)."
+echo "Use the write-to-file option below to save them."
 echo "========================================"
 echo ""
 
@@ -74,12 +64,6 @@ ANON_KEY=$(generate_jwt "anon" "$JWT_SECRET")
 SERVICE_KEY=$(generate_jwt "service_role" "$JWT_SECRET")
 
 echo "✅ JWT tokens generated!"
-echo ""
-echo "# Supabase Keys"
-echo "SUPABASE_ANON_KEY=$ANON_KEY"
-echo "SUPABASE_SERVICE_KEY=$SERVICE_KEY"
-echo ""
-echo "========================================"
 echo ""
 
 # Option to write to .env file

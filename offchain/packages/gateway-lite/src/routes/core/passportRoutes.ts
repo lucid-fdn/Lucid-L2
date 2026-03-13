@@ -6,6 +6,19 @@ import { getPassportManager } from '../../../../engine/src/passport/passportMana
 import type { PassportType, PassportStatus, PassportFilters } from '../../../../engine/src/storage/passportStore';
 import { logger } from '../../../../engine/src/lib/logger';
 
+function sanitizeQueryInt(val: any, defaultVal: number, min: number, max: number): number {
+  if (val === undefined || val === null) return defaultVal;
+  const n = parseInt(String(val), 10);
+  if (isNaN(n) || n < min) return min;
+  if (n > max) return max;
+  return n;
+}
+
+function sanitizeSearch(val: any, maxLen: number = 500): string | undefined {
+  if (!val || typeof val !== 'string') return undefined;
+  return val.slice(0, maxLen);
+}
+
 export const passportRouter = express.Router();
 
 // IMPORTANT: Static routes must be defined BEFORE parameterized routes
@@ -465,22 +478,17 @@ passportRouter.get('/v1/passports', async (req, res) => {
     }
 
     // Search
-    if (search && typeof search === 'string') {
-      filters.search = search;
+    const sanitizedSearch = sanitizeSearch(search);
+    if (sanitizedSearch) {
+      filters.search = sanitizedSearch;
     }
 
     // Pagination
-    if (page) {
-      const pageNum = parseInt(page as string, 10);
-      if (!isNaN(pageNum) && pageNum > 0) {
-        filters.page = pageNum;
-      }
+    if (page !== undefined) {
+      filters.page = sanitizeQueryInt(page, 1, 1, 10000);
     }
-    if (per_page) {
-      const perPageNum = parseInt(per_page as string, 10);
-      if (!isNaN(perPageNum) && perPageNum > 0) {
-        filters.per_page = perPageNum;
-      }
+    if (per_page !== undefined) {
+      filters.per_page = sanitizeQueryInt(per_page, 20, 1, 100);
     }
 
     // Sorting
@@ -561,20 +569,15 @@ passportRouter.get('/v1/models', async (req, res) => {
     if (tags && typeof tags === 'string') {
       filters.tags = tags.split(',').map(t => t.trim());
     }
-    if (search && typeof search === 'string') {
-      filters.search = search;
+    const modelSearch = sanitizeSearch(search);
+    if (modelSearch) {
+      filters.search = modelSearch;
     }
-    if (page) {
-      const pageNum = parseInt(page as string, 10);
-      if (!isNaN(pageNum) && pageNum > 0) {
-        filters.page = pageNum;
-      }
+    if (page !== undefined) {
+      filters.page = sanitizeQueryInt(page, 1, 1, 10000);
     }
-    if (per_page) {
-      const perPageNum = parseInt(per_page as string, 10);
-      if (!isNaN(perPageNum) && perPageNum > 0) {
-        filters.per_page = perPageNum;
-      }
+    if (per_page !== undefined) {
+      filters.per_page = sanitizeQueryInt(per_page, 20, 1, 100);
     }
 
     const manager = getPassportManager();
@@ -651,20 +654,15 @@ passportRouter.get('/v1/compute', async (req, res) => {
     if (tags && typeof tags === 'string') {
       filters.tags = tags.split(',').map(t => t.trim());
     }
-    if (search && typeof search === 'string') {
-      filters.search = search;
+    const computeSearch = sanitizeSearch(search);
+    if (computeSearch) {
+      filters.search = computeSearch;
     }
-    if (page) {
-      const pageNum = parseInt(page as string, 10);
-      if (!isNaN(pageNum) && pageNum > 0) {
-        filters.page = pageNum;
-      }
+    if (page !== undefined) {
+      filters.page = sanitizeQueryInt(page, 1, 1, 10000);
     }
-    if (per_page) {
-      const perPageNum = parseInt(per_page as string, 10);
-      if (!isNaN(perPageNum) && perPageNum > 0) {
-        filters.per_page = perPageNum;
-      }
+    if (per_page !== undefined) {
+      filters.per_page = sanitizeQueryInt(per_page, 20, 1, 100);
     }
 
     const manager = getPassportManager();
@@ -746,9 +744,10 @@ passportRouter.get('/v1/tools', async (req, res) => {
     const filters: PassportFilters = { type: 'tool', status: 'active' };
     if (owner && typeof owner === 'string') filters.owner = owner;
     if (tags && typeof tags === 'string') filters.tags = tags.split(',').map(t => t.trim());
-    if (search && typeof search === 'string') filters.search = search;
-    if (page) filters.page = parseInt(page as string, 10);
-    if (per_page) filters.per_page = parseInt(per_page as string, 10);
+    const toolSearch = sanitizeSearch(search);
+    if (toolSearch) filters.search = toolSearch;
+    if (page !== undefined) filters.page = sanitizeQueryInt(page, 1, 1, 10000);
+    if (per_page !== undefined) filters.per_page = sanitizeQueryInt(per_page, 20, 1, 100);
 
     const manager = getPassportManager();
     const result = await manager.listPassports(filters);
@@ -777,9 +776,10 @@ passportRouter.get('/v1/datasets', async (req, res) => {
     const filters: PassportFilters = { type: 'dataset', status: 'active' };
     if (owner && typeof owner === 'string') filters.owner = owner;
     if (tags && typeof tags === 'string') filters.tags = tags.split(',').map(t => t.trim());
-    if (search && typeof search === 'string') filters.search = search;
-    if (page) filters.page = parseInt(page as string, 10);
-    if (per_page) filters.per_page = parseInt(per_page as string, 10);
+    const datasetSearch = sanitizeSearch(search);
+    if (datasetSearch) filters.search = datasetSearch;
+    if (page !== undefined) filters.page = sanitizeQueryInt(page, 1, 1, 10000);
+    if (per_page !== undefined) filters.per_page = sanitizeQueryInt(per_page, 20, 1, 100);
 
     const manager = getPassportManager();
     const result = await manager.listPassports(filters);
@@ -808,9 +808,10 @@ passportRouter.get('/v1/agents', async (req, res) => {
     const filters: PassportFilters = { type: 'agent', status: 'active' };
     if (owner && typeof owner === 'string') filters.owner = owner;
     if (tags && typeof tags === 'string') filters.tags = tags.split(',').map(t => t.trim());
-    if (search && typeof search === 'string') filters.search = search;
-    if (page) filters.page = parseInt(page as string, 10);
-    if (per_page) filters.per_page = parseInt(per_page as string, 10);
+    const agentSearch = sanitizeSearch(search);
+    if (agentSearch) filters.search = agentSearch;
+    if (page !== undefined) filters.page = sanitizeQueryInt(page, 1, 1, 10000);
+    if (per_page !== undefined) filters.per_page = sanitizeQueryInt(per_page, 20, 1, 100);
 
     const manager = getPassportManager();
     const result = await manager.listPassports(filters);

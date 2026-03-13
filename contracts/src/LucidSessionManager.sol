@@ -47,6 +47,13 @@ contract LucidSessionManager {
         address indexed delegate
     );
 
+    event SessionUsed(
+        address indexed wallet,
+        address indexed delegate,
+        uint256 amount,
+        uint256 totalUsed
+    );
+
     // =========================================================================
     // Core Functions
     // =========================================================================
@@ -94,6 +101,24 @@ contract LucidSessionManager {
         session.active = false;
 
         emit SessionRevoked(msg.sender, delegate);
+    }
+
+    /**
+     * @notice Record spend against a session. Called by the delegate.
+     * @param wallet The wallet that created the session
+     * @param amount Amount to record against the session cap
+     */
+    function useSession(address wallet, uint256 amount) external {
+        Session storage session = sessions[wallet][msg.sender];
+        require(session.createdAt != 0, "Session does not exist");
+        require(session.active, "Session not active");
+        require(block.timestamp < session.expiresAt, "Session expired");
+
+        uint256 newTotal = session.amountUsed + amount;
+        require(newTotal <= session.maxAmount, "Spend cap exceeded");
+        session.amountUsed = newTotal;
+
+        emit SessionUsed(wallet, msg.sender, amount, newTotal);
     }
 
     // =========================================================================

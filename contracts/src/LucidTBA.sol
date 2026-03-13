@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import { IERC6551Account, IERC6551Executable } from "./interfaces/IERC6551.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title LucidTBA
@@ -109,7 +110,7 @@ contract LucidTBA is IERC6551Account, IERC6551Executable {
      */
     function transferERC20(address token_, address to, uint256 amount) external {
         require(_isOwner(msg.sender), "LucidTBA: not owner");
-        IERC20(token_).transfer(to, amount);
+        SafeERC20.safeTransfer(IERC20(token_), to, amount);
     }
 
     /**

@@ -35,12 +35,18 @@ pub mod lucid_agent_wallet {
     }
 
     /// Execute an arbitrary instruction from the wallet (owner-only).
-    pub fn execute(ctx: Context<Execute>, ix_data: Vec<u8>, program_id: Pubkey) -> Result<()> {
+    /// The `amount` parameter is the caller-reported spend amount used to enforce policy limits.
+    pub fn execute(ctx: Context<Execute>, ix_data: Vec<u8>, program_id: Pubkey, amount: u64) -> Result<()> {
         let wallet = &mut ctx.accounts.wallet;
 
         // Check policy if it exists
-        if let Some(policy_account) = &ctx.accounts.policy {
-            let policy = policy_account;
+        if let Some(policy) = &mut ctx.accounts.policy {
+            // Validate that the policy account belongs to this wallet
+            require!(
+                policy.wallet == wallet.key(),
+                ErrorCode::Unauthorized
+            );
+
             // Check allowed programs
             if !policy.allowed_programs.is_empty() {
                 require!(
@@ -57,9 +63,33 @@ pub mod lucid_agent_wallet {
                     ErrorCode::OutsideTimeWindow
                 );
             }
+            // Enforce per-transaction spending limit
+            if policy.max_per_tx > 0 {
+                require!(
+                    amount <= policy.max_per_tx,
+                    ErrorCode::ExceedsPerTxLimit
+                );
+            }
+            // Reset daily counter if a new day has started
+            let today = now / 86400;
+            if today > policy.last_reset_day {
+                policy.daily_spent = 0;
+                policy.last_reset_day = today;
+            }
+            // Enforce daily spending limit
+            if policy.daily_limit > 0 {
+                let new_daily = policy.daily_spent
+                    .checked_add(amount)
+                    .ok_or(ErrorCode::ArithmeticOverflow)?;
+                require!(
+                    new_daily <= policy.daily_limit,
+                    ErrorCode::ExceedsDailyLimit
+                );
+                policy.daily_spent = new_daily;
+            }
         }
 
-        wallet.nonce += 1;
+        wallet.nonce = wallet.nonce.checked_add(1).ok_or(ErrorCode::ArithmeticOverflow)?;
         emit!(Executed {
             wallet: wallet.key(),
             program_id,
@@ -238,7 +268,7 @@ pub mod lucid_agent_wallet {
         let now = Clock::get()?.unix_timestamp;
         let wallet = &mut ctx.accounts.wallet;
         let nonce = wallet.nonce;
-        wallet.nonce += 1;
+        wallet.nonce = wallet.nonce.checked_add(1).ok_or(ErrorCode::ArithmeticOverflow)?;
 
         let escrow = &mut ctx.accounts.escrow;
         escrow.wallet = wallet.key();
@@ -478,7 +508,9 @@ pub struct Execute<'info> {
     #[account(mut, has_one = owner)]
     pub wallet: Account<'info, AgentWallet>,
     pub owner: Signer<'info>,
-    /// Optional policy account
+    /// Optional policy account — must belong to this wallet if provided.
+    /// Marked mut so daily_spent can be updated when enforcing spending limits.
+    #[account(mut)]
     pub policy: Option<Account<'info, PolicyConfig>>,
 }
 

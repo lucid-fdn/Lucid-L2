@@ -81,20 +81,28 @@ pub mod lucid_zkml_verifier {
         }
 
         // =====================================================================
-        // GROTH16 VERIFICATION
+        // SECURITY WARNING: STUB VERIFICATION
         // =====================================================================
-        // In production, this calls Solana's alt_bn128 syscalls:
+        // This does NOT perform actual Groth16 pairing checks.
+        // Any proof with non-zero components will pass.
+        // DO NOT use this on mainnet without implementing full verification.
+        //
+        // Full implementation requires solana-program >= 1.16 with:
+        //   alt_bn128_addition, alt_bn128_multiplication, alt_bn128_pairing
+        //
+        // Production steps:
         //   1. Negate proof_a (flip y-coordinate for BN254)
         //   2. Compute vk_x = vk_ic[0] + sum(public_inputs[i] * vk_ic[i+1])
         //   3. Verify pairing: e(-A, B) * e(alpha, beta) * e(vk_x, gamma) * e(C, delta) == 1
-        //
-        // Using solana_program::alt_bn128::{
-        //   alt_bn128_addition, alt_bn128_multiplication, alt_bn128_pairing
-        // }
-        //
-        // For now, we validate the proof structure and mark as verified.
-        // The full pairing check will be enabled when building with solana-program >= 1.16.
         // =====================================================================
+
+        // Only the bloom authority can submit proofs for verification.
+        // This prevents unauthorized users from "verifying" fake proofs
+        // while the Groth16 pairing check is still a stub.
+        require!(
+            ctx.accounts.verifier.key() == ctx.accounts.bloom.authority,
+            ErrorCode::Unauthorized
+        );
 
         // Validate proof components are non-zero (basic sanity)
         require!(
@@ -141,6 +149,13 @@ pub mod lucid_zkml_verifier {
     ) -> Result<()> {
         require!(!proofs.is_empty(), ErrorCode::EmptyBatch);
         require!(proofs.len() <= 10, ErrorCode::BatchTooLarge);
+
+        // Only the bloom authority can submit proofs for batch verification.
+        // See security warning in verify_proof for details on stub verification.
+        require!(
+            ctx.accounts.verifier.key() == ctx.accounts.bloom.authority,
+            ErrorCode::Unauthorized
+        );
 
         let bloom_mut = &mut ctx.accounts.bloom;
         let mut model_hashes: Vec<[u8; 32]> = Vec::new();
@@ -441,4 +456,6 @@ pub enum ErrorCode {
     InvalidG1Point,
     #[msg("Invalid G2 point")]
     InvalidG2Point,
+    #[msg("Unauthorized: only bloom authority can verify proofs")]
+    Unauthorized,
 }

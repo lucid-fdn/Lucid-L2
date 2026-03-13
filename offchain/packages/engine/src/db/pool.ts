@@ -24,7 +24,9 @@ const pool = new Pool({
   database: process.env.POSTGRES_DB || 'postgres',
   user: process.env.POSTGRES_USER || 'postgres',
   password: getPassword(),
-  ssl: { rejectUnauthorized: false },
+  ssl: process.env.POSTGRES_SSL === 'false' ? false : {
+    rejectUnauthorized: process.env.POSTGRES_SSL_REJECT_UNAUTHORIZED === 'true',
+  },
   // Shared pool settings — sized for the whole application
   max: parseInt(process.env.POSTGRES_POOL_MAX || '10', 10),
   idleTimeoutMillis: 30000,

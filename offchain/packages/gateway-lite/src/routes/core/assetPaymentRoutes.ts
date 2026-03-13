@@ -26,6 +26,15 @@ function serializeBigInts(obj: Record<string, unknown>): Record<string, unknown>
   return result;
 }
 
+function isValidAddress(addr: string): boolean {
+  if (!addr || typeof addr !== 'string') return false;
+  // EVM address: 0x + 40 hex chars
+  if (/^0x[0-9a-fA-F]{40}$/.test(addr)) return true;
+  // Solana address: base58, 32-44 chars
+  if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(addr)) return true;
+  return false;
+}
+
 export function createAssetPaymentRouter(): Router {
   const router = Router();
   const pricingService = new PricingService();
@@ -71,6 +80,13 @@ export function createAssetPaymentRouter(): Router {
         return res.status(400).json({
           success: false,
           error: 'Missing required field: payout_address',
+        });
+      }
+
+      if (!isValidAddress(body.payout_address)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid payout_address format. Must be a valid EVM (0x...) or Solana (base58) address.',
         });
       }
 
@@ -125,7 +141,7 @@ export function createAssetPaymentRouter(): Router {
    * GET /:passportId/revenue
    * Get revenue summary for an asset.
    */
-  router.get('/:passportId/revenue', async (req, res) => {
+  router.get('/:passportId/revenue', verifyAdminAuth, async (req, res) => {
     try {
       const { passportId } = req.params;
       const token = (req.query.token as string) || 'USDC';

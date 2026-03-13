@@ -126,6 +126,12 @@ contract LucidValidator {
      * @notice Submit a validation result to an ERC-8004 Validation Registry.
      *         Calls requestValidation on the registry contract.
      *
+     * @dev    Security model: This contract is stateless and delegates access control
+     *         to the validation registry itself. The registry's `requestValidation`
+     *         must enforce that only authorized callers (e.g., token owners) can submit
+     *         validations for a given agentTokenId. If the registry rejects the call,
+     *         this function reverts.
+     *
      * @param validationRegistry  Address of the ERC-8004 ValidationRegistry
      * @param agentTokenId        The agent's token ID in the Identity Registry
      * @param receiptHash         The Lucid receipt hash being validated
@@ -137,6 +143,8 @@ contract LucidValidator {
         bytes32 receiptHash,
         bool valid
     ) external {
+        require(validationRegistry != address(0), "Invalid registry address");
+
         // Encode the validation result as metadata
         bytes memory metadata = abi.encode(valid, msg.sender);
 

@@ -11,10 +11,19 @@ import {
   getPassportStore,
 } from '../storage/passportStore';
 import { validateWithSchema, SchemaId } from '../crypto/schemaValidator';
-// matchingEngine and modelCatalog stay in gateway-lite (serving layer) — use long path
-import { hasAvailableCompute } from '../../../../src/services/passport/matchingEngine';
-import { MODEL_CATALOG } from '../../../../src/services/passport/modelCatalog';
 import { logger } from '../lib/logger';
+
+/**
+ * Compute availability checker — injected by gateway-lite to avoid circular dependency.
+ * Signature: (modelMeta, computeCatalog) => boolean
+ */
+export type ComputeAvailabilityChecker = (modelMeta: any, computeCatalog: any[]) => boolean;
+
+/**
+ * Model catalog lookup — injected by gateway-lite to avoid circular dependency.
+ * Keyed by model ID, returns catalog entry or undefined.
+ */
+export type ModelCatalogLookup = Record<string, any>;
 
 // =============================================================================
 // TRUSTGATE CATALOG VALIDATION
@@ -160,9 +169,25 @@ export class PassportManager {
   private store: PassportStore;
   private syncHandler: OnChainSyncHandler | null = null;
   private initialized: boolean = false;
+  private computeAvailabilityChecker: ComputeAvailabilityChecker | null = null;
+  private modelCatalog: ModelCatalogLookup = {};
 
   constructor(store?: PassportStore) {
     this.store = store || getPassportStore();
+  }
+
+  /**
+   * Inject compute availability checker (called by gateway-lite at startup).
+   */
+  setComputeAvailabilityChecker(checker: ComputeAvailabilityChecker): void {
+    this.computeAvailabilityChecker = checker;
+  }
+
+  /**
+   * Inject model catalog (called by gateway-lite at startup).
+   */
+  setModelCatalog(catalog: ModelCatalogLookup): void {
+    this.modelCatalog = catalog;
   }
 
   /**
@@ -728,17 +753,20 @@ export class PassportManager {
     }
 
     // Filter by compute availability (tri-state: true=available only, false=unavailable only, undefined=all)
-    if (filters.available !== undefined) {
+    if (filters.available !== undefined && this.computeAvailabilityChecker) {
       const computeResult = await this.store.list({ type: 'compute', status: 'active' });
       const computeCatalog = computeResult.items.map(p => p.metadata);
+      const checker = this.computeAvailabilityChecker;
       result.items = result.items.filter(p => {
-        const isAvailable = hasAvailableCompute(p.metadata, computeCatalog);
+        const isAvailable = checker(p.metadata, computeCatalog);
         return filters.available ? isAvailable : !isAvailable;
       });
       result.pagination.total = result.items.length;
       result.pagination.total_pages = Math.ceil(
         result.items.length / result.pagination.per_page
       );
+    } else if (filters.available !== undefined) {
+      logger.warn('[PassportManager] Compute availability filter requested but no checker injected — skipping filter');
     }
 
     return result;
@@ -968,7 +996,7 @@ export class PassportManager {
         continue;
       }
 
-      const catalogEntry = MODEL_CATALOG[model.id];
+      const catalogEntry = this.modelCatalog[model.id];
       const provider = catalogEntry?.provider || deriveProvider(model.id);
       const passportId = `passport_api_${model.id.replace(/[^a-zA-Z0-9-_]/g, '_')}`;
 

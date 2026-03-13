@@ -53,6 +53,8 @@ import { lucidLayerRouter } from './routes/core/lucidLayerRoutes';
 import { passportRouter } from './routes/core/passportRoutes';
 import { shareRouter } from './routes/core/shareRoutes';
 import { getPassportManager, OnChainSyncHandler } from '../../engine/src/passport/passportManager';
+import { hasAvailableCompute } from './compute/matchingEngine';
+import { MODEL_CATALOG } from './compute/modelCatalog';
 import type { Passport } from '../../engine/src/storage/passportStore';
 import { initReceiptConsumer, startReceiptConsumer, stopReceiptConsumer } from '../../engine/src/jobs/receiptConsumer';
 import pool from '../../engine/src/db/pool';
@@ -92,12 +94,36 @@ import { initAgentMirrorConsumer, startAgentMirrorConsumer, stopAgentMirrorConsu
 import { createAssetPaymentRouter } from './routes/core/assetPaymentRoutes';
 import { createPaymentConfigRouter } from './routes/core/paymentConfigRoutes';
 import { createSubscriptionRouter } from './routes/core/subscriptionRoutes';
+import rateLimit from 'express-rate-limit';
 
 const app = express();
 
 // Security headers (OWASP best practice)
 app.use(helmet({
   contentSecurityPolicy: false, // CSP disabled — API-only server, no HTML to protect
+}));
+
+// Global rate limiting (per IP)
+const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10); // 1 minute
+const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '200', 10); // 200 req/min per IP
+app.use(rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_MAX,
+  standardHeaders: true, // Return RateLimit-* headers (draft-6)
+  legacyHeaders: false,  // Disable X-RateLimit-* headers
+  message: { success: false, error: 'Too many requests, please try again later' },
+  keyGenerator: (req) => req.ip || req.headers['x-forwarded-for'] as string || 'unknown',
+}));
+
+// Stricter rate limit for inference endpoint (expensive operation)
+const INFERENCE_RATE_LIMIT_MAX = parseInt(process.env.INFERENCE_RATE_LIMIT_MAX || '30', 10);
+app.use('/v1/chat/completions', rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: INFERENCE_RATE_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Inference rate limit exceeded' },
+  keyGenerator: (req) => req.ip || req.headers['x-forwarded-for'] as string || 'unknown',
 }));
 
 // Body size limit — prevent OOM from oversized payloads
@@ -259,6 +285,8 @@ reputationAlgorithmRegistry.register(new StakeWeightedAlgorithm());
 console.log(`Reputation Marketplace: ${reputationAlgorithmRegistry.count()} algorithm(s) registered`);
 
 // Initialize Passport Manager and wire up On-Chain Sync
+getPassportManager().setComputeAvailabilityChecker(hasAvailableCompute);
+getPassportManager().setModelCatalog(MODEL_CATALOG);
 getPassportManager().init().then(async () => {
   console.log('📦 Passport Manager ready');
 
