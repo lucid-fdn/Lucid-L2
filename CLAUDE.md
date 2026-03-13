@@ -59,6 +59,7 @@ Client → /v1/chat/completions → Passport matching → LLM execution
 - `/v1/config/facilitator` — Set default facilitator (PUT, admin)
 - `/v1/config/chains` — Supported payment chains (GET)
 - `/v1/access/subscribe` — x402-gated subscription (POST)
+- `/v1/memory/*` — Agent memory CRUD (episodic, semantic, procedural, recall, sessions, verify, snapshots)
 - `/api/hyperliquid`, `/api/solana` — DeFi integrations
 
 ### Model Availability Filter (`?available=true|false`)
@@ -134,6 +135,18 @@ ToolMeta and AgentMeta schemas wired into passport creation. `TYPE_SCHEMA_MAP` i
 - `tool` → `ToolMeta.schema.json`, `agent` → `AgentMeta.schema.json`
 - `dataset` → no schema (basic validation only)
 
+### MemoryMap (Agent Memory System)
+Portable, provable agent memory in `engine/src/memory/`. Three layers:
+- **Layer 1**: `IMemoryStore` (Postgres/in-memory) + type managers (episodic, semantic, procedural) + query engine
+- **Layer 2**: `MemoryService` orchestrator + LLM extraction + SHA-256 hash chain + receipt linkage + ACL + archive pipeline
+- **Layer 3**: REST `/v1/memory/*` routes + MCP tools + SDK `lucid.memory.*`
+
+Memory types: episodic (conversation turns), semantic (extracted facts), procedural (learned rules). Staged: entity, trust_weighted, temporal.
+Every write is hash-chained per `(agent_passport_id, namespace)`, linked to receipt MMR, and anchored on-chain.
+Portable via `.lmf` (Lucid Memory File) — signed, hash-chained snapshots on DePIN storage.
+
+Env: `MEMORY_ENABLED`, `MEMORY_STORE` (postgres|memory), `MEMORY_EXTRACTION_ENABLED`, `MEMORY_EMBEDDING_ENABLED`, `MEMORY_RECEIPTS_ENABLED`
+
 ## Offchain Codebase Structure (monorepo, restructured 2026-03-01)
 
 Two-package monorepo: `@lucid-l2/engine` (truth library, no HTTP) + `@lucid-l2/gateway-lite` (thin Express server). Dependency direction: gateway-lite → engine (OK), engine → gateway-lite (FORBIDDEN, ESLint-enforced). Re-export proxy files in `src/` ensure backward compatibility during migration.
@@ -165,6 +178,7 @@ offchain/
         tba/                          # ERC-6551 TBA client + ABIs
         registries/                   # ERC-8004 Identity/Validation/Reputation clients + ABIs
         erc7579, paymaster
+      memory/                         # MemoryMap: types, store (in-memory/postgres), service, commitments, managers, query, extraction, archive
       jobs/                           # anchoringJob, receiptConsumer, revenueAirdrop
       types/                          # fluidCompute, lucid_passports
       chain/                          # Re-export proxies (backward compat → chains/)
