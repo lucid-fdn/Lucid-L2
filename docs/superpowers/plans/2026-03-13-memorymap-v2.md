@@ -166,12 +166,16 @@ export function getDefaultCompactionConfig(): CompactionConfig {
 export interface CompactionResult {
   sessions_compacted: number;
   episodic_archived: number;
-  semantic_created: number;
-  procedural_created: number;
+  extraction_triggered: boolean;
   cold_pruned: number;
   snapshot_cid: string | null;
 }
 ```
+
+> **Design note:** `semantic_created` / `procedural_created` counts were removed because
+> `ExtractionPipeline.extractOnSessionClose()` writes directly via `MemoryService` and
+> returns void. Counting would require either restructuring extraction or query-before/after,
+> both disproportionate to the value. `extraction_triggered` is the honest signal.
 
 - [ ] **Step 8: Add ValidatedExtractionResult type**
 
@@ -246,12 +250,22 @@ import type { MemoryLane } from '../types';
 
 - [ ] **Step 2: Update createSession Omit to include last_compacted_turn_index**
 
-In `IMemoryStore.createSession`, add `'last_compacted_turn_index'` to the Omit:
+In `IMemoryStore.createSession`, add `'last_compacted_turn_index'` and `'last_receipted_turn_index'` to the Omit:
 ```typescript
-createSession(session: Omit<MemorySession, 'turn_count' | 'total_tokens' | 'created_at' | 'last_activity' | 'last_compacted_turn_index'>): Promise<string>;
+createSession(session: Omit<MemorySession, 'turn_count' | 'total_tokens' | 'created_at' | 'last_activity' | 'last_compacted_turn_index' | 'last_receipted_turn_index'>): Promise<string>;
 ```
 
-This prevents breaking existing callers (the field defaults to -1 in the store).
+Both fields default to -1 in the store implementation, preventing callers from passing invalid values.
+
+Also update `MemoryService.startSession()` to remove the now-Omitted `last_receipted_turn_index: -1` from the `createSession` call:
+```typescript
+await this.store.createSession({
+  session_id,
+  agent_passport_id: callerPassportId,
+  namespace,
+  status: 'active',
+});
+```
 
 - [ ] **Step 3: Add new methods to IMemoryStore**
 
@@ -432,7 +446,6 @@ describe('updateCompactionWatermark()', () => {
     await store.createSession({
       session_id: 'sess-c', agent_passport_id: 'agent-1',
       namespace: 'ns', status: 'active',
-      last_receipted_turn_index: -1, last_compacted_turn_index: -1,
     });
     await store.updateCompactionWatermark('sess-c', 10);
     const session = await store.getSession('sess-c');
@@ -546,13 +559,14 @@ In `query()`, add filter:
 if (q.memory_lane && !q.memory_lane.includes((e.memory_lane || 'self') as any)) return false;
 ```
 
-In `createSession()`, handle `last_compacted_turn_index`:
+In `createSession()`, default the Omitted fields:
 ```typescript
 const full: MemorySession = {
   ...session,
   turn_count: 0,
   total_tokens: 0,
-  last_compacted_turn_index: (session as any).last_compacted_turn_index ?? -1,
+  last_receipted_turn_index: -1,
+  last_compacted_turn_index: -1,
   created_at: now,
   last_activity: now,
 };
@@ -653,15 +667,15 @@ async nearestByEmbedding(
 
   const threshIdx = idx++;
   params.push(threshold);
-  conditions.push(`1 - (embedding <=> $${vecIdx}) > $${threshIdx}`);
+  conditions.push(`1 - (embedding <=> $${vecIdx}::vector) > $${threshIdx}`);
 
   const limitIdx = idx++;
   params.push(maxResults);
 
-  const sql = `SELECT *, 1 - (embedding <=> $${vecIdx}) AS similarity
+  const sql = `SELECT *, 1 - (embedding <=> $${vecIdx}::vector) AS similarity
     FROM memory_entries
     WHERE ${conditions.join(' AND ')}
-    ORDER BY embedding <=> $${vecIdx}
+    ORDER BY embedding <=> $${vecIdx}::vector
     LIMIT $${limitIdx}`;
 
   const result = await pool.query(sql, params);
@@ -672,24 +686,34 @@ async nearestByEmbedding(
 }
 ```
 
-- [ ] **Step 6: Implement deleteBatch**
+- [ ] **Step 6: Implement deleteBatch (transactional)**
 
 ```typescript
 async deleteBatch(memory_ids: string[]): Promise<void> {
   if (memory_ids.length === 0) return;
-  // Before deleting, preserve content_hash in provenance
-  await pool.query(
-    `UPDATE memory_provenance
-     SET deleted_memory_hash = (
-       SELECT content_hash FROM memory_entries WHERE memory_entries.memory_id = memory_provenance.memory_id
-     )
-     WHERE memory_id = ANY($1) AND deleted_memory_hash IS NULL`,
-    [memory_ids],
-  );
-  await pool.query(
-    'DELETE FROM memory_entries WHERE memory_id = ANY($1)',
-    [memory_ids],
-  );
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Before deleting, preserve content_hash in provenance
+    await client.query(
+      `UPDATE memory_provenance
+       SET deleted_memory_hash = (
+         SELECT content_hash FROM memory_entries WHERE memory_entries.memory_id = memory_provenance.memory_id
+       )
+       WHERE memory_id = ANY($1) AND deleted_memory_hash IS NULL`,
+      [memory_ids],
+    );
+    await client.query(
+      'DELETE FROM memory_entries WHERE memory_id = ANY($1)',
+      [memory_ids],
+    );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 ```
 
@@ -1145,23 +1169,35 @@ function hasKeyword(query: string, keywords: string[]): boolean {
   return keywords.some(kw => lower.includes(kw));
 }
 
+/**
+ * Classification priority (highest wins):
+ *   1. episodic ('recent')  — temporal queries take precedence
+ *   2. procedural ('policy') — behavioral/rule queries
+ *   3. semantic ('fact')    — factual/preference queries
+ *   4. market              — only wins if no type matched
+ *   5. 'default'           — no keywords matched
+ *
+ * Type boosts are additive — all matching categories boost independently.
+ * Only `classification` (the primary label) follows this precedence.
+ */
 export function classifyQueryIntent(query: string): QueryIntent {
   const type_boosts: Record<string, number> = { episodic: 0, semantic: 0, procedural: 0 };
   const lane_boosts: Record<string, number> = { self: 0, user: 0, shared: 0, market: 0 };
   let classification: QueryIntent['classification'] = 'default';
 
-  if (hasKeyword(query, SEMANTIC_KEYWORDS)) {
-    type_boosts.semantic = 0.3;
-    classification = 'fact';
-  }
-  if (hasKeyword(query, PROCEDURAL_KEYWORDS)) {
-    type_boosts.procedural = 0.3;
-    classification = 'policy';
-  }
-  if (hasKeyword(query, EPISODIC_KEYWORDS)) {
-    type_boosts.episodic = 0.3;
-    classification = 'recent';
-  }
+  // Type boosts are additive (all matching categories contribute)
+  const hasSemantic = hasKeyword(query, SEMANTIC_KEYWORDS);
+  const hasProcedural = hasKeyword(query, PROCEDURAL_KEYWORDS);
+  const hasEpisodic = hasKeyword(query, EPISODIC_KEYWORDS);
+
+  if (hasSemantic) type_boosts.semantic = 0.3;
+  if (hasProcedural) type_boosts.procedural = 0.3;
+  if (hasEpisodic) type_boosts.episodic = 0.3;
+
+  // Classification follows priority: episodic > procedural > semantic
+  if (hasSemantic) classification = 'fact';
+  if (hasProcedural) classification = 'policy';
+  if (hasEpisodic) classification = 'recent';
 
   // Lane boosts
   if (hasKeyword(query, MARKET_KEYWORDS)) {
@@ -1328,6 +1364,10 @@ export function rerankCandidates(
 
     const quality = qualityScore(entry);
 
+    // Design: lane_bonus and type_bonus share the same weight bucket (type_weight).
+    // This is intentional — both are "intent alignment" signals, so they compete
+    // for the same 0.15 slice of the score rather than inflating overall weight.
+    // Combined max = type_weight * (0.3 + 0.2) = 0.15 * 0.5 = 0.075.
     const score =
       weights.similarity_weight * sim
       + weights.recency_weight * recency
@@ -1456,6 +1496,7 @@ async recall(callerPassportId: string, request: RecallRequest): Promise<RecallRe
       agent_passport_id: request.agent_passport_id,
       namespace: request.namespace,
       types: request.types,
+      session_id: request.session_id,
       status: request.include_archived ? ['active', 'archived', 'expired'] : ['active'],
       limit: this.config.recall_candidate_pool_size,
       order_by: 'created_at',
@@ -1477,7 +1518,7 @@ async recall(callerPassportId: string, request: RecallRequest): Promise<RecallRe
 
   return {
     memories: result,
-    query_embedding_model: this.config.embedding_model,
+    query_embedding_model: request.semantic_query_embedding ? this.config.embedding_model : null,
     total_candidates: candidates.length,
   };
 }
@@ -2100,7 +2141,6 @@ describe('CompactionPipeline', () => {
     await store.createSession({
       session_id: sessionId, agent_passport_id: 'agent-1',
       namespace: 'ns', status: 'closed',
-      last_receipted_turn_index: -1, last_compacted_turn_index: -1,
     });
 
     // Write 10 episodic entries
@@ -2115,6 +2155,7 @@ describe('CompactionPipeline', () => {
 
     const result = await pipeline.compact('agent-1', 'ns', { mode: 'warm' });
     expect(result.episodic_archived).toBeGreaterThan(0);
+    expect(result.extraction_triggered).toBe(true);
     expect(mockExtraction.extractOnSessionClose).toHaveBeenCalled();
   });
 
@@ -2122,7 +2163,6 @@ describe('CompactionPipeline', () => {
     await store.createSession({
       session_id: 'sess-1', agent_passport_id: 'agent-1',
       namespace: 'ns', status: 'closed',
-      last_receipted_turn_index: -1, last_compacted_turn_index: -1,
     });
 
     for (let i = 0; i < 10; i++) {
@@ -2143,8 +2183,9 @@ describe('CompactionPipeline', () => {
     await store.createSession({
       session_id: 'sess-1', agent_passport_id: 'agent-1',
       namespace: 'ns', status: 'closed',
-      last_receipted_turn_index: -1, last_compacted_turn_index: 4,
     });
+    // Pre-set watermark to simulate prior compaction
+    await store.updateCompactionWatermark('sess-1', 4);
 
     for (let i = 0; i < 10; i++) {
       await store.write({
@@ -2193,7 +2234,7 @@ export class CompactionPipeline {
     const mode = options?.mode || 'full';
     const result: CompactionResult = {
       sessions_compacted: 0, episodic_archived: 0,
-      semantic_created: 0, procedural_created: 0,
+      extraction_triggered: false,
       cold_pruned: 0, snapshot_cid: null,
     };
 
@@ -2241,10 +2282,14 @@ export class CompactionPipeline {
         if (uncompacted.length === 0) continue;
 
         // Run extraction on warm range
+        // Note: extraction operates on all unextracted episodics in the session,
+        // which may be broader than the compacted range. This is intentional —
+        // extraction is session-scoped, compaction is turn-scoped.
         if (this.extractionPipeline) {
           await this.extractionPipeline.extractOnSessionClose(
             session.session_id, agent_passport_id, session.namespace,
           );
+          result.extraction_triggered = true;
         }
 
         // Archive warm episodic entries
@@ -2298,6 +2343,18 @@ export class CompactionPipeline {
       }
 
       if (coldCandidates.length > 0) {
+        // Emit delete provenance BEFORE hard-deleting rows
+        for (const entry of coldCandidates) {
+          await this.store.writeProvenance({
+            agent_passport_id,
+            namespace: entry.namespace,
+            memory_id: entry.memory_id,
+            operation: 'delete',
+            content_hash: entry.content_hash,
+            prev_hash: entry.prev_hash,
+            created_at: Date.now(),
+          });
+        }
         await this.store.deleteBatch(coldCandidates.map(e => e.memory_id));
         result.cold_pruned = coldCandidates.length;
       }
@@ -2460,7 +2517,9 @@ memoryRouter.post('/v1/memory/entity', async (req, res) => {
     });
     return res.status(201).json({ success: true, data: result });
   } catch (error: any) {
-    const status = error.message?.includes('permission') ? 403 : 500;
+    const status = error.message?.includes('permission') ? 403
+      : error.message?.includes('is required') || error.message?.includes('must be') ? 400
+      : 500;
     return res.status(status).json({ success: false, error: error.message });
   }
 });
@@ -2479,7 +2538,9 @@ memoryRouter.post('/v1/memory/trust-weighted', async (req, res) => {
     });
     return res.status(201).json({ success: true, data: result });
   } catch (error: any) {
-    const status = error.message?.includes('permission') ? 403 : 500;
+    const status = error.message?.includes('permission') ? 403
+      : error.message?.includes('is required') || error.message?.includes('must be') ? 400
+      : 500;
     return res.status(status).json({ success: false, error: error.message });
   }
 });
@@ -2499,7 +2560,9 @@ memoryRouter.post('/v1/memory/temporal', async (req, res) => {
     });
     return res.status(201).json({ success: true, data: result });
   } catch (error: any) {
-    const status = error.message?.includes('permission') ? 403 : 500;
+    const status = error.message?.includes('permission') ? 403
+      : error.message?.includes('is required') || error.message?.includes('must be') ? 400
+      : 500;
     return res.status(status).json({ success: false, error: error.message });
   }
 });
