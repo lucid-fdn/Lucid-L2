@@ -3,6 +3,7 @@ import { InMemoryMemoryStore } from './in-memory';
 
 export type { IMemoryStore, MemoryQuery, MemoryWriteResult, MemoryStats } from './interface';
 export { InMemoryMemoryStore } from './in-memory';
+export { PostgresMemoryStore } from './postgres';
 
 let storeInstance: IMemoryStore | null = null;
 

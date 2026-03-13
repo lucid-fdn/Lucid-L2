@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS memory_sessions (
   ),
   turn_count          INTEGER     NOT NULL DEFAULT 0,
   total_tokens        INTEGER     NOT NULL DEFAULT 0,
+  last_receipted_turn_index INTEGER NOT NULL DEFAULT -1,
   summary             TEXT,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
   last_activity       TIMESTAMPTZ NOT NULL DEFAULT now(),
