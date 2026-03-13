@@ -3,7 +3,7 @@ import { pool, getClient } from '../../db/pool';
 import type { PoolClient } from 'pg';
 import type {
   MemoryEntry, MemoryType, MemoryStatus, WritableMemoryEntry,
-  ProvenanceRecord, MemorySession, MemorySnapshot,
+  ProvenanceRecord, MemorySession, MemorySnapshot, MemoryLane,
 } from '../types';
 import { MEMORY_TYPES, MEMORY_STATUSES } from '../types';
 import type { IMemoryStore, MemoryQuery, MemoryWriteResult, MemoryStats } from './interface';
@@ -40,6 +40,9 @@ function rowToMemoryEntry(row: any): MemoryEntry {
     content_hash: row.content_hash,
     prev_hash: row.prev_hash ?? null,
   };
+
+  if (row.memory_lane) base.memory_lane = row.memory_lane;
+  else base.memory_lane = 'self';
 
   if (row.structured_content) base.structured_content = row.structured_content;
   if (row.embedding) base.embedding = row.embedding;
@@ -116,6 +119,7 @@ function rowToSession(row: any): MemorySession {
     turn_count: row.turn_count,
     total_tokens: row.total_tokens,
     last_receipted_turn_index: row.last_receipted_turn_index ?? -1,
+    last_compacted_turn_index: row.last_compacted_turn_index ?? -1,
     summary: row.summary ?? undefined,
     created_at: tsToMs(row.created_at),
     last_activity: tsToMs(row.last_activity),
@@ -163,7 +167,8 @@ export class PostgresMemoryStore implements IMemoryStore {
         rule, trigger, priority,
         entity_name, entity_type, attributes, relationships,
         source_agent_passport_id, trust_score, decay_factor, weighted_relevance,
-        valid_from, valid_to, recorded_at, superseded_by
+        valid_from, valid_to, recorded_at, superseded_by,
+        memory_lane
       ) VALUES (
         $1, $2, $3, $4, $5,
         $6, $7, $8,
@@ -172,7 +177,8 @@ export class PostgresMemoryStore implements IMemoryStore {
         $18, $19, $20,
         $21, $22, $23, $24,
         $25, $26, $27, $28,
-        $29, $30, $31, $32
+        $29, $30, $31, $32,
+        $33
       ) RETURNING memory_id`,
       [
         e.agent_passport_id, e.type, e.namespace, e.content,
@@ -199,6 +205,8 @@ export class PostgresMemoryStore implements IMemoryStore {
         e.valid_to ? msToTs(e.valid_to) : null,
         e.recorded_at ? msToTs(e.recorded_at) : null,
         e.superseded_by ?? null,
+        // Memory lane
+        e.memory_lane ?? 'self',
       ],
     );
 
@@ -370,13 +378,14 @@ export class PostgresMemoryStore implements IMemoryStore {
   // ─── Sessions ───────────────────────────────────────────────────
 
   async createSession(
-    session: Omit<MemorySession, 'turn_count' | 'total_tokens' | 'created_at' | 'last_activity'>,
+    session: Omit<MemorySession, 'turn_count' | 'total_tokens' | 'created_at' | 'last_activity' | 'last_compacted_turn_index' | 'last_receipted_turn_index'>,
   ): Promise<string> {
     await pool.query(
       `INSERT INTO memory_sessions (
-        session_id, agent_passport_id, namespace, status
-      ) VALUES ($1, $2, $3, $4)`,
-      [session.session_id, session.agent_passport_id, session.namespace, session.status],
+        session_id, agent_passport_id, namespace, status,
+        last_receipted_turn_index, last_compacted_turn_index
+      ) VALUES ($1, $2, $3, $4, $5, $6)`,
+      [session.session_id, session.agent_passport_id, session.namespace, session.status, -1, -1],
     );
     return session.session_id;
   }
@@ -549,6 +558,106 @@ export class PostgresMemoryStore implements IMemoryStore {
     };
   }
 
+  // ─── Nearest by embedding ───────────────────────────────────────
+
+  async nearestByEmbedding(
+    embedding: number[],
+    agent_passport_id: string,
+    namespace?: string,
+    types?: MemoryType[],
+    limit?: number,
+    similarity_threshold?: number,
+    lanes?: MemoryLane[],
+  ): Promise<(MemoryEntry & { similarity: number })[]> {
+    const threshold = similarity_threshold ?? 0.65;
+    const maxResults = limit ?? 50;
+    const vecStr = `[${embedding.join(',')}]`;
+
+    const conditions: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+
+    // $1 = vector
+    const vecIdx = idx++;
+    params.push(vecStr);
+
+    conditions.push(`agent_passport_id = $${idx++}`);
+    params.push(agent_passport_id);
+
+    conditions.push(`status = 'active'`);
+    conditions.push(`embedding IS NOT NULL`);
+
+    if (namespace) {
+      conditions.push(`namespace = $${idx++}`);
+      params.push(namespace);
+    }
+    if (types && types.length > 0) {
+      conditions.push(`type = ANY($${idx++})`);
+      params.push(types);
+    }
+    if (lanes && lanes.length > 0) {
+      conditions.push(`memory_lane = ANY($${idx++})`);
+      params.push(lanes);
+    }
+
+    const threshIdx = idx++;
+    params.push(threshold);
+    conditions.push(`1 - (embedding <=> $${vecIdx}::vector) > $${threshIdx}`);
+
+    const limitIdx = idx++;
+    params.push(maxResults);
+
+    const sql = `SELECT *, 1 - (embedding <=> $${vecIdx}::vector) AS similarity
+      FROM memory_entries
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY embedding <=> $${vecIdx}::vector
+      LIMIT $${limitIdx}`;
+
+    const result = await pool.query(sql, params);
+    return result.rows.map(row => ({
+      ...rowToMemoryEntry(row),
+      similarity: parseFloat(row.similarity),
+    }));
+  }
+
+  // ─── Delete batch ────────────────────────────────────────────────
+
+  async deleteBatch(memory_ids: string[]): Promise<void> {
+    if (memory_ids.length === 0) return;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      // Before deleting, preserve content_hash in provenance
+      await client.query(
+        `UPDATE memory_provenance
+         SET deleted_memory_hash = (
+           SELECT content_hash FROM memory_entries WHERE memory_entries.memory_id = memory_provenance.memory_id
+         )
+         WHERE memory_id = ANY($1) AND deleted_memory_hash IS NULL`,
+        [memory_ids],
+      );
+      await client.query(
+        'DELETE FROM memory_entries WHERE memory_id = ANY($1)',
+        [memory_ids],
+      );
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  // ─── Compaction watermark ────────────────────────────────────────
+
+  async updateCompactionWatermark(session_id: string, turn_index: number): Promise<void> {
+    await pool.query(
+      'UPDATE memory_sessions SET last_compacted_turn_index = $2 WHERE session_id = $1',
+      [session_id, turn_index],
+    );
+  }
+
   // ─── Private helpers ────────────────────────────────────────────
 
   private buildQuerySQL(q: MemoryQuery): { sql: string; params: any[] } {
@@ -571,6 +680,11 @@ export class PostgresMemoryStore implements IMemoryStore {
     const statusFilter = q.status ?? ['active'];
     conditions.push(`status = ANY($${idx++})`);
     params.push(statusFilter);
+
+    if (q.memory_lane && q.memory_lane.length > 0) {
+      conditions.push(`memory_lane = ANY($${idx++})`);
+      params.push(q.memory_lane);
+    }
 
     if (q.session_id) {
       conditions.push(`session_id = $${idx++}`);
