@@ -10,6 +10,7 @@ import { getComputeRegistry } from '../../../gateway-lite/src/compute/computeReg
 import { createInferenceReceipt } from '../../../engine/src/receipt/receiptService';
 import { getReceiptTree } from '../../../engine/src/crypto/merkleTree';
 import { calculatePayoutSplit } from '../../../engine/src/finance/payoutService';
+import { MEMORY_TOOL_DEFINITIONS, executeMemoryTool } from './memoryTools';
 
 // =============================================================================
 // Types
@@ -61,6 +62,7 @@ interface ResourceReadResult {
 // =============================================================================
 
 const TOOLS: ToolDefinition[] = [
+  ...MEMORY_TOOL_DEFINITIONS,
   {
     name: 'lucid_match_explain',
     description: 'Evaluate a policy against compute and model metadata',
@@ -272,11 +274,17 @@ export class LucidMcpServer {
           return this.handleGetMmrRoot();
         case 'lucid_calculate_payout':
           return this.handleCalculatePayout(request.arguments);
-        default:
+        default: {
+          // Check if it's a memory tool
+          if (request.name.startsWith('memory_')) {
+            const result = await executeMemoryTool(request.name, request.arguments);
+            return this.jsonResult({ success: true, ...result });
+          }
           return {
             content: [{ type: 'text', text: JSON.stringify({ error: `Unknown tool: ${request.name}` }) }],
             isError: true,
           };
+        }
       }
     } catch (error) {
       return {
