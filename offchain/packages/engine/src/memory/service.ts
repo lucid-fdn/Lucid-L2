@@ -26,6 +26,7 @@ export class MemoryService {
     session_id: string; namespace: string; role: string;
     content: string; tokens: number; metadata?: Record<string, unknown>;
     tool_calls?: any[];
+    memory_lane?: MemoryLane;
   }): Promise<MemoryWriteResult> {
     this.acl.assertWritePermission(callerPassportId, input.namespace);
 
@@ -39,7 +40,7 @@ export class MemoryService {
       role: input.role,
       tokens: input.tokens,
       tool_calls: input.tool_calls,
-      memory_lane: 'self' as MemoryLane,
+      memory_lane: (input.memory_lane ?? 'self') as MemoryLane,
     };
 
     getManager('episodic')(entryBase as any);

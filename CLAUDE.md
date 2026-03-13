@@ -141,9 +141,17 @@ Portable, provable agent memory in `engine/src/memory/`. Three layers:
 - **Layer 2**: `MemoryService` orchestrator + LLM extraction + SHA-256 hash chain + receipt linkage + ACL + archive pipeline
 - **Layer 3**: REST `/v1/memory/*` routes + MCP tools + SDK `lucid.memory.*`
 
-Memory types: episodic (conversation turns), semantic (extracted facts), procedural (learned rules). Staged: entity, trust_weighted, temporal.
+Memory types: episodic (conversation turns), semantic (extracted facts), procedural (learned rules), entity (knowledge graph nodes), trust_weighted (cross-agent trust), temporal (time-bounded facts).
 Every write is hash-chained per `(agent_passport_id, namespace)`, linked to receipt MMR, and anchored on-chain.
 Portable via `.lmf` (Lucid Memory File) — signed, hash-chained snapshots on DePIN storage.
+
+v2 additions: semantic recall (two-stage vector retrieval + metadata-aware reranking), tiered compaction (hot/warm/cold with lane-aware boundaries), memory lanes (self/user/shared/market), 6 active type managers, extraction hardening (schema validation, categorized error handling).
+
+API endpoints:
+- `POST /v1/memory/entity` — Entity memory
+- `POST /v1/memory/trust-weighted` — Trust-weighted memory
+- `POST /v1/memory/temporal` — Temporal memory
+- `POST /v1/memory/compact` — Trigger compaction (warm/cold/full modes)
 
 Env: `MEMORY_ENABLED`, `MEMORY_STORE` (postgres|memory), `MEMORY_EXTRACTION_ENABLED`, `MEMORY_EMBEDDING_ENABLED`, `MEMORY_RECEIPTS_ENABLED`
 
