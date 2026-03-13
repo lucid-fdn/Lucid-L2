@@ -91,6 +91,105 @@
 
 ---
 
+## Pre-flight: Locked Decisions
+
+These rules are canonical. If any other section of this plan contradicts them, these win.
+
+### Memory Types (exactly 6)
+
+| Type | V1 Status | Emits Receipt? |
+|------|-----------|----------------|
+| `episodic` | CORE | Batched per-session (see watermark policy below) |
+| `semantic` | CORE | Per write |
+| `procedural` | CORE | Per write |
+| `entity` | STAGED | Per write |
+| `trust_weighted` | STAGED | Per write |
+| `temporal` | STAGED | Per write |
+
+**Provenance is NOT a memory type.** It is an append-only audit log (`memory_provenance` table). Provenance records never emit receipts.
+
+### Episodic Hash Ordering Rule
+
+`turn_index` is part of the episodic hash preimage. Therefore it must be assigned **before** hashing. The episodic write sequence is:
+
+1. **Assign `turn_index`** — query `MAX(turn_index)` for the session, increment by 1 (or 0 if first)
+2. **Build full entry** — merge `turn_index` into the write payload
+3. **Compute `content_hash`** — `SHA-256(canonicalJson(preimage))` including `turn_index`
+4. **Lookup `prev_hash`** — `store.getLatestHash(agent_passport_id, namespace)`
+5. **Persist** — `store.write({ ...entry, content_hash, prev_hash })`
+6. **Write provenance** — append to audit log
+
+Steps 1, 4, 5, 6 run inside a single `SERIALIZABLE` transaction (Postgres) or sequential calls (in-memory).
+
+### Batched Episodic Receipt Watermark Policy
+
+Each session tracks a **watermark** — the `turn_index` of the last episodic entry included in a receipt.
+
+**Fields on `MemorySession`:**
+- `last_receipted_turn_index: number` (default: -1, meaning no receipt yet)
+
+**Emission triggers (both active — no double-accounting due to watermark):**
+- **Every N turns:** when `current_turn_index - last_receipted_turn_index >= config.extraction_batch_size`
+- **On session close:** emit a final batch for any unreceipted entries
+
+**Batch scope:**
+- Include episodic entries where `turn_index > last_receipted_turn_index` for this session
+- After receipt creation, advance `last_receipted_turn_index` to the highest included turn
+
+**Receipt preimage:**
+```typescript
+{
+  schema_version: '1.0',
+  run_id: string,
+  timestamp: number,              // Unix seconds (matches all receipt types)
+  agent_passport_id: string,
+  session_id: string,
+  entry_hashes: string[],         // content_hash of each episodic entry in batch
+  entry_count: number,
+  first_turn_index: number,       // inclusive
+  last_turn_index: number,        // inclusive
+  namespace: string,
+}
+```
+
+### Deterministic Chain Ordering
+
+The hash chain is ordered by `(created_at ASC, memory_id ASC)` — using `memory_id` as tie-breaker for entries with identical timestamps. Both `InMemoryMemoryStore` and `PostgresMemoryStore` must use this same ordering for:
+- `getLatestHash()` — returns `content_hash` of the last entry by this ordering
+- `verifyChainIntegrity()` — walks entries in this order
+- `query()` with `order_by: 'created_at'` — uses `memory_id` as secondary sort
+
+### Constructor Signature (locked)
+
+```typescript
+new MemoryService(store: IMemoryStore, acl: MemoryACLEngine, config: MemoryServiceConfig)
+```
+
+This order is used everywhere: tests, MCP tools, route initialization. No variation.
+
+### Receipt Field Naming
+
+All receipt types use `receipt_signature` (not `signature`). Test mocks must match:
+```typescript
+{ receipt_type: 'memory', run_id: '...', receipt_hash: '...', receipt_signature: '...', signer_pubkey: '...', ... }
+```
+
+### MMR Terminology
+
+- `.lmf` files use `content_mmr_root` (not "merkle root")
+- Archive pipeline uses `content_mmr_root`
+- All comments and variable names use "MMR" not "Merkle"
+
+### Auth Model (v1)
+
+v1 ships with two auth paths only:
+- **Agent API key** — auto-scoped to `agent:{passport_id}` namespace
+- **Admin API key** — bypasses ACL, any namespace
+
+Passport-based grants (`grantAccess`/`revokeAccess`) are designed and implemented in the ACL module but **not exposed via REST in v1**. They remain internal-only until the core system is stable.
+
+---
+
 ## Chunk 1: Types + Store Interface + InMemory Store
 
 ### Task 1: Memory Types
@@ -311,6 +410,7 @@ export interface MemorySession {
   status: 'active' | 'closed' | 'archived';
   turn_count: number;
   total_tokens: number;
+  last_receipted_turn_index: number;  // Watermark: last turn included in a batched episodic receipt (-1 = none)
   summary?: string;
   created_at: number;
   last_activity: number;
@@ -973,7 +1073,9 @@ Create `offchain/packages/engine/src/memory/store/in-memory.ts`. This is a pure 
 
 The implementation follows the patterns from the spec. Each method is straightforward Map/Array operations.
 
-For auto-assigning `turn_index` on episodic writes: filter entries by session_id where type='episodic', find `MAX(turn_index)`, return `max + 1` (or 0 if none).
+**Deterministic ordering:** All ordering uses `(created_at ASC, memory_id ASC)` as defined in Pre-flight. `getLatestHash()` finds the entry with the highest `(created_at, memory_id)` pair for the agent+namespace — NOT just the most recent by timestamp alone. This matches the Postgres `ORDER BY created_at DESC, memory_id DESC LIMIT 1` behavior.
+
+**turn_index assignment:** The store does NOT auto-assign turn_index. Instead, `MemoryService.addEpisodic()` queries existing entries for the session, computes `MAX(turn_index) + 1`, and passes the assigned value to the store. The store just persists what it receives (see Pre-flight: Episodic Hash Ordering Rule).
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -1818,11 +1920,21 @@ jest.mock('../../receipt/receiptService', () => ({
     receipt_type: 'memory',
     run_id: 'mock-run',
     receipt_hash: 'mock-receipt-hash',
-    signature: 'mock-sig',
+    receipt_signature: 'mock-sig',
     signer_pubkey: 'mock-pub',
     signer_type: 'orchestrator',
     body: {},
     _mmr_leaf_index: 0,
+  }),
+  createBatchedEpisodicReceipt: jest.fn().mockReturnValue({
+    receipt_type: 'memory',
+    run_id: 'mock-batch-run',
+    receipt_hash: 'mock-batch-hash',
+    receipt_signature: 'mock-sig',
+    signer_pubkey: 'mock-pub',
+    signer_type: 'orchestrator',
+    body: {},
+    _mmr_leaf_index: 1,
   }),
 }));
 
@@ -2042,15 +2154,28 @@ class MemoryService {
 }
 ```
 
-Each `add*` method follows:
+**Generic write pipeline** (`addSemantic`, `addProcedural`):
 1. ACL check — `this.acl.assertWritePermission(callerPassportId, namespace)`
 2. Manager validation — `getManager(type)(entry)`
 3. Hash computation — `computeMemoryHash(entry)`
 4. Prev_hash lookup — `this.store.getLatestHash(agent_passport_id, namespace)`
 5. Store write — `this.store.write({ ...entry, content_hash, prev_hash })`
-6. Provenance — `this.store.writeProvenance({ ... })`
-7. Receipt (if `config.receipts_enabled`) — `createMemoryReceipt(...)` from receiptService
-8. Session stats (episodic only) — `this.store.updateSessionStats(session_id, 1, tokens)`
+6. Provenance — `this.store.writeProvenance({ operation: 'create', ... })`
+7. Receipt — `createMemoryReceipt(...)` (if `config.receipts_enabled`)
+
+**Episodic write pipeline** (`addEpisodic` — turn_index assigned before hash, see Pre-flight):
+1. ACL check
+2. Manager validation (session_id, role, tokens — NOT turn_index)
+3. **Assign turn_index** — query `MAX(turn_index)` for session, +1 (or 0)
+4. **Build full payload** — merge turn_index into entry
+5. Hash computation — `computeMemoryHash(entry)` (includes turn_index in preimage)
+6. Prev_hash lookup — `this.store.getLatestHash(agent_passport_id, namespace)`
+7. Store write — `this.store.write({ ...entry, content_hash, prev_hash })`
+8. Provenance — `this.store.writeProvenance({ operation: 'create', ... })`
+9. Session stats — `this.store.updateSessionStats(session_id, 1, tokens)`
+10. **Batched receipt check** — if `turn_index - session.last_receipted_turn_index >= config.extraction_batch_size`, emit batched episodic receipt and advance watermark
+
+Steps 3-8 run inside a single transaction (SERIALIZABLE in Postgres, sequential in-memory).
 
 `recall()` without embeddings falls back to `store.query()` with all entries scored 1.0. When `embedding_enabled`, it would compute query embedding and do cosine similarity — this is a stub for now.
 
