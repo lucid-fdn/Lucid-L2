@@ -44,19 +44,20 @@ nearestByEmbedding(
 **Postgres implementation:**
 
 ```sql
+-- Dynamic SQL (built in code, not OR-based NULL checks which defeat indexes)
 SELECT *, 1 - (embedding <=> $1) AS similarity
 FROM memory_entries
 WHERE agent_passport_id = $2
-  AND ($3::text IS NULL OR namespace = $3)   -- namespace is optional
   AND status = 'active'
   AND embedding IS NOT NULL
-  AND ($4::text[] IS NULL OR type = ANY($4)) -- types is optional
+  [AND namespace = $3]              -- appended only when namespace provided
+  [AND type = ANY($4)]              -- appended only when types provided
   AND 1 - (embedding <=> $1) > $threshold
 ORDER BY embedding <=> $1
 LIMIT $N
 ```
 
-Candidate pre-filtering (agent + status + optional namespace + optional types) runs before vector index scan. The `embedding IS NOT NULL` clause ensures only embedded entries participate. When `namespace` or `types` are NULL, those clauses are skipped (dynamic WHERE).
+**Implementation note:** Use dynamic SQL construction (same pattern as existing `buildQuerySQL` in `postgres.ts`) — do NOT use `($X IS NULL OR col = $X)` patterns as they prevent index usage with pgvector. Omit unused WHERE clauses entirely for optimal query planning.
 
 **InMemory implementation:** brute-force cosine similarity over all entries with embeddings.
 
@@ -112,6 +113,8 @@ Before reranking, classify query intent to set type bonuses:
 | Default (no match) | no bonus | even weighting across types |
 
 Implementation: keyword list matching in v1. Can evolve to classifier later.
+
+**Intent overfitting guard:** Cap type bonus so it cannot outweigh semantic similarity: `effective_type_bonus = min(type_bonus, similarity)`. This prevents high intent scores from promoting low-similarity entries above actual semantic matches.
 
 #### 1.5 Fallback safety
 
@@ -303,6 +306,8 @@ ALTER TABLE memory_sessions ADD COLUMN last_compacted_turn_index INTEGER NOT NUL
 
 **Type update:** Add `last_compacted_turn_index: number` to the `MemorySession` interface in `types.ts`. Update `rowToSession()` in `postgres.ts` and `InMemoryMemoryStore.createSession()` to handle the field.
 
+**Watermark semantics:** `last_compacted_turn_index` represents the **maximum** turn_index that has been compacted, not the last processed index. After compaction, set to `MAX(turn_index)` of the compacted range. This prevents regression on partial runs.
+
 The extraction pipeline's existing content-hash idempotency set provides a second layer of dedup protection.
 
 #### 3.6 Triggers
@@ -360,7 +365,7 @@ interface CompactionConfig {
 - If DePIN storage is not configured, cold tier does not activate (warm compaction still works)
 - Warm compaction is idempotent via watermark + extraction content-hash dedup
 
-**Cold gate definition:** A snapshot "contains" an entry if `snapshot.created_at >= entry.created_at` (i.e., the snapshot was taken after the entry was written). This is a timestamp-based check against `memory_snapshots`, not an entry-level lookup. Concrete: `SELECT 1 FROM memory_snapshots WHERE agent_passport_id = $1 AND created_at >= $2 LIMIT 1` where `$2` is the newest entry in the cold candidate set.
+**Cold gate definition:** A snapshot "covers" a cold candidate set if the snapshot was taken after all entries in the set were written. To handle clock drift and out-of-order writes, compare against the newest entry's `created_at` in the cold set: `SELECT 1 FROM memory_snapshots WHERE agent_passport_id = $1 AND created_at >= $2 LIMIT 1` where `$2` is `MAX(created_at)` of the cold candidate set. For extra safety, add a small buffer (e.g., 60 seconds) to account for clock skew: `created_at >= $2 + interval '60 seconds'`.
 
 #### 3.10 New IMemoryStore methods required
 
@@ -375,6 +380,8 @@ updateCompactionWatermark(session_id: string, turn_index: number): Promise<void>
 Both Postgres and InMemory implementations must be updated. `deleteBatch` is `DELETE FROM memory_entries WHERE memory_id = ANY($1)`. `updateCompactionWatermark` is `UPDATE memory_sessions SET last_compacted_turn_index = $2 WHERE session_id = $1`.
 
 **Note:** `memory_provenance` FK to `memory_entries` must NOT cascade on delete. Provenance records survive entry deletion as audit trail.
+
+**Pre-delete preservation:** Before `deleteBatch()`, copy each entry's `content_hash` into a new `deleted_memory_hash TEXT` column on the corresponding provenance records. This preserves verifiability after the entry row disappears — verification tools can reconstruct the chain from provenance hashes alone. Add to migration: `ALTER TABLE memory_provenance ADD COLUMN deleted_memory_hash TEXT;`
 
 #### 3.11 Snapshot namespace scope
 
@@ -436,7 +443,7 @@ function validateExtractionResponse(raw: unknown): ValidatedExtractionResult
 ```
 
 Behavior:
-- **Schema version check:** if `schema_version` is missing or not `'1.0'`, reject the entire response with a warning (do not attempt best-effort parsing of unknown schemas)
+- **Schema version check:** if `schema_version` is missing, assume `'1.0'` (LLMs sometimes omit fields). If `schema_version` is present but unsupported (not `'1.0'`), reject the entire response with a warning (do not attempt best-effort parsing of unknown schemas)
 - Validate entry-by-entry — drop malformed items with a warning, keep valid ones
 - Cap output: max 20 facts + 10 rules per extraction (configurable via `config.extraction_max_facts`, `config.extraction_max_rules`)
 - Return cleaned payload + warnings array for observability
@@ -471,7 +478,7 @@ Split into structured messages:
 
 Token estimation is a **heuristic** (approximately `character_count / 4` — ~1 token per 4 characters). The spec acknowledges this is rough and leaves room for a provider-specific tokenizer later.
 
-If estimated token count of the episodic window exceeds `config.extraction_max_tokens` (default 8000, which corresponds to ~32,000 characters):
+Token estimate is used only for truncation safety; final LLM provider context limits remain authoritative. If estimated token count of the episodic window exceeds `config.extraction_max_tokens` (default 8000, which corresponds to ~32,000 characters):
 - Truncate oldest turns first (preserve recent context)
 - Log a warning with truncation count
 
@@ -537,6 +544,7 @@ Entity, trust_weighted, and temporal types are fully defined in `types.ts` with 
 Validates:
 - `entity_name: string` — non-empty
 - `entity_type: string` — non-empty (free-form string for v1; future: controlled vocabulary converging toward `person`, `organization`, `tool`, `protocol`, `dataset`, `contract`, `wallet`, `token`)
+- `entity_id?: string` — optional stable identifier (future-proofing; when omitted, `memory_id` serves as identifier. Long-term, entity dedup and graph traversal will use this field)
 - `attributes: Record<string, unknown>` — required (can be empty `{}`)
 - `relationships: EntityRelation[]` — required (can be empty `[]`); each element validated:
   - `target_entity_id: string` — non-empty
@@ -550,7 +558,7 @@ Validates:
 - `source_agent_passport_id: string` — non-empty (the agent whose memory is being weighted)
 - `trust_score: number` — in [0, 1]
 - `decay_factor: number` — in [0, 1] (rate of trust decay over time)
-- `weighted_relevance: number` — >= 0 (**treated as cached derived score, not canonical truth**)
+- `weighted_relevance: number` — in [0, 1] (**treated as cached derived score, not canonical truth**; capped at 1.0 to prevent ranking math overflow)
 - `source_memory_ids: string[]` — optional, for provenance linkage
 
 **Exposure:** Implemented in engine/service layer. REST/MCP endpoints marked as **advanced/optional** — available but not prominently documented for external users. Primary consumers are internal systems (reputation sync, agent-to-agent trust).
@@ -562,6 +570,7 @@ Validates:
 - `valid_to: number | null` — Unix ms or null (null = "still valid")
 - `recorded_at: number` — Unix ms, required
 - Constraint: if `valid_to` is set, `valid_to > valid_from`
+- Constraint: `recorded_at >= valid_from` (cannot record a fact before its validity period — prevents temporal paradoxes)
 - `source_memory_ids: string[]` — optional, for provenance linkage
 
 #### 5.4 Service methods
@@ -615,6 +624,7 @@ recall_similarity_weight: number;           // default: 0.55
 recall_recency_weight: number;              // default: 0.20
 recall_type_weight: number;                 // default: 0.15
 recall_quality_weight: number;              // default: 0.10
+// Invariant: similarity + recency + type + quality weights MUST sum to 1.0. Validated at config load time.
 
 // CompactionConfig (new)
 compact_on_session_close: boolean;          // default: true
@@ -651,9 +661,32 @@ ALTER TABLE memory_provenance
 ALTER TABLE memory_provenance
   ADD CONSTRAINT memory_provenance_memory_id_fkey
     FOREIGN KEY (memory_id) REFERENCES memory_entries(memory_id) ON DELETE SET NULL;
+
+-- Preserve content_hash in provenance after hard delete
+ALTER TABLE memory_provenance
+  ADD COLUMN deleted_memory_hash TEXT;
 ```
 
 No other schema changes — all new types already have columns in the v1 migration.
+
+---
+
+## Recall Telemetry
+
+The recall pipeline emits structured log events per query:
+- `recall_query_type`: semantic | fallback | mixed
+- `candidate_pool_size`: number of stage-1 candidates
+- `fallback_triggered`: boolean
+- `average_similarity`: mean similarity of returned results
+- `intent_classification`: fact | policy | recent | default
+
+Not required for functionality but critical for tuning weights and detecting degradation.
+
+---
+
+## Security Invariants
+
+**Snapshot restore identity verification:** `ArchivePipeline.restoreSnapshot()` must verify that `lmf.agent_passport_id` matches the request's `agent_passport_id` (or the caller is `__admin__`). Without this check, users could restore another agent's memory into their own namespace. The spec's route ACL check covers write permission, but the identity match must happen at the pipeline level before any entries are written.
 
 ---
 
