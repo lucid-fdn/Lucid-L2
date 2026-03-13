@@ -10,6 +10,7 @@ export { matchingRouter } from './core/matchingRoutes';
 export { computeNodeRouter } from './core/computeNodeRoutes';
 export { payoutRouter } from './core/payoutRoutes';
 export { inferenceRouter } from './core/inferenceRoutes';
+export { memoryRouter } from './core/memoryRoutes';
 export { createAssetPaymentRouter } from './core/assetPaymentRoutes';
 export { createPaymentConfigRouter } from './core/paymentConfigRoutes';
 export { createSubscriptionRouter } from './core/subscriptionRoutes';

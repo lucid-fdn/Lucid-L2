@@ -6,6 +6,7 @@ import { computeNodeRouter } from './computeNodeRoutes';
 import { payoutRouter } from './payoutRoutes';
 import { inferenceRouter } from './inferenceRoutes';
 import { crossChainRouter } from '../chain/crossChainRoutes';
+import { memoryRouter } from './memoryRoutes';
 
 export const lucidLayerRouter = Router();
 lucidLayerRouter.use('/', matchingRouter);
@@ -15,3 +16,4 @@ lucidLayerRouter.use('/', payoutRouter);
 lucidLayerRouter.use('/', inferenceRouter);
 lucidLayerRouter.use('/', epochRouter);
 lucidLayerRouter.use('/', crossChainRouter);
+lucidLayerRouter.use('/', memoryRouter);
