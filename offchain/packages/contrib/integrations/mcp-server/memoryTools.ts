@@ -109,7 +109,11 @@ export async function executeMemoryTool(toolName: string, params: Record<string,
       const namespace = ns || `agent:${agent_passport_id}`;
       switch (type) {
         case 'episodic':
-          return service.addEpisodic(agent_passport_id, { namespace, ...rest });
+          return service.addEpisodic(agent_passport_id, {
+            namespace, session_id: rest.session_id, role: rest.role,
+            content: rest.content, tokens: rest.tokens,
+            metadata: rest.metadata, tool_calls: rest.tool_calls,
+          });
         case 'semantic':
           return service.addSemantic(agent_passport_id, {
             namespace, content: rest.content, fact: rest.fact,
@@ -126,7 +130,10 @@ export async function executeMemoryTool(toolName: string, params: Record<string,
       }
     }
     case 'memory_recall':
-      return service.recall(params.agent_passport_id, params);
+      return service.recall(params.agent_passport_id, {
+        query: params.query, agent_passport_id: params.agent_passport_id,
+        types: params.types, limit: params.limit, namespace: params.namespace,
+      });
     case 'memory_session_start':
       return { session_id: await service.startSession(params.agent_passport_id, params.namespace || `agent:${params.agent_passport_id}`) };
     case 'memory_session_context':
