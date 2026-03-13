@@ -47,16 +47,16 @@ nearestByEmbedding(
 SELECT *, 1 - (embedding <=> $1) AS similarity
 FROM memory_entries
 WHERE agent_passport_id = $2
-  AND namespace = $3
+  AND ($3::text IS NULL OR namespace = $3)   -- namespace is optional
   AND status = 'active'
   AND embedding IS NOT NULL
-  AND type = ANY($4)
+  AND ($4::text[] IS NULL OR type = ANY($4)) -- types is optional
   AND 1 - (embedding <=> $1) > $threshold
 ORDER BY embedding <=> $1
 LIMIT $N
 ```
 
-Candidate pre-filtering (agent + namespace + status + types) runs before vector index scan. The `embedding IS NOT NULL` clause ensures only embedded entries participate.
+Candidate pre-filtering (agent + status + optional namespace + optional types) runs before vector index scan. The `embedding IS NOT NULL` clause ensures only embedded entries participate. When `namespace` or `types` are NULL, those clauses are skipped (dynamic WHERE).
 
 **InMemory implementation:** brute-force cosine similarity over all entries with embeddings.
 
@@ -71,11 +71,13 @@ semantic_query_embedding?: number[]  // provided by external EmbeddingService
 
 Named `semantic_query_embedding` (not `query_embedding`) to avoid ambiguity with future graph/entity retrieval paths.
 
+**Deprecation of `min_similarity`:** The existing `RecallRequest.min_similarity` field is deprecated in favor of `config.recall_similarity_threshold`. If both are provided, `min_similarity` takes precedence (per-request override). If only `min_similarity` is set, it is used as the threshold. If neither is set, the config default (0.65) applies.
+
 #### 1.3 Two-stage retrieval
 
 **Stage 1 — Fast candidate retrieval:**
 - If `semantic_query_embedding` provided: fetch top K candidates (default K=50, configurable) via `nearestByEmbedding()`
-- If not provided: fall back to `store.query()` with recency ordering + `applyContentFilter()` keyword matching
+- If not provided: fall back to `store.query()` with recency ordering + `applyContentFilter()` keyword matching (v1 recall does not call `applyContentFilter` — the v2 rewrite must wire it into the fallback path)
 
 **Stage 2 — Metadata-aware reranking:**
 
@@ -93,7 +95,7 @@ Default weights:
 
 | Signal | Weight | Source |
 |--------|--------|--------|
-| `similarity` | 0.55 | cosine similarity from stage 1 (1.0 for non-embedded fallback) |
+| `similarity` | 0.55 | cosine similarity from stage 1 (0.0 for non-embedded fallback — see note below) |
 | `recency` | 0.20 | `max(0, 1 - age_ms / 30d_ms)` |
 | `type_bonus` | 0.15 | query intent heuristic (see below) |
 | `quality` | 0.10 | `confidence` for semantic, `priority/10` for procedural, 0.5 default |
@@ -117,6 +119,8 @@ If semantic search returns fewer than `config.recall_min_results` (default 3):
 1. Fall back to recency + keyword retrieval
 2. Fill remaining slots up to requested `limit`
 3. Fallback entries scored with `similarity = 0.0` (recency and type bonuses still apply)
+
+**Design note:** Non-embedded fallback entries are hard-capped at ~0.45 maximum score (since similarity_weight * 0.0 = 0). This is intentional — semantically matched entries should always rank above recency-only fallbacks. If the fallback pool is insufficient, consider triggering embedding computation for unembedded entries as a background task.
 
 #### 1.6 Expired entry filtering
 
@@ -281,12 +285,12 @@ If `mode` is `'cold'` or `'full'`:
 1. Query all archived entries older than `config.cold_retention_ms` (default 30 days)
 2. **Gate:** if `config.cold_requires_snapshot` (default true) and no snapshot exists containing these entries, skip cold pruning
 3. If DePIN is configured and no recent snapshot: trigger `archivePipeline.createSnapshot()` first
-4. Hard-delete qualifying rows from `memory_entries`
+4. Hard-delete qualifying rows via new `store.deleteBatch(memory_ids)` method (see 3.10)
 5. Provenance and snapshot pointer records are retained
 
 **What survives hard prune:**
 - `memory_snapshots` row with CID pointer
-- Provenance records referencing deleted entries (audit trail)
+- Provenance records referencing deleted entries (audit trail — `memory_provenance` FK is not cascaded)
 - The `.lmf` file on DePIN contains full entries + provenance
 
 #### 3.5 Idempotency
@@ -296,6 +300,8 @@ If `mode` is `'cold'` or `'full'`:
 ```sql
 ALTER TABLE memory_sessions ADD COLUMN last_compacted_turn_index INTEGER NOT NULL DEFAULT -1;
 ```
+
+**Type update:** Add `last_compacted_turn_index: number` to the `MemorySession` interface in `types.ts`. Update `rowToSession()` in `postgres.ts` and `InMemoryMemoryStore.createSession()` to handle the field.
 
 The extraction pipeline's existing content-hash idempotency set provides a second layer of dedup protection.
 
@@ -350,9 +356,33 @@ interface CompactionConfig {
 
 #### 3.9 Safety
 
-- Cold pruning gated by `cold_requires_snapshot: true` — will not delete rows unless a snapshot containing them exists
+- Cold pruning gated by `cold_requires_snapshot: true` — will not delete rows unless a qualifying snapshot exists (see gate definition below)
 - If DePIN storage is not configured, cold tier does not activate (warm compaction still works)
 - Warm compaction is idempotent via watermark + extraction content-hash dedup
+
+**Cold gate definition:** A snapshot "contains" an entry if `snapshot.created_at >= entry.created_at` (i.e., the snapshot was taken after the entry was written). This is a timestamp-based check against `memory_snapshots`, not an entry-level lookup. Concrete: `SELECT 1 FROM memory_snapshots WHERE agent_passport_id = $1 AND created_at >= $2 LIMIT 1` where `$2` is the newest entry in the cold candidate set.
+
+#### 3.10 New IMemoryStore methods required
+
+```typescript
+// Hard-delete entries (for cold compaction only)
+deleteBatch(memory_ids: string[]): Promise<void>;
+
+// Update compaction watermark on session
+updateCompactionWatermark(session_id: string, turn_index: number): Promise<void>;
+```
+
+Both Postgres and InMemory implementations must be updated. `deleteBatch` is `DELETE FROM memory_entries WHERE memory_id = ANY($1)`. `updateCompactionWatermark` is `UPDATE memory_sessions SET last_compacted_turn_index = $2 WHERE session_id = $1`.
+
+**Note:** `memory_provenance` FK to `memory_entries` must NOT cascade on delete. Provenance records survive entry deletion as audit trail.
+
+#### 3.11 Snapshot namespace scope
+
+`ArchivePipeline.createSnapshot()` currently hardcodes namespace to `agent:{id}`. For compaction (which is namespace-scoped), `createSnapshot()` must accept an optional `namespace` parameter. When provided, only entries and provenance for that namespace are included. When omitted, all namespaces for the agent are included (current behavior).
+
+#### 3.12 CompactionConfig location
+
+`CompactionConfig` is a **standalone interface** (not merged into `MemoryServiceConfig`). It is passed directly to `CompactionPipeline` constructor. The existing `MemoryServiceConfig.compaction_idle_timeout_ms` field is deprecated in favor of `CompactionConfig.hot_window_ms`. Routes construct `CompactionConfig` from env vars independently.
 
 ---
 
@@ -406,6 +436,7 @@ function validateExtractionResponse(raw: unknown): ValidatedExtractionResult
 ```
 
 Behavior:
+- **Schema version check:** if `schema_version` is missing or not `'1.0'`, reject the entire response with a warning (do not attempt best-effort parsing of unknown schemas)
 - Validate entry-by-entry — drop malformed items with a warning, keep valid ones
 - Cap output: max 20 facts + 10 rules per extraction (configurable via `config.extraction_max_facts`, `config.extraction_max_rules`)
 - Return cleaned payload + warnings array for observability
@@ -438,9 +469,9 @@ Split into structured messages:
 
 #### 4.4 Token budget
 
-Token estimation is a **heuristic** (approximately `4 * character_count`). The spec acknowledges this is rough and leaves room for a provider-specific tokenizer later.
+Token estimation is a **heuristic** (approximately `character_count / 4` — ~1 token per 4 characters). The spec acknowledges this is rough and leaves room for a provider-specific tokenizer later.
 
-If episodic window exceeds `config.extraction_max_tokens` (default 8000):
+If estimated token count of the episodic window exceeds `config.extraction_max_tokens` (default 8000, which corresponds to ~32,000 characters):
 - Truncate oldest turns first (preserve recent context)
 - Log a warning with truncation count
 
@@ -452,6 +483,8 @@ When extraction produces a fact where an existing active semantic entry has the 
 1. Mark old entry as `superseded` via `store.supersede(old_id, new_id)`
 2. Write provenance record with `operation: 'supersede'`
 3. New fact includes `supersedes: [old_memory_id]`
+
+**Note:** Supersession is a semantic relationship, not a cryptographic one. Two facts that differ only in case will have different content hashes and different chain positions. The case-insensitive match identifies them as "same fact" for supersession purposes, but they remain cryptographically distinct entries in the hash chain. This is correct — the hash chain records history, supersession records intent.
 
 Semantic similarity-based supersession detection is future work (requires embeddings).
 
@@ -554,7 +587,11 @@ All three use the existing `writeGeneric()` pipeline: ACL → manager validation
 
 **SDK:** `memory.addEntity()`, `memory.addTrustWeighted()`, `memory.addTemporal()`.
 
-#### 5.6 Recall integration
+#### 5.6 `source_memory_ids` is optional for staged types
+
+For semantic and procedural types, `source_memory_ids` is **required** (they are always derived from other memories via extraction). For entity, trust_weighted, and temporal, `source_memory_ids` is **optional** because these types can originate from external systems (e.g., entity records from knowledge bases, trust scores from reputation systems, temporal facts from oracles) rather than from other memory entries. When not provided, defaults to `[]`.
+
+#### 5.7 Recall integration
 
 No special recall logic for v1:
 - All three types participate in standard recall (recency + embedding similarity when available)
@@ -611,14 +648,14 @@ No other schema changes — all new types already have columns in the v1 migrati
 
 | Category | Files | Action |
 |----------|-------|--------|
-| Store interface + implementations | 3 | Modify (add `nearestByEmbedding`) |
+| Store interface + implementations | 3 | Modify (add `nearestByEmbedding`, `deleteBatch`, `updateCompactionWatermark`) |
 | Recall / query module | 3 | Modify (two-stage retrieval, reranking, intent heuristic) |
 | CompactionPipeline | 1 | Create |
 | ExtractionPipeline | 1 | Modify (harden) |
 | Managers (entity, trust_weighted, temporal) | 3 | Create |
 | Manager index | 1 | Modify (register new managers) |
 | MemoryService | 1 | Modify (add 3 methods, compaction trigger) |
-| Types | 1 | Modify (config extensions) |
+| Types | 1 | Modify (config extensions, `last_compacted_turn_index` on MemorySession) |
 | Routes | 1 | Modify (wire snapshot/restore/compact, add 3 new type routes) |
 | MCP tools | 1 | Modify (extend memory_add type enum) |
 | SDK | 1 | Modify (add 3 new type methods) |
