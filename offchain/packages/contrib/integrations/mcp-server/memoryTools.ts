@@ -6,11 +6,11 @@ import { getDefaultConfig } from '../../../engine/src/memory/types';
 export const MEMORY_TOOL_DEFINITIONS = [
   {
     name: 'memory_add',
-    description: 'Store a memory entry (episodic, semantic, or procedural)',
+    description: 'Store a memory entry (episodic, semantic, procedural, entity, trust_weighted, or temporal)',
     inputSchema: {
       type: 'object' as const,
       properties: {
-        type: { type: 'string', enum: ['episodic', 'semantic', 'procedural'] },
+        type: { type: 'string', enum: ['episodic', 'semantic', 'procedural', 'entity', 'trust_weighted', 'temporal'] },
         agent_passport_id: { type: 'string' },
         namespace: { type: 'string' },
         content: { type: 'string' },
@@ -22,6 +22,21 @@ export const MEMORY_TOOL_DEFINITIONS = [
         rule: { type: 'string', description: 'Required for procedural' },
         trigger: { type: 'string', description: 'Required for procedural' },
         priority: { type: 'number' },
+        entity_name: { type: 'string', description: 'Required for entity' },
+        entity_type: { type: 'string', description: 'Required for entity' },
+        entity_id: { type: 'string', description: 'Optional entity identifier' },
+        attributes: { type: 'object', description: 'Entity attributes' },
+        relationships: { type: 'array', description: 'Entity relationships' },
+        source_agent_passport_id: { type: 'string', description: 'Required for trust_weighted' },
+        trust_score: { type: 'number', description: 'Trust score 0-1' },
+        decay_factor: { type: 'number', description: 'Decay factor 0-1' },
+        weighted_relevance: { type: 'number', description: 'Weighted relevance 0-1' },
+        valid_from: { type: 'number', description: 'Required for temporal' },
+        valid_to: { type: 'number', description: 'End of validity period' },
+        recorded_at: { type: 'number', description: 'When this was recorded' },
+        source_memory_ids: { type: 'array', items: { type: 'string' }, description: 'Source memory IDs' },
+        metadata: { type: 'object', description: 'Additional metadata' },
+        memory_lane: { type: 'string', enum: ['self', 'user', 'shared', 'market'], description: 'Memory lane' },
       },
       required: ['type', 'agent_passport_id', 'content'],
     },
@@ -124,6 +139,32 @@ export async function executeMemoryTool(toolName: string, params: Record<string,
             namespace, content: rest.content, rule: rest.rule,
             trigger: rest.trigger, priority: rest.priority ?? 0,
             source_memory_ids: rest.source_memory_ids || [],
+          });
+        case 'entity':
+          return await service.addEntity(agent_passport_id, {
+            namespace, content: rest.content || rest.entity_name,
+            entity_name: rest.entity_name, entity_type: rest.entity_type,
+            entity_id: rest.entity_id,
+            attributes: rest.attributes || {}, relationships: rest.relationships || [],
+            source_memory_ids: rest.source_memory_ids,
+            metadata: rest.metadata, memory_lane: rest.memory_lane,
+          });
+        case 'trust_weighted':
+          return await service.addTrustWeighted(agent_passport_id, {
+            namespace, content: rest.content || `Trust ${rest.source_agent_passport_id}`,
+            source_agent_passport_id: rest.source_agent_passport_id,
+            trust_score: rest.trust_score, decay_factor: rest.decay_factor,
+            weighted_relevance: rest.weighted_relevance,
+            source_memory_ids: rest.source_memory_ids,
+            metadata: rest.metadata, memory_lane: rest.memory_lane,
+          });
+        case 'temporal':
+          return await service.addTemporal(agent_passport_id, {
+            namespace, content: rest.content,
+            valid_from: rest.valid_from, valid_to: rest.valid_to ?? null,
+            recorded_at: rest.recorded_at || Date.now(),
+            source_memory_ids: rest.source_memory_ids,
+            metadata: rest.metadata, memory_lane: rest.memory_lane,
           });
         default:
           throw new Error(`Unsupported memory type: ${type}`);
