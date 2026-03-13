@@ -137,21 +137,63 @@ ToolMeta and AgentMeta schemas wired into passport creation. `TYPE_SCHEMA_MAP` i
 
 ### MemoryMap (Agent Memory System)
 Portable, provable agent memory in `engine/src/memory/`. Three layers:
-- **Layer 1**: `IMemoryStore` (Postgres/in-memory) + type managers (episodic, semantic, procedural) + query engine
-- **Layer 2**: `MemoryService` orchestrator + LLM extraction + SHA-256 hash chain + receipt linkage + ACL + archive pipeline
+- **Layer 1**: `IMemoryStore` (Postgres/in-memory) + type managers (6 types) + query engine + vector search
+- **Layer 2**: `MemoryService` orchestrator + LLM extraction + SHA-256 hash chain + receipt linkage + ACL + archive/compaction pipelines
 - **Layer 3**: REST `/v1/memory/*` routes + MCP tools + SDK `lucid.memory.*`
 
-Memory types: episodic (conversation turns), semantic (extracted facts), procedural (learned rules), entity (knowledge graph nodes), trust_weighted (cross-agent trust), temporal (time-bounded facts).
+**6 Memory Types**: episodic (conversation turns), semantic (extracted facts), procedural (learned rules), entity (knowledge graph nodes), trust_weighted (cross-agent trust), temporal (time-bounded facts).
 Every write is hash-chained per `(agent_passport_id, namespace)`, linked to receipt MMR, and anchored on-chain.
 Portable via `.lmf` (Lucid Memory File) — signed, hash-chained snapshots on DePIN storage.
 
-v2 additions: semantic recall (two-stage vector retrieval + metadata-aware reranking), tiered compaction (hot/warm/cold with lane-aware boundaries), memory lanes (self/user/shared/market), 6 active type managers, extraction hardening (schema validation, categorized error handling).
+**Semantic Recall** (two-stage retrieval):
+1. Top-K vector candidates via pgvector `nearestByEmbedding()` (`<=>` cosine distance, `::vector` cast)
+2. Metadata-aware reranking: `0.55×similarity + 0.20×recency + 0.15×type_bonus + 0.10×quality`
+3. Intent classifier with priority: episodic > procedural > semantic
+4. Overfitting guard: `effectiveTypeBonus = Math.min(rawTypeBonus, similarity)`
+- Files: `recall/intentClassifier.ts`, `recall/reranker.ts`
+
+**Memory Lanes**: `self | user | shared | market` — semantic partitions with per-lane compaction policies.
+
+**Tiered Compaction** (`CompactionPipeline`):
+- Hot: recent episodics within turn/time window (kept active)
+- Warm: archive episodics beyond hot boundary, optionally trigger extraction
+- Cold: hard-prune archived entries past retention (requires snapshot safety gate)
+- Lane-aware boundaries, delete provenance before hard-delete, watermark idempotency
+
+**Extraction Hardening**: schema_version validation, categorized errors (429→backoff, 401/403→disable), `ValidatedExtractionResult` with warnings.
+
+**Snapshot/Restore**: `ArchivePipeline.createSnapshot()` with namespace filter, `restoreSnapshot()` with identity verification (cross-agent rejection, `__admin__` bypass).
 
 API endpoints:
-- `POST /v1/memory/entity` — Entity memory
-- `POST /v1/memory/trust-weighted` — Trust-weighted memory
-- `POST /v1/memory/temporal` — Temporal memory
+- `POST /v1/memory/episodic` — Episodic memory (conversation turns)
+- `POST /v1/memory/semantic` — Semantic memory (extracted facts)
+- `POST /v1/memory/procedural` — Procedural memory (learned rules)
+- `POST /v1/memory/entity` — Entity memory (knowledge graph nodes)
+- `POST /v1/memory/trust-weighted` — Trust-weighted memory (cross-agent trust)
+- `POST /v1/memory/temporal` — Temporal memory (time-bounded facts)
+- `POST /v1/memory/recall` — Two-stage semantic recall (vector + reranking)
 - `POST /v1/memory/compact` — Trigger compaction (warm/cold/full modes)
+- `POST /v1/memory/snapshots` — Create DePIN snapshot
+- `POST /v1/memory/snapshots/restore` — Restore from snapshot (replace/merge/fork)
+- `POST /v1/memory/verify` — Verify hash chain integrity
+
+Key files:
+```
+engine/src/memory/
+  types.ts              # All type definitions, configs, defaults
+  service.ts            # MemoryService orchestrator (6 add methods + recall)
+  store/interface.ts    # IMemoryStore contract
+  store/in-memory.ts    # InMemory implementation
+  store/postgres.ts     # Postgres + pgvector implementation
+  managers/             # 6 type validators (episodic, semantic, procedural, entity, trustWeighted, temporal)
+  recall/               # intentClassifier.ts + reranker.ts
+  extraction.ts         # LLM extraction with hardening
+  compactionPipeline.ts # Tiered compaction (hot/warm/cold)
+  archivePipeline.ts    # Snapshot/restore via DePIN
+  commitments.ts        # SHA-256 hash chain
+  acl.ts                # Permission engine
+  query.ts              # Query builder
+```
 
 Env: `MEMORY_ENABLED`, `MEMORY_STORE` (postgres|memory), `MEMORY_EXTRACTION_ENABLED`, `MEMORY_EMBEDDING_ENABLED`, `MEMORY_RECEIPTS_ENABLED`
 
