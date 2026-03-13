@@ -61,3 +61,6 @@ sync-state-*.json
 Cargo.lock
 .speakeasy/
 sdk/.speakeasy/
+
+# Worktrees
+.worktrees/
