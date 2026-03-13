@@ -6,6 +6,7 @@ function makeEpisodic(overrides: Partial<any> = {}): WritableMemoryEntry & { con
     agent_passport_id: 'agent-1',
     type: 'episodic' as const,
     namespace: 'agent:agent-1',
+    memory_lane: 'self' as const,
     content: 'Hello world',
     metadata: {},
     session_id: 'sess-1',
@@ -22,6 +23,7 @@ function makeSemantic(overrides: Partial<any> = {}): WritableMemoryEntry & { con
     agent_passport_id: 'agent-1',
     type: 'semantic' as const,
     namespace: 'agent:agent-1',
+    memory_lane: 'self' as const,
     content: 'The sky is blue',
     metadata: {},
     fact: 'The sky is blue',
@@ -189,6 +191,17 @@ describe('InMemoryMemoryStore', () => {
       expect(results).toHaveLength(1);
       expect(results[0].content_hash).toBe('h2');
     });
+
+    it('should filter by memory_lane', async () => {
+      await store.write(makeEpisodic({ content_hash: 'self1', memory_lane: 'self' }));
+      await store.write(makeEpisodic({ content_hash: 'user1', memory_lane: 'user' }));
+      const results = await store.query({
+        agent_passport_id: 'agent-1',
+        memory_lane: ['user'],
+      });
+      expect(results).toHaveLength(1);
+      expect((results[0] as any).memory_lane).toBe('user');
+    });
   });
 
   // ─── count ──────────────────────────────────────────────────────
@@ -321,7 +334,6 @@ describe('InMemoryMemoryStore', () => {
         agent_passport_id: 'agent-1',
         namespace: 'agent:agent-1',
         status: 'active',
-        last_receipted_turn_index: -1,
       });
       expect(id).toBe('sess-1');
 
@@ -343,7 +355,6 @@ describe('InMemoryMemoryStore', () => {
         agent_passport_id: 'agent-1',
         namespace: 'agent:agent-1',
         status: 'active',
-        last_receipted_turn_index: -1,
       });
       await store.updateSessionStats('sess-1', 2, 100);
       const session = await store.getSession('sess-1');
@@ -357,7 +368,6 @@ describe('InMemoryMemoryStore', () => {
         agent_passport_id: 'agent-1',
         namespace: 'agent:agent-1',
         status: 'active',
-        last_receipted_turn_index: -1,
       });
       await store.closeSession('sess-1', 'Session summary text');
       const session = await store.getSession('sess-1');
@@ -369,11 +379,11 @@ describe('InMemoryMemoryStore', () => {
     it('should list sessions by agent and optional status filter', async () => {
       await store.createSession({
         session_id: 'sess-1', agent_passport_id: 'agent-1',
-        namespace: 'ns', status: 'active', last_receipted_turn_index: -1,
+        namespace: 'ns', status: 'active',
       });
       await store.createSession({
         session_id: 'sess-2', agent_passport_id: 'agent-1',
-        namespace: 'ns', status: 'active', last_receipted_turn_index: -1,
+        namespace: 'ns', status: 'active',
       });
       await store.closeSession('sess-2');
 
@@ -474,6 +484,83 @@ describe('InMemoryMemoryStore', () => {
       expect(stats.by_status.active).toBe(2);
       expect(stats.latest_hash).toBeDefined();
       expect(stats.chain_length).toBe(2);
+    });
+  });
+
+  // ─── nearestByEmbedding ─────────────────────────────────────────
+
+  describe('nearestByEmbedding()', () => {
+    it('should return entries sorted by cosine similarity', async () => {
+      const r1 = await store.write(makeEpisodic({ content_hash: 'e1' }));
+      const r2 = await store.write(makeEpisodic({ content_hash: 'e2' }));
+      await store.updateEmbedding(r1.memory_id, [1, 0, 0], 'test-model');
+      await store.updateEmbedding(r2.memory_id, [0.9, 0.1, 0], 'test-model');
+      const results = await store.nearestByEmbedding([1, 0, 0], 'agent-1', undefined, undefined, 10, 0.5);
+      expect(results.length).toBe(2);
+      expect(results[0].similarity).toBeGreaterThan(results[1].similarity);
+    });
+
+    it('should filter by similarity threshold', async () => {
+      const r1 = await store.write(makeEpisodic({ content_hash: 'e1' }));
+      await store.updateEmbedding(r1.memory_id, [0, 1, 0], 'test-model');
+      const results = await store.nearestByEmbedding([1, 0, 0], 'agent-1', undefined, undefined, 10, 0.9);
+      expect(results.length).toBe(0);
+    });
+
+    it('should filter by namespace and types', async () => {
+      const r1 = await store.write(makeEpisodic({ content_hash: 'e1', namespace: 'ns-a' }));
+      const r2 = await store.write(makeSemantic({ content_hash: 's1', namespace: 'ns-a' }));
+      await store.updateEmbedding(r1.memory_id, [1, 0, 0], 'test-model');
+      await store.updateEmbedding(r2.memory_id, [1, 0, 0], 'test-model');
+      const results = await store.nearestByEmbedding([1, 0, 0], 'agent-1', 'ns-a', ['semantic'], 10, 0.5);
+      expect(results.length).toBe(1);
+      expect(results[0].type).toBe('semantic');
+    });
+
+    it('should skip entries without embeddings', async () => {
+      await store.write(makeEpisodic({ content_hash: 'no-embed' }));
+      const results = await store.nearestByEmbedding([1, 0, 0], 'agent-1', undefined, undefined, 10, 0.0);
+      expect(results.length).toBe(0);
+    });
+
+    it('should filter by lanes', async () => {
+      const r1 = await store.write(makeEpisodic({ content_hash: 'self1', memory_lane: 'self' }));
+      const r2 = await store.write(makeEpisodic({ content_hash: 'market1', memory_lane: 'market' }));
+      await store.updateEmbedding(r1.memory_id, [1, 0, 0], 'test-model');
+      await store.updateEmbedding(r2.memory_id, [1, 0, 0], 'test-model');
+      const results = await store.nearestByEmbedding([1, 0, 0], 'agent-1', undefined, undefined, 10, 0.5, ['market']);
+      expect(results.length).toBe(1);
+      expect((results[0] as any).memory_lane).toBe('market');
+    });
+  });
+
+  // ─── deleteBatch ────────────────────────────────────────────────
+
+  describe('deleteBatch()', () => {
+    it('should hard-delete entries', async () => {
+      const r1 = await store.write(makeEpisodic({ content_hash: 'd1' }));
+      const r2 = await store.write(makeEpisodic({ content_hash: 'd2' }));
+      await store.deleteBatch([r1.memory_id]);
+      expect(await store.read(r1.memory_id)).toBeNull();
+      expect(await store.read(r2.memory_id)).not.toBeNull();
+    });
+
+    it('should be a no-op for empty array', async () => {
+      await expect(store.deleteBatch([])).resolves.toBeUndefined();
+    });
+  });
+
+  // ─── updateCompactionWatermark ──────────────────────────────────
+
+  describe('updateCompactionWatermark()', () => {
+    it('should update last_compacted_turn_index on session', async () => {
+      await store.createSession({
+        session_id: 'sess-c', agent_passport_id: 'agent-1',
+        namespace: 'ns', status: 'active',
+      });
+      await store.updateCompactionWatermark('sess-c', 10);
+      const session = await store.getSession('sess-c');
+      expect(session!.last_compacted_turn_index).toBe(10);
     });
   });
 });

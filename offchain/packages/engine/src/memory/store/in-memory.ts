@@ -1,10 +1,25 @@
 import crypto from 'crypto';
 import type {
   MemoryEntry, MemoryType, MemoryStatus, WritableMemoryEntry,
-  ProvenanceRecord, MemorySession, MemorySnapshot,
+  ProvenanceRecord, MemorySession, MemorySnapshot, MemoryLane,
 } from '../types';
 import { MEMORY_TYPES, MEMORY_STATUSES } from '../types';
 import type { IMemoryStore, MemoryQuery, MemoryWriteResult, MemoryStats } from './interface';
+
+/**
+ * Cosine similarity between two equal-length vectors.
+ * Returns 0 if either vector is zero-length.
+ */
+function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom === 0 ? 0 : dot / denom;
+}
 
 /**
  * Deterministic ordering comparator: (created_at ASC, memory_id ASC)
@@ -37,6 +52,8 @@ export class InMemoryMemoryStore implements IMemoryStore {
       created_at: now,
       updated_at: now,
     } as MemoryEntry;
+
+    if (!full.memory_lane) full.memory_lane = 'self';
 
     this.entries.set(memory_id, full);
 
@@ -77,6 +94,7 @@ export class InMemoryMemoryStore implements IMemoryStore {
       if (q.content_hash && e.content_hash !== q.content_hash) return false;
       if (q.since && e.created_at < q.since) return false;
       if (q.before && e.created_at >= q.before) return false;
+      if (q.memory_lane && !q.memory_lane.includes((e.memory_lane || 'self') as MemoryLane)) return false;
       return true;
     });
 
@@ -177,13 +195,15 @@ export class InMemoryMemoryStore implements IMemoryStore {
   // ─── Sessions ───────────────────────────────────────────────────
 
   async createSession(
-    session: Omit<MemorySession, 'turn_count' | 'total_tokens' | 'created_at' | 'last_activity'>,
+    session: Omit<MemorySession, 'turn_count' | 'total_tokens' | 'created_at' | 'last_activity' | 'last_compacted_turn_index' | 'last_receipted_turn_index'>,
   ): Promise<string> {
     const now = Date.now();
     const full: MemorySession = {
       ...session,
       turn_count: 0,
       total_tokens: 0,
+      last_receipted_turn_index: -1,
+      last_compacted_turn_index: -1,
       created_at: now,
       last_activity: now,
     };
@@ -301,5 +321,51 @@ export class InMemoryMemoryStore implements IMemoryStore {
       chain_length: all.length,
       latest_hash: latest,
     };
+  }
+
+  // ─── Vector search ──────────────────────────────────────────────
+
+  async nearestByEmbedding(
+    embedding: number[],
+    agent_passport_id: string,
+    namespace?: string,
+    types?: MemoryType[],
+    limit?: number,
+    similarity_threshold?: number,
+    lanes?: MemoryLane[],
+  ): Promise<(MemoryEntry & { similarity: number })[]> {
+    const threshold = similarity_threshold ?? 0.65;
+    const maxResults = limit ?? 50;
+    const candidates: (MemoryEntry & { similarity: number })[] = [];
+    for (const entry of this.entries.values()) {
+      if (entry.agent_passport_id !== agent_passport_id) continue;
+      if (entry.status !== 'active') continue;
+      if (!entry.embedding) continue;
+      if (namespace && entry.namespace !== namespace) continue;
+      if (types && !types.includes(entry.type)) continue;
+      if (lanes && !lanes.includes(entry.memory_lane || 'self')) continue;
+      const sim = cosineSimilarity(embedding, entry.embedding);
+      if (sim > threshold) {
+        candidates.push({ ...entry, similarity: sim });
+      }
+    }
+    candidates.sort((a, b) => b.similarity - a.similarity);
+    return candidates.slice(0, maxResults);
+  }
+
+  // ─── Hard delete ────────────────────────────────────────────────
+
+  async deleteBatch(memory_ids: string[]): Promise<void> {
+    for (const id of memory_ids) {
+      this.entries.delete(id);
+    }
+  }
+
+  // ─── Compaction watermark ───────────────────────────────────────
+
+  async updateCompactionWatermark(session_id: string, turn_index: number): Promise<void> {
+    const session = this.sessions.get(session_id);
+    if (!session) throw new Error(`Session not found: ${session_id}`);
+    session.last_compacted_turn_index = turn_index;
   }
 }
