@@ -2,8 +2,11 @@ import { Router } from 'express';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { MemoryService } from '../../../../engine/src/memory/service';
 import { MemoryACLEngine } from '../../../../engine/src/memory/acl';
-import { getDefaultConfig } from '../../../../engine/src/memory/types';
+import { getDefaultConfig, getDefaultCompactionConfig } from '../../../../engine/src/memory/types';
 import { getMemoryStore } from '../../../../engine/src/memory/store';
+import { ArchivePipeline } from '../../../../engine/src/memory/archivePipeline';
+import { CompactionPipeline } from '../../../../engine/src/memory/compactionPipeline';
+import { ExtractionPipeline } from '../../../../engine/src/memory/extraction';
 
 export const memoryRouter = Router();
 
@@ -14,6 +17,36 @@ function getService(): MemoryService {
     service = new MemoryService(getMemoryStore(), new MemoryACLEngine(), getDefaultConfig());
   }
   return service;
+}
+
+let archivePipeline: ArchivePipeline | null | undefined = undefined;
+function getArchivePipeline(): ArchivePipeline | null {
+  if (archivePipeline !== undefined) return archivePipeline;
+  const provider = process.env.DEPIN_STORAGE_PROVIDER;
+  if (!provider) { archivePipeline = null; return null; }
+  try {
+    const { getPermanentStorage } = require('../../../../engine/src/storage/depin');
+    const storage = getPermanentStorage();
+    archivePipeline = new ArchivePipeline(
+      getMemoryStore(),
+      storage,
+      async (_id: string) => null, // passport pubkey lookup — wire later
+    );
+    return archivePipeline;
+  } catch {
+    archivePipeline = null;
+    return null;
+  }
+}
+
+let extractionPipeline: ExtractionPipeline | null = null;
+function getExtractionPipeline(): ExtractionPipeline | null {
+  if (extractionPipeline) return extractionPipeline;
+  const svc = getService();
+  const cfg = getDefaultConfig();
+  if (!cfg.extraction_enabled) return null;
+  extractionPipeline = new ExtractionPipeline(svc, getMemoryStore(), cfg);
+  return extractionPipeline;
 }
 
 // Helper: extract agent passport ID from request
@@ -69,7 +102,7 @@ function resolveNamespace(req: any, callerPassportId: string): string {
 memoryRouter.post('/v1/memory/episodic', async (req, res) => {
   try {
     const callerId = getCallerPassportId(req);
-    const { session_id, role, content, tokens, metadata, tool_calls } = req.body;
+    const { session_id, role, content, tokens, metadata, tool_calls, memory_lane } = req.body;
     if (!session_id) return res.status(400).json({ success: false, error: 'Missing session_id' });
     if (!role) return res.status(400).json({ success: false, error: 'Missing role' });
     if (!content) return res.status(400).json({ success: false, error: 'Missing content' });
@@ -77,7 +110,7 @@ memoryRouter.post('/v1/memory/episodic', async (req, res) => {
     const namespace = resolveNamespace(req, callerId);
     const result = await getService().addEpisodic(callerId, {
       session_id, namespace, role, content,
-      tokens: tokens || 0, metadata, tool_calls,
+      tokens: tokens || 0, metadata, tool_calls, memory_lane,
     });
     return res.status(201).json({ success: true, data: result });
   } catch (error: any) {
@@ -90,7 +123,7 @@ memoryRouter.post('/v1/memory/episodic', async (req, res) => {
 memoryRouter.post('/v1/memory/semantic', async (req, res) => {
   try {
     const callerId = getCallerPassportId(req);
-    const { content, fact, confidence, source_memory_ids, supersedes, metadata } = req.body;
+    const { content, fact, confidence, source_memory_ids, supersedes, metadata, memory_lane } = req.body;
     if (!fact) return res.status(400).json({ success: false, error: 'Missing fact' });
     if (confidence === undefined) return res.status(400).json({ success: false, error: 'Missing confidence' });
     if (confidence < 0 || confidence > 1) return res.status(400).json({ success: false, error: 'confidence must be between 0 and 1' });
@@ -98,7 +131,7 @@ memoryRouter.post('/v1/memory/semantic', async (req, res) => {
     const namespace = resolveNamespace(req, callerId);
     const result = await getService().addSemantic(callerId, {
       namespace, content: content || fact, fact, confidence,
-      source_memory_ids: source_memory_ids || [], supersedes, metadata,
+      source_memory_ids: source_memory_ids || [], supersedes, metadata, memory_lane,
     });
     return res.status(201).json({ success: true, data: result });
   } catch (error: any) {
@@ -111,18 +144,83 @@ memoryRouter.post('/v1/memory/semantic', async (req, res) => {
 memoryRouter.post('/v1/memory/procedural', async (req, res) => {
   try {
     const callerId = getCallerPassportId(req);
-    const { content, rule, trigger, priority, source_memory_ids, metadata } = req.body;
+    const { content, rule, trigger, priority, source_memory_ids, metadata, memory_lane } = req.body;
     if (!rule) return res.status(400).json({ success: false, error: 'Missing rule' });
     if (!trigger) return res.status(400).json({ success: false, error: 'Missing trigger' });
 
     const namespace = resolveNamespace(req, callerId);
     const result = await getService().addProcedural(callerId, {
       namespace, content: content || rule, rule, trigger,
-      priority: priority ?? 0, source_memory_ids: source_memory_ids || [], metadata,
+      priority: priority ?? 0, source_memory_ids: source_memory_ids || [], metadata, memory_lane,
     });
     return res.status(201).json({ success: true, data: result });
   } catch (error: any) {
     const status = error.message?.includes('permission') ? 403 : 500;
+    return res.status(status).json({ success: false, error: error.message });
+  }
+});
+
+// POST /v1/memory/entity
+memoryRouter.post('/v1/memory/entity', async (req, res) => {
+  try {
+    const callerId = getCallerPassportId(req);
+    const { content, entity_name, entity_type, entity_id, attributes, relationships, source_memory_ids, metadata, memory_lane } = req.body;
+    if (!entity_name) return res.status(400).json({ success: false, error: 'Missing entity_name' });
+    if (!entity_type) return res.status(400).json({ success: false, error: 'Missing entity_type' });
+    const namespace = resolveNamespace(req, callerId);
+    const result = await getService().addEntity(callerId, {
+      namespace, content: content || entity_name, entity_name, entity_type, entity_id,
+      attributes: attributes || {}, relationships: relationships || [],
+      source_memory_ids, metadata, memory_lane,
+    });
+    return res.status(201).json({ success: true, data: result });
+  } catch (error: any) {
+    const status = error.message?.includes('permission') ? 403
+      : error.message?.includes('is required') || error.message?.includes('must be') ? 400
+      : 500;
+    return res.status(status).json({ success: false, error: error.message });
+  }
+});
+
+// POST /v1/memory/trust-weighted
+memoryRouter.post('/v1/memory/trust-weighted', async (req, res) => {
+  try {
+    const callerId = getCallerPassportId(req);
+    const { content, source_agent_passport_id, trust_score, decay_factor, weighted_relevance, source_memory_ids, metadata, memory_lane } = req.body;
+    if (!source_agent_passport_id) return res.status(400).json({ success: false, error: 'Missing source_agent_passport_id' });
+    const namespace = resolveNamespace(req, callerId);
+    const result = await getService().addTrustWeighted(callerId, {
+      namespace, content: content || `Trust ${source_agent_passport_id}`,
+      source_agent_passport_id, trust_score, decay_factor, weighted_relevance,
+      source_memory_ids, metadata, memory_lane,
+    });
+    return res.status(201).json({ success: true, data: result });
+  } catch (error: any) {
+    const status = error.message?.includes('permission') ? 403
+      : error.message?.includes('is required') || error.message?.includes('must be') ? 400
+      : 500;
+    return res.status(status).json({ success: false, error: error.message });
+  }
+});
+
+// POST /v1/memory/temporal
+memoryRouter.post('/v1/memory/temporal', async (req, res) => {
+  try {
+    const callerId = getCallerPassportId(req);
+    const { content, valid_from, valid_to, recorded_at, source_memory_ids, metadata, memory_lane } = req.body;
+    if (!content) return res.status(400).json({ success: false, error: 'Missing content' });
+    if (valid_from === undefined) return res.status(400).json({ success: false, error: 'Missing valid_from' });
+    const namespace = resolveNamespace(req, callerId);
+    const result = await getService().addTemporal(callerId, {
+      namespace, content, valid_from, valid_to: valid_to ?? null,
+      recorded_at: recorded_at || Date.now(),
+      source_memory_ids, metadata, memory_lane,
+    });
+    return res.status(201).json({ success: true, data: result });
+  } catch (error: any) {
+    const status = error.message?.includes('permission') ? 403
+      : error.message?.includes('is required') || error.message?.includes('must be') ? 400
+      : 500;
     return res.status(status).json({ success: false, error: error.message });
   }
 });
@@ -261,20 +359,40 @@ memoryRouter.post('/v1/memory/verify', async (req, res) => {
 });
 
 // POST /v1/memory/snapshots
-memoryRouter.post('/v1/memory/snapshots', async (_req, res) => {
+memoryRouter.post('/v1/memory/snapshots', async (req, res) => {
   try {
-    // Stub: archive pipeline not wired in routes for v1
-    return res.status(501).json({ success: false, error: 'Snapshots require DePIN storage configuration' });
+    const pipeline = getArchivePipeline();
+    if (!pipeline) return res.status(503).json({ success: false, error: 'DePIN storage not configured' });
+    const callerId = getCallerPassportId(req);
+    const { agent_passport_id, snapshot_type, namespace } = req.body;
+    const agentId = callerId === '__admin__' ? agent_passport_id : callerId;
+    if (!agentId) return res.status(400).json({ success: false, error: 'Missing agent_passport_id' });
+    const result = await pipeline.createSnapshot(agentId, snapshot_type || 'checkpoint', namespace);
+    return res.json({ success: true, data: result });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // POST /v1/memory/snapshots/restore
-memoryRouter.post('/v1/memory/snapshots/restore', async (_req, res) => {
+memoryRouter.post('/v1/memory/snapshots/restore', async (req, res) => {
   try {
-    return res.status(501).json({ success: false, error: 'Snapshots require DePIN storage configuration' });
+    const pipeline = getArchivePipeline();
+    if (!pipeline) return res.status(503).json({ success: false, error: 'DePIN storage not configured' });
+    const callerId = getCallerPassportId(req);
+    const { agent_passport_id, cid, mode, target_namespace } = req.body;
+    const agentId = callerId === '__admin__' ? agent_passport_id : callerId;
+    if (!agentId) return res.status(400).json({ success: false, error: 'Missing agent_passport_id' });
+    if (!cid) return res.status(400).json({ success: false, error: 'Missing cid' });
+    if (!mode) return res.status(400).json({ success: false, error: 'Missing mode' });
+    if (mode === 'fork' && !target_namespace) {
+      return res.status(400).json({ success: false, error: 'target_namespace required for fork mode' });
+    }
+    const result = await pipeline.restoreSnapshot(agentId, { cid, mode, target_namespace });
+    return res.json({ success: true, data: result });
   } catch (error: any) {
+    if (error.message.includes('Identity mismatch')) return res.status(422).json({ success: false, error: error.message });
+    if (error.message.includes('Invalid LMF')) return res.status(422).json({ success: false, error: error.message });
     return res.status(500).json({ success: false, error: error.message });
   }
 });
@@ -303,15 +421,26 @@ memoryRouter.get('/v1/memory/stats/:agent_id', async (req, res) => {
 });
 
 // POST /v1/memory/compact
-memoryRouter.post('/v1/memory/compact', async (_req, res) => {
+memoryRouter.post('/v1/memory/compact', async (req, res) => {
   try {
-    return res.status(501).json({ success: false, error: 'Compaction not yet implemented' });
+    const callerId = getCallerPassportId(req);
+    const { agent_passport_id, namespace, session_id, mode } = req.body;
+    const agentId = callerId === '__admin__' ? agent_passport_id : callerId;
+    if (!agentId) return res.status(400).json({ success: false, error: 'Missing agent_passport_id' });
+    const ns = namespace || `agent:${agentId}`;
+    const compaction = new CompactionPipeline(
+      getMemoryStore(), getExtractionPipeline(), getArchivePipeline(), getDefaultCompactionConfig(),
+    );
+    const result = await compaction.compact(agentId, ns, { session_id, mode: mode || 'full' });
+    return res.json({ success: true, data: result });
   } catch (error: any) {
     return res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// Reset singleton for testing
+// Reset singletons for testing
 export function resetMemoryService(): void {
   service = null;
+  archivePipeline = undefined;
+  extractionPipeline = null;
 }
