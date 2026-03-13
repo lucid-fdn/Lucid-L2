@@ -36,6 +36,17 @@ import type {
   MMRProof,
   TxReceipt,
   ChainHealthStatus,
+  MemoryEntry,
+  MemoryType,
+  RecallResponse,
+  MemorySession,
+  MemoryStats,
+  MemorySnapshot,
+  ProvenanceRecord,
+  MemoryWriteResult,
+  MemoryQuery,
+  ChainVerifyResult,
+  RestoreResult,
 } from '@lucid-l2/engine';
 
 // =============================================================================
@@ -245,6 +256,30 @@ export interface ReputationNamespace {
   sync(passportId: string): Promise<void>;
 }
 
+export interface MemoryNamespace {
+  addEpisodic(input: { session_id: string; role: string; content: string; tokens: number; namespace?: string; metadata?: Record<string, unknown>; tool_calls?: any[] }): Promise<MemoryWriteResult>;
+  addSemantic(input: { content: string; fact: string; confidence: number; source_memory_ids: string[]; namespace?: string; supersedes?: string[] }): Promise<MemoryWriteResult>;
+  addProcedural(input: { content: string; rule: string; trigger: string; priority?: number; source_memory_ids: string[]; namespace?: string }): Promise<MemoryWriteResult>;
+
+  recall(input: { query: string; types?: MemoryType[]; limit?: number; namespace?: string; min_similarity?: number }): Promise<RecallResponse>;
+  get(memoryId: string): Promise<MemoryEntry | null>;
+  query(q: Partial<MemoryQuery>): Promise<MemoryEntry[]>;
+
+  startSession(input?: { namespace?: string }): Promise<string>;
+  closeSession(sessionId: string, summary?: string): Promise<void>;
+  getSessionContext(sessionId: string, limit?: number): Promise<MemoryEntry[]>;
+  listSessions(status?: string[]): Promise<MemorySession[]>;
+
+  verify(namespace?: string): Promise<ChainVerifyResult>;
+  stats(): Promise<MemoryStats>;
+
+  snapshot(type: 'checkpoint' | 'migration' | 'archive'): Promise<string>;
+  restore(cid: string, options: { mode: 'replace' | 'merge' | 'fork'; target_namespace?: string }): Promise<RestoreResult>;
+  listSnapshots(): Promise<MemorySnapshot[]>;
+
+  provenance(namespace: string, limit?: number): Promise<ProvenanceRecord[]>;
+}
+
 // =============================================================================
 // Lucid Class
 // =============================================================================
@@ -276,6 +311,7 @@ export class Lucid {
   readonly chain: ChainNamespace;
   readonly identity: IdentityNamespace;
   readonly reputation: ReputationNamespace;
+  readonly memory: MemoryNamespace;
 
   constructor(config: LucidConfig) {
     this._config = config;
@@ -302,6 +338,7 @@ export class Lucid {
     this.chain = this._buildChainNamespace();
     this.identity = this._buildIdentityNamespace();
     this.reputation = this._buildReputationNamespace();
+    this.memory = this._buildMemoryNamespace();
   }
 
   /**
@@ -761,6 +798,101 @@ export class Lucid {
         const { getReputationSyncers } = require('@lucid-l2/engine/reputation');
         const syncers = getReputationSyncers();
         await Promise.allSettled(syncers.map((s: any) => s.pushFeedback({ passportId, score: 0, category: '', receiptHash: '', assetType: 'agent' })));
+      }),
+    };
+  }
+
+  private _buildMemoryNamespace(): MemoryNamespace {
+    let service: any = null;
+    let store: any = null;
+    const getServiceAndStore = () => {
+      if (!service) {
+        const { MemoryService, getMemoryStore, MemoryACLEngine, getDefaultConfig } = require('@lucid-l2/engine');
+        store = getMemoryStore();
+        service = new MemoryService(store, new MemoryACLEngine(), getDefaultConfig());
+      }
+      return { service, store };
+    };
+
+    // Default agent passport ID for namespace scoping
+    const agentId = '__admin__';
+
+    return {
+      addEpisodic: (input) => this._wrap(async () => {
+        const { service: svc } = getServiceAndStore();
+        return svc.addEpisodic(agentId, { namespace: input.namespace || `agent:${agentId}`, ...input });
+      }),
+      addSemantic: (input) => this._wrap(async () => {
+        const { service: svc } = getServiceAndStore();
+        return svc.addSemantic(agentId, {
+          namespace: input.namespace || `agent:${agentId}`,
+          content: input.content, fact: input.fact, confidence: input.confidence,
+          source_memory_ids: input.source_memory_ids, supersedes: input.supersedes,
+        });
+      }),
+      addProcedural: (input) => this._wrap(async () => {
+        const { service: svc } = getServiceAndStore();
+        return svc.addProcedural(agentId, {
+          namespace: input.namespace || `agent:${agentId}`,
+          content: input.content, rule: input.rule, trigger: input.trigger,
+          priority: input.priority ?? 0, source_memory_ids: input.source_memory_ids,
+        });
+      }),
+      recall: (input) => this._wrap(async () => {
+        const { service: svc } = getServiceAndStore();
+        return svc.recall(agentId, { ...input, agent_passport_id: agentId });
+      }),
+      get: (memoryId) => this._wrap(async () => {
+        const { store: s } = getServiceAndStore();
+        return s.read(memoryId);
+      }),
+      query: (q) => this._wrap(async () => {
+        const { store: s } = getServiceAndStore();
+        return s.query({ agent_passport_id: agentId, ...q });
+      }),
+      startSession: (input) => this._wrap(async () => {
+        const { service: svc } = getServiceAndStore();
+        return svc.startSession(agentId, input?.namespace || `agent:${agentId}`);
+      }),
+      closeSession: (sessionId, summary) => this._wrap(async () => {
+        const { service: svc } = getServiceAndStore();
+        return svc.closeSession(agentId, sessionId, summary);
+      }),
+      getSessionContext: (sessionId, limit) => this._wrap(async () => {
+        const { store: s } = getServiceAndStore();
+        const session = await s.getSession(sessionId);
+        if (!session) return [];
+        return s.query({
+          agent_passport_id: session.agent_passport_id,
+          session_id: sessionId, types: ['episodic'],
+          limit: limit || 20, order_by: 'created_at', order_dir: 'desc',
+        });
+      }),
+      listSessions: () => this._wrap(async () => {
+        const { store: s } = getServiceAndStore();
+        return s.listSessions(agentId);
+      }),
+      verify: (namespace) => this._wrap(async () => {
+        const { service: svc } = getServiceAndStore();
+        return svc.verifyChainIntegrity(agentId, namespace || `agent:${agentId}`);
+      }),
+      stats: () => this._wrap(async () => {
+        const { service: svc } = getServiceAndStore();
+        return svc.getStats(agentId);
+      }),
+      snapshot: () => this._wrap(async () => {
+        throw new Error('Snapshots require DePIN storage configuration');
+      }),
+      restore: () => this._wrap(async () => {
+        throw new Error('Snapshots require DePIN storage configuration');
+      }),
+      listSnapshots: () => this._wrap(async () => {
+        const { store: s } = getServiceAndStore();
+        return s.listSnapshots(agentId);
+      }),
+      provenance: (namespace, limit) => this._wrap(async () => {
+        const { store: s } = getServiceAndStore();
+        return s.getProvenanceChain(agentId, namespace, limit || 100);
       }),
     };
   }
