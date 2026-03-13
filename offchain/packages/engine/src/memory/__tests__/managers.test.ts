@@ -1,6 +1,9 @@
 import { validateEpisodic } from '../managers/episodic';
 import { validateSemantic } from '../managers/semantic';
 import { validateProcedural } from '../managers/procedural';
+import { validateEntity } from '../managers/entity';
+import { validateTrustWeighted } from '../managers/trustWeighted';
+import { validateTemporal } from '../managers/temporal';
 import { getManager } from '../managers';
 
 describe('Managers', () => {
@@ -11,10 +14,10 @@ describe('Managers', () => {
       expect(getManager('procedural')).toBe(validateProcedural);
     });
 
-    it('should throw for entity, trust_weighted, temporal', () => {
-      expect(() => getManager('entity')).toThrow('not yet implemented');
-      expect(() => getManager('trust_weighted')).toThrow('not yet implemented');
-      expect(() => getManager('temporal')).toThrow('not yet implemented');
+    it('should return validators for entity, trust_weighted, temporal', () => {
+      expect(getManager('entity')).toBe(validateEntity);
+      expect(getManager('trust_weighted')).toBe(validateTrustWeighted);
+      expect(getManager('temporal')).toBe(validateTemporal);
     });
   });
 
@@ -157,4 +160,75 @@ describe('Managers', () => {
       expect(() => validateProcedural({ ...base, source_memory_ids: 'not-array' })).toThrow();
     });
   });
+
+  describe('validateEntity', () => {
+    const base = {
+      agent_passport_id: 'a', namespace: 'agent:a',
+      content: 'Vitalik Buterin', metadata: {},
+      entity_name: 'Vitalik Buterin', entity_type: 'person',
+      attributes: { role: 'co-founder' }, relationships: [],
+    };
+
+    it('should pass for a valid entity entry', () => {
+      expect(() => validateEntity(base)).not.toThrow();
+    });
+    it('should reject empty entity_name', () => {
+      expect(() => validateEntity({ ...base, entity_name: '' })).toThrow();
+    });
+    it('should reject empty entity_type', () => {
+      expect(() => validateEntity({ ...base, entity_type: '' })).toThrow();
+    });
+    it('should require attributes to be an object', () => {
+      expect(() => validateEntity({ ...base, attributes: 'bad' })).toThrow();
+    });
+    it('should require relationships to be an array', () => {
+      expect(() => validateEntity({ ...base, relationships: 'bad' })).toThrow();
+    });
+    it('should validate each relationship', () => {
+      expect(() => validateEntity({
+        ...base,
+        relationships: [{ target_entity_id: '', relation_type: 'knows', confidence: 0.9 }],
+      })).toThrow();
+    });
+    it('should reject relationship confidence out of range', () => {
+      expect(() => validateEntity({
+        ...base,
+        relationships: [{ target_entity_id: 'ent-2', relation_type: 'knows', confidence: 1.5 }],
+      })).toThrow();
+    });
+    it('should accept optional entity_id', () => {
+      expect(() => validateEntity({ ...base, entity_id: 'stable-id-1' })).not.toThrow();
+    });
+    it('should accept optional source_memory_ids', () => {
+      expect(() => validateEntity({ ...base, source_memory_ids: ['mem-1'] })).not.toThrow();
+    });
+  });
+});
+
+describe('validateTrustWeighted', () => {
+  const base = {
+    agent_passport_id: 'a', namespace: 'agent:a',
+    content: 'Trust data', metadata: {},
+    source_agent_passport_id: 'agent-b',
+    trust_score: 0.8, decay_factor: 0.1, weighted_relevance: 0.7,
+  };
+  it('should pass for valid entry', () => { expect(() => validateTrustWeighted(base)).not.toThrow(); });
+  it('should reject missing source_agent_passport_id', () => { expect(() => validateTrustWeighted({ ...base, source_agent_passport_id: '' })).toThrow(); });
+  it('should reject trust_score > 1', () => { expect(() => validateTrustWeighted({ ...base, trust_score: 1.1 })).toThrow(); });
+  it('should reject decay_factor < 0', () => { expect(() => validateTrustWeighted({ ...base, decay_factor: -0.1 })).toThrow(); });
+  it('should reject weighted_relevance > 1', () => { expect(() => validateTrustWeighted({ ...base, weighted_relevance: 1.1 })).toThrow(); });
+});
+
+describe('validateTemporal', () => {
+  const now = Date.now();
+  const base = {
+    agent_passport_id: 'a', namespace: 'agent:a',
+    content: 'ETH was $4000 on March 1', metadata: {},
+    valid_from: now - 86400000, valid_to: null, recorded_at: now,
+  };
+  it('should pass for valid entry', () => { expect(() => validateTemporal(base)).not.toThrow(); });
+  it('should reject missing valid_from', () => { expect(() => validateTemporal({ ...base, valid_from: undefined })).toThrow(); });
+  it('should accept null valid_to', () => { expect(() => validateTemporal({ ...base, valid_to: null })).not.toThrow(); });
+  it('should reject valid_to <= valid_from', () => { expect(() => validateTemporal({ ...base, valid_to: base.valid_from - 1 })).toThrow(); });
+  it('should reject recorded_at < valid_from', () => { expect(() => validateTemporal({ ...base, recorded_at: base.valid_from - 1 })).toThrow(); });
 });
