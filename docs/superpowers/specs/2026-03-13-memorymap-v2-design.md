@@ -591,6 +591,8 @@ All three use the existing `writeGeneric()` pipeline: ACL → manager validation
 
 For semantic and procedural types, `source_memory_ids` is **required** (they are always derived from other memories via extraction). For entity, trust_weighted, and temporal, `source_memory_ids` is **optional** because these types can originate from external systems (e.g., entity records from knowledge bases, trust scores from reputation systems, temporal facts from oracles) rather than from other memory entries. When not provided, defaults to `[]`.
 
+**Type interface update required:** Add `source_memory_ids?: string[]` to `EntityMemory`, `TrustWeightedMemory`, and `TemporalMemory` interfaces in `types.ts`. The DB column `source_memory_ids TEXT[]` already exists in the v1 migration for all memory types.
+
 #### 5.7 Recall integration
 
 No special recall logic for v1:
@@ -635,9 +637,20 @@ DEPIN_STORAGE_PROVIDER                      // enables snapshot/restore routes
 ## Migration Changes
 
 ```sql
--- Add to memory_sessions
+-- Add compaction watermark to sessions
 ALTER TABLE memory_sessions
   ADD COLUMN last_compacted_turn_index INTEGER NOT NULL DEFAULT -1;
+
+-- Change provenance FK to SET NULL on delete (required for cold compaction hard-prune)
+-- The v1 migration uses REFERENCES memory_entries(memory_id) with default RESTRICT,
+-- which blocks DELETE. Change to SET NULL so provenance records survive entry deletion.
+ALTER TABLE memory_provenance
+  DROP CONSTRAINT memory_provenance_memory_id_fkey;
+ALTER TABLE memory_provenance
+  ALTER COLUMN memory_id DROP NOT NULL;
+ALTER TABLE memory_provenance
+  ADD CONSTRAINT memory_provenance_memory_id_fkey
+    FOREIGN KEY (memory_id) REFERENCES memory_entries(memory_id) ON DELETE SET NULL;
 ```
 
 No other schema changes — all new types already have columns in the v1 migration.
