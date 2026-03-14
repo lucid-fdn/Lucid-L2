@@ -113,6 +113,7 @@ CREATE TABLE IF NOT EXISTS memory_entries (
   content TEXT NOT NULL,
   structured_content TEXT,
   embedding_status TEXT NOT NULL DEFAULT 'pending' CHECK(embedding_status IN ('pending','ready','failed','skipped')),
+  embedding_attempts INTEGER NOT NULL DEFAULT 0,
   embedding_model TEXT,
   status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','superseded','archived','expired')),
   created_at INTEGER NOT NULL,
@@ -138,7 +139,7 @@ CREATE TABLE IF NOT EXISTS memory_entries (
 
   -- Procedural
   rule TEXT,
-  trigger_text TEXT,
+  "trigger" TEXT,                    -- quoted: reserved word in SQL, safe in SQLite when quoted
   priority INTEGER,
 
   -- Entity
@@ -355,7 +356,7 @@ export function getMemoryStore(): IMemoryStore {
 }
 ```
 
-Default changes from `'memory'` to `'sqlite'`.
+Default remains `'memory'` to avoid breaking existing deployments. SQLite requires explicit `MEMORY_STORE=sqlite` opt-in. Default changes to `'sqlite'` in v4 after adoption period.
 
 ---
 
@@ -520,14 +521,8 @@ export class EmbeddingWorker {
   }
 
   async tick(): Promise<void> {
-    // Query pending entries from store
-    const pending = await this.store.query({
-      agent_passport_id: '*',
-      embedding_status: ['pending'],
-      limit: this.config.batchSize,
-      order_by: 'created_at',
-      order_dir: 'asc',
-    });
+    // Query pending entries across all agents (dedicated worker method)
+    const pending = await this.store.queryPendingEmbeddings(this.config.batchSize);
 
     if (pending.length === 0) return;
 
@@ -535,16 +530,17 @@ export class EmbeddingWorker {
     try {
       const results = await this.provider.embedBatch(texts);
       for (let i = 0; i < pending.length; i++) {
+        // updateEmbedding atomically sets embedding + embedding_status='ready'
         await this.store.updateEmbedding(
           pending[i].memory_id,
           results[i].embedding,
           results[i].model,
         );
-        await this.store.updateEmbeddingStatus(pending[i].memory_id, 'ready');
       }
     } catch (err) {
+      // Mark all as failed — retry tracked by embedding_attempts column
       for (const entry of pending) {
-        await this.store.updateEmbeddingStatus(entry.memory_id, 'failed');
+        await this.store.markEmbeddingFailed(entry.memory_id);
       }
     }
   }
@@ -556,10 +552,16 @@ export class EmbeddingWorker {
 Add to `IMemoryStore`:
 
 ```typescript
-updateEmbeddingStatus(
-  memory_id: string,
-  status: 'pending' | 'ready' | 'failed' | 'skipped',
-): Promise<void>;
+/** Update embedding + status atomically. Sets embedding_status = 'ready'. */
+updateEmbedding(memory_id: string, embedding: number[], model: string): Promise<void>;
+// NOTE: existing method signature unchanged, but implementations MUST now also
+// set embedding_status = 'ready' atomically in the same update.
+
+/** Query entries with pending embeddings across all agents (worker-scoped). */
+queryPendingEmbeddings(limit: number): Promise<MemoryEntry[]>;
+
+/** Mark embedding as failed (after max retries). */
+markEmbeddingFailed(memory_id: string): Promise<void>;
 ```
 
 Add `embedding_status` filter to `MemoryQuery`:
@@ -571,6 +573,8 @@ export interface MemoryQuery {
 }
 ```
 
+**Note:** `queryPendingEmbeddings()` replaces the wildcard `agent_passport_id: '*'` pattern. This method queries across all agents and is intended for admin/worker use only.
+
 #### 2.7 Write path change
 
 `MemoryService.addEpisodic()` (and all other write methods) no longer compute embeddings synchronously. Instead:
@@ -580,6 +584,20 @@ export interface MemoryQuery {
 3. `EmbeddingWorker` picks it up asynchronously
 
 If `MEMORY_EMBEDDING_PROVIDER=none`, write with `embedding_status: 'skipped'`.
+
+#### 2.7a MemoryEntry type changes
+
+Add to `MemoryEntry` in `types.ts`:
+
+```typescript
+export interface MemoryEntry<T extends MemoryType = MemoryType> {
+  // ... existing fields ...
+  embedding_status: 'pending' | 'ready' | 'failed' | 'skipped';
+  embedding_attempts: number; // default 0, incremented on each failure
+}
+```
+
+The `embedding_attempts` column enables retry logic: `queryPendingEmbeddings` filters by `embedding_attempts < maxRetries`.
 
 #### 2.8 Recall path change
 
@@ -1268,10 +1286,14 @@ MEMORY_EMBEDDING_ENABLED=true|false
 
 ### Dependencies to add
 
+`better-sqlite3` and `sqlite-vec` are **optional dependencies** — lazy-required only inside `SQLiteMemoryStore`. Users running `MEMORY_STORE=postgres` or `MEMORY_STORE=memory` do not need them installed.
+
 ```json
 {
-  "better-sqlite3": "^11.0.0",
-  "sqlite-vec": "^0.1.0"
+  "optionalDependencies": {
+    "better-sqlite3": "^11.0.0",
+    "sqlite-vec": "^0.1.0"
+  }
 }
 ```
 
@@ -1281,3 +1303,77 @@ Dev deps:
   "@types/better-sqlite3": "^7.6.0"
 }
 ```
+
+The store factory uses dynamic `require()` for SQLite — if packages are missing and `MEMORY_STORE=sqlite`, it throws a clear error: `"SQLite store requires better-sqlite3 and sqlite-vec packages"`.
+
+---
+
+## Section 9: Spec Review Fixes
+
+Fixes applied from architecture review (3 critical, 9 important, 10 minor):
+
+### Critical fixes applied above
+
+- **C1**: `trigger_text` → `"trigger"` (quoted) in SQLite schema. Matches TypeScript `ProceduralMemory.trigger` and Postgres column name.
+- **C2**: Replaced wildcard `agent_passport_id: '*'` with dedicated `queryPendingEmbeddings(limit)` store method. No wildcard support needed on `MemoryQuery`.
+- **C3**: `updateEmbedding()` now atomically sets `embedding_status = 'ready'`. Added `embedding_status` and `embedding_attempts` to `MemoryEntry` type. Single atomic call replaces two-step update.
+
+### Important fixes
+
+**I1-I3: Postgres schema parity**
+
+The v2 migration (`20260313_memory_map_v2.sql`) already adds `memory_lane` and `last_compacted_turn_index`. The `entity_id` column and `'delete'` operation CHECK were also added in v2. However, implementers MUST verify this at migration time. A new Postgres parity patch should be generated if any gaps remain:
+
+```sql
+-- Postgres parity patch (apply if columns missing)
+ALTER TABLE memory_entries ADD COLUMN IF NOT EXISTS embedding_status TEXT DEFAULT 'pending';
+ALTER TABLE memory_entries ADD COLUMN IF NOT EXISTS embedding_attempts INTEGER DEFAULT 0;
+```
+
+**I4: `deleted_memory_hash` in ProvenanceRecord**
+
+Add to TypeScript type: `deleted_memory_hash?: string`. DB-only audit field, present in both SQLite and Postgres schemas.
+
+**I5: Provenance `memory_id` nullability**
+
+SQLite uses `ON DELETE SET NULL` (correct for audit logs — provenance survives entry deletion). TypeScript type updated: `memory_id: string | null`. Postgres migration must also be updated to match.
+
+**I7: Configurable vector dimensions**
+
+`initSchema()` accepts `dimensions` parameter (default 1536). The `vec0` virtual table creation uses this value:
+
+```sql
+CREATE VIRTUAL TABLE IF NOT EXISTS memory_vectors USING vec0(
+  memory_id TEXT PRIMARY KEY,
+  embedding FLOAT[${dimensions}]
+);
+```
+
+Sourced from `IEmbeddingProvider.dimensions` or `MEMORY_EMBEDDING_DIMENSIONS` env var.
+
+**I8: SDK export `types` field**
+
+```json
+"./memory": {
+  "types": "./dist/memory.d.ts",
+  "import": "./dist/memory.js",
+  "require": "./dist/memory.cjs"
+}
+```
+
+Also: align `a2a` and `marketplace` entries in tsup.config.ts alongside `memory`.
+
+**I9: Native deps as optional**
+
+Applied above — `better-sqlite3` and `sqlite-vec` moved to `optionalDependencies` with lazy `require()` in factory.
+
+### Minor fixes
+
+- **M1**: `embedding_attempts` column added. `queryPendingEmbeddings` filters by `embedding_attempts < maxRetries`. `markEmbeddingFailed` increments counter.
+- **M2**: sqlite-vec distance metric — implementation must verify sqlite-vec default and configure cosine distance. If L2, use `1 / (1 + distance)` instead of `1 - distance`.
+- **M3**: Add `resetMemoryEventBus()` for test isolation (creates fresh EventEmitter).
+- **M4**: `MemoryProjectionService` gets `stop()` method that removes all listeners.
+- **M6**: Default store stays `'memory'` in v3 to avoid breaking change. SQLite requires explicit `MEMORY_STORE=sqlite` opt-in. Change to sqlite default in v4 after adoption period.
+- **M7**: SDK `addEntity` `content` defaults to `entity_name` if not provided (matches route behavior).
+- **M8**: Add `EntityRelation` to engine barrel exports in `memory/index.ts`.
+- **M10**: Add concurrent read/write test for WAL mode verification.
