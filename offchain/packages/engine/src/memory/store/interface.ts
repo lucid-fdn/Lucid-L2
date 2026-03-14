@@ -1,6 +1,7 @@
 import type {
   MemoryEntry, MemoryType, MemoryStatus, WritableMemoryEntry,
   ProvenanceRecord, MemorySession, MemorySnapshot, MemoryLane,
+  MemoryStoreCapabilities, MemoryStoreHealth, OutboxEvent,
 } from '../types';
 
 export interface MemoryQuery {
@@ -17,6 +18,7 @@ export interface MemoryQuery {
   since?: number;
   before?: number;
   memory_lane?: MemoryLane[];
+  embedding_status?: ('pending' | 'ready' | 'failed' | 'skipped')[];
 }
 
 export interface MemoryWriteResult {
@@ -71,4 +73,12 @@ export interface IMemoryStore {
   ): Promise<(MemoryEntry & { similarity: number })[]>;
   deleteBatch(memory_ids: string[]): Promise<void>;
   updateCompactionWatermark(session_id: string, turn_index: number): Promise<void>;
+  readonly capabilities: MemoryStoreCapabilities;
+  queryPendingEmbeddings(limit: number): Promise<MemoryEntry[]>;
+  recordEmbeddingFailure(memory_id: string, error: string): Promise<void>;
+  writeOutboxEvent(event: Omit<OutboxEvent, 'event_id' | 'created_at' | 'processed_at' | 'retry_count' | 'last_error'>): Promise<string>;
+  queryOutboxPending(limit: number): Promise<OutboxEvent[]>;
+  markOutboxProcessed(event_id: string): Promise<void>;
+  markOutboxError(event_id: string, error: string): Promise<void>;
+  getHealth(): Promise<MemoryStoreHealth>;
 }

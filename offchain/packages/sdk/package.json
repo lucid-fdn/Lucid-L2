@@ -74,6 +74,11 @@
       "import": "./dist/esm/marketplace.js",
       "require": "./dist/cjs/marketplace.js",
       "types": "./dist/types/marketplace.d.ts"
+    },
+    "./memory": {
+      "types": "./dist/memory.d.ts",
+      "import": "./dist/memory.js",
+      "require": "./dist/memory.cjs"
     }
   },
   "sideEffects": false,

@@ -49,6 +49,9 @@ const testConfig: MemoryServiceConfig = {
   extraction_max_tokens: 8000,
   extraction_max_facts: 20,
   extraction_max_rules: 10,
+  max_memory_entries: 100000,
+  max_memory_db_size_mb: 500,
+  max_vector_rows: 50000,
 };
 
 describe('MemoryService', () => {

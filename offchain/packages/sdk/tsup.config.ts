@@ -13,6 +13,7 @@ export default defineConfig({
     chains: 'src/chains.ts',
     errors: 'src/errors.ts',
     types: 'src/types.ts',
+    memory: 'src/memory.ts',
     'preview/index': 'src/preview/index.ts',
   },
   format: ['cjs', 'esm'],

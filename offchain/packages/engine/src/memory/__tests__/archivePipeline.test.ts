@@ -122,6 +122,7 @@ describe('ArchivePipeline', () => {
         namespace: 'ns', memory_lane: 'self' as const, content: 'F', status: 'active' as const,
         created_at: Date.now(), updated_at: Date.now(), metadata: {},
         content_hash: 'h1', prev_hash: null,
+        embedding_status: 'skipped' as const, embedding_attempts: 0,
       }];
 
       const lmf = ArchivePipeline.serializeLMF(entries, [], [], 'a');

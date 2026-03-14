@@ -438,6 +438,16 @@ memoryRouter.post('/v1/memory/compact', async (req, res) => {
   }
 });
 
+// GET /v1/memory/health
+memoryRouter.get('/v1/memory/health', async (_req, res) => {
+  try {
+    const health = await getMemoryStore().getHealth();
+    return res.json({ success: true, data: health });
+  } catch (error: any) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Reset singletons for testing
 export function resetMemoryService(): void {
   service = null;

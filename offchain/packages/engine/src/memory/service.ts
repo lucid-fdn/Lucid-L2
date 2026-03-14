@@ -8,6 +8,7 @@ import { MemoryACLEngine } from './acl';
 import { computeMemoryHash, verifyChainIntegrity as verifyChain, ChainVerifyResult } from './commitments';
 import { getManager } from './managers';
 import { rerankCandidates } from './recall/reranker';
+import { emitMemoryEvent, MemoryCreatedEvent } from './events/memoryEvents';
 
 export class MemoryService {
   constructor(
@@ -41,6 +42,9 @@ export class MemoryService {
       tokens: input.tokens,
       tool_calls: input.tool_calls,
       memory_lane: (input.memory_lane ?? 'self') as MemoryLane,
+      embedding_status: this.config.embedding_enabled ? 'pending' as const : 'skipped' as const,
+      embedding_attempts: 0,
+      embedding_requested_at: Date.now(),
     };
 
     getManager('episodic')(entryBase as any);
@@ -72,6 +76,26 @@ export class MemoryService {
 
     // Write
     const result = await this.store.write({ ...fullEntry, content_hash, prev_hash } as any);
+
+    // Outbox for projection (non-blocking, best-effort)
+    try {
+      await this.store.writeOutboxEvent({
+        event_type: 'memory.created',
+        memory_id: result.memory_id,
+        agent_passport_id: callerPassportId,
+        namespace: input.namespace,
+        payload_json: JSON.stringify({ ...fullEntry, memory_id: result.memory_id, content_hash: result.content_hash }),
+      });
+    } catch { /* outbox write failure should not fail memory write */ }
+
+    // In-process event (after durable writes complete)
+    emitMemoryEvent({
+      type: 'memory.created',
+      timestamp: Date.now(),
+      agent_passport_id: callerPassportId,
+      namespace: input.namespace,
+      entry: { ...fullEntry, memory_id: result.memory_id } as any,
+    } as MemoryCreatedEvent);
 
     // Provenance
     if (this.config.provenance_enabled) {
@@ -163,15 +187,42 @@ export class MemoryService {
 
     getManager(type as any)(entry);
 
-    const content_hash = computeMemoryHash(entry as any);
+    const fullEntry = {
+      ...entry,
+      metadata: entry.metadata || {},
+      embedding_status: this.config.embedding_enabled ? 'pending' : 'skipped',
+      embedding_attempts: 0,
+      embedding_requested_at: Date.now(),
+    };
+
+    const content_hash = computeMemoryHash(fullEntry as any);
     const prev_hash = await this.store.getLatestHash(callerPassportId, entry.namespace);
 
     const result = await this.store.write({
-      ...entry,
-      metadata: entry.metadata || {},
+      ...fullEntry,
       content_hash,
       prev_hash,
     } as any);
+
+    // Outbox for projection (non-blocking, best-effort)
+    try {
+      await this.store.writeOutboxEvent({
+        event_type: 'memory.created',
+        memory_id: result.memory_id,
+        agent_passport_id: callerPassportId,
+        namespace: entry.namespace,
+        payload_json: JSON.stringify({ ...fullEntry, memory_id: result.memory_id, content_hash: result.content_hash }),
+      });
+    } catch { /* outbox write failure should not fail memory write */ }
+
+    // In-process event (after durable writes complete)
+    emitMemoryEvent({
+      type: 'memory.created',
+      timestamp: Date.now(),
+      agent_passport_id: callerPassportId,
+      namespace: entry.namespace,
+      entry: { ...fullEntry, memory_id: result.memory_id } as any,
+    } as MemoryCreatedEvent);
 
     if (this.config.provenance_enabled) {
       await this.store.writeProvenance({
