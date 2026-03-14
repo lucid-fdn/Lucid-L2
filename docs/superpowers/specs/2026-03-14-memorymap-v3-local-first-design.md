@@ -40,65 +40,123 @@ Agents depend on a centralized PostgreSQL instance. This makes them non-portable
 
 Implements the full `IMemoryStore` interface using `better-sqlite3` + `sqlite-vec` extension.
 
-**File:** `engine/src/memory/store/sqlite.ts`
+Split into focused modules for maintainability:
+
+```
+engine/src/memory/store/sqlite/
+  db.ts           # Open database, pragmas, extension load, close
+  schema.ts       # Init + versioned migrations (PRAGMA user_version)
+  rowMappers.ts   # Row <-> domain object conversion
+  queries.ts      # SQL query builders
+  store.ts        # SQLiteMemoryStore implements IMemoryStore
+```
+
+**File:** `engine/src/memory/store/sqlite/db.ts`
 
 ```typescript
 import Database from 'better-sqlite3';
 import * as sqliteVec from 'sqlite-vec';
-import type { IMemoryStore, MemoryQuery, MemoryWriteResult, MemoryStats } from './interface';
-import type { MemoryEntry, MemoryType, MemoryLane } from '../types';
-import { initSchema, migrateIfNeeded } from './sqlite-schema';
+
+export interface SQLiteDBOptions {
+  walMode?: boolean;     // default true
+  dimensions?: number;   // default 1536, from embedding provider
+}
+
+export function openMemoryDB(dbPath: string, options?: SQLiteDBOptions): Database.Database {
+  const db = new Database(dbPath);
+
+  // Production pragmas
+  if (options?.walMode !== false) {
+    db.pragma('journal_mode = WAL');
+    db.pragma('synchronous = NORMAL');
+  }
+  db.pragma('foreign_keys = ON');
+
+  // Load sqlite-vec extension
+  sqliteVec.load(db);
+
+  return db;
+}
+```
+
+**File:** `engine/src/memory/store/sqlite/store.ts`
+
+```typescript
+import type { IMemoryStore, MemoryQuery, MemoryWriteResult, MemoryStats } from '../interface';
+import type { MemoryEntry, MemoryType, MemoryLane } from '../../types';
+import { openMemoryDB, SQLiteDBOptions } from './db';
+import { initSchema, migrateIfNeeded } from './schema';
+import { rowToEntry, entryToRow } from './rowMappers';
 
 export class SQLiteMemoryStore implements IMemoryStore {
   private db: Database.Database;
 
-  constructor(dbPath: string, options?: { walMode?: boolean; maxEntries?: number; maxDbSizeMb?: number }) {
-    this.db = new Database(dbPath);
-
-    // Production pragmas
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('synchronous = NORMAL');
-    this.db.pragma('foreign_keys = ON');
-
-    // Load sqlite-vec extension
-    sqliteVec.load(this.db);
-
-    // Init/migrate schema
-    initSchema(this.db);
+  constructor(dbPath: string, options?: SQLiteDBOptions & {
+    maxEntries?: number; maxDbSizeMb?: number; maxVectorRows?: number;
+  }) {
+    this.db = openMemoryDB(dbPath, options);
+    initSchema(this.db, options?.dimensions);
     migrateIfNeeded(this.db);
   }
 
   // ... implements all IMemoryStore methods
-  // Vector search via sqlite-vec virtual table
-  // Transactions via db.transaction()
 }
 ```
 
+**Invariant: One agent DB = one owning runtime process.** Multiple processes MUST NOT open the same `memory.db` simultaneously. Other processes access agent memory via the REST API, never by direct file open. This keeps SQLite fast, simple, and reliable.
+
 #### 1.2 Schema versioning
 
-**File:** `engine/src/memory/store/sqlite-schema.ts`
+**File:** `engine/src/memory/store/sqlite/schema.ts`
 
-Uses `PRAGMA user_version` for lightweight migration tracking. No external migration files.
+Uses `PRAGMA user_version` for lightweight migration tracking. No external migration files. Version starts at 3 (matching MemoryMap v3).
 
 ```typescript
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 3;
 
-export function initSchema(db: Database.Database): void {
+export function initSchema(db: Database.Database, dimensions?: number): void {
   const version = db.pragma('user_version', { simple: true }) as number;
   if (version === 0) {
-    // First-time setup: create all tables
-    db.exec(SCHEMA_V1);
+    // Fresh DB: create full schema at current version directly
+    db.exec(SCHEMA_V3(dimensions || 1536));
     db.pragma(`user_version = ${CURRENT_SCHEMA_VERSION}`);
   }
 }
 
 export function migrateIfNeeded(db: Database.Database): void {
   const version = db.pragma('user_version', { simple: true }) as number;
-  // Apply incremental patches
-  if (version < 2) { db.exec(PATCH_V2); db.pragma('user_version = 2'); }
-  // if (version < 3) { ... }
+  if (version >= CURRENT_SCHEMA_VERSION) return;
+  // Incremental patches for old DBs (future use)
+  // if (version < 4) { db.exec(PATCH_V4); db.pragma('user_version = 4'); }
 }
 ```
+
+Fresh databases always get the latest schema directly. Old databases migrate incrementally. No version 1/2 confusion.
+
+#### 1.2a Store capabilities
+
+**File:** `engine/src/memory/store/interface.ts`
+
+Each store declares its operational capabilities. Consumers use this for feature gating, diagnostics, and admin UX.
+
+```typescript
+export interface MemoryStoreCapabilities {
+  persistent: boolean;       // survives process restart
+  vectorSearch: boolean;     // nearestByEmbedding works
+  crossAgentQuery: boolean;  // can query across agents (admin/fleet)
+  transactions: boolean;     // atomic multi-row operations
+  localFirst: boolean;       // no network dependency
+}
+
+// On IMemoryStore interface:
+readonly capabilities: MemoryStoreCapabilities;
+```
+
+| Store | persistent | vectorSearch | crossAgentQuery | transactions | localFirst |
+|-------|-----------|-------------|----------------|-------------|-----------|
+| InMemory | false | true | true | false | true |
+| SQLite | true | true | false | true | true |
+| Postgres | true | true | true | true | false |
 
 #### 1.3 Schema V1 (SQLite)
 
@@ -114,6 +172,9 @@ CREATE TABLE IF NOT EXISTS memory_entries (
   structured_content TEXT,
   embedding_status TEXT NOT NULL DEFAULT 'pending' CHECK(embedding_status IN ('pending','ready','failed','skipped')),
   embedding_attempts INTEGER NOT NULL DEFAULT 0,
+  embedding_requested_at INTEGER,
+  embedding_updated_at INTEGER,
+  embedding_last_error TEXT,
   embedding_model TEXT,
   status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','superseded','archived','expired')),
   created_at INTEGER NOT NULL,
@@ -335,7 +396,15 @@ max_memory_db_size_mb: number;    // default 500
 max_vector_rows: number;          // default 50_000
 ```
 
-Enforced on write path: if limit exceeded, return error with `MEMORY_LIMIT_EXCEEDED` code. Compaction should run first to free space.
+Enforced on write path with self-healing before hard fail:
+
+1. Check limits before write
+2. If exceeded: auto-trigger warm compaction (archive old episodics)
+3. If still exceeded: auto-prune expired/archived entries
+4. Retry the write
+5. Only then return `MEMORY_LIMIT_EXCEEDED` error
+
+This avoids harsh rejection when simple cleanup would suffice. Hard fail is the last resort.
 
 #### 1.8 Store hierarchy update
 
@@ -485,11 +554,16 @@ export function getEmbeddingProvider(): IEmbeddingProvider | null {
 }
 ```
 
-#### 2.5 EmbeddingWorker (async background)
+#### 2.5 EmbeddingWorker (hybrid: event-driven + polling)
 
 **File:** `engine/src/memory/embedding/worker.ts`
 
-Never blocks the write path. Polls for `embedding_status = 'pending'` entries and processes them in batches.
+Never blocks the write path. Uses a hybrid trigger model:
+
+1. **Immediate**: subscribes to `memory.created` events, enqueues embedding job in-process
+2. **Polling backstop**: polls `queryPendingEmbeddings()` every N seconds as recovery/safety net (catches missed events after process restart)
+
+This gives low-latency embedding while remaining resilient to crashes.
 
 ```typescript
 export class EmbeddingWorker {
@@ -509,14 +583,30 @@ export class EmbeddingWorker {
   start(): void {
     if (this.running) return;
     this.running = true;
+
+    // Immediate trigger: listen for new memory events
+    const bus = getMemoryEventBus();
+    this.onCreated = () => this.enqueue();
+    bus.on('memory.created', this.onCreated);
+
+    // Polling backstop: recover missed events after restart
     this.interval = setInterval(() => this.tick(), this.config.pollIntervalMs);
   }
 
   stop(): void {
     this.running = false;
-    if (this.interval) {
-      clearInterval(this.interval);
-      this.interval = null;
+    if (this.interval) { clearInterval(this.interval); this.interval = null; }
+    if (this.onCreated) {
+      getMemoryEventBus().off('memory.created', this.onCreated);
+      this.onCreated = null;
+    }
+  }
+
+  private enqueue(): void {
+    // Debounce: schedule tick on next microtask if not already pending
+    if (!this.tickPending) {
+      this.tickPending = true;
+      queueMicrotask(() => { this.tickPending = false; this.tick(); });
     }
   }
 
@@ -593,7 +683,10 @@ Add to `MemoryEntry` in `types.ts`:
 export interface MemoryEntry<T extends MemoryType = MemoryType> {
   // ... existing fields ...
   embedding_status: 'pending' | 'ready' | 'failed' | 'skipped';
-  embedding_attempts: number; // default 0, incremented on each failure
+  embedding_attempts: number;       // default 0, incremented on each failure
+  embedding_requested_at?: number;  // when write was created (for latency tracking)
+  embedding_updated_at?: number;    // when embedding was last updated
+  embedding_last_error?: string;    // last failure message (forensics)
 }
 ```
 
@@ -699,12 +792,18 @@ export interface SessionClosedEvent extends MemoryEvent {
   summary?: string;
 }
 
-// Singleton event bus
-const bus = new EventEmitter();
+// Singleton event bus (resettable for test isolation)
+let bus = new EventEmitter();
 bus.setMaxListeners(50);
 
 export function getMemoryEventBus(): EventEmitter {
   return bus;
+}
+
+export function resetMemoryEventBus(): void {
+  bus.removeAllListeners();
+  bus = new EventEmitter();
+  bus.setMaxListeners(50);
 }
 
 export function emitMemoryEvent(event: MemoryEvent): void {
@@ -850,30 +949,62 @@ export function shouldProject(
 
 Default policy: **NEVER project raw episodic, self lane, or user lane.**
 
-#### 4.5 MemoryProjectionService
+#### 4.5 Outbox table (reliable projection)
+
+The in-process event bus is fine for local reactions, but insufficient for reliable projection. If the process crashes after a local write but before sink projection, the event is lost silently.
+
+**Solution:** Transactional outbox in the canonical DB. Events are written in the same transaction as the memory write, guaranteeing no silent gaps.
+
+Added to SQLite schema (and Postgres parity patch):
+
+```sql
+CREATE TABLE IF NOT EXISTS memory_outbox (
+  event_id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL,
+  memory_id TEXT,
+  agent_passport_id TEXT NOT NULL,
+  namespace TEXT NOT NULL,
+  payload_json TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  processed_at INTEGER,
+  retry_count INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_outbox_pending ON memory_outbox(processed_at) WHERE processed_at IS NULL;
+```
+
+**Write path:** `MemoryService` writes both the memory entry AND the outbox event in a single transaction:
+
+```typescript
+const txn = this.store.transaction(() => {
+  this.store.write(entry);
+  this.store.writeOutboxEvent({
+    event_type: 'memory.created',
+    memory_id: result.memory_id,
+    agent_passport_id,
+    namespace,
+    payload_json: JSON.stringify(entry),
+  });
+});
+txn();
+emitMemoryEvent(/* ... */); // in-process bus still fires for local listeners
+```
+
+#### 4.6 MemoryProjectionService (outbox-driven)
 
 **File:** `engine/src/memory/projection/service.ts`
 
-Subscribes to the memory event bus. Filters by policy. Publishes to configured sinks.
+Reads unprocessed outbox events, applies policy, publishes to sinks, marks processed. Supports both event-driven (immediate) and polling (recovery) triggers.
 
 ```typescript
-import {
-  getMemoryEventBus,
-  MemoryCreatedEvent,
-  MemoryDeletedEvent,
-} from '../events/memoryEvents';
-import {
-  shouldProject,
-  getDefaultProjectionPolicy,
-  ProjectionPolicy,
-} from './policies';
-import type { IProjectionSink, ProjectableEntry } from './sinks/interface';
-
 export class MemoryProjectionService {
   private sinks: IProjectionSink[];
   private policy: ProjectionPolicy;
+  private handlers: Function[] = [];
 
   constructor(
+    private store: IMemoryStore,
     sinks: IProjectionSink[],
     policy?: ProjectionPolicy,
   ) {
@@ -882,31 +1013,50 @@ export class MemoryProjectionService {
   }
 
   start(): void {
+    // Immediate: react to in-process events
     const bus = getMemoryEventBus();
-    bus.on('memory.created', (e: MemoryCreatedEvent) => this.onCreated(e));
-    bus.on('memory.deleted', (e: MemoryDeletedEvent) => this.onDeleted(e));
-    bus.on('memory.embedding.ready', (e) => this.onEmbeddingReady(e));
+    const handler = () => this.processOutbox();
+    bus.on('memory.created', handler);
+    bus.on('memory.deleted', handler);
+    bus.on('memory.embedding.ready', handler);
+    this.handlers = [handler];
+
+    // Polling backstop: process missed events every 5s
+    this.interval = setInterval(() => this.processOutbox(), 5000);
   }
 
-  private async onCreated(event: MemoryCreatedEvent): Promise<void> {
-    if (!shouldProject(event.entry, this.policy)) return;
-    const projectable = this.toProjectable(event.entry);
-    for (const sink of this.sinks) {
-      try { await sink.project(projectable); }
-      catch (err) { /* log, do not fail agent */ }
+  stop(): void {
+    const bus = getMemoryEventBus();
+    for (const h of this.handlers) {
+      bus.off('memory.created', h);
+      bus.off('memory.deleted', h);
+      bus.off('memory.embedding.ready', h);
     }
+    if (this.interval) clearInterval(this.interval);
   }
 
-  private async onDeleted(event: MemoryDeletedEvent): Promise<void> {
-    for (const sink of this.sinks) {
-      try { await sink.remove(event.memory_ids); }
-      catch (err) { /* log */ }
+  private async processOutbox(): Promise<void> {
+    const events = await this.store.queryOutboxPending(50);
+    for (const event of events) {
+      const entry = JSON.parse(event.payload_json);
+      if (event.event_type === 'memory.deleted') {
+        for (const sink of this.sinks) {
+          try { await sink.remove([entry.memory_id]); }
+          catch (err) { /* log */ }
+        }
+      } else if (shouldProject(entry, this.policy)) {
+        const projectable = this.toProjectable(entry);
+        for (const sink of this.sinks) {
+          try {
+            await sink.project(projectable);
+          } catch (err) {
+            await this.store.markOutboxError(event.event_id, String(err));
+            continue;
+          }
+        }
+      }
+      await this.store.markOutboxProcessed(event.event_id);
     }
-  }
-
-  private async onEmbeddingReady(event: any): Promise<void> {
-    // Re-project entry now that embedding is available
-    // Useful if policy.require_embedding_ready is true
   }
 
   private toProjectable(entry: any): ProjectableEntry {
@@ -914,12 +1064,54 @@ export class MemoryProjectionService {
     if (this.policy.redact_episodic_content && entry.type === 'episodic') {
       base.content = '[redacted]';
     }
+    // Only include embedding for shared/market lanes if policy allows
+    if (!this.policy.project_embeddings) {
+      delete base.embedding;
+    }
+    // Idempotency key for deterministic replays
+    base.idempotency_key = `${entry.memory_id}:${entry.content_hash}`;
     return base;
   }
 }
 ```
 
-#### 4.6 Env config
+#### 4.6a Projection embedding policy
+
+Embeddings are only projected for `shared` and `market` lanes when explicitly configured:
+
+```typescript
+export interface ProjectionPolicy {
+  // ... existing fields ...
+  project_embeddings: boolean;  // default: false
+}
+```
+
+This avoids unnecessary storage/bandwidth for the projection plane. Remote search can re-embed separately if needed.
+
+#### 4.6b Store interface additions for outbox
+
+```typescript
+// On IMemoryStore:
+writeOutboxEvent(event: Omit<OutboxEvent, 'event_id' | 'created_at' | 'processed_at' | 'retry_count' | 'last_error'>): Promise<string>;
+queryOutboxPending(limit: number): Promise<OutboxEvent[]>;
+markOutboxProcessed(event_id: string): Promise<void>;
+markOutboxError(event_id: string, error: string): Promise<void>;
+
+export interface OutboxEvent {
+  event_id: string;
+  event_type: string;
+  memory_id: string | null;
+  agent_passport_id: string;
+  namespace: string;
+  payload_json: string;
+  created_at: number;
+  processed_at: number | null;
+  retry_count: number;
+  last_error: string | null;
+}
+```
+
+#### 4.7 Env config
 
 ```
 MEMORY_PROJECTION_ENABLED=false
@@ -991,8 +1183,30 @@ export interface MemoryNamespace {
     mode?: 'warm' | 'cold' | 'full';
   }): Promise<CompactionResult>;
 
-  export(): Promise<LucidMemoryFile>;
+  exportMemoryFile(): Promise<LucidMemoryFile>;
+
+  health(): Promise<MemoryStoreHealth>;
 }
+```
+
+#### 5.1a Store health / diagnostics
+
+```typescript
+export interface MemoryStoreHealth {
+  storeType: 'sqlite' | 'postgres' | 'memory';
+  dbPath?: string;
+  schemaVersion: number;
+  walMode?: boolean;
+  entryCount: number;
+  vectorCount: number;
+  pendingEmbeddings: number;
+  failedEmbeddings: number;
+  sizeMb?: number;
+  capabilities: MemoryStoreCapabilities;
+}
+```
+
+Exposed via `lucid.memory.health()` (SDK) and `GET /v1/memory/health` (route).
 ```
 
 #### 5.2 Implementation in lucid.ts `_buildMemoryNamespace()`
@@ -1151,11 +1365,14 @@ Expected: ~3 tests.
 | shouldProject default policy | shared/market projected, self/user blocked |
 | shouldProject episodic blocked | Default policy blocks episodic |
 | shouldProject redact episodic | Content becomes '[redacted]' |
-| ProjectionService event fires sink | Write memory, event, sink.project called |
-| ProjectionService sink failure safe | Sink throws, logged not propagated |
-| ProjectionService delete propagates | Delete event, sink.remove called |
+| Outbox transactional write | Memory write + outbox in same transaction |
+| ProjectionService processes outbox | Write, processOutbox, verify sink.project called |
+| ProjectionService sink failure safe | Sink throws, logged, outbox gets error |
+| ProjectionService delete propagates | Delete event outbox, sink.remove called |
+| Outbox idempotency | Re-process same event, no duplicate in sink |
+| Outbox polling recovery | Process crashes, restart, outbox replayed |
 
-Expected: ~6 tests.
+Expected: ~9 tests.
 
 ### 6.7 Memory event bus tests
 
@@ -1166,8 +1383,9 @@ Expected: ~6 tests.
 | Typed listeners | Register, emit, verify received |
 | Wildcard listener | '*' receives all events |
 | No listener no error | Emit without listeners safe |
+| resetMemoryEventBus | Fresh bus after reset, old listeners gone |
 
-Expected: ~3 tests.
+Expected: ~4 tests.
 
 ### 6.8 SDK tests
 
@@ -1179,9 +1397,10 @@ Expected: ~3 tests.
 | addTrustWeighted calls service | Trust-weighted stored |
 | addTemporal calls service | Temporal stored |
 | compact returns CompactionResult | Compaction executes |
-| export returns LucidMemoryFile | LMF structure valid |
+| exportMemoryFile returns LMF | LMF structure valid |
+| health returns diagnostics | Store type, counts, capabilities |
 
-Expected: ~5 tests.
+Expected: ~6 tests.
 
 ### 6.9 Test totals
 
@@ -1192,19 +1411,19 @@ Expected: ~5 tests.
 | Recall E2E | ~5 |
 | Compaction E2E | ~4 |
 | Snapshot E2E | ~3 |
-| Projection | ~6 |
-| Event bus | ~3 |
-| SDK memory | ~5 |
-| **Total new** | **~61** |
+| Projection + outbox | ~9 |
+| Event bus | ~4 |
+| SDK memory | ~6 |
+| **Total new** | **~66** |
 | Existing v2 | 180 |
-| **Grand total** | **~241** |
+| **Grand total** | **~246** |
 
 ---
 
 ## Section 7: Env Configuration Summary
 
 ```bash
-# Store (default: sqlite)
+# Store (default: memory — opt-in to sqlite)
 MEMORY_STORE=sqlite|postgres|memory
 MEMORY_DB_PATH=./data/agents/{passport}/memory.db
 
@@ -1236,12 +1455,15 @@ MEMORY_EMBEDDING_ENABLED=true|false
 
 ## Section 8: File Inventory
 
-### New files (12)
+### New files (16)
 
 | File | Purpose |
 |------|---------|
-| `engine/src/memory/store/sqlite.ts` | SQLiteMemoryStore |
-| `engine/src/memory/store/sqlite-schema.ts` | Schema V1 + versioned migrations |
+| `engine/src/memory/store/sqlite/db.ts` | Open DB, pragmas, extension load |
+| `engine/src/memory/store/sqlite/schema.ts` | Schema V3 + versioned migrations |
+| `engine/src/memory/store/sqlite/rowMappers.ts` | Row <-> domain conversion |
+| `engine/src/memory/store/sqlite/queries.ts` | SQL query builders |
+| `engine/src/memory/store/sqlite/store.ts` | SQLiteMemoryStore implements IMemoryStore |
 | `engine/src/memory/embedding/interface.ts` | IEmbeddingProvider contract |
 | `engine/src/memory/embedding/openai.ts` | OpenAI text-embedding-3-small |
 | `engine/src/memory/embedding/mock.ts` | Deterministic mock for tests |
@@ -1257,11 +1479,11 @@ MEMORY_EMBEDDING_ENABLED=true|false
 
 | File | Changes |
 |------|---------|
-| `engine/src/memory/store/interface.ts` | Add `updateEmbeddingStatus()`, `embedding_status` to MemoryQuery |
-| `engine/src/memory/store/in-memory.ts` | Implement `updateEmbeddingStatus()`, handle query filter |
-| `engine/src/memory/store/postgres.ts` | Implement `updateEmbeddingStatus()`, handle query filter |
+| `engine/src/memory/store/interface.ts` | Add capabilities, `queryPendingEmbeddings()`, `markEmbeddingFailed()`, outbox methods, `embedding_status` to MemoryQuery |
+| `engine/src/memory/store/in-memory.ts` | Implement new methods, capabilities, handle query filter |
+| `engine/src/memory/store/postgres.ts` | Implement new methods, capabilities, handle query filter |
 | `engine/src/memory/store/index.ts` | Update factory: default sqlite, add getSQLiteStore() |
-| `engine/src/memory/types.ts` | Add `embedding_status` to MemoryEntry, memory limit config fields |
+| `engine/src/memory/types.ts` | Add `embedding_status`, `embedding_attempts`, lifecycle timestamps to MemoryEntry; memory limit config; `OutboxEvent` type |
 | `engine/src/memory/service.ts` | Emit events, write with embedding_status |
 | `engine/src/memory/compactionPipeline.ts` | Emit `memory.compacted` event |
 | `engine/src/memory/archivePipeline.ts` | Emit `memory.snapshotted` event |
@@ -1377,3 +1599,18 @@ Applied above — `better-sqlite3` and `sqlite-vec` moved to `optionalDependenci
 - **M7**: SDK `addEntity` `content` defaults to `entity_name` if not provided (matches route behavior).
 - **M8**: Add `EntityRelation` to engine barrel exports in `memory/index.ts`.
 - **M10**: Add concurrent read/write test for WAL mode verification.
+
+### Round 2 architecture review fixes (applied inline)
+
+1. **Schema versioning** — `CURRENT_SCHEMA_VERSION = 3` (not 1). Fresh DBs get full schema at v3 directly. No confusing V1/V2 references.
+2. **SQLite adapter split** — 5-file module (`db.ts`, `schema.ts`, `rowMappers.ts`, `queries.ts`, `store.ts`) instead of monolithic `sqlite.ts`.
+3. **Store capabilities** — `MemoryStoreCapabilities` interface on `IMemoryStore`. Each store declares persistent, vectorSearch, crossAgentQuery, transactions, localFirst.
+4. **Hybrid embedding trigger** — EmbeddingWorker subscribes to `memory.created` events for immediate processing + polling backstop for crash recovery.
+5. **Embedding lifecycle timestamps** — `embedding_requested_at`, `embedding_updated_at`, `embedding_last_error` added to schema and MemoryEntry type.
+6. **Outbox-based projection** — `memory_outbox` table written transactionally with memory entries. ProjectionService reads outbox, not event bus. Guarantees no silent gaps on crash.
+7. **Projection embedding policy** — `project_embeddings: boolean` (default false). Embeddings only projected for shared/market lanes when explicitly configured.
+8. **Projection idempotency** — `idempotency_key = ${memory_id}:${content_hash}` on projected entries for deterministic replays.
+9. **Self-healing memory limits** — Auto-compact and prune before hard fail. `MEMORY_LIMIT_EXCEEDED` is last resort.
+10. **Single-writer invariant** — One agent DB = one owning runtime process. Documented explicitly.
+11. **Store health API** — `MemoryStoreHealth` interface with entry/vector counts, pending/failed embeddings, DB size, capabilities.
+12. **SDK rename** — `export()` → `exportMemoryFile()` for explicit DX.
