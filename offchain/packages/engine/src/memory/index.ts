@@ -15,6 +15,8 @@ export { isEpisodicMemory, isSemanticMemory, isProceduralMemory } from './types'
 
 export type { IMemoryStore, MemoryQuery, MemoryWriteResult, MemoryStats } from './store';
 export { getMemoryStore, resetMemoryStore, InMemoryMemoryStore } from './store';
+export { SQLiteMemoryStore } from './store/sqlite/store';
+export { getSQLiteStoreForAgent, getStoreForAgent } from './store';
 
 export { computeMemoryHash, buildHashPreimage, verifyChainIntegrity } from './commitments';
 export type { ChainVerifyResult } from './commitments';
