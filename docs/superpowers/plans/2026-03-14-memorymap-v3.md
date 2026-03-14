@@ -14,7 +14,11 @@
 
 **Execution order:** Chunk 1 (types + SQLite) → Chunk 2 (embeddings) → Chunk 3 (events + projection) → Chunk 4 (SDK + routes) → Chunk 5 (E2E tests). Tests must be green at each chunk boundary.
 
-**Hard rule:** Do not mix SQLite store and projection code in the same task. Foundation must be green before projection depends on it.
+**Hard rules:**
+- Do not mix SQLite store and projection code in the same task. Foundation must be green before projection depends on it.
+- Memory mutation + outbox insert MUST commit in the same transaction. Emit in-process events ONLY after durable commit.
+- SQLite runtime model: **store registry** keyed by `agent_passport_id`. One DB file per agent. No global singleton for SQLite mode. (Postgres/InMemory singletons remain fine.)
+- `embedding_status = 'failed'` means **terminal** (max retries exceeded). Below max retries, status stays `'pending'` with incremented `embedding_attempts`.
 
 ---
 
@@ -65,7 +69,7 @@
 | `engine/src/memory/__tests__/recall-e2e.test.ts` | ~5 |
 | `engine/src/memory/__tests__/compaction-e2e.test.ts` | ~4 |
 | `engine/src/memory/__tests__/snapshot-e2e.test.ts` | ~3 |
-| `engine/src/memory/__tests__/projection.test.ts` | ~9 |
+| `engine/src/memory/__tests__/projection.test.ts` | ~10 |
 | `engine/src/memory/__tests__/events.test.ts` | ~4 |
 | `sdk/src/__tests__/memory.test.ts` | ~6 |
 
@@ -149,9 +153,9 @@ Update `getDefaultConfig()` to include defaults:
   max_vector_rows: parseInt(process.env.MEMORY_MAX_VECTOR_ROWS || '50000', 10),
 ```
 
-- [ ] **Step 5: Add MemoryStoreCapabilities to interface.ts**
+- [ ] **Step 5: Add MemoryStoreCapabilities to types.ts (not interface.ts)**
 
-In `store/interface.ts`, add before `IMemoryStore`:
+Capabilities are a domain type, not an interface-local detail. In `types.ts`, add after `MemoryStoreHealth`:
 
 ```typescript
 export interface MemoryStoreCapabilities {
@@ -163,20 +167,28 @@ export interface MemoryStoreCapabilities {
 }
 ```
 
+Then update `MemoryStoreHealth` (Step 3) to reference it:
+
+```typescript
+capabilities: MemoryStoreCapabilities;
+```
+
 - [ ] **Step 6: Add new methods to IMemoryStore**
 
-In `store/interface.ts`, add to `IMemoryStore`:
+In `store/interface.ts`, import `MemoryStoreCapabilities` from `../types` and add to `IMemoryStore`:
 
 ```typescript
   readonly capabilities: MemoryStoreCapabilities;
   queryPendingEmbeddings(limit: number): Promise<MemoryEntry[]>;
-  markEmbeddingFailed(memory_id: string): Promise<void>;
+  recordEmbeddingFailure(memory_id: string, error: string): Promise<void>;
   writeOutboxEvent(event: Omit<OutboxEvent, 'event_id' | 'created_at' | 'processed_at' | 'retry_count' | 'last_error'>): Promise<string>;
   queryOutboxPending(limit: number): Promise<OutboxEvent[]>;
   markOutboxProcessed(event_id: string): Promise<void>;
   markOutboxError(event_id: string, error: string): Promise<void>;
   getHealth(): Promise<MemoryStoreHealth>;
 ```
+
+**Note:** `markEmbeddingFailed()` renamed to `recordEmbeddingFailure()` — the store method increments `embedding_attempts` and sets `embedding_last_error`. Status only transitions to `'failed'` when the **worker** determines `attempts >= maxRetries`. Below max retries, status stays `'pending'`.
 
 Add `embedding_status` to `MemoryQuery`:
 
@@ -246,17 +258,19 @@ async queryPendingEmbeddings(limit: number): Promise<MemoryEntry[]> {
 }
 ```
 
-- [ ] **Step 5: Implement markEmbeddingFailed()**
+- [ ] **Step 5: Implement recordEmbeddingFailure()**
+
+Records a failure attempt. Increments `embedding_attempts` and sets `embedding_last_error`. Status stays `'pending'` — the worker decides when to set `'failed'` (terminal) based on `maxRetries`.
 
 ```typescript
-async markEmbeddingFailed(memory_id: string): Promise<void> {
+async recordEmbeddingFailure(memory_id: string, error: string): Promise<void> {
   const entry = this.entries.get(memory_id);
   if (!entry) return;
-  (entry as any).embedding_status = 'failed';
   (entry as any).embedding_attempts = ((entry as any).embedding_attempts || 0) + 1;
   (entry as any).embedding_updated_at = Date.now();
-  (entry as any).embedding_last_error = 'Embedding generation failed';
+  (entry as any).embedding_last_error = error;
   entry.updated_at = Date.now();
+  // Status stays 'pending' — worker decides terminal 'failed' based on maxRetries
 }
 ```
 
@@ -378,9 +392,24 @@ Write `engine/src/memory/store/sqlite/db.ts` with `openMemoryDB()` function. Ful
 
 - [ ] **Step 2: Create schema.ts**
 
-Write `engine/src/memory/store/sqlite/schema.ts` with `initSchema()` and `migrateIfNeeded()`. CURRENT_SCHEMA_VERSION = 3. Full SQL from spec Section 1.3 including all tables: memory_entries, memory_vectors (vec0), memory_sessions, memory_provenance, memory_snapshots, memory_outbox. Include all indexes and CHECK constraints.
+Write `engine/src/memory/store/sqlite/schema.ts` with `initSchema()` and `migrateIfNeeded()`. CURRENT_SCHEMA_VERSION = 3.
 
-The `SCHEMA_V3` function must accept `dimensions` parameter (default 1536) for the vec0 table: `embedding FLOAT[${dimensions}]`.
+**Required tables (all in SCHEMA_V3_FULL):**
+1. `memory_entries` — all columns per spec Section 1.3 (including `"trigger"` quoted, `embedding_status`, `embedding_attempts`, lifecycle timestamps)
+2. `memory_vectors` — sqlite-vec virtual table `vec0(memory_id TEXT PRIMARY KEY, embedding FLOAT[${dimensions}])`
+3. `memory_sessions` — all columns including watermarks
+4. `memory_provenance` — with `ON DELETE SET NULL` FK
+5. `memory_snapshots` — standard CRUD
+6. **`memory_outbox`** — `event_id, event_type, memory_id, agent_passport_id, namespace, payload_json, created_at, processed_at, retry_count, last_error` with index on pending events
+
+Include all indexes and CHECK constraints.
+
+**Schema semantics:**
+- `initSchema()` only handles `user_version = 0` (fresh DB). Creates `SCHEMA_V3_FULL` directly at version 3.
+- `migrateIfNeeded()` only handles `1..n-1` (legacy upgrades). Fresh DBs never go through patches.
+- No `SCHEMA_V1` → `PATCH_V2` → `PATCH_V3` chain. One full schema for fresh, incremental patches only for legacy.
+
+The `SCHEMA_V3_FULL` function must accept `dimensions` parameter (default 1536) for the vec0 table.
 
 - [ ] **Step 3: Write unit test for schema creation**
 
@@ -517,8 +546,8 @@ Key methods to implement:
 - `nearestByEmbedding()` — sqlite-vec KNN query per spec Section 1.4
 - `deleteBatch()` — transactional DELETE from memory_vectors + memory_entries
 - `updateCompactionWatermark()` — UPDATE memory_sessions SET last_compacted_turn_index = MAX(current, new)
-- `queryPendingEmbeddings()` — SELECT WHERE embedding_status='pending' AND embedding_attempts < 3
-- `markEmbeddingFailed()` — UPDATE embedding_status='failed', increment attempts
+- `queryPendingEmbeddings()` — SELECT WHERE embedding_status='pending' ORDER BY created_at ASC LIMIT ? (no retry filtering — worker handles maxRetries policy)
+- `recordEmbeddingFailure()` — UPDATE embedding_attempts++, set embedding_last_error, embedding_updated_at. Status stays 'pending' (worker decides terminal 'failed')
 - Outbox methods — INSERT/SELECT/UPDATE on memory_outbox
 - `getHealth()` — SELECT counts + pragma queries
 - `capabilities` — `{ persistent: true, vectorSearch: true, crossAgentQuery: false, transactions: true, localFirst: true }`
@@ -589,43 +618,70 @@ git commit -m "test(memory): SQLite store — 25 tests covering full IMemoryStor
 
 - [ ] **Step 1: Add SQLite to factory**
 
-Update `getMemoryStore()` to support `MEMORY_STORE=sqlite`:
+**SQLite runtime model:** Store registry keyed by `agent_passport_id`. One DB file per agent. No global singleton for SQLite mode. Postgres and InMemory remain singletons.
+
+Update `getMemoryStore()` for Postgres/InMemory (singleton) and add `getSQLiteStoreForAgent()` (registry):
 
 ```typescript
+// Singleton for Postgres/InMemory (unchanged pattern)
+let singletonStore: IMemoryStore | null = null;
+
 export function getMemoryStore(): IMemoryStore {
-  if (storeInstance) return storeInstance;
+  if (singletonStore) return singletonStore;
   const provider = process.env.MEMORY_STORE || 'memory';
-  switch (provider) {
-    case 'sqlite': {
-      try {
-        const { SQLiteMemoryStore } = require('./sqlite/store');
-        const dbPath = process.env.MEMORY_DB_PATH || './data/agents/default/memory.db';
-        // Ensure directory exists
-        const { mkdirSync } = require('fs');
-        const { dirname } = require('path');
-        mkdirSync(dirname(dbPath), { recursive: true });
-        storeInstance = new SQLiteMemoryStore(dbPath);
-      } catch (err: any) {
-        if (err.code === 'MODULE_NOT_FOUND') {
-          throw new Error('SQLite store requires better-sqlite3 and sqlite-vec packages. Install with: npm install better-sqlite3 sqlite-vec');
-        }
-        throw err;
-      }
-      break;
-    }
-    case 'postgres': {
-      const { PostgresMemoryStore } = require('./postgres');
-      storeInstance = new PostgresMemoryStore();
-      break;
-    }
-    case 'memory':
-    default:
-      storeInstance = new InMemoryMemoryStore();
-      break;
+  if (provider === 'sqlite') {
+    throw new Error('SQLite mode requires per-agent store. Use getSQLiteStoreForAgent(agentPassportId) instead of getMemoryStore().');
   }
-  return storeInstance;
+  if (provider === 'postgres') {
+    const { PostgresMemoryStore } = require('./postgres');
+    singletonStore = new PostgresMemoryStore();
+  } else {
+    singletonStore = new InMemoryMemoryStore();
+  }
+  return singletonStore;
+}
+
+// Per-agent SQLite store registry
+const sqliteRegistry = new Map<string, IMemoryStore>();
+
+export function getSQLiteStoreForAgent(agentPassportId: string): IMemoryStore {
+  const existing = sqliteRegistry.get(agentPassportId);
+  if (existing) return existing;
+  try {
+    const { SQLiteMemoryStore } = require('./sqlite/store');
+    const basePath = process.env.MEMORY_DB_PATH || './data/agents';
+    const dbPath = `${basePath}/${agentPassportId}/memory.db`;
+    const { mkdirSync } = require('fs');
+    const { dirname } = require('path');
+    mkdirSync(dirname(dbPath), { recursive: true });
+    const store = new SQLiteMemoryStore(dbPath);
+    sqliteRegistry.set(agentPassportId, store);
+    return store;
+  } catch (err: any) {
+    if (err.code === 'MODULE_NOT_FOUND') {
+      throw new Error('SQLite store requires better-sqlite3 and sqlite-vec. Install: npm install better-sqlite3 sqlite-vec');
+    }
+    throw err;
+  }
+}
+
+// Resolve store for a given agent (works across all modes)
+export function getStoreForAgent(agentPassportId: string): IMemoryStore {
+  const provider = process.env.MEMORY_STORE || 'memory';
+  if (provider === 'sqlite') return getSQLiteStoreForAgent(agentPassportId);
+  return getMemoryStore(); // singleton for postgres/memory
+}
+
+export function resetMemoryStore(): void {
+  singletonStore = null;
+  for (const [, store] of sqliteRegistry) {
+    if ((store as any).close) (store as any).close();
+  }
+  sqliteRegistry.clear();
 }
 ```
+
+**Key invariant:** `getStoreForAgent(agentPassportId)` is the primary API. Routes/service resolve the agent-specific store. SQLite mode gives each agent its own DB file at `./data/agents/{passport}/memory.db`. Postgres/InMemory modes ignore the passport ID and return the shared singleton.
 
 - [ ] **Step 2: Export SQLiteMemoryStore from barrel**
 
@@ -700,7 +756,11 @@ git commit -m "feat(memory): OpenAIEmbeddingProvider — text-embedding-3-small"
 
 - [ ] **Step 1: Create worker.ts**
 
-Per spec Section 2.5. Hybrid trigger: subscribes to `memory.created` events for immediate enqueue + polling backstop via `setInterval`. Uses `queryPendingEmbeddings()` and `updateEmbedding()` (which atomically sets ready). On failure, calls `markEmbeddingFailed()`.
+Per spec Section 2.5. Hybrid trigger: subscribes to `memory.created` events for immediate enqueue + polling backstop via `setInterval`. Uses `queryPendingEmbeddings()` and `updateEmbedding()` (which atomically sets ready).
+
+**Retry lifecycle:** On failure, calls `store.recordEmbeddingFailure(memory_id, error)` which increments `embedding_attempts` but keeps status as `'pending'`. The worker then checks: if `entry.embedding_attempts >= this.config.maxRetries`, it sets `embedding_status = 'failed'` (terminal). This means:
+- `pending` + attempts < max → will be retried next tick
+- `failed` → terminal, never retried
 
 - [ ] **Step 2: Create index.ts (factory + barrel)**
 
@@ -876,13 +936,14 @@ git commit -m "feat(memory): MemoryProjectionService — outbox-driven with stop
 - ProjectionService delete propagates
 - Outbox idempotency
 - Outbox polling recovery
+- **Outbox retry on sink failure** — write memory, sink fails first pass, outbox remains pending, retry succeeds, event marked processed once, sink not duplicated
 
 Use `InMemoryMemoryStore` + mock sinks.
 
 - [ ] **Step 2: Run tests**
 
 Run: `cd offchain && npx jest packages/engine/src/memory/__tests__/projection.test.ts --no-coverage`
-Expected: 9 tests passing.
+Expected: 10 tests passing.
 
 - [ ] **Step 3: Commit**
 
@@ -926,19 +987,46 @@ const embeddingStatus = this.config.embedding_enabled ? 'pending' : 'skipped';
 
 Add this to all entry construction before `store.write()`.
 
-- [ ] **Step 2: Wire outbox event in write path**
+- [ ] **Step 2: Make write + outbox atomic, emit only after commit**
 
-After `store.write()` and before provenance, write outbox event:
+**Critical invariant:** Memory mutation + outbox insert must commit together or rollback together. In-process events fire ONLY after durable commit.
+
+For stores that support transactions (SQLite, Postgres), wrap write + outbox in a single transaction. For InMemory (no real transactions), sequential calls are fine since they share the same in-memory state.
+
+Add a helper method to MemoryService:
 
 ```typescript
-await this.store.writeOutboxEvent({
-  event_type: 'memory.created',
-  memory_id: result.memory_id,
-  agent_passport_id: callerPassportId,
-  namespace: input.namespace,
-  payload_json: JSON.stringify({ ...fullEntry, memory_id: result.memory_id }),
-});
+private async writeWithOutbox(
+  callerPassportId: string,
+  namespace: string,
+  writeFn: () => Promise<MemoryWriteResult>,
+  entryPayload: Record<string, any>,
+): Promise<MemoryWriteResult> {
+  const result = await writeFn();
+
+  // Outbox insert (same store, atomic if transactional)
+  await this.store.writeOutboxEvent({
+    event_type: 'memory.created',
+    memory_id: result.memory_id,
+    agent_passport_id: callerPassportId,
+    namespace,
+    payload_json: JSON.stringify({ ...entryPayload, memory_id: result.memory_id }),
+  });
+
+  // In-process event fires AFTER durable commit
+  emitMemoryEvent({
+    type: 'memory.created',
+    timestamp: Date.now(),
+    agent_passport_id: callerPassportId,
+    namespace,
+    entry: { ...entryPayload, memory_id: result.memory_id } as any,
+  });
+
+  return result;
+}
 ```
+
+For SQLite, the store.write() + store.writeOutboxEvent() calls happen within the same `better-sqlite3` transaction (the store exposes a `withTransaction()` method or uses the synchronous API). For Postgres, use `BEGIN/COMMIT`.
 
 - [ ] **Step 3: Run existing tests**
 
@@ -1238,7 +1326,37 @@ git commit -m "test(memory): SDK memory namespace — 6 tests for v3 methods"
 
 - [ ] **Step 1: Add Postgres parity for new interface methods**
 
-Add stub implementations to `PostgresMemoryStore` for all new interface methods (capabilities, queryPendingEmbeddings, markEmbeddingFailed, outbox methods, getHealth). These can be minimal but must compile.
+Implement **real** (not stub) methods for `PostgresMemoryStore` for all new interface methods that are needed if Postgres is the active runtime store:
+
+- `capabilities` — `{ persistent: true, vectorSearch: true, crossAgentQuery: true, transactions: true, localFirst: false }`
+- `queryPendingEmbeddings()` — real SQL: `SELECT * FROM memory_entries WHERE embedding_status = 'pending' ORDER BY created_at ASC LIMIT $1`
+- `recordEmbeddingFailure()` — real SQL: `UPDATE memory_entries SET embedding_attempts = embedding_attempts + 1, embedding_last_error = $2, embedding_updated_at = $3 WHERE memory_id = $1`
+- Outbox methods — real SQL against `memory_outbox` table (requires Postgres migration patch to add the table)
+- `getHealth()` — real SQL aggregating counts from memory_entries
+
+Add Postgres migration patch:
+
+```sql
+ALTER TABLE memory_entries ADD COLUMN IF NOT EXISTS embedding_status TEXT DEFAULT 'pending';
+ALTER TABLE memory_entries ADD COLUMN IF NOT EXISTS embedding_attempts INTEGER DEFAULT 0;
+ALTER TABLE memory_entries ADD COLUMN IF NOT EXISTS embedding_requested_at TIMESTAMPTZ;
+ALTER TABLE memory_entries ADD COLUMN IF NOT EXISTS embedding_updated_at TIMESTAMPTZ;
+ALTER TABLE memory_entries ADD COLUMN IF NOT EXISTS embedding_last_error TEXT;
+
+CREATE TABLE IF NOT EXISTS memory_outbox (
+  event_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type TEXT NOT NULL,
+  memory_id UUID,
+  agent_passport_id TEXT NOT NULL,
+  namespace TEXT NOT NULL,
+  payload_json JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  processed_at TIMESTAMPTZ,
+  retry_count INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_outbox_pending ON memory_outbox(created_at) WHERE processed_at IS NULL;
+```
 
 - [ ] **Step 2: Run full memory test suite**
 
