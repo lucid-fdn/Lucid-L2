@@ -278,6 +278,37 @@ export interface MemoryNamespace {
   listSnapshots(): Promise<MemorySnapshot[]>;
 
   provenance(namespace: string, limit?: number): Promise<ProvenanceRecord[]>;
+
+  addEntity(input: {
+    content?: string; entity_name: string; entity_type: string;
+    entity_id?: string; attributes?: Record<string, unknown>;
+    relationships?: any[]; source_memory_ids?: string[];
+    namespace?: string; metadata?: Record<string, unknown>;
+    memory_lane?: string;
+  }): Promise<MemoryWriteResult>;
+
+  addTrustWeighted(input: {
+    content?: string; source_agent_passport_id: string;
+    trust_score: number; decay_factor: number; weighted_relevance: number;
+    source_memory_ids?: string[]; namespace?: string;
+    metadata?: Record<string, unknown>; memory_lane?: string;
+  }): Promise<MemoryWriteResult>;
+
+  addTemporal(input: {
+    content: string; valid_from: number; valid_to?: number | null;
+    recorded_at?: number; source_memory_ids?: string[];
+    namespace?: string; metadata?: Record<string, unknown>;
+    memory_lane?: string;
+  }): Promise<MemoryWriteResult>;
+
+  compact(options?: {
+    namespace?: string; session_id?: string;
+    mode?: 'warm' | 'cold' | 'full';
+  }): Promise<any>;
+
+  exportMemoryFile(): Promise<any>;
+
+  health(): Promise<any>;
 }
 
 // =============================================================================
@@ -893,6 +924,53 @@ export class Lucid {
       provenance: (namespace, limit) => this._wrap(async () => {
         const { store: s } = getServiceAndStore();
         return s.getProvenanceChain(agentId, namespace, limit || 100);
+      }),
+      addEntity: (input) => this._wrap(async () => {
+        const { service: svc } = getServiceAndStore();
+        return svc.addEntity(agentId, {
+          namespace: input.namespace || `agent:${agentId}`,
+          content: input.content || input.entity_name,
+          ...input,
+        });
+      }),
+      addTrustWeighted: (input) => this._wrap(async () => {
+        const { service: svc } = getServiceAndStore();
+        return svc.addTrustWeighted(agentId, {
+          namespace: input.namespace || `agent:${agentId}`,
+          content: input.content || `Trust ${input.source_agent_passport_id}`,
+          ...input,
+        });
+      }),
+      addTemporal: (input) => this._wrap(async () => {
+        const { service: svc } = getServiceAndStore();
+        return svc.addTemporal(agentId, {
+          namespace: input.namespace || `agent:${agentId}`,
+          valid_to: input.valid_to ?? null,
+          recorded_at: input.recorded_at || Date.now(),
+          ...input,
+        });
+      }),
+      compact: (options) => this._wrap(async () => {
+        const { service: svc, store: s } = getServiceAndStore();
+        const { CompactionPipeline } = require('@lucid-l2/engine');
+        const { getDefaultCompactionConfig } = require('@lucid-l2/engine');
+        const pipeline = new CompactionPipeline(s, null, null, getDefaultCompactionConfig());
+        return pipeline.compact(agentId, options?.namespace || `agent:${agentId}`, {
+          session_id: options?.session_id,
+          mode: options?.mode || 'full',
+        });
+      }),
+      exportMemoryFile: () => this._wrap(async () => {
+        const { store: s } = getServiceAndStore();
+        const entries = await s.query({ agent_passport_id: agentId, limit: 100000 });
+        const provenance = await s.getProvenanceChain(agentId, `agent:${agentId}`, 100000);
+        const sessions = await s.listSessions(agentId);
+        const { ArchivePipeline } = require('@lucid-l2/engine');
+        return ArchivePipeline.serializeLMF(entries, provenance, sessions, agentId);
+      }),
+      health: () => this._wrap(async () => {
+        const { store: s } = getServiceAndStore();
+        return s.getHealth();
       }),
     };
   }

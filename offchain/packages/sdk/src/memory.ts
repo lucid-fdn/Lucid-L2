@@ -26,6 +26,37 @@ export interface MemoryNamespace {
   listSnapshots(): Promise<MemorySnapshot[]>;
 
   provenance(namespace: string, limit?: number): Promise<ProvenanceRecord[]>;
+
+  addEntity(input: {
+    content?: string; entity_name: string; entity_type: string;
+    entity_id?: string; attributes?: Record<string, unknown>;
+    relationships?: any[]; source_memory_ids?: string[];
+    namespace?: string; metadata?: Record<string, unknown>;
+    memory_lane?: string;
+  }): Promise<MemoryWriteResult>;
+
+  addTrustWeighted(input: {
+    content?: string; source_agent_passport_id: string;
+    trust_score: number; decay_factor: number; weighted_relevance: number;
+    source_memory_ids?: string[]; namespace?: string;
+    metadata?: Record<string, unknown>; memory_lane?: string;
+  }): Promise<MemoryWriteResult>;
+
+  addTemporal(input: {
+    content: string; valid_from: number; valid_to?: number | null;
+    recorded_at?: number; source_memory_ids?: string[];
+    namespace?: string; metadata?: Record<string, unknown>;
+    memory_lane?: string;
+  }): Promise<MemoryWriteResult>;
+
+  compact(options?: {
+    namespace?: string; session_id?: string;
+    mode?: 'warm' | 'cold' | 'full';
+  }): Promise<any>;
+
+  exportMemoryFile(): Promise<any>;
+
+  health(): Promise<any>;
 }
 
 export function createMemoryNamespace(
@@ -109,6 +140,30 @@ export function createMemoryNamespace(
     },
     async provenance(namespace, limit) {
       const { data } = await httpClient.get(`/v1/memory/provenance/${agentPassportId}/${encodeURIComponent(namespace)}?limit=${limit || 100}`);
+      return data;
+    },
+    async addEntity(input) {
+      const { data } = await httpClient.post('/v1/memory/entity', input);
+      return data;
+    },
+    async addTrustWeighted(input) {
+      const { data } = await httpClient.post('/v1/memory/trust-weighted', input);
+      return data;
+    },
+    async addTemporal(input) {
+      const { data } = await httpClient.post('/v1/memory/temporal', input);
+      return data;
+    },
+    async compact(options) {
+      const { data } = await httpClient.post('/v1/memory/compact', options || {});
+      return data;
+    },
+    async exportMemoryFile() {
+      const { data } = await httpClient.post('/v1/memory/export', {});
+      return data;
+    },
+    async health() {
+      const { data } = await httpClient.get('/v1/memory/health');
       return data;
     },
   };

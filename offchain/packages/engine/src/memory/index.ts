@@ -32,3 +32,24 @@ export { validateEntity } from './managers/entity';
 export { validateTrustWeighted } from './managers/trustWeighted';
 export { validateTemporal } from './managers/temporal';
 export { classifyQueryIntent, rerankCandidates } from './recall';
+
+// Embedding
+export type { IEmbeddingProvider, EmbeddingResult } from './embedding/interface';
+export { MockEmbeddingProvider } from './embedding/mock';
+export { OpenAIEmbeddingProvider } from './embedding/openai';
+export { EmbeddingWorker } from './embedding/worker';
+export { getEmbeddingProvider } from './embedding';
+
+// Events
+export { emitMemoryEvent, getMemoryEventBus, resetMemoryEventBus } from './events/memoryEvents';
+export type { MemoryEventType, MemoryEvent, MemoryCreatedEvent } from './events/memoryEvents';
+
+// Projection
+export { MemoryProjectionService } from './projection/service';
+export { shouldProject, getDefaultProjectionPolicy } from './projection/policies';
+export type { ProjectionPolicy } from './projection/policies';
+export type { IProjectionSink, ProjectableEntry } from './projection/sinks/interface';
+export { PostgresSink } from './projection/sinks/postgres';
+
+// Types (v3 additions)
+export type { EntityRelation } from './types';
