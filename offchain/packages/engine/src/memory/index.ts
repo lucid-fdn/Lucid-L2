@@ -51,5 +51,8 @@ export type { ProjectionPolicy } from './projection/policies';
 export type { IProjectionSink, ProjectableEntry } from './projection/sinks/interface';
 export { PostgresSink } from './projection/sinks/postgres';
 
+// Boot
+export { startMemorySystem, stopMemorySystem, isMemorySystemRunning } from './boot';
+
 // Types (v3 additions)
 export type { EntityRelation } from './types';

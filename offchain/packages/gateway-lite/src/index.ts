@@ -397,6 +397,16 @@ try {
   console.warn('⚠️ Receipt Consumer failed to start:', err instanceof Error ? err.message : err);
 }
 
+// Start Memory background services (embedding worker + projection)
+if (process.env.MEMORY_ENABLED !== 'false') {
+  try {
+    const { startMemorySystem } = require('../../engine/src/memory/boot');
+    startMemorySystem();
+  } catch (err) {
+    console.warn('[memory] Failed to start memory system:', err instanceof Error ? err.message : err);
+  }
+}
+
 // Initialize Agent Mirror Consumer (polls agent_created_events from platform-core DB)
 const PLATFORM_CORE_DB_URL = process.env.PLATFORM_CORE_DB_URL;
 if (PLATFORM_CORE_DB_URL) {
@@ -442,6 +452,7 @@ const gracefulShutdown = async (signal: string) => {
   console.log(`${signal} received — shutting down`);
   stopReceiptConsumer();
   stopAgentMirrorConsumer();
+  try { const { stopMemorySystem } = require('../../engine/src/memory/boot'); stopMemorySystem(); } catch { /* best-effort */ }
   // Final MMR checkpoint before exit (best-effort)
   try {
     const { stopCheckpointJob, createCheckpoint } = await import('../../engine/src/jobs/mmrCheckpoint');
