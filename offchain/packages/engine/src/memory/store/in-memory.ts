@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import type {
   MemoryEntry, MemoryType, MemoryStatus, WritableMemoryEntry,
   ProvenanceRecord, MemorySession, MemorySnapshot, MemoryLane,
+  MemoryStoreCapabilities, MemoryStoreHealth, OutboxEvent,
 } from '../types';
 import { MEMORY_TYPES, MEMORY_STATUSES } from '../types';
 import type { IMemoryStore, MemoryQuery, MemoryWriteResult, MemoryStats } from './interface';
@@ -34,7 +35,16 @@ export class InMemoryMemoryStore implements IMemoryStore {
   private provenance: ProvenanceRecord[] = [];
   private sessions = new Map<string, MemorySession>();
   private snapshots: MemorySnapshot[] = [];
+  private outbox: OutboxEvent[] = [];
   private lastTimestamp = 0;
+
+  readonly capabilities: MemoryStoreCapabilities = {
+    persistent: false,
+    vectorSearch: true,
+    crossAgentQuery: true,
+    transactions: false,
+    localFirst: true,
+  };
 
   // ─── Write ──────────────────────────────────────────────────────
 
@@ -49,6 +59,9 @@ export class InMemoryMemoryStore implements IMemoryStore {
       ...entry,
       memory_id,
       status: 'active',
+      embedding_status: (entry as any).embedding_status || 'pending',
+      embedding_attempts: (entry as any).embedding_attempts || 0,
+      embedding_requested_at: Date.now(),
       created_at: now,
       updated_at: now,
     } as MemoryEntry;
@@ -97,6 +110,10 @@ export class InMemoryMemoryStore implements IMemoryStore {
       if (q.memory_lane && !q.memory_lane.includes((e.memory_lane || 'self') as MemoryLane)) return false;
       return true;
     });
+
+    if (q.embedding_status?.length) {
+      results = results.filter(e => q.embedding_status!.includes((e as any).embedding_status));
+    }
 
     // Deterministic ordering: (created_at ASC, memory_id ASC)
     results.sort(deterministicOrder);
@@ -252,9 +269,27 @@ export class InMemoryMemoryStore implements IMemoryStore {
 
   async updateEmbedding(memory_id: string, embedding: number[], model: string): Promise<void> {
     const entry = this.entries.get(memory_id);
-    if (!entry) throw new Error(`Memory entry not found: ${memory_id}`);
+    if (!entry) return;
     entry.embedding = embedding;
     entry.embedding_model = model;
+    (entry as any).embedding_status = 'ready';
+    (entry as any).embedding_updated_at = Date.now();
+    entry.updated_at = Date.now();
+  }
+
+  async queryPendingEmbeddings(limit: number): Promise<MemoryEntry[]> {
+    return Array.from(this.entries.values())
+      .filter(e => (e as any).embedding_status === 'pending')
+      .sort((a, b) => a.created_at - b.created_at)
+      .slice(0, limit);
+  }
+
+  async recordEmbeddingFailure(memory_id: string, error: string): Promise<void> {
+    const entry = this.entries.get(memory_id);
+    if (!entry) return;
+    (entry as any).embedding_attempts = ((entry as any).embedding_attempts || 0) + 1;
+    (entry as any).embedding_updated_at = Date.now();
+    (entry as any).embedding_last_error = error;
     entry.updated_at = Date.now();
   }
 
@@ -367,5 +402,48 @@ export class InMemoryMemoryStore implements IMemoryStore {
     const session = this.sessions.get(session_id);
     if (!session) throw new Error(`Session not found: ${session_id}`);
     session.last_compacted_turn_index = turn_index;
+  }
+
+  // ─── Outbox ───────────────────────────────────────────────────────
+
+  async writeOutboxEvent(event: Omit<OutboxEvent, 'event_id' | 'created_at' | 'processed_at' | 'retry_count' | 'last_error'>): Promise<string> {
+    const id = crypto.randomUUID();
+    this.outbox.push({
+      ...event, event_id: id, created_at: Date.now(),
+      processed_at: null, retry_count: 0, last_error: null,
+    });
+    return id;
+  }
+
+  async queryOutboxPending(limit: number): Promise<OutboxEvent[]> {
+    return this.outbox
+      .filter(e => e.processed_at === null)
+      .sort((a, b) => a.created_at - b.created_at)
+      .slice(0, limit);
+  }
+
+  async markOutboxProcessed(event_id: string): Promise<void> {
+    const event = this.outbox.find(e => e.event_id === event_id);
+    if (event) event.processed_at = Date.now();
+  }
+
+  async markOutboxError(event_id: string, error: string): Promise<void> {
+    const event = this.outbox.find(e => e.event_id === event_id);
+    if (event) { event.retry_count++; event.last_error = error; }
+  }
+
+  // ─── Health ───────────────────────────────────────────────────────
+
+  async getHealth(): Promise<MemoryStoreHealth> {
+    const entries = Array.from(this.entries.values());
+    return {
+      storeType: 'memory',
+      schemaVersion: 0,
+      entryCount: entries.length,
+      vectorCount: entries.filter(e => e.embedding?.length).length,
+      pendingEmbeddings: entries.filter(e => (e as any).embedding_status === 'pending').length,
+      failedEmbeddings: entries.filter(e => (e as any).embedding_status === 'failed').length,
+      capabilities: this.capabilities,
+    };
   }
 }
