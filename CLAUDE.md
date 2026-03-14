@@ -185,8 +185,12 @@ engine/src/memory/
   store/interface.ts    # IMemoryStore contract
   store/in-memory.ts    # InMemory implementation
   store/postgres.ts     # Postgres + pgvector implementation
+  store/sqlite/         # SQLite per-agent store (store.ts, schema.ts, db.ts, rowMappers.ts, queries.ts)
   managers/             # 6 type validators (episodic, semantic, procedural, entity, trustWeighted, temporal)
   recall/               # intentClassifier.ts + reranker.ts
+  embedding/            # IEmbeddingProvider interface, MockEmbeddingProvider, EmbeddingWorker
+  events/               # memoryEvents.ts — 9-event bus with resetMemoryEventBus()
+  projection/           # MemoryProjectionService, ISink interface
   extraction.ts         # LLM extraction with hardening
   compactionPipeline.ts # Tiered compaction (hot/warm/cold)
   archivePipeline.ts    # Snapshot/restore via DePIN
@@ -196,6 +200,18 @@ engine/src/memory/
 ```
 
 Env: `MEMORY_ENABLED`, `MEMORY_STORE` (postgres|memory), `MEMORY_EXTRACTION_ENABLED`, `MEMORY_EMBEDDING_ENABLED`, `MEMORY_RECEIPTS_ENABLED`
+
+**v3 — Local Truth, Global Projection (2026-03-14):**
+- SQLite per-agent canonical store (`MEMORY_STORE=sqlite`), WAL mode, schema V3
+- Per-agent store registry: `getStoreForAgent(agentPassportId)` — SQLite gives each agent its own DB file at `./data/agents/{passport}/memory.db`
+- Async embedding pipeline: `IEmbeddingProvider` (openai|mock|none), `EmbeddingWorker` (hybrid event+polling)
+- Memory event bus: 9 event types, resetable for test isolation
+- Outbox-based projection plane: atomic write+outbox, `MemoryProjectionService` reads outbox, publishes to sinks
+- Store capabilities model: persistent, vectorSearch, crossAgentQuery, transactions, localFirst
+- Store health diagnostics: `GET /v1/memory/health`
+- Self-healing memory limits before hard fail
+
+New env vars: `MEMORY_STORE` (sqlite|postgres|memory), `MEMORY_DB_PATH`, `MEMORY_EMBEDDING_PROVIDER` (openai|mock|none), `MEMORY_PROJECTION_ENABLED`
 
 ## Offchain Codebase Structure (monorepo, restructured 2026-03-01)
 

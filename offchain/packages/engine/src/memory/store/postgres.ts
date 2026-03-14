@@ -4,6 +4,7 @@ import type { PoolClient } from 'pg';
 import type {
   MemoryEntry, MemoryType, MemoryStatus, WritableMemoryEntry,
   ProvenanceRecord, MemorySession, MemorySnapshot, MemoryLane,
+  MemoryStoreCapabilities, MemoryStoreHealth, OutboxEvent,
 } from '../types';
 import { MEMORY_TYPES, MEMORY_STATUSES } from '../types';
 import type { IMemoryStore, MemoryQuery, MemoryWriteResult, MemoryStats } from './interface';
@@ -142,6 +143,14 @@ function rowToSnapshot(row: any): MemorySnapshot {
 // ─── PostgresMemoryStore ──────────────────────────────────────────────
 
 export class PostgresMemoryStore implements IMemoryStore {
+
+  readonly capabilities: MemoryStoreCapabilities = {
+    persistent: true,
+    vectorSearch: true,
+    crossAgentQuery: true,
+    transactions: true,
+    localFirst: false,
+  };
 
   // ─── Write ──────────────────────────────────────────────────────
 
@@ -458,6 +467,88 @@ export class PostgresMemoryStore implements IMemoryStore {
     );
   }
 
+  async queryPendingEmbeddings(limit: number): Promise<MemoryEntry[]> {
+    const { rows } = await pool.query(
+      `SELECT * FROM memory_entries WHERE embedding_status = 'pending' ORDER BY created_at ASC LIMIT $1`,
+      [limit],
+    );
+    return rows.map(rowToMemoryEntry);
+  }
+
+  async recordEmbeddingFailure(memory_id: string, error: string): Promise<void> {
+    await pool.query(
+      `UPDATE memory_entries SET embedding_attempts = COALESCE(embedding_attempts, 0) + 1, embedding_last_error = $2, embedding_updated_at = NOW(), updated_at = NOW() WHERE memory_id = $1`,
+      [memory_id, error],
+    );
+  }
+
+  // ─── Outbox ────────────────────────────────────────────────────
+
+  async writeOutboxEvent(
+    event: Omit<OutboxEvent, 'event_id' | 'created_at' | 'processed_at' | 'retry_count' | 'last_error'>,
+  ): Promise<string> {
+    const { rows } = await pool.query(
+      `INSERT INTO memory_outbox (event_type, memory_id, agent_passport_id, namespace, payload_json) VALUES ($1, $2, $3, $4, $5) RETURNING event_id`,
+      [event.event_type, event.memory_id, event.agent_passport_id, event.namespace, event.payload_json],
+    );
+    return rows[0].event_id;
+  }
+
+  async queryOutboxPending(limit: number): Promise<OutboxEvent[]> {
+    const { rows } = await pool.query(
+      `SELECT * FROM memory_outbox WHERE processed_at IS NULL ORDER BY created_at ASC LIMIT $1`,
+      [limit],
+    );
+    return rows.map((r: any) => ({
+      event_id: r.event_id,
+      event_type: r.event_type,
+      memory_id: r.memory_id,
+      agent_passport_id: r.agent_passport_id,
+      namespace: r.namespace,
+      payload_json: typeof r.payload_json === 'string' ? r.payload_json : JSON.stringify(r.payload_json),
+      created_at: new Date(r.created_at).getTime(),
+      processed_at: r.processed_at ? new Date(r.processed_at).getTime() : null,
+      retry_count: r.retry_count,
+      last_error: r.last_error,
+    }));
+  }
+
+  async markOutboxProcessed(event_id: string): Promise<void> {
+    await pool.query(
+      `UPDATE memory_outbox SET processed_at = NOW() WHERE event_id = $1`,
+      [event_id],
+    );
+  }
+
+  async markOutboxError(event_id: string, error: string): Promise<void> {
+    await pool.query(
+      `UPDATE memory_outbox SET retry_count = retry_count + 1, last_error = $1 WHERE event_id = $2`,
+      [error, event_id],
+    );
+  }
+
+  // ─── Health ────────────────────────────────────────────────────
+
+  async getHealth(): Promise<MemoryStoreHealth> {
+    const { rows: [counts] } = await pool.query(`
+      SELECT
+        COUNT(*) as total,
+        COUNT(CASE WHEN embedding IS NOT NULL THEN 1 END) as with_vectors,
+        COUNT(CASE WHEN embedding_status = 'pending' THEN 1 END) as pending,
+        COUNT(CASE WHEN embedding_status = 'failed' THEN 1 END) as failed
+      FROM memory_entries
+    `);
+    return {
+      storeType: 'postgres',
+      schemaVersion: 0,
+      entryCount: parseInt(counts.total, 10),
+      vectorCount: parseInt(counts.with_vectors, 10),
+      pendingEmbeddings: parseInt(counts.pending, 10),
+      failedEmbeddings: parseInt(counts.failed, 10),
+      capabilities: this.capabilities,
+    };
+  }
+
   // ─── Snapshots ──────────────────────────────────────────────────
 
   async saveSnapshot(snapshot: Omit<MemorySnapshot, 'snapshot_id'>): Promise<string> {
@@ -701,6 +792,10 @@ export class PostgresMemoryStore implements IMemoryStore {
     if (q.before) {
       conditions.push(`created_at < $${idx++}`);
       params.push(msToTs(q.before));
+    }
+    if (q.embedding_status && q.embedding_status.length > 0) {
+      conditions.push(`embedding_status = ANY($${idx++})`);
+      params.push(q.embedding_status);
     }
 
     // Order
