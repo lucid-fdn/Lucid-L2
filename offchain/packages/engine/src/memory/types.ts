@@ -22,6 +22,11 @@ export interface MemoryEntry<T extends MemoryType = MemoryType> {
   structured_content?: Record<string, unknown>;
   embedding?: number[];
   embedding_model?: string;
+  embedding_status: 'pending' | 'ready' | 'failed' | 'skipped';
+  embedding_attempts: number;
+  embedding_requested_at?: number;
+  embedding_updated_at?: number;
+  embedding_last_error?: string;
   status: MemoryStatus;
   created_at: number;
   updated_at: number;
@@ -144,7 +149,9 @@ type Writable<T> = Omit<T,
   'memory_id' | 'content_hash' | 'prev_hash' |
   'receipt_hash' | 'receipt_run_id' |
   'status' | 'created_at' | 'updated_at' |
-  'embedding' | 'embedding_model' | 'turn_index'
+  'embedding' | 'embedding_model' | 'turn_index' |
+  'embedding_status' | 'embedding_attempts' |
+  'embedding_requested_at' | 'embedding_updated_at' | 'embedding_last_error'
 >;
 
 export type WritableMemoryEntry =
@@ -220,6 +227,9 @@ export interface MemoryServiceConfig {
   extraction_max_tokens: number;
   extraction_max_facts: number;
   extraction_max_rules: number;
+  max_memory_entries: number;
+  max_memory_db_size_mb: number;
+  max_vector_rows: number;
 }
 
 export function getDefaultConfig(): MemoryServiceConfig {
@@ -248,6 +258,9 @@ export function getDefaultConfig(): MemoryServiceConfig {
     extraction_max_tokens: parseInt(process.env.MEMORY_EXTRACTION_MAX_TOKENS || '8000', 10),
     extraction_max_facts: parseInt(process.env.MEMORY_EXTRACTION_MAX_FACTS || '20', 10),
     extraction_max_rules: parseInt(process.env.MEMORY_EXTRACTION_MAX_RULES || '10', 10),
+    max_memory_entries: parseInt(process.env.MEMORY_MAX_ENTRIES || '100000', 10),
+    max_memory_db_size_mb: parseInt(process.env.MEMORY_MAX_DB_SIZE_MB || '500', 10),
+    max_vector_rows: parseInt(process.env.MEMORY_MAX_VECTOR_ROWS || '50000', 10),
   };
 }
 
@@ -329,6 +342,43 @@ export interface LucidMemoryFile {
     tx_hash: string;
     mmr_root: string;
   };
+}
+
+// ─── Outbox ─────────────────────────────────────────────────────────
+export interface OutboxEvent {
+  event_id: string;
+  event_type: string;
+  memory_id: string | null;
+  agent_passport_id: string;
+  namespace: string;
+  payload_json: string;
+  created_at: number;
+  processed_at: number | null;
+  retry_count: number;
+  last_error: string | null;
+}
+
+// ─── Store Capabilities ────────────────────────────────────────────
+export interface MemoryStoreCapabilities {
+  persistent: boolean;
+  vectorSearch: boolean;
+  crossAgentQuery: boolean;
+  transactions: boolean;
+  localFirst: boolean;
+}
+
+// ─── Store Health ──────────────────────────────────────────────────
+export interface MemoryStoreHealth {
+  storeType: 'sqlite' | 'postgres' | 'memory';
+  dbPath?: string;
+  schemaVersion: number;
+  walMode?: boolean;
+  entryCount: number;
+  vectorCount: number;
+  pendingEmbeddings: number;
+  failedEmbeddings: number;
+  sizeMb?: number;
+  capabilities: MemoryStoreCapabilities;
 }
 
 // ─── Type guards ────────────────────────────────────────────────────

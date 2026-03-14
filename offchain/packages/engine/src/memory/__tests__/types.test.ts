@@ -12,6 +12,8 @@ describe('Memory Types', () => {
     namespace: 'agent:agent-1',
     memory_lane: 'self',
     content: 'Hello world',
+    embedding_status: 'pending',
+    embedding_attempts: 0,
     status: 'active',
     created_at: Date.now(),
     updated_at: Date.now(),

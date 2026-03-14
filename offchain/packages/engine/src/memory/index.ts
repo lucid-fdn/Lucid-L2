@@ -7,6 +7,7 @@ export type {
   RecallRequest, RecallResponse, MemoryServiceConfig,
   PermissionLevel, LucidMemoryFile,
   MemoryLane, CompactionConfig, CompactionResult, ExtractionOutputSchema, ValidatedExtractionResult,
+  OutboxEvent, MemoryStoreCapabilities, MemoryStoreHealth,
 } from './types';
 export { MEMORY_TYPES, MEMORY_STATUSES, MAX_CONTENT_SIZE, MAX_METADATA_SIZE, getDefaultConfig } from './types';
 export { MEMORY_LANES, getDefaultCompactionConfig } from './types';
