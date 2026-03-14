@@ -1903,6 +1903,378 @@ paths:
         '500': { $ref: '#/components/responses/InternalServerError' }
 
   # ===========================================================================
+  # Memory
+  # ===========================================================================
+  /v1/memory/episodic:
+    post:
+      tags: [Memory]
+      operationId: lucid_add_episodic_memory
+      summary: Store episodic memory
+      description: Store a conversation turn as episodic memory. Requires session_id, role, and content.
+      parameters:
+        - { name: X-Agent-Passport-Id, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [session_id, role, content]
+              properties:
+                session_id: { type: string }
+                role: { type: string, enum: [user, assistant, system, tool] }
+                content: { type: string }
+                tokens: { type: integer, default: 0 }
+                namespace: { type: string }
+                memory_lane: { type: string, enum: [self, user, shared, market] }
+                metadata: { type: object, additionalProperties: true }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemoryWriteResponse' }
+
+  /v1/memory/semantic:
+    post:
+      tags: [Memory]
+      operationId: lucid_add_semantic_memory
+      summary: Store semantic memory (extracted fact)
+      parameters:
+        - { name: X-Agent-Passport-Id, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fact, confidence]
+              properties:
+                fact: { type: string }
+                confidence: { type: number, minimum: 0, maximum: 1 }
+                content: { type: string }
+                source_memory_ids: { type: array, items: { type: string } }
+                namespace: { type: string }
+                memory_lane: { type: string, enum: [self, user, shared, market] }
+                metadata: { type: object, additionalProperties: true }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemoryWriteResponse' }
+
+  /v1/memory/procedural:
+    post:
+      tags: [Memory]
+      operationId: lucid_add_procedural_memory
+      summary: Store procedural memory (learned rule)
+      parameters:
+        - { name: X-Agent-Passport-Id, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rule, trigger]
+              properties:
+                rule: { type: string }
+                trigger: { type: string }
+                content: { type: string }
+                priority: { type: integer, default: 0 }
+                source_memory_ids: { type: array, items: { type: string } }
+                namespace: { type: string }
+                memory_lane: { type: string, enum: [self, user, shared, market] }
+                metadata: { type: object, additionalProperties: true }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemoryWriteResponse' }
+
+  /v1/memory/entity:
+    post:
+      tags: [Memory]
+      operationId: lucid_add_entity_memory
+      summary: Store entity memory (knowledge graph node)
+      parameters:
+        - { name: X-Agent-Passport-Id, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [entity_name, entity_type]
+              properties:
+                entity_name: { type: string }
+                entity_type: { type: string }
+                entity_id: { type: string }
+                content: { type: string }
+                attributes: { type: object, additionalProperties: true }
+                relationships:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      target_entity_id: { type: string }
+                      relation_type: { type: string }
+                      confidence: { type: number, minimum: 0, maximum: 1 }
+                source_memory_ids: { type: array, items: { type: string } }
+                namespace: { type: string }
+                memory_lane: { type: string, enum: [self, user, shared, market] }
+                metadata: { type: object, additionalProperties: true }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemoryWriteResponse' }
+
+  /v1/memory/trust-weighted:
+    post:
+      tags: [Memory]
+      operationId: lucid_add_trust_weighted_memory
+      summary: Store trust-weighted memory (cross-agent trust)
+      parameters:
+        - { name: X-Agent-Passport-Id, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source_agent_passport_id]
+              properties:
+                source_agent_passport_id: { type: string }
+                trust_score: { type: number, minimum: 0, maximum: 1 }
+                decay_factor: { type: number, minimum: 0, maximum: 1 }
+                weighted_relevance: { type: number, minimum: 0, maximum: 1 }
+                content: { type: string }
+                namespace: { type: string }
+                memory_lane: { type: string, enum: [self, user, shared, market] }
+                metadata: { type: object, additionalProperties: true }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemoryWriteResponse' }
+
+  /v1/memory/temporal:
+    post:
+      tags: [Memory]
+      operationId: lucid_add_temporal_memory
+      summary: Store temporal memory (time-bounded fact)
+      parameters:
+        - { name: X-Agent-Passport-Id, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content, valid_from]
+              properties:
+                content: { type: string }
+                valid_from: { type: integer, description: Unix ms timestamp }
+                valid_to: { type: integer, nullable: true }
+                recorded_at: { type: integer }
+                namespace: { type: string }
+                memory_lane: { type: string, enum: [self, user, shared, market] }
+                metadata: { type: object, additionalProperties: true }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemoryWriteResponse' }
+
+  /v1/memory/recall:
+    post:
+      tags: [Memory]
+      operationId: lucid_recall_memory
+      summary: Recall relevant memories via two-stage retrieval
+      description: |
+        Two-stage recall: vector similarity search (if embeddings available) followed by metadata-aware reranking.
+        Scoring: 0.55*similarity + 0.20*recency + 0.15*type_bonus + 0.10*quality.
+      parameters:
+        - { name: X-Agent-Passport-Id, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query: { type: string }
+                types: { type: array, items: { type: string, enum: [episodic, semantic, procedural, entity, trust_weighted, temporal] } }
+                lanes: { type: array, items: { type: string, enum: [self, user, shared, market] } }
+                limit: { type: integer, default: 10 }
+                namespace: { type: string }
+                min_similarity: { type: number, minimum: 0, maximum: 1 }
+                include_archived: { type: boolean, default: false }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MemoryRecallResponse' }
+
+  /v1/memory/compact:
+    post:
+      tags: [Memory]
+      operationId: lucid_compact_memory
+      summary: Trigger memory compaction
+      description: |
+        Tiered compaction: warm (archive old episodics), cold (hard-prune archived past retention).
+        Self-healing: auto-compacts before rejecting writes when limits are exceeded.
+      parameters:
+        - { name: X-Agent-Passport-Id, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                namespace: { type: string }
+                session_id: { type: string }
+                mode: { type: string, enum: [warm, cold, full], default: full }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      sessions_compacted: { type: integer }
+                      episodic_archived: { type: integer }
+                      extraction_triggered: { type: boolean }
+                      cold_pruned: { type: integer }
+                      snapshot_cid: { type: string, nullable: true }
+
+  /v1/memory/health:
+    get:
+      tags: [Memory]
+      operationId: lucid_memory_health
+      summary: Memory store health and diagnostics
+      description: Returns store type, entry/vector counts, embedding pipeline status, and store capabilities.
+      parameters:
+        - { name: X-Agent-Passport-Id, in: header, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      storeType: { type: string, enum: [sqlite, postgres, memory] }
+                      schemaVersion: { type: integer }
+                      walMode: { type: boolean }
+                      entryCount: { type: integer }
+                      vectorCount: { type: integer }
+                      pendingEmbeddings: { type: integer }
+                      failedEmbeddings: { type: integer }
+                      sizeMb: { type: number }
+                      capabilities:
+                        type: object
+                        properties:
+                          persistent: { type: boolean }
+                          vectorSearch: { type: boolean }
+                          crossAgentQuery: { type: boolean }
+                          transactions: { type: boolean }
+                          localFirst: { type: boolean }
+
+  /v1/memory/sessions:
+    post:
+      tags: [Memory]
+      operationId: lucid_start_memory_session
+      summary: Start a new conversation session
+      parameters:
+        - { name: X-Agent-Passport-Id, in: header, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                namespace: { type: string }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      session_id: { type: string }
+    get:
+      tags: [Memory]
+      operationId: lucid_list_memory_sessions
+      summary: List sessions for an agent
+      parameters:
+        - { name: X-Agent-Passport-Id, in: header, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { type: array, items: { $ref: '#/components/schemas/MemorySession' } }
+
+  /v1/memory/verify:
+    post:
+      tags: [Memory]
+      operationId: lucid_verify_memory_chain
+      summary: Verify memory hash chain integrity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent_passport_id, namespace]
+              properties:
+                agent_passport_id: { type: string }
+                namespace: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      valid: { type: boolean }
+                      chain_length: { type: integer }
+                      broken_links: { type: array, items: { type: string } }
+
+  # ===========================================================================
   # Payouts
   # ===========================================================================
   /v1/payouts/calculate:
@@ -5867,6 +6239,54 @@ components:
       description: Admin API key for internal/operator endpoints
 
   schemas:
+    # =========================================================================
+    # Memory schemas
+    # =========================================================================
+    MemoryWriteResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            memory_id: { type: string, format: uuid }
+            content_hash: { type: string }
+            prev_hash: { type: string, nullable: true }
+
+    MemoryRecallResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          properties:
+            memories:
+              type: array
+              items:
+                type: object
+                properties:
+                  memory_id: { type: string }
+                  type: { type: string }
+                  content: { type: string }
+                  similarity: { type: number }
+                  score: { type: number }
+                  created_at: { type: integer }
+            query_embedding_model: { type: string, nullable: true }
+            total_candidates: { type: integer }
+
+    MemorySession:
+      type: object
+      properties:
+        session_id: { type: string }
+        agent_passport_id: { type: string }
+        namespace: { type: string }
+        status: { type: string, enum: [active, closed, archived] }
+        turn_count: { type: integer }
+        total_tokens: { type: integer }
+        summary: { type: string }
+        created_at: { type: integer }
+        last_activity: { type: integer }
+
     # =========================================================================
     # Passport schemas
     # =========================================================================
