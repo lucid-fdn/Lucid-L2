@@ -146,6 +146,8 @@ tags:
     description: EVM multi-chain operations — chain status, ERC-8004 registration, cross-chain reputation and payouts
   - name: AgentMirror
     description: Read-only agent proof endpoints — receipts, epochs, and MMR proofs (admin auth required)
+  - name: Anchoring
+    description: DePIN anchoring control plane — query, verify, and trace artifact anchor records
 
 paths:
   # ===========================================================================
@@ -2273,6 +2275,146 @@ paths:
                       valid: { type: boolean }
                       chain_length: { type: integer }
                       broken_links: { type: array, items: { type: string } }
+
+  # ===========================================================================
+  # Anchoring
+  # ===========================================================================
+  /v1/anchors:
+    get:
+      tags: [Anchoring]
+      operationId: lucid_list_anchors
+      summary: Query anchor records
+      description: |
+        List anchor records for a given agent passport. Optionally filter by artifact type and limit results.
+      parameters:
+        - name: agent_passport_id
+          in: query
+          required: true
+          schema: { type: string }
+          description: Agent passport ID to filter anchor records
+        - name: artifact_type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [epoch_bundle, epoch_proof, memory_snapshot, deploy_artifact, passport_metadata, nft_metadata, mmr_checkpoint]
+          description: Filter by artifact type
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, default: 50 }
+          description: Maximum number of records to return
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { type: array, items: { $ref: '#/components/schemas/AnchorRecord' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /v1/anchors/{anchor_id}:
+    get:
+      tags: [Anchoring]
+      operationId: lucid_get_anchor
+      summary: Get a single anchor record
+      description: Retrieve a single anchor record by its unique ID.
+      parameters:
+        - name: anchor_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { $ref: '#/components/schemas/AnchorRecord' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/anchors/{anchor_id}/lineage:
+    get:
+      tags: [Anchoring]
+      operationId: lucid_get_anchor_lineage
+      summary: Get anchor parent chain
+      description: |
+        Walk the parent_anchor_id chain for a given anchor, returning the full lineage from the target record back to the root.
+      parameters:
+        - name: anchor_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { type: array, items: { $ref: '#/components/schemas/AnchorRecord' } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/anchors/{anchor_id}/verify:
+    post:
+      tags: [Anchoring]
+      operationId: lucid_verify_anchor
+      summary: Verify anchor CID against DePIN provider
+      description: |
+        Trigger verification of the anchor's CID against its DePIN storage provider. Updates the anchor status to verified or unreachable.
+      parameters:
+        - name: anchor_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      anchor_id: { type: string, format: uuid }
+                      status: { type: string, enum: [verified, unreachable] }
+                      verified_at: { type: integer, nullable: true, description: Unix timestamp in milliseconds }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/anchors/cid/{cid}:
+    get:
+      tags: [Anchoring]
+      operationId: lucid_lookup_anchor_by_cid
+      summary: Reverse lookup anchor by CID
+      description: Find anchor records that match a given content identifier (CID).
+      parameters:
+        - name: cid
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data: { type: array, items: { $ref: '#/components/schemas/AnchorRecord' } }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   # ===========================================================================
   # Payouts
@@ -6286,6 +6428,32 @@ components:
         summary: { type: string }
         created_at: { type: integer }
         last_activity: { type: integer }
+
+    # =========================================================================
+    # Anchoring schemas
+    # =========================================================================
+    AnchorRecord:
+      type: object
+      properties:
+        anchor_id: { type: string, format: uuid }
+        artifact_type:
+          type: string
+          enum: [epoch_bundle, epoch_proof, memory_snapshot, deploy_artifact, passport_metadata, nft_metadata, mmr_checkpoint]
+        artifact_id: { type: string }
+        agent_passport_id: { type: string, nullable: true }
+        producer: { type: string }
+        provider: { type: string }
+        storage_tier: { type: string, enum: [permanent, evolving] }
+        cid: { type: string }
+        content_hash: { type: string }
+        url: { type: string }
+        size_bytes: { type: integer }
+        status: { type: string, enum: [uploaded, verified, unreachable] }
+        parent_anchor_id: { type: string, nullable: true }
+        chain_tx: { type: object, nullable: true }
+        metadata: { type: object }
+        created_at: { type: integer, description: Unix timestamp in milliseconds }
+        verified_at: { type: integer, nullable: true, description: Unix timestamp in milliseconds }
 
     # =========================================================================
     # Passport schemas
