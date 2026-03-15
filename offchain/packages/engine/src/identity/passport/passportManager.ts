@@ -141,6 +141,8 @@ export interface CreatePassportInput {
   tags?: string[];
   /** Mint an NFT for this passport. Defaults to env NFT_MINT_ON_CREATE (true). */
   mintNFT?: boolean;
+  /** Target chain. Auto-detected from owner address format if omitted. Defaults to 'solana'. */
+  chain?: 'solana' | 'evm';
 }
 
 /**
@@ -239,15 +241,15 @@ export class PassportManager {
   }
 
   /**
-   * Validate Solana wallet address (basic format check)
+   * Validate wallet address — accepts both Solana (base58) and EVM (0x) formats
    */
   private validateOwner(owner: string): boolean {
-    // Basic Solana address validation: base58 string, 32-44 chars
     if (!owner || typeof owner !== 'string') return false;
-    if (owner.length < 32 || owner.length > 44) return false;
-    // Base58 alphabet check
-    const base58Regex = /^[1-9A-HJ-NP-Za-km-z]+$/;
-    return base58Regex.test(owner);
+    // EVM address: 0x + 40 hex chars
+    if (/^0x[0-9a-fA-F]{40}$/.test(owner)) return true;
+    // Solana address: base58, 32-44 chars
+    if (owner.length >= 32 && owner.length <= 44 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(owner)) return true;
+    return false;
   }
 
   /**
@@ -269,9 +271,12 @@ export class PassportManager {
     if (!this.validateOwner(input.owner)) {
       return {
         ok: false,
-        error: 'Invalid owner address: must be a valid Solana wallet address',
+        error: 'Invalid owner address: must be a valid Solana or EVM wallet address',
       };
     }
+
+    // Auto-detect chain from owner address format if not explicitly provided
+    const chain: 'solana' | 'evm' = input.chain || (input.owner.startsWith('0x') ? 'evm' : 'solana');
 
     // Validate metadata against schema
     const metadataResult = this.validateMetadata(input.type, input.metadata);
@@ -381,7 +386,7 @@ export class PassportManager {
       // Mint NFT if requested (per-request flag, env var as default)
       const shouldMintNFT = input.mintNFT ?? (process.env.NFT_MINT_ON_CREATE !== 'false');
       if (shouldMintNFT) {
-        this.attemptNFTMint(passport).catch(err => {
+        this.attemptNFTMint(passport, chain).catch(err => {
           logger.warn(`[PassportManager] NFT mint failed for ${passport.passport_id}:`, err instanceof Error ? err.message : err);
         });
       }
@@ -399,11 +404,12 @@ export class PassportManager {
   }
 
   /**
-   * Attempt to mint an NFT for a passport (non-blocking, best-effort)
+   * Attempt to mint an NFT for a passport (non-blocking, best-effort).
+   * Routes to the correct NFT provider based on the target chain.
    */
-  private async attemptNFTMint(passport: Passport): Promise<void> {
+  private async attemptNFTMint(passport: Passport, chain: 'solana' | 'evm' = 'solana'): Promise<void> {
     try {
-      const { getNFTProvider } = await import('../../assets/nft');
+      const { getNFTProvider, getAllNFTProviders } = await import('../../assets/nft');
 
       // Upload NFT metadata JSON to permanent storage (respects kill switch)
       const metadataJson = {
@@ -434,7 +440,26 @@ export class PassportManager {
       });
       metadataUri = anchorResult?.url || '';
 
-      const nft = getNFTProvider();
+      // Select NFT provider based on chain:
+      // 1. Check if any configured provider (from getAllNFTProviders) matches the chain
+      // 2. Fall back to the default singleton provider
+      let nft = getNFTProvider();
+      if (chain === 'evm') {
+        const allProviders = getAllNFTProviders();
+        const evmProvider = allProviders.find(p => p.chain.startsWith('evm') || p.chain === 'base');
+        if (evmProvider) {
+          nft = evmProvider;
+        } else {
+          logger.warn(`[PassportManager] No EVM NFT provider configured — falling back to default (${nft.providerName})`);
+        }
+      } else {
+        const allProviders = getAllNFTProviders();
+        const solanaProvider = allProviders.find(p => p.chain.startsWith('solana'));
+        if (solanaProvider) {
+          nft = solanaProvider;
+        }
+      }
+
       const result = await nft.mint(passport.owner, {
         name: passport.name || passport.passport_id,
         symbol: 'LUCID',

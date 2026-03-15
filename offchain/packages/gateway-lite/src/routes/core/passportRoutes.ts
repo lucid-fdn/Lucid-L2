@@ -4,7 +4,7 @@
 import express from 'express';
 import { getPassportManager } from '../../../../engine/src/passport/passportManager';
 import type { PassportType, PassportStatus, PassportFilters } from '../../../../engine/src/storage/passportStore';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 function sanitizeQueryInt(val: any, defaultVal: number, min: number, max: number): number {
   if (val === undefined || val === null) return defaultVal;
@@ -100,7 +100,7 @@ passportRouter.get('/v1/passports/pending-sync', async (_req, res) => {
  * 
  * Body: {
  *   type: 'model' | 'compute' | 'tool' | 'dataset' | 'agent',
- *   owner: string, // Solana wallet address
+ *   owner: string, // Solana or EVM wallet address
  *   metadata: object, // Type-specific metadata (ModelMeta, ComputeMeta, etc.)
  *   name?: string,
  *   description?: string,

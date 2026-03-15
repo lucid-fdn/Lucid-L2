@@ -23,7 +23,7 @@ export type PassportStatus = 'active' | 'deprecated' | 'revoked';
 export interface Passport {
   passport_id: string;
   type: PassportType;
-  owner: string; // Solana wallet address
+  owner: string; // Solana or EVM wallet address
   metadata: any; // ModelMeta, ComputeMeta, or other schema-validated object
   created_at: number; // Unix timestamp
   updated_at: number; // Unix timestamp
