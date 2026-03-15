@@ -1,7 +1,7 @@
 # Lucid-L2
 
 ## What This Is
-Blockchain execution layer for the Lucid platform — Solana on-chain programs (Anchor/Rust) + Express offchain API + Next.js web UI. Handles verifiable AI inference with MMR proofs, dual-gas metering, passport-based model routing, and cryptographic receipt anchoring.
+Verifiable AI execution layer — Solana on-chain programs (Anchor/Rust) + Express offchain API. Blockchain-anchored infrastructure giving AI assets (models, agents, tools, compute, datasets) provable identity, cryptographic receipts, and reputation backed by real traffic data.
 
 ## Quick Start
 ```bash
@@ -16,8 +16,8 @@ anchor build
 anchor deploy --provider.cluster devnet
 
 # Tests
-cd tests && npm test                        # Mocha on-chain
-cd offchain && npm test                     # Jest API (21 test files)
+cd tests && npm test                        # Mocha on-chain (6 programs)
+cd offchain && npm test                     # Jest API (96 suites, 1605 tests)
 ```
 
 ## Architecture
@@ -28,7 +28,7 @@ Client → /v1/chat/completions → Passport matching → LLM execution
   → commit_epoch on Solana → Verifiable proof available
 ```
 
-### Five Solana Programs
+### Six Solana Programs
 | Program | Devnet ID | Purpose |
 |---------|-----------|---------|
 | `thought_epoch` | `8QXiFjguJT4PLVzH6BYNMHXZ3eLRaoF8cwx23EBc44Q6` | MMR root commitment (single/batch/v2) |
@@ -36,30 +36,56 @@ Client → /v1/chat/completions → Passport matching → LLM execution
 | `gas_utils` | `EzuUhxtNAz1eRfAPypm6eAepe8fRQBrBPSo4Qcp1w3hm` | Token burn/split CPI + on-chain distribution |
 | `lucid_agent_wallet` | `AJGpTWXbhvdYMxSah6GAKzykvfkYo2ViQpWGMbimQsph` | PDA wallets, policy, escrow, splits, sessions |
 | `lucid_zkml_verifier` | `69cJRFGWijD1FdapQ2vz7VP6x2jcXRQyBws9VzzPpqAN` | Groth16 zkML proof verification + bloom filter dedup |
+| `lucid_reputation` | `4FWEH1XQb7p1pU9r8Ap8xomDYVxdSdwk6fFT8XD63G3A` | On-chain reputation (feedback, validation, revocation) |
 
 ### Offchain API (Express, port 3001)
+
+**Identity:**
+- `/v1/passports` — CRUD for model/compute/tool/agent/dataset passports
+- `/v1/passports/:id/token/launch` — Launch share token
+- `/v1/passports/:id/token/airdrop` — Revenue airdrop
+
+**Inference:**
 - `/v1/chat/completions` — OpenAI-compatible inference
-- `/v1/models` — Model passport listing (supports `?available=true|false` tri-state filter)
-- `/v1/compute/nodes/heartbeat` — Compute node heartbeat (POST, 30s TTL)
-- `/v1/compute/nodes/:id/health` — Compute node health check (GET)
-- `/v1/passports` — CRUD for model/compute/tool/agent passports
-- `/v1/receipts` — Create, verify, prove cryptographic receipts
-- `/v1/epochs` — Epoch management and Solana anchoring
+- `/v1/models` — Model listing (`?available=true|false` tri-state filter)
 - `/v1/match` — Policy-based compute matching
-- `/v1/payouts` — Revenue split (basis points)
-- `/api/agents` — MMR-based agent orchestration
-- `/api/oauth` — Nango OAuth management
-- `/v1/passports/:id/token/launch` — Launch share token for passport
-- `/v1/passports/:id/token` — Get share token info
-- `/v1/passports/:id/token/airdrop` — Trigger revenue airdrop
-- `/v1/assets/:passportId/pricing` — Asset pricing CRUD (GET public, PUT/DELETE admin)
-- `/v1/assets/:passportId/revenue` — Revenue summary (GET)
-- `/v1/assets/:passportId/withdraw` — Revenue withdrawal (POST, admin)
-- `/v1/config/payment` — x402 payment config (GET)
-- `/v1/config/facilitator` — Set default facilitator (PUT, admin)
-- `/v1/config/chains` — Supported payment chains (GET)
-- `/v1/access/subscribe` — x402-gated subscription (POST)
-- `/v1/memory/*` — Agent memory CRUD (episodic, semantic, procedural, recall, sessions, verify, snapshots)
+- `/v1/compute/nodes/heartbeat` — Compute heartbeat (POST, 30s TTL)
+
+**Receipt & Epoch:**
+- `/v1/receipts` — Create, verify, prove cryptographic receipts
+- `/v1/epochs` — Epoch management and multi-chain anchoring
+
+**Memory (v3 — local-first):**
+- `/v1/memory/episodic` — Episodic memory (POST)
+- `/v1/memory/semantic` — Semantic memory (POST)
+- `/v1/memory/procedural` — Procedural memory (POST)
+- `/v1/memory/entity` — Entity memory (POST)
+- `/v1/memory/trust-weighted` — Trust-weighted memory (POST)
+- `/v1/memory/temporal` — Temporal memory (POST)
+- `/v1/memory/recall` — Two-stage semantic recall (POST)
+- `/v1/memory/compact` — Tiered compaction (POST)
+- `/v1/memory/sessions` — Session CRUD
+- `/v1/memory/snapshots` — DePIN snapshot/restore
+- `/v1/memory/verify` — Hash chain integrity
+- `/v1/memory/health` — Store diagnostics
+
+**Anchoring (unified DePIN):**
+- `/v1/anchors` — Query anchor registry
+- `/v1/anchors/:id` — Single record
+- `/v1/anchors/:id/lineage` — Parent chain walk
+- `/v1/anchors/:id/verify` — CID verification
+- `/v1/anchors/cid/:cid` — Reverse CID lookup
+
+**Payment:**
+- `/v1/assets/:passportId/pricing` — Asset pricing CRUD
+- `/v1/assets/:passportId/revenue` — Revenue summary
+- `/v1/payouts` — Revenue splits
+- `/v1/config/payment` — x402 config
+- `/v1/access/subscribe` — x402-gated subscription
+
+**System:**
+- `/health` — Health check (DB, Redis, Nango)
+- `/api/oauth` — Nango OAuth
 - `/api/hyperliquid`, `/api/solana` — DeFi integrations
 
 ### Model Availability Filter (`?available=true|false`)
@@ -280,8 +306,8 @@ offchain/
         services/                     # epochService, anchoringService, mmrService
       receipt/                        # Receipt creation, signing, verification
       payment/                        # x402, pricing, splits, escrow, facilitators, airdrop
-        x402/                         # Facilitators (Direct, Coinbase, PayAI), middleware
-        services/                     # payoutService, pricingService, revenueService
+        facilitators/                 # Direct, Coinbase, PayAI
+        services/                     # payoutService, pricingService, revenueService, splitResolver
         escrow/                       # escrowService, disputeService
         stores/                       # paymentGateService, spentProofsStore
         airdrop/                      # revenueAirdrop
@@ -302,10 +328,6 @@ offchain/
         jobs/                         # anchoringJob, receiptConsumer, agentHealthMonitor, etc.
         types/                        # fluidCompute, lucid_passports
         storage/                      # searchQueryBuilder
-      storage/                        # passportStore, identityStore (+ depin barrel)
-      assets/                         # Legacy barrel -> identity/nft, identity/shares
-      utils/                          # retry, circuitBreaker
-      errors.ts                       # Shared error classes
     gateway-lite/src/                 # @lucid-l2/gateway-lite — Express server
       index.ts                        # Server entry point (Express app, startup sequence)
       api.ts                          # /api router
@@ -335,15 +357,36 @@ agent-services/                 # CrewAI + LangGraph microservices
 ```
 
 ## Database
-Supabase (eu-north-1): `credentials`, `user_wallets`, `session_signers`, `signer_audit_log`, `users`, `rewards`, `conversations`, `reward_transactions`, `oauth_states`, `user_oauth_connections`
+Supabase (eu-north-1, project `kwihlcnapmkaivijyiif`):
+- **Core:** `credentials`, `user_wallets`, `session_signers`, `users`, `rewards`, `conversations`
+- **Receipts/Epochs:** `receipts`, `epochs`, `epoch_receipts`, `mmr_state`
+- **Memory:** `memory_entries`, `memory_sessions`, `memory_provenance`, `memory_snapshots`, `memory_outbox`
+- **Anchoring:** `anchor_records` (unified CID registry)
+- **Payment:** `asset_pricing`, `payment_events`, `grant_budgets`, `payment_epochs`
 
-### SDK (`raijin-labs-lucid-ai`)
-- Auto-generated by Speakeasy from `openapi.yaml` — `src/sdk/`, `src/funcs/`, `src/models/` are generated code
-- **Custom entry point** `src/ai.ts` (safe from re-gen): Vercel AI SDK provider using `@ai-sdk/openai-compatible`
-  - Import as `raijin-labs-lucid-ai/ai` → `createLucidProvider()` for chat + embeddings
-- `@ai-sdk/openai-compatible@2.x` — must stay in sync with consumers' `ai` package major version
-- `searchModels({ available: 'true' })` — SDK method for filtered model listing (`'true'`=available, `'false'`=unavailable, omit=all)
-- Build: `cd sdk/raijin-labs-lucid-ai-typescript && npm run build` (uses `tshy` for dual CJS/ESM)
+**4-Layer Architecture:**
+- L1 (Commitment): Solana/EVM — roots, proofs, anchors
+- L2 (Data Availability): Arweave/Lighthouse — payloads, bundles, snapshots
+- L3 (Operational): Supabase — index, jobs, projections (rebuildable from L1+L2)
+- L4 (Product): platform-core — dashboards, APIs, UX
+
+**Key rule:** Supabase is operational state, never canonical truth. If Supabase is lost, rebuild from chain + DePIN.
+
+### SDK (`@lucid-l2/sdk` + `raijin-labs-lucid-ai`)
+
+**Internal SDK** (`offchain/packages/sdk/`):
+- `lucid.passport.*` — Passport CRUD
+- `lucid.receipt.*` — Receipt operations
+- `lucid.epoch.*` — Epoch management
+- `lucid.memory.*` — Memory v3 (addEpisodic, addSemantic, addProcedural, addEntity, addTrustWeighted, addTemporal, recall, compact, exportMemoryFile, health)
+- `lucid.anchor.*` — Anchor registry (list, get, lineage, verify, getByCID)
+- `lucid.deploy.*` — Agent deployment
+- `lucid.chain.*` — Multi-chain adapters
+
+**Auto-generated SDK** (`raijin-labs-lucid-ai`):
+- Generated by Speakeasy from `openapi.yaml`
+- Custom entry point `src/ai.ts`: Vercel AI SDK provider (`createLucidProvider()`)
+- Build: `cd sdk/raijin-labs-lucid-ai-typescript && npm run build`
 
 ## Cross-Dependencies
 - `@lucid-fdn/passport` npm package (shared with lucid-plateform-core)
@@ -351,6 +394,13 @@ Supabase (eu-north-1): `credentials`, `user_wallets`, `session_signers`, `signer
 - Uses **n8n** for workflow execution, **CrewAI/LangGraph** for agent planning
 - `raijin-labs-lucid-ai` SDK auto-generated from `openapi.yaml`
 - Receipt events consumed by **lucid-plateform-core** for billing
+- `better-sqlite3` + `sqlite-vec` (optional deps for `MEMORY_STORE=sqlite`)
+
+## Testing
+- **96 test suites, 1605 tests** (offchain)
+- On-chain: `anchor test` (Mocha, 6 programs)
+- Type check: `cd offchain && npm run type-check`
+- E2E: start server (`npm start`) + curl endpoints
 
 ## Remote
-`github.com/raijinlabs/Lucid-L2.git` — branches: master, main, Phase-2
+`github.com/lucid-fdn/Lucid-L2.git` — branches: master
