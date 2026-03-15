@@ -142,7 +142,7 @@ export class PostgresAnchorRegistry implements IAnchorRegistry {
   constructor() {
     // Lazy-require to avoid side-effects during import
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    this.pool = require('../../db/pool').pool;
+    this.pool = require('../shared/db/pool').pool;
   }
 
   // Map a DB row to AnchorRecord

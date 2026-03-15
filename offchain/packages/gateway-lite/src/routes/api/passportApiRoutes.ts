@@ -641,7 +641,7 @@ async function handleCheckAccess(req: express.Request, res: express.Response) {
     const hasAccess = await adapter.passports().checkAccess(id, wallet);
 
     // Also fetch gate info (read-only utility not on adapter interface)
-    const { getPaymentGateService } = await import('../../../../engine/src/finance/paymentGateService');
+    const { getPaymentGateService } = await import('../../../../engine/src/payment/stores/paymentGateService');
     const gateInfo = await getPaymentGateService().getPaymentGateInfo(id);
 
     res.json({

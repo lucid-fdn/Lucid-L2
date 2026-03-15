@@ -208,7 +208,7 @@ app.use(
         // every endpoint and all error shapes.
         validateResponses: false,
         validateApiSpec: true,
-        ignorePaths: /^\/api\//,   // Legacy /api/* routes not in OpenAPI spec
+        ignorePaths: /^(\/api\/|\/v1\/memory|\/v1\/anchors)/,   // Legacy /api/*, memory, and anchor routes handle their own validation
       })
     );
   } catch (err) {
