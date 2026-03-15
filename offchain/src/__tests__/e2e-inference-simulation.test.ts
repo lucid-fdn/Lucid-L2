@@ -129,7 +129,7 @@ jest.mock('../services/finance/payoutService', () => ({
   storePayout: jest.fn(),
   verifyPayoutSplit: jest.fn(),
 }));
-jest.mock('../../packages/engine/src/finance/payoutService', () =>
+jest.mock('../../packages/engine/src/payment/services/payoutService', () =>
   require('../services/finance/payoutService'));
 
 // Now import the modules that depend on the mocks

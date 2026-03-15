@@ -585,6 +585,7 @@ class BoundedMap<K, V> {
   delete(key: K): boolean { return this.map.delete(key); }
   values(): IterableIterator<V> { return this.map.values(); }
   get size(): number { return this.map.size; }
+  clear(): void { this.map.clear(); }
   [Symbol.iterator](): IterableIterator<[K, V]> { return this.map[Symbol.iterator](); }
 }
 

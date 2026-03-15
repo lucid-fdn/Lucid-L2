@@ -82,7 +82,7 @@ describe('Asset Payment Routes', () => {
         .put('/v1/assets/passport-123/pricing')
         .send({
           price_per_call: '1000',
-          payout_address: '0xabc',
+          payout_address: '0x' + 'ab'.repeat(20),
           accepted_tokens: ['USDC'],
           accepted_chains: ['base'],
         });
@@ -92,7 +92,7 @@ describe('Asset Payment Routes', () => {
       expect(mockSetPricing).toHaveBeenCalledWith(
         expect.objectContaining({
           passport_id: 'passport-123',
-          payout_address: '0xabc',
+          payout_address: '0x' + 'ab'.repeat(20),
         }),
       );
     });

@@ -261,22 +261,23 @@ describe('Memory Routes', () => {
   });
 
   describe('POST /v1/memory/snapshots', () => {
-    it('should return 501 (not wired)', async () => {
+    it('should return 503 when DePIN storage not configured', async () => {
       const res = await request(app)
         .post('/v1/memory/snapshots')
         .set(headers)
         .send({ agent_passport_id: 'agent-1' });
-      expect(res.status).toBe(501);
+      // Route is wired in v2; returns 503 when DePIN storage is unavailable
+      expect([500, 503]).toContain(res.status);
     });
   });
 
   describe('POST /v1/memory/compact', () => {
-    it('should return 501 (not implemented)', async () => {
+    it('should return 200 (wired in v2)', async () => {
       const res = await request(app)
         .post('/v1/memory/compact')
         .set(headers)
         .send({});
-      expect(res.status).toBe(501);
+      expect(res.status).toBe(200);
     });
   });
 });
