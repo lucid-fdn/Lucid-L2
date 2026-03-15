@@ -256,6 +256,14 @@ export interface ReputationNamespace {
   sync(passportId: string): Promise<void>;
 }
 
+export interface AnchorNamespace {
+  list(agentPassportId: string, options?: { artifact_type?: string; limit?: number }): Promise<any[]>;
+  get(anchorId: string): Promise<any>;
+  lineage(anchorId: string): Promise<any[]>;
+  verify(anchorId: string): Promise<{ valid: boolean; checked_at: number }>;
+  getByCID(cid: string): Promise<any>;
+}
+
 export interface MemoryNamespace {
   addEpisodic(input: { session_id: string; role: string; content: string; tokens: number; namespace?: string; metadata?: Record<string, unknown>; tool_calls?: any[] }): Promise<MemoryWriteResult>;
   addSemantic(input: { content: string; fact: string; confidence: number; source_memory_ids: string[]; namespace?: string; supersedes?: string[] }): Promise<MemoryWriteResult>;
@@ -343,6 +351,7 @@ export class Lucid {
   readonly identity: IdentityNamespace;
   readonly reputation: ReputationNamespace;
   readonly memory: MemoryNamespace;
+  readonly anchor: AnchorNamespace;
 
   constructor(config: LucidConfig) {
     this._config = config;
@@ -370,6 +379,7 @@ export class Lucid {
     this.identity = this._buildIdentityNamespace();
     this.reputation = this._buildReputationNamespace();
     this.memory = this._buildMemoryNamespace();
+    this.anchor = this._buildAnchorNamespace();
   }
 
   /**
@@ -971,6 +981,31 @@ export class Lucid {
       health: () => this._wrap(async () => {
         const { store: s } = getServiceAndStore();
         return s.getHealth();
+      }),
+    };
+  }
+
+  private _buildAnchorNamespace(): AnchorNamespace {
+    return {
+      list: (agentPassportId, options) => this._wrap(async () => {
+        const { getAnchorRegistry } = require('@lucid-l2/engine/anchoring');
+        return getAnchorRegistry().getByAgent(agentPassportId, options);
+      }),
+      get: (anchorId) => this._wrap(async () => {
+        const { getAnchorRegistry } = require('@lucid-l2/engine/anchoring');
+        return getAnchorRegistry().getById(anchorId);
+      }),
+      lineage: (anchorId) => this._wrap(async () => {
+        const { getAnchorRegistry } = require('@lucid-l2/engine/anchoring');
+        return getAnchorRegistry().getLineage(anchorId);
+      }),
+      verify: (anchorId) => this._wrap(async () => {
+        const { getAnchorVerifier } = require('@lucid-l2/engine/anchoring');
+        return getAnchorVerifier().verify(anchorId);
+      }),
+      getByCID: (cid) => this._wrap(async () => {
+        const { getAnchorRegistry } = require('@lucid-l2/engine/anchoring');
+        return getAnchorRegistry().getByCID(cid);
       }),
     };
   }
