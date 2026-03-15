@@ -5,8 +5,8 @@
  */
 
 import { Router } from 'express';
-import { PricingService } from '../../../../engine/src/payment/pricingService';
-import { RevenueService } from '../../../../engine/src/payment/revenueService';
+import { PricingService } from '../../../../engine/src/payment/services/pricingService';
+import { RevenueService } from '../../../../engine/src/payment/services/revenueService';
 import { verifyAdminAuth } from '../../middleware/adminAuth';
 import { logger } from '../../../../engine/src/lib/logger';
 

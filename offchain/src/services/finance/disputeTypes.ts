@@ -1,2 +1,2 @@
 // PROXY — real implementation moved to @lucid-l2/engine
-export * from '../../../packages/engine/src/finance/disputeTypes';
+export * from '../../../packages/engine/src/payment/escrow/disputeTypes';

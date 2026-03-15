@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { matchComputeForModel } from '../../compute/matchingEngine';
 import { verifyInferenceReceipt } from '../../../../engine/src/receipt/receiptService';
-import { executePayoutSplit, getPayoutExecution } from '../../../../engine/src/finance/payoutService';
+import { executePayoutSplit, getPayoutExecution } from '../../../../engine/src/payment/services/payoutService';
 import { blockchainAdapterFactory } from '../../../../engine/src/chain/blockchain/BlockchainAdapterFactory';
 import { CHAIN_CONFIGS } from '../../../../engine/src/chain/blockchain/chains';
 import { getReputationAggregator } from '../../reputation/reputationAggregator';

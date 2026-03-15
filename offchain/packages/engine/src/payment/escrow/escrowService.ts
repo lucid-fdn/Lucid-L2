@@ -12,7 +12,7 @@
 import { encodeFunctionData } from 'viem';
 import type { EscrowParams, EscrowInfo } from './escrowTypes';
 import { EscrowStatus } from './escrowTypes';
-import { logger } from '../lib/logger';
+import { logger } from '../../lib/logger';
 
 // LucidEscrow ABI (minimal — only the functions we call)
 const ESCROW_ABI = [
@@ -106,7 +106,7 @@ export class EscrowService {
   // ---------------------------------------------------------------------------
 
   private async storeEscrow(info: EscrowInfo): Promise<void> {
-    const { default: pool } = await import('../db/pool');
+    const { default: pool } = await import('../../db/pool');
     await pool.query(
       `INSERT INTO escrow_records (escrow_id, depositor, beneficiary, token, amount, created_at, expires_at, expected_receipt_hash, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -116,14 +116,14 @@ export class EscrowService {
   }
 
   private async loadEscrow(escrowId: string): Promise<EscrowInfo | null> {
-    const { default: pool } = await import('../db/pool');
+    const { default: pool } = await import('../../db/pool');
     const { rows } = await pool.query('SELECT * FROM escrow_records WHERE escrow_id = $1', [escrowId]);
     if (rows.length === 0) return null;
     return this.rowToEscrowInfo(rows[0]);
   }
 
   private async updateEscrowStatus(escrowId: string, status: number): Promise<void> {
-    const { default: pool } = await import('../db/pool');
+    const { default: pool } = await import('../../db/pool');
     await pool.query('UPDATE escrow_records SET status = $1, updated_at = NOW() WHERE escrow_id = $2', [status, escrowId]);
   }
 
@@ -155,8 +155,8 @@ export class EscrowService {
     chainId: string,
     params: EscrowParams,
   ): Promise<{ escrowId: string; txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../../chain/blockchain/BlockchainAdapterFactory');
+    const { CHAIN_CONFIGS } = await import('../../chain/blockchain/chains');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config) throw new Error(`Unknown chain: ${chainId}`);
@@ -210,8 +210,8 @@ export class EscrowService {
     signature: string,
     signerPubkey: string,
   ): Promise<{ txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../../chain/blockchain/BlockchainAdapterFactory');
+    const { CHAIN_CONFIGS } = await import('../../chain/blockchain/chains');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config?.escrowContract) throw new Error(`No escrow contract on chain: ${chainId}`);
@@ -244,8 +244,8 @@ export class EscrowService {
     chainId: string,
     escrowId: string,
   ): Promise<{ txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../../chain/blockchain/BlockchainAdapterFactory');
+    const { CHAIN_CONFIGS } = await import('../../chain/blockchain/chains');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config?.escrowContract) throw new Error(`No escrow contract on chain: ${chainId}`);
@@ -279,8 +279,8 @@ export class EscrowService {
     escrowId: string,
     reason: string,
   ): Promise<{ txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../../chain/blockchain/BlockchainAdapterFactory');
+    const { CHAIN_CONFIGS } = await import('../../chain/blockchain/chains');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config?.escrowContract) throw new Error(`No escrow contract on chain: ${chainId}`);
@@ -311,7 +311,7 @@ export class EscrowService {
    * List escrows for an address (depositor or beneficiary).
    */
   async listEscrows(address: string): Promise<EscrowInfo[]> {
-    const { default: pool } = await import('../db/pool');
+    const { default: pool } = await import('../../db/pool');
     const { rows } = await pool.query(
       'SELECT * FROM escrow_records WHERE depositor = $1 OR beneficiary = $1 ORDER BY created_at DESC',
       [address],
@@ -335,7 +335,7 @@ export class EscrowService {
     durationSeconds: number;
     expectedReceiptHash: string;
   }): Promise<{ escrowId: string }> {
-    const { getChainConfig } = await import('../chains/configs');
+    const { getChainConfig } = await import('../../chains/configs');
     const config = getChainConfig('solana-devnet');
     if (!config?.agentWalletProgram) {
       throw new Error('LucidAgentWallet program not configured');

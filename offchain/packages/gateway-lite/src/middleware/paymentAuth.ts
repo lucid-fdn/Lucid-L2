@@ -12,7 +12,7 @@
  */
 
 import { Request, Response, NextFunction } from 'express';
-import { verifyPaymentGrant, type PaymentGrant } from '../../../engine/src/finance/paymentGrant';
+import { verifyPaymentGrant, type PaymentGrant } from '../../../engine/src/payment/settlement/paymentGrant';
 import { logger } from '../../../engine/src/lib/logger';
 
 const TRUSTED_SIGNER = process.env.PAYMENT_GRANT_SIGNER_PUBKEY || '';

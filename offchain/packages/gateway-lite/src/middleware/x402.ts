@@ -22,11 +22,11 @@ import { base, baseSepolia } from 'viem/chains';
 import {
   SpentProofsStoreFactory,
   InMemorySpentProofsStore,
-} from '../../../engine/src/payment/spentProofsStore';
-import type { SpentProofsStore } from '../../../engine/src/payment/spentProofsStore';
+} from '../../../engine/src/payment/stores/spentProofsStore';
+import type { SpentProofsStore } from '../../../engine/src/payment/stores/spentProofsStore';
 import type { FacilitatorRegistry } from '../../../engine/src/payment/facilitators';
 import type { X402ResponseV2 } from '../../../engine/src/payment/types';
-import { PricingService } from '../../../engine/src/payment/pricingService';
+import { PricingService } from '../../../engine/src/payment/services/pricingService';
 import { logger } from '../../../engine/src/lib/logger';
 
 // =============================================================================

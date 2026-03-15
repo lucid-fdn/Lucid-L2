@@ -1,4 +1,4 @@
-import { getClient } from '../db/pool';
+import { getClient } from '../../db/pool';
 
 export interface RecordRevenueParams {
   passport_id: string;

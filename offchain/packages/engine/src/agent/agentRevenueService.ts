@@ -11,7 +11,7 @@
  * 5. If no share token: direct to agent owner wallet
  */
 
-import type { SplitConfig } from '../finance/payoutService';
+import type { SplitConfig } from '../payment/services/payoutService';
 import { logger } from '../lib/logger';
 
 export interface AgentRevenuePool {
@@ -54,7 +54,7 @@ export async function processAgentRevenue(receipt: {
 }): Promise<void> {
   // Lazy import to avoid circular dependencies
   const { createPayoutFromReceipt, storePayout } = await import(
-    '../finance/payoutService'
+    '../payment/services/payoutService'
   );
 
   // 1. Calculate payout split using agent-specific config
@@ -110,7 +110,7 @@ export async function processAgentRevenue(receipt: {
       if (tokenInfo) {
         const result = await triggerAgentAirdrop(receipt.agent_passport_id);
         if (result) {
-          const { runRevenueAirdrop } = await import('../jobs/revenueAirdrop');
+          const { runRevenueAirdrop } = await import('../payment/airdrop/revenueAirdrop');
           await runRevenueAirdrop(
             receipt.agent_passport_id,
             tokenInfo.mint,

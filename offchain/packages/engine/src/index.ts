@@ -89,18 +89,18 @@ export type {
 export { EVMAdapter } from './chains/evm/adapter';
 export { SolanaAdapter } from './chains/solana/adapter';
 
-// ─── Finance ────────────────────────────────────────────────────────────────
+// ─── Finance / Payment ──────────────────────────────────────────────────────
 export {
   calculatePayoutSplit, createPayoutFromReceipt, getPayout,
   storePayout, verifyPayoutSplit, executePayoutSplit, getPayoutExecution,
-} from './finance/payoutService';
-export { getPaymentGateService } from './finance/paymentGateService';
-export { getEscrowService, EscrowService } from './finance/escrowService';
-export type { EscrowParams, EscrowInfo } from './finance/escrowTypes';
-export { EscrowStatus } from './finance/escrowTypes';
-export { getDisputeService, DisputeService } from './finance/disputeService';
-export type { DisputeInfo, EvidenceSubmission } from './finance/disputeTypes';
-export { DisputeStatus } from './finance/disputeTypes';
+} from './payment/services/payoutService';
+export { getPaymentGateService } from './payment/stores/paymentGateService';
+export { getEscrowService, EscrowService } from './payment/escrow/escrowService';
+export type { EscrowParams, EscrowInfo } from './payment/escrow/escrowTypes';
+export { EscrowStatus } from './payment/escrow/escrowTypes';
+export { getDisputeService, DisputeService } from './payment/escrow/disputeService';
+export type { DisputeInfo, EvidenceSubmission } from './payment/escrow/disputeTypes';
+export { DisputeStatus } from './payment/escrow/disputeTypes';
 
 // ─── Deploy ─────────────────────────────────────────────────────────────────
 export {

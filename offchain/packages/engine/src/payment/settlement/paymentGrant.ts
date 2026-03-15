@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'crypto';
 import * as nacl from 'tweetnacl';
-import { canonicalJson } from '../crypto/canonicalJson';
+import { canonicalJson } from '../../crypto/canonicalJson';
 
 export interface PaymentGrantScope {
   models: string[];

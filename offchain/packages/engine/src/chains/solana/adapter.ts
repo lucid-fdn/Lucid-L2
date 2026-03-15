@@ -1004,25 +1004,25 @@ export class SolanaAdapter implements IBlockchainAdapter {
         }
       },
       async setPaymentGate(passportId, priceNative, priceLucid) {
-        const { getPaymentGateService } = await import('../../finance/paymentGateService');
+        const { getPaymentGateService } = await import('../../payment/stores/paymentGateService');
         const svc = getPaymentGateService();
         const txHash = await svc.setPaymentGate(passportId, Number(priceNative), Number(priceLucid));
         return { hash: txHash, chainId, success: true };
       },
       async payForAccess(passportId, duration) {
-        const { getPaymentGateService } = await import('../../finance/paymentGateService');
+        const { getPaymentGateService } = await import('../../payment/stores/paymentGateService');
         const svc = getPaymentGateService();
         const expiresAt = Math.floor(Date.now() / 1000) + duration;
         const txHash = await svc.payForAccess(passportId, undefined, expiresAt);
         return { hash: txHash, chainId, success: true };
       },
       async checkAccess(passportId, user) {
-        const { getPaymentGateService } = await import('../../finance/paymentGateService');
+        const { getPaymentGateService } = await import('../../payment/stores/paymentGateService');
         const svc = getPaymentGateService();
         return svc.checkAccess(passportId, user);
       },
       async withdrawRevenue(passportId) {
-        const { getPaymentGateService } = await import('../../finance/paymentGateService');
+        const { getPaymentGateService } = await import('../../payment/stores/paymentGateService');
         const svc = getPaymentGateService();
         const txHash = await svc.withdrawRevenue(passportId);
         return { hash: txHash, chainId, success: true };

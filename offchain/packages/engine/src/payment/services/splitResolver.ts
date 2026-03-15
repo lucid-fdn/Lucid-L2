@@ -1,5 +1,5 @@
 import { PricingService, AssetPricing } from './pricingService';
-import { SplitRecipient, SplitResolution, TokenConfig } from './types';
+import { SplitRecipient, SplitResolution, TokenConfig } from '../types';
 
 /**
  * Default price per call in token micro-units ($0.01 USDC = 10000 micro-units at 6 decimals).

@@ -3,9 +3,9 @@
 
 import { Connection, PublicKey, Keypair, Transaction, SystemProgram } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
-import { getSolanaKeypair } from '../chain/solana/keypair';
-import { getChainConfig } from '../chains/configs';
-import { logger } from '../lib/logger';
+import { getSolanaKeypair } from '../../chain/solana/keypair';
+import { getChainConfig } from '../../chains/configs';
+import { logger } from '../../lib/logger';
 
 export interface AirdropResult {
   passportId: string;

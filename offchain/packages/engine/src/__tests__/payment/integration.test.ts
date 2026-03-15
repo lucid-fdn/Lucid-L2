@@ -2,7 +2,7 @@ import { FacilitatorRegistry } from '../../payment/facilitators/index';
 import { DirectFacilitator } from '../../payment/facilitators/direct';
 import { CoinbaseFacilitator } from '../../payment/facilitators/coinbase';
 import { PayAIFacilitator } from '../../payment/facilitators/payai';
-import { SpentProofsStoreFactory } from '../../payment/spentProofsStore';
+import { SpentProofsStoreFactory } from '../../payment/stores/spentProofsStore';
 
 // ---------------------------------------------------------------------------
 // Integration tests — verify the entire payment stack works together

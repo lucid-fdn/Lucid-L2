@@ -9,7 +9,7 @@ import { Router } from 'express';
 import { getX402Config } from '../../middleware/x402';
 import { getFacilitatorRegistry } from '../../middleware/x402';
 import { verifyAdminAuth } from '../../middleware/adminAuth';
-import { createPaymentGrant } from '../../../../engine/src/finance/paymentGrant';
+import { createPaymentGrant } from '../../../../engine/src/payment/settlement/paymentGrant';
 import { getOrchestratorKeypair } from '../../../../engine/src/crypto/signing';
 import { logger } from '../../../../engine/src/lib/logger';
 

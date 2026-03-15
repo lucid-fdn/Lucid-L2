@@ -1,6 +1,6 @@
 // offchain/packages/engine/src/finance/paymentEventService.ts
 
-import pool from '../db/pool';
+import pool from '../../db/pool';
 
 export interface PaymentEvent {
   id?: string;

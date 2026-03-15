@@ -9,7 +9,7 @@ import { matchComputeForModel } from '../../../gateway-lite/src/compute/matching
 import { getComputeRegistry } from '../../../gateway-lite/src/compute/computeRegistry';
 import { createInferenceReceipt } from '../../../engine/src/receipt/receiptService';
 import { getReceiptTree } from '../../../engine/src/crypto/merkleTree';
-import { calculatePayoutSplit } from '../../../engine/src/finance/payoutService';
+import { calculatePayoutSplit } from '../../../engine/src/payment/services/payoutService';
 import { MEMORY_TOOL_DEFINITIONS, executeMemoryTool } from './memoryTools';
 
 // =============================================================================

@@ -2,7 +2,7 @@ import {
   InMemorySpentProofsStore,
   RedisSpentProofsStore,
   SpentProofsStoreFactory,
-} from '../../payment/spentProofsStore';
+} from '../../payment/stores/spentProofsStore';
 
 // ---------------------------------------------------------------------------
 // InMemorySpentProofsStore
