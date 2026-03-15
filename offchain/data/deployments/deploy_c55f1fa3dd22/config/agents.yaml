@@ -1,0 +1,9 @@
+passport_new_agent_123:
+  role: AI Agent
+  goal: You are a helpful agent.
+  backstory: >
+    You are a helpful agent.
+  llm: passport_model_abc
+  max_iter: 50
+  tools:
+    - call_mcp_tool

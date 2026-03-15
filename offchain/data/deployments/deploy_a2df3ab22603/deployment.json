@@ -1,0 +1,17 @@
+{
+  "deployment_id": "deploy_a2df3ab22603",
+  "passport_id": "p_123",
+  "adapter": "vercel-ai",
+  "target": "docker",
+  "created_at": 1773608727966,
+  "entrypoint": "agent.ts",
+  "config": {
+    "target": {
+      "type": "docker"
+    },
+    "restart_policy": "on_failure",
+    "env_vars": {
+      "AGENT_PASSPORT_ID": "p_123"
+    }
+  }
+}

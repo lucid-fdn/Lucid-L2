@@ -7,7 +7,7 @@ import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { logger } from '../lib/logger';
+import { logger } from '../../lib/logger';
 
 // ---------------------------------------------------------------------------
 // Types

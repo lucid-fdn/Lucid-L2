@@ -1,0 +1,17 @@
+{
+  "deployment_id": "deploy_d2ad5d421b16",
+  "passport_id": "passport_new_agent_123",
+  "adapter": "crewai",
+  "target": "docker",
+  "created_at": 1773608727943,
+  "entrypoint": "crew.py",
+  "config": {
+    "target": {
+      "type": "docker"
+    },
+    "restart_policy": "on_failure",
+    "env_vars": {
+      "AGENT_PASSPORT_ID": "passport_new_agent_123"
+    }
+  }
+}
