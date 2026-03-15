@@ -1,1 +1,2 @@
-export { EVMAdapter } from './adapter';
+// TRANSITIONAL: remove after all consumers updated
+export * from '../../shared/chains/evm';
