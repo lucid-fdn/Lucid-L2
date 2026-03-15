@@ -23,8 +23,8 @@ import {
   failEpoch,
   Epoch,
 } from './epochService';
-import { pool } from '../db/pool';
-import { logger } from '../lib/logger';
+import { pool } from '../../db/pool';
+import { logger } from '../../lib/logger';
 
 // =============================================================================
 // CONFIGURATION
@@ -489,7 +489,7 @@ export async function commitEpochRoot(epoch_id: string): Promise<AnchorResult> {
   const anchoringChains = (process.env.ANCHORING_CHAINS || 'solana-devnet').split(',').map(s => s.trim()).filter(Boolean);
 
   // Lazy import to avoid circular deps — factory may not be initialised yet
-  const { blockchainAdapterFactory } = require('../chains/factory') as typeof import('../chains/factory');
+  const { blockchainAdapterFactory } = require('../../chains/factory') as typeof import('../../chains/factory');
 
   // Check that at least one requested chain is registered
   const registeredChains = anchoringChains.filter(c => blockchainAdapterFactory.has(c));
@@ -543,7 +543,7 @@ export async function commitEpochRoot(epoch_id: string): Promise<AnchorResult> {
 
     // Archive full epoch bundle to DePIN + clean up hot data (non-blocking)
     if (process.env.DEPIN_UPLOAD_ENABLED !== 'false') {
-      import('../jobs/epochArchiver').then(({ archiveEpoch }) =>
+      import('../../jobs/epochArchiver').then(({ archiveEpoch }) =>
         archiveEpoch(epoch_id).catch(err =>
           logger.warn(`   Epoch archive failed (non-blocking):`, err instanceof Error ? err.message : err),
         ),
@@ -696,7 +696,7 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
 
         // Upload epoch proof to DePIN permanent storage (non-blocking)
         try {
-          const { getAnchorDispatcher } = await import('../anchoring');
+          const { getAnchorDispatcher } = await import('../../anchoring');
           const proof = {
             epoch_id: epoch.epoch_id,
             mmr_root: epoch.mmr_root,
@@ -854,7 +854,7 @@ export async function verifyEpochAnchor(epoch_id: string): Promise<VerifyAnchorR
     };
   }
 
-  const { blockchainAdapterFactory } = require('../chains/factory') as typeof import('../chains/factory');
+  const { blockchainAdapterFactory } = require('../../chains/factory') as typeof import('../../chains/factory');
   const agentId = epoch.agent_passport_id || epoch.project_id || '__global__';
 
   // Verify on each chain that anchored the epoch

@@ -16,12 +16,12 @@ import {
   retryEpoch,
   getEpochStats,
   Epoch,
-} from '../receipt/epochService';
+} from '../epoch/services/epochService';
 import {
   commitEpochRoot,
   checkAnchoringHealth,
   AnchorResult,
-} from '../receipt/anchoringService';
+} from '../epoch/services/anchoringService';
 
 // =============================================================================
 // CONFIGURATION

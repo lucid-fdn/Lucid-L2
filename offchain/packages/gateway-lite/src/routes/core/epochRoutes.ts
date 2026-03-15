@@ -8,14 +8,14 @@ import {
   getEpochStats,
   retryEpoch,
   EpochStatus,
-} from '../../../../engine/src/receipt/epochService';
+} from '../../../../engine/src/epoch/services/epochService';
 import {
   commitEpochRoot,
   commitEpochRootsBatch,
   verifyEpochAnchor,
   getAnchorTransaction,
   checkAnchoringHealth,
-} from '../../../../engine/src/receipt/anchoringService';
+} from '../../../../engine/src/epoch/services/anchoringService';
 import { logger } from '../../../../engine/src/lib/logger';
 
 export const epochRouter = Router();

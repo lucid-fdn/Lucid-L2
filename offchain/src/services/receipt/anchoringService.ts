@@ -22,5 +22,5 @@ export {
   resetAnchoringState,
   enableMockMode,
   disableMockMode,
-} from '../../../packages/engine/src/receipt/anchoringService';
-export type { AnchoringConfig, AnchorResult, VerifyAnchorResult } from '../../../packages/engine/src/receipt/anchoringService';
+} from '../../../packages/engine/src/epoch/services/anchoringService';
+export type { AnchoringConfig, AnchorResult, VerifyAnchorResult } from '../../../packages/engine/src/epoch/services/anchoringService';

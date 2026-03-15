@@ -10,9 +10,9 @@
  * - Manual trigger via API
  */
 import { v4 as uuid } from 'uuid';
-import { getMmrRoot, getMmrLeafCount, listInferenceReceipts, getInferenceReceipt, InferenceReceipt } from './receiptService';
-import pool from '../db/pool';
-import { logger } from '../lib/logger';
+import { getMmrRoot, getMmrLeafCount, listInferenceReceipts, getInferenceReceipt, InferenceReceipt } from '../../receipt/receiptService';
+import pool from '../../db/pool';
+import { logger } from '../../lib/logger';
 
 // =============================================================================
 // TYPES

@@ -38,7 +38,7 @@ jest.mock('../../../../engine/src/receipt/receiptService', () => ({
 const mockGetAllEpochs = jest.fn();
 const mockAddReceiptToEpoch = jest.fn();
 
-jest.mock('../../../../engine/src/receipt/epochService', () => ({
+jest.mock('../../../../engine/src/epoch/services/epochService', () => ({
   getAllEpochs: mockGetAllEpochs,
   addReceiptToEpoch: mockAddReceiptToEpoch,
 }));
