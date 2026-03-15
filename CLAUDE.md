@@ -95,26 +95,60 @@ In-memory registry with 30s TTL. Compute nodes send periodic heartbeats to stay 
 - **x402 payment**: HTTP 402 protocol — server returns payment instructions, agent pays USDC on-chain, retries with `X-Payment-Proof` header. Facilitator-agnostic (DirectFacilitator, CoinbaseFacilitator, PayAIFacilitator). Dynamic pricing resolved per-asset from `asset_pricing` table. SpentProofsStore (Redis/in-memory) prevents replay.
 - **Compute matching**: Runtime compat → hardware check → policy eval → score → select
 
-### DePIN Storage Layer (Swappable)
-Decentralized storage behind `IDepinStorage` interface. Factory: `getPermanentStorage()` / `getEvolvingStorage()`.
+### DePIN & Anchoring (Unified)
 
-| Provider | Env Value | Use Case |
-|----------|-----------|----------|
-| `ArweaveStorage` | `arweave` | Permanent metadata (via Irys SDK) |
-| `LighthouseStorage` | `lighthouse` | Evolving data (Filecoin+IPFS) |
-| `MockStorage` | `mock` | Dev/test (local SHA-256 files) |
+**Rule: No feature touches `IDepinStorage` directly.** All DePIN uploads go through the Anchoring Control Plane.
 
-Env: `DEPIN_PERMANENT_PROVIDER`, `DEPIN_EVOLVING_PROVIDER` (default: `mock`). Kill switch: `DEPIN_UPLOAD_ENABLED=false`.
+```
+Any feature → AnchorDispatcher.dispatch() → IDepinStorage → AnchorRegistry
+```
 
-### Anchoring Control Plane (Unified DePIN Interface)
-All DePIN uploads go through `AnchorDispatcher.dispatch()` → `IDepinStorage` → `AnchorRegistry`.
-7 artifact types: epoch_bundle, epoch_proof, memory_snapshot, deploy_artifact, passport_metadata, nft_metadata, mmr_checkpoint.
-One CID registry (`anchor_records` table), cross-reference lineage via `parent_anchor_id`, unified query surface.
-`dispatch()` returns `AnchorResult | null` (null when `DEPIN_UPLOAD_ENABLED=false`). All callers null-guard.
-Dedup: UNIQUE constraint on `(artifact_type, artifact_id, content_hash)`. Registry is L3 projection — rebuildable from L1+L2.
-Routes: `GET /v1/anchors`, `GET /v1/anchors/:id`, `GET /v1/anchors/:id/lineage`, `POST /v1/anchors/:id/verify`, `GET /v1/anchors/cid/:cid`.
-Env: `ANCHOR_REGISTRY_STORE=postgres|memory` (default: postgres).
-Files: `engine/src/anchoring/` (types, dispatcher, registry, verifier, index).
+**Storage Providers** (`IDepinStorage` interface, swappable):
+
+| Provider | Env Value | Tier | Use Case |
+|----------|-----------|------|----------|
+| `ArweaveStorage` | `arweave` | Permanent | Immutable artifacts (epochs, passports, deploys) |
+| `LighthouseStorage` | `lighthouse` | Evolving | Mutable/supersedable (memory snapshots, MMR checkpoints) |
+| `MockStorage` | `mock` | Either | Dev/test (local SHA-256 files) |
+
+**Anchoring Control Plane** (`engine/src/anchoring/`):
+
+All 7 producers use `getAnchorDispatcher().dispatch()`:
+
+| Producer | Artifact Type | Storage Tier |
+|----------|--------------|-------------|
+| `epochArchiver` | `epoch_bundle` | permanent |
+| `anchoringService` | `epoch_proof` | permanent |
+| `archivePipeline` | `memory_snapshot` | evolving |
+| `agentDeploymentService` | `deploy_artifact` | permanent |
+| `passportSyncService` | `passport_metadata` | permanent |
+| `passportManager` | `nft_metadata` | permanent |
+| `mmrCheckpoint` | `mmr_checkpoint` | evolving |
+
+**Key behaviors:**
+- `dispatch()` returns `AnchorResult | null` — null when `DEPIN_UPLOAD_ENABLED=false`. All callers MUST null-guard.
+- Content hash: SHA-256 of `canonicalJson(payload)` — always populated, never null.
+- Dedup: UNIQUE constraint on `(artifact_type, artifact_id, content_hash)`. Same payload uploaded twice → returns existing record.
+- Lineage: `parent_anchor_id` for cross-reference (e.g., snapshot supersedes prior snapshot).
+- Registry is L3 projection — rebuildable from on-chain + DePIN.
+
+**Components:**
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `AnchorDispatcher` | `dispatcher.ts` | Upload to DePIN + write registry record |
+| `IAnchorRegistry` | `registry.ts` | CRUD for `anchor_records` (InMemory + Postgres) |
+| `AnchorVerifier` | `verifier.ts` | Check CID existence on provider |
+| Factory | `index.ts` | `getAnchorDispatcher()`, `getAnchorRegistry()`, `getAnchorVerifier()` |
+
+**Routes:**
+- `GET /v1/anchors?agent_passport_id=X&artifact_type=Y` — query registry
+- `GET /v1/anchors/:id` — single record
+- `GET /v1/anchors/:id/lineage` — walk parent chain
+- `GET /v1/anchors/cid/:cid` — reverse CID lookup
+- `POST /v1/anchors/:id/verify` — check CID still exists on provider
+
+**Env:** `DEPIN_PERMANENT_PROVIDER`, `DEPIN_EVOLVING_PROVIDER` (default: `mock`). `DEPIN_UPLOAD_ENABLED=false` (kill switch). `ANCHOR_REGISTRY_STORE=postgres|memory`.
 
 ### NFT Provider Layer (Chain-Agnostic)
 NFT minting behind `INFTProvider` interface. String-based addresses work for both Solana base58 and EVM 0x.
