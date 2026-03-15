@@ -70,6 +70,22 @@ Each artifact type has a default storage tier:
 | `nft_metadata` | permanent | Arweave | NFT minting URI, immutable once minted |
 | `mmr_checkpoint` | evolving | Lighthouse | Evolving state, superseded on next checkpoint |
 
+### Artifact ID conventions (deterministic per type)
+
+| Artifact Type | `artifact_id` format | Example |
+|--------------|---------------------|---------|
+| `epoch_bundle` | `{epoch_id}` | `ep_abc123` |
+| `epoch_proof` | `{epoch_id}` | `ep_abc123` |
+| `memory_snapshot` | `{snapshot_id}` | `snap_def456` |
+| `deploy_artifact` | `{passport_id}:{deployment_target}` | `agent_xyz:railway` |
+| `passport_metadata` | `{passport_id}` | `agent_xyz` |
+| `nft_metadata` | `{passport_id}:nft` | `agent_xyz:nft` |
+| `mmr_checkpoint` | `mmr:{root_hash_prefix_16}` | `mmr:a1b2c3d4e5f6g7h8` |
+
+### Dedup strategy
+
+The registry uses a **UNIQUE constraint** on `(artifact_type, artifact_id, content_hash)`. If the same payload is uploaded twice for the same artifact, the second insert is a no-op (ON CONFLICT DO NOTHING). Different payloads for the same artifact (re-upload with updated data) create separate records — the latest is found via `getLatestByArtifact()`.
+
 ---
 
 ## Section 2: AnchorRecord (Registry Schema)
@@ -130,6 +146,7 @@ CREATE INDEX idx_anchor_agent ON anchor_records(agent_passport_id, created_at DE
 CREATE INDEX idx_anchor_cid ON anchor_records(cid);
 CREATE INDEX idx_anchor_parent ON anchor_records(parent_anchor_id) WHERE parent_anchor_id IS NOT NULL;
 CREATE INDEX idx_anchor_status ON anchor_records(status) WHERE status != 'uploaded';
+CREATE UNIQUE INDEX idx_anchor_dedup ON anchor_records(artifact_type, artifact_id, content_hash) WHERE content_hash IS NOT NULL;
 ```
 
 ---
@@ -142,6 +159,7 @@ The single entry point for all DePIN uploads. Handles: provider selection → up
 
 ```typescript
 import { createHash } from 'crypto';
+import { canonicalJson } from '../crypto/canonicalJson';
 import type { IDepinStorage, UploadResult } from '../storage/depin/IDepinStorage';
 import type { AnchorRecord, ArtifactType, StorageTier } from './types';
 
@@ -180,9 +198,7 @@ export class AnchorDispatcher {
       ? this.permanentStorage
       : this.evolvingStorage;
 
-    // 2. Compute content hash if not provided
-    // Use canonical JSON (RFC 8785 / JCS) for deterministic hashing — matches receipt hash algorithm
-    const { canonicalJson } = require('../crypto/canonicalJson');
+    // 2. Compute content hash if not provided (canonical JSON for deterministic hashing)
     const payloadBuf = Buffer.isBuffer(request.payload)
       ? request.payload
       : Buffer.from(canonicalJson(request.payload));
@@ -365,7 +381,7 @@ export function resetAnchoring(): void {
 
 ---
 
-## Section 7: Refactor All 6 Producers
+## Section 7: Refactor All 7 Producers
 
 Each producer switches from direct `IDepinStorage.uploadJSON()` to `AnchorDispatcher.dispatch()`.
 
@@ -391,8 +407,12 @@ const result = await getAnchorDispatcher().dispatch({
   chain_tx: chainTx,
   metadata: { epoch_index: row.epoch_index, leaf_count: row.leaf_count },
 });
-await pool.query('UPDATE epochs SET archive_cid = $1 WHERE epoch_id = $2', [result.cid, epoch_id]);
+if (result) {
+  await pool.query('UPDATE epochs SET archive_cid = $1 WHERE epoch_id = $2', [result.cid, epoch_id]);
+}
 ```
+
+**Null-safety rule:** Every caller MUST guard `dispatch()` result. `result === null` means DePIN uploads are disabled — the operation should continue without the CID. All "After" blocks in this section must follow this pattern.
 
 ### 7.2 anchoringService.ts (batch epoch proof)
 
