@@ -257,9 +257,9 @@ Env: `MEMORY_ENABLED`, `MEMORY_STORE` (postgres|memory), `MEMORY_EXTRACTION_ENAB
 
 New env vars: `MEMORY_STORE` (sqlite|postgres|memory), `MEMORY_DB_PATH`, `MEMORY_EMBEDDING_PROVIDER` (openai|mock|none), `MEMORY_PROJECTION_ENABLED`
 
-## Offchain Codebase Structure (monorepo, restructured 2026-03-01)
+## Offchain Codebase Structure (monorepo, feature-domain reorg 2026-03-15)
 
-Two-package monorepo: `@lucid-l2/engine` (truth library, no HTTP) + `@lucid-l2/gateway-lite` (thin Express server). Dependency direction: gateway-lite → engine (OK), engine → gateway-lite (FORBIDDEN, ESLint-enforced). Re-export proxy files in `src/` ensure backward compatibility during migration.
+Two-package monorepo: `@lucid-l2/engine` (truth library, no HTTP) + `@lucid-l2/gateway-lite` (thin Express server). Dependency direction: gateway-lite -> engine (OK), engine -> gateway-lite (FORBIDDEN, ESLint-enforced). Transitional barrel re-exports at old locations ensure backward compatibility during migration.
 
 ```
 offchain/
@@ -267,34 +267,48 @@ offchain/
   tsconfig.base.json                  # Shared compiler options
   packages/
     engine/src/                       # @lucid-l2/engine — truth library
-      config/                         # config.ts, paths.ts (PATHS helper)
-      crypto/                         # hash, signing, canonicalJson, mmr, merkleTree, schemaValidator
-      db/                             # pool.ts (PostgreSQL singleton)
-      receipt/                        # receiptService, epochService, anchoringService, mmrService
-      storage/                        # passportStore, identityStore, searchQueryBuilder
-        depin/                        # IDepinStorage → Arweave, Lighthouse, Mock
-      chains/                         # THIN adapter layer (feature-first, chain code in features)
-        factory.ts, adapter-interface.ts, configs.ts, types.ts
-        evm/                          # EVMAdapter (generic blockchain ops only)
-        solana/                       # SolanaAdapter, client, gas, keypair
-      assets/
-        nft/                          # INFTProvider → Token2022, MetaplexCore, EVM, Mock
-        shares/                       # ITokenLauncher → DirectMint, Genesis, Mock
-      passport/                       # passportManager, passportService, passportSyncService
-        nft/                          # SolanaPassportClient (Token-2022 NFT minting)
-      payment/                        # x402 payment engine (facilitators, pricingService, revenueService, splitResolver, spentProofsStore)
-      finance/                        # payoutService, paymentGateService, escrowService, disputeService
-      identity/                       # identityBridgeService, caip10, crossChainBridge
+      identity/                       # Passport, NFT, wallet, TBA, bridge, shares, registries
+        passport/                     # passportManager, passportService, passportSyncService
+        nft/                          # INFTProvider -> Token2022, MetaplexCore, EVM, Mock
+        wallet/                       # IAgentWalletProvider -> Crossmint, ERC6551, Solana, Mock
+        shares/                       # ITokenLauncher -> DirectMint, Genesis, Mock
         tba/                          # ERC-6551 TBA client + ABIs
         registries/                   # ERC-8004 Identity/Validation/Reputation clients + ABIs
-        erc7579, paymaster
-      memory/                         # MemoryMap: types, store (in-memory/postgres), service, commitments, managers, query, extraction, archive
-      jobs/                           # anchoringJob, receiptConsumer, revenueAirdrop
-      types/                          # fluidCompute, lucid_passports
-      chain/                          # Re-export proxies (backward compat → chains/)
-    gateway-lite/src/                 # @lucid-l2/gateway-lite — Express server (105 files)
+        erc7579, paymaster, bridge
+      memory/                         # 6 memory types, vector search, compaction, archive, projection
+      epoch/                          # Epoch lifecycle, anchoring, MMR
+        services/                     # epochService, anchoringService, mmrService
+      receipt/                        # Receipt creation, signing, verification
+      payment/                        # x402, pricing, splits, escrow, facilitators, airdrop
+        x402/                         # Facilitators (Direct, Coinbase, PayAI), middleware
+        services/                     # payoutService, pricingService, revenueService
+        escrow/                       # escrowService, disputeService
+        stores/                       # paymentGateService, spentProofsStore
+        airdrop/                      # revenueAirdrop
+      compute/                        # Deploy (6 targets), runtime adapters, agent descriptors
+        deploy/                       # IDeployer -> Docker, Railway, Akash, Phala, io.net, Nosana
+        runtime/                      # IRuntimeAdapter -> VercelAI, OpenClaw, CrewAI, LangGraph, etc.
+        agent/                        # agentDeploymentService, agentDescriptor, agentRevenueService
+          a2a/                        # A2A protocol client/server/agentCard
+      anchoring/                      # Unified DePIN interface — dispatcher, registry, verifier
+      reputation/                     # Provider + syncer interfaces, on-chain + off-chain
+      shared/                         # Cross-cutting infrastructure
+        crypto/                       # hash, signing, canonicalJson, mmr, merkleTree, schemaValidator
+        db/                           # pool.ts (PostgreSQL singleton)
+        config/                       # config.ts, paths.ts
+        lib/                          # logger
+        chains/                       # Adapter layer: Solana + EVM adapters, factory, configs
+        depin/                        # IDepinStorage -> Arweave, Lighthouse, Mock
+        jobs/                         # anchoringJob, receiptConsumer, agentHealthMonitor, etc.
+        types/                        # fluidCompute, lucid_passports
+        storage/                      # searchQueryBuilder
+      storage/                        # passportStore, identityStore (+ depin barrel)
+      assets/                         # Legacy barrel -> identity/nft, identity/shares
+      utils/                          # retry, circuitBreaker
+      errors.ts                       # Shared error classes
+    gateway-lite/src/                 # @lucid-l2/gateway-lite — Express server
       index.ts                        # Server entry point (Express app, startup sequence)
-      api.ts                          # /api router (2553 lines, will be split later)
+      api.ts                          # /api router
       compute/                        # computeRegistry, policyEngine, matchingEngine, modelCatalog
       inference/                      # executionGateway, computeClient, contentService
       agent/                          # agentOrchestrator, agentPlanner, executorRouter
@@ -303,22 +317,10 @@ offchain/
       middleware/                     # adminAuth, hmacAuth, privyAuth, x402
       providers/                      # llm, mock, openai, router
       protocols/                      # BaseProtocolAdapter, ProtocolRegistry, adapters/
-      integrations/
-        hf/                           # hfBridgeService, hfSyncOrchestrator, deprecationDetector
-        n8n/                          # n8nNodeIndexer, elasticsearchService, n8nGateway
-        oauth/                        # nangoService, providerProfileService
-        mcp/                          # mcpRegistry, mcpTypes
-        mcp-server/                   # mcpServer (MCP tool server)
-        zkml/                         # zkmlService, zkmlTypes
-        flowspec/                     # flowspecService, n8nCompiler
-        hyperliquid/                  # tradingService
+      integrations/                   # hf, n8n, oauth, mcp, zkml, flowspec, hyperliquid
       services/                       # rewardService, sessionSignerService
-      lib/auth/                       # sessionService
-      lib/observability/              # sentry, tracing
+      lib/                            # auth, observability
   src/                                # Re-export proxies (backward compat, will be removed)
-    index.ts                          # Delegates to packages/gateway-lite/src/index.ts
-    utils/, services/, routes/, ...   # Proxy files: export * from '../../packages/...'
-    _archive/                         # Dead code quarantine
 ```
 
 ## Key Files
