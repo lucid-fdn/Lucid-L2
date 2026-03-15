@@ -1,8 +1,0 @@
-main_task:
-  description: >
-    Execute the given goal using available tools and knowledge.
-    Goal: {goal}
-  expected_output: >
-    A comprehensive result addressing the goal with supporting evidence.
-  agent: passport_new_agent_123
-  output_file: result.md
