@@ -59,9 +59,9 @@ import type { Passport } from '../../engine/src/storage/passportStore';
 import { initReceiptConsumer, startReceiptConsumer, stopReceiptConsumer } from '../../engine/src/jobs/receiptConsumer';
 import pool from '../../engine/src/db/pool';
 import { initReceiptMMR } from '../../engine/src/crypto/receiptMMR';
-import { setAnchoringConfig, setAuthorityKeypair, commitEpochRoot } from '../../engine/src/receipt/anchoringService';
+import { setAnchoringConfig, setAuthorityKeypair, commitEpochRoot } from '../../engine/src/epoch/services/anchoringService';
 import { startAnchoringJob, setAnchoringJobConfig } from '../../engine/src/jobs/anchoringJob';
-import { setAnchorCallback, startAutoFinalization } from '../../engine/src/receipt/epochService';
+import { setAnchorCallback, startAutoFinalization } from '../../engine/src/epoch/services/epochService';
 import { getKeypair } from '../../engine/src/chain/solana/client';
 import { blockchainAdapterFactory } from '../../engine/src/chain/blockchain/BlockchainAdapterFactory';
 import { EVMAdapter } from '../../engine/src/chain/blockchain/evm/EVMAdapter';
@@ -360,7 +360,7 @@ getPassportManager().init().then(async () => {
     console.warn('⚠️ Receipt MMR restore failed (starting fresh):', err instanceof Error ? err.message : err);
   }
   try {
-    const { loadEpochsFromDb } = await import('../../engine/src/receipt/epochService');
+    const { loadEpochsFromDb } = await import('../../engine/src/epoch/services/epochService');
     const loaded = await loadEpochsFromDb();
     if (loaded > 0) {
       console.log(`📦 Epoch state: restored ${loaded} active epoch(s) from DB`);

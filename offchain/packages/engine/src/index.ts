@@ -58,14 +58,14 @@ export type { ComputeReceiptInput } from './types/fluidCompute';
 export {
   createEpoch, getAllEpochs, getEpoch, finalizeEpoch, getCurrentEpoch,
   addReceiptToEpoch, resetEpochStore, prepareEpochForFinalization, failEpoch,
-} from './receipt/epochService';
-export type { Epoch, EpochStatus } from './receipt/epochService';
+} from './epoch/services/epochService';
+export type { Epoch, EpochStatus } from './epoch/services/epochService';
 export {
   setAnchoringConfig, setAuthorityKeypair, commitEpochRoot, commitEpochRootsBatch,
-} from './receipt/anchoringService';
-export type { AnchoringConfig, AnchorResult } from './receipt/anchoringService';
-export { getMMRService } from './receipt/mmrService';
-export type { AgentEpochData } from './receipt/mmrService';
+} from './epoch/services/anchoringService';
+export type { AnchoringConfig, AnchorResult } from './epoch/services/anchoringService';
+export { getMMRService } from './epoch/services/mmrService';
+export type { AgentEpochData } from './epoch/services/mmrService';
 
 // ─── Passport ───────────────────────────────────────────────────────────────
 export { getPassportManager, resetPassportManager, PassportManager } from './passport/passportManager';
@@ -89,18 +89,18 @@ export type {
 export { EVMAdapter } from './chains/evm/adapter';
 export { SolanaAdapter } from './chains/solana/adapter';
 
-// ─── Finance ────────────────────────────────────────────────────────────────
+// ─── Finance / Payment ──────────────────────────────────────────────────────
 export {
   calculatePayoutSplit, createPayoutFromReceipt, getPayout,
   storePayout, verifyPayoutSplit, executePayoutSplit, getPayoutExecution,
-} from './finance/payoutService';
-export { getPaymentGateService } from './finance/paymentGateService';
-export { getEscrowService, EscrowService } from './finance/escrowService';
-export type { EscrowParams, EscrowInfo } from './finance/escrowTypes';
-export { EscrowStatus } from './finance/escrowTypes';
-export { getDisputeService, DisputeService } from './finance/disputeService';
-export type { DisputeInfo, EvidenceSubmission } from './finance/disputeTypes';
-export { DisputeStatus } from './finance/disputeTypes';
+} from './payment/services/payoutService';
+export { getPaymentGateService } from './payment/stores/paymentGateService';
+export { getEscrowService, EscrowService } from './payment/escrow/escrowService';
+export type { EscrowParams, EscrowInfo } from './payment/escrow/escrowTypes';
+export { EscrowStatus } from './payment/escrow/escrowTypes';
+export { getDisputeService, DisputeService } from './payment/escrow/disputeService';
+export type { DisputeInfo, EvidenceSubmission } from './payment/escrow/disputeTypes';
+export { DisputeStatus } from './payment/escrow/disputeTypes';
 
 // ─── Deploy ─────────────────────────────────────────────────────────────────
 export {

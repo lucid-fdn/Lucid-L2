@@ -1,1 +1,2 @@
-export { SolanaPassportClient } from './solana-token2022';
+// TRANSITIONAL: remove after all consumers updated
+export { SolanaPassportClient } from '../../identity/nft/solana/solana-token2022';

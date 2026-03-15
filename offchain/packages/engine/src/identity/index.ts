@@ -1,5 +1,28 @@
-export { getIdentityBridgeService, IdentityBridgeService } from './identityBridgeService';
-export { validateCaip10, fromCaip10, isSolanaCaip10, isEvmCaip10 } from './caip10';
+// Identity — passport, NFT, wallet, shares, bridge, TBA, registries
+
+// ─── Passport ───────────────────────────────────────────────────────────────
+export { getPassportManager, resetPassportManager, PassportManager } from './passport/passportManager';
+export type { CreatePassportInput, OperationResult, OnChainSyncHandler, ComputeAvailabilityChecker, ModelCatalogLookup } from './passport/passportManager';
+export { getPassportSyncService, PassportSyncService } from './passport/passportSyncService';
+export { getPassportService } from './passport/passportService';
+
+// ─── NFT ────────────────────────────────────────────────────────────────────
+export { getNFTProvider, getAllNFTProviders } from './nft';
+export type { INFTProvider, MintResult, NFTMetadata } from './nft/INFTProvider';
+
+// ─── Shares ─────────────────────────────────────────────────────────────────
+export { getTokenLauncher } from './shares';
+export type { ITokenLauncher, TokenLaunchResult, TokenLaunchParams, TokenInfo } from './shares/ITokenLauncher';
+
+// ─── Wallet ─────────────────────────────────────────────────────────────────
+export { getAgentWalletProvider } from './wallet';
+export type { IAgentWalletProvider, AgentWallet, WalletBalance, TransactionRequest, TransactionResult, SpendingLimits } from './wallet/IAgentWalletProvider';
+
+// ─── Bridge ─────────────────────────────────────────────────────────────────
+export { getIdentityBridgeService, IdentityBridgeService } from './bridge/identityBridgeService';
+export { validateCaip10, fromCaip10, isSolanaCaip10, isEvmCaip10 } from './bridge/caip10';
+
+// ─── EVM Services ───────────────────────────────────────────────────────────
 export { getTBAService } from './tbaService';
 export { getERC7579Service, ERC7579Service } from './erc7579Service';
 export { getPaymasterService, PaymasterService } from './paymasterService';

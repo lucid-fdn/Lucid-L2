@@ -2,8 +2,8 @@ jest.mock('../../db/pool', () => ({
   getClient: jest.fn(),
 }));
 
-import { PricingService, AssetPricing } from '../../payment/pricingService';
-import { SplitResolver, DEFAULT_PRICE_PER_CALL } from '../../payment/splitResolver';
+import { PricingService, AssetPricing } from '../../payment/services/pricingService';
+import { SplitResolver, DEFAULT_PRICE_PER_CALL } from '../../payment/services/splitResolver';
 
 // ---------------------------------------------------------------------------
 // Mock PricingService

@@ -1,5 +1,5 @@
 import express from 'express';
-import { getMMRService } from '../../../../engine/src/receipt/mmrService';
+import { getMMRService } from '../../../../engine/src/epoch/services/mmrService';
 import { logger } from '../../../../engine/src/lib/logger';
 
 export const systemApiRouter = express.Router();

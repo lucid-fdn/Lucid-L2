@@ -64,3 +64,4 @@ sdk/.speakeasy/
 
 # Worktrees
 .worktrees/
+offchain/data/

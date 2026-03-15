@@ -3,7 +3,7 @@ jest.mock('../../db/pool', () => ({
 }));
 
 import { getClient } from '../../db/pool';
-import { PricingService } from '../../payment/pricingService';
+import { PricingService } from '../../payment/services/pricingService';
 
 const mockQuery = jest.fn();
 const mockRelease = jest.fn();

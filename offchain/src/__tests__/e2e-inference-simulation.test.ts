@@ -96,7 +96,7 @@ jest.mock('../services/receipt/epochService', () => ({
   getAllEpochs: jest.fn(() => []),
 }));
 // Dual-path: gateway-lite epochRoutes + receiptRoutes import from engine
-jest.mock('../../packages/engine/src/receipt/epochService', () =>
+jest.mock('../../packages/engine/src/epoch/services/epochService', () =>
   require('../services/receipt/epochService'));
 
 jest.mock('../services/receipt/anchoringService', () => ({
@@ -107,7 +107,7 @@ jest.mock('../services/receipt/anchoringService', () => ({
   checkAnchoringHealth: jest.fn(() => ({ healthy: true })),
 }));
 // Dual-path: gateway-lite epochRoutes imports from engine
-jest.mock('../../packages/engine/src/receipt/anchoringService', () =>
+jest.mock('../../packages/engine/src/epoch/services/anchoringService', () =>
   require('../services/receipt/anchoringService'));
 
 jest.mock('../blockchain/BlockchainAdapterFactory', () => ({

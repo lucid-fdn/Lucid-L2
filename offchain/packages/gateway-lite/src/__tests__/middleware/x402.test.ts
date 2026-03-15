@@ -17,7 +17,7 @@ import {
   setSpentProofsStore,
 } from '../../middleware/x402';
 import type { RequirePaymentOptions } from '../../middleware/x402';
-import type { SpentProofsStore } from '../../../../engine/src/payment/spentProofsStore';
+import type { SpentProofsStore } from '../../../../engine/src/payment/stores/spentProofsStore';
 
 // ---------------------------------------------------------------------------
 // Helper: build a minimal Express app with x402 middleware on /protected

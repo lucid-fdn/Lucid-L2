@@ -1,9 +1,7 @@
-export { getPassportManager, resetPassportManager, PassportManager } from './passportManager';
-export type { CreatePassportInput, OperationResult, OnChainSyncHandler, ComputeAvailabilityChecker, ModelCatalogLookup } from './passportManager';
-// matchingEngine and modelCatalog live in gateway-lite (serving layer).
-// Consumers should import from gateway-lite directly, not via engine.
-export { getPassportSyncService, PassportSyncService } from './passportSyncService';
-export { getPassportService } from './passportService';
+// TRANSITIONAL: remove after all consumers updated
+export * from '../identity/passport/passportManager';
+export * from '../identity/passport/passportService';
+export * from '../identity/passport/passportSyncService';
 
 // Passport NFT minting
-export { SolanaPassportClient } from './nft/solana-token2022';
+export { SolanaPassportClient } from '../identity/nft/solana/solana-token2022';

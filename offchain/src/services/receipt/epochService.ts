@@ -22,5 +22,5 @@ export {
   setAnchorCallback,
   resetEpochStore,
   shouldFinalizeEpoch,
-} from '../../../packages/engine/src/receipt/epochService';
-export type { EpochStatus, Epoch, EpochSummary, EpochFilters, PaginatedEpochs, EpochConfig } from '../../../packages/engine/src/receipt/epochService';
+} from '../../../packages/engine/src/epoch/services/epochService';
+export type { EpochStatus, Epoch, EpochSummary, EpochFilters, PaginatedEpochs, EpochConfig } from '../../../packages/engine/src/epoch/services/epochService';

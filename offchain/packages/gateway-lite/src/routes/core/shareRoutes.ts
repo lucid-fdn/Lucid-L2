@@ -111,7 +111,7 @@ shareRouter.post('/v1/passports/:id/token/airdrop', async (req, res) => {
       return res.status(400).json({ success: false, error: 'No share token found for this passport. Launch a token first.' });
     }
 
-    const { runRevenueAirdrop } = require('../../../engine/src/jobs/revenueAirdrop');
+    const { runRevenueAirdrop } = require('../../../engine/src/payment/airdrop/revenueAirdrop');
     const result = await runRevenueAirdrop(passportId, tokenMint, Number(amountLamports));
 
     res.json({ success: true, ...result });

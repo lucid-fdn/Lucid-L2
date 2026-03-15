@@ -1,5 +1,5 @@
 import express from 'express';
-import { getMMRService, AgentEpochData } from '../../../../engine/src/receipt/mmrService';
+import { getMMRService, AgentEpochData } from '../../../../engine/src/epoch/services/mmrService';
 import { FlowSpec, FlowExecutionContext } from '../../../../contrib/integrations/flowspec/types';
 import { logger } from '../../../../engine/src/lib/logger';
 
