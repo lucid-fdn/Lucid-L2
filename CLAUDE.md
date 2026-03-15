@@ -106,6 +106,16 @@ Decentralized storage behind `IDepinStorage` interface. Factory: `getPermanentSt
 
 Env: `DEPIN_PERMANENT_PROVIDER`, `DEPIN_EVOLVING_PROVIDER` (default: `mock`). Kill switch: `DEPIN_UPLOAD_ENABLED=false`.
 
+### Anchoring Control Plane (Unified DePIN Interface)
+All DePIN uploads go through `AnchorDispatcher.dispatch()` → `IDepinStorage` → `AnchorRegistry`.
+7 artifact types: epoch_bundle, epoch_proof, memory_snapshot, deploy_artifact, passport_metadata, nft_metadata, mmr_checkpoint.
+One CID registry (`anchor_records` table), cross-reference lineage via `parent_anchor_id`, unified query surface.
+`dispatch()` returns `AnchorResult | null` (null when `DEPIN_UPLOAD_ENABLED=false`). All callers null-guard.
+Dedup: UNIQUE constraint on `(artifact_type, artifact_id, content_hash)`. Registry is L3 projection — rebuildable from L1+L2.
+Routes: `GET /v1/anchors`, `GET /v1/anchors/:id`, `GET /v1/anchors/:id/lineage`, `POST /v1/anchors/:id/verify`, `GET /v1/anchors/cid/:cid`.
+Env: `ANCHOR_REGISTRY_STORE=postgres|memory` (default: postgres).
+Files: `engine/src/anchoring/` (types, dispatcher, registry, verifier, index).
+
 ### NFT Provider Layer (Chain-Agnostic)
 NFT minting behind `INFTProvider` interface. String-based addresses work for both Solana base58 and EVM 0x.
 

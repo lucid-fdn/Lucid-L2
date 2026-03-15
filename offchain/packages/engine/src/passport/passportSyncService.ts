@@ -310,23 +310,31 @@ export class PassportSyncService implements OnChainSyncHandler {
       let metadataCid = getMetadataCid(passport);
       const licenseCode = getLicenseCode(passport);
 
-      // Upload metadata to DePIN permanent storage if enabled
+      // Upload metadata to DePIN permanent storage via AnchorDispatcher
       // Re-upload when forceReupload is true (metadata changed) or when no CID exists yet
-      if (process.env.DEPIN_UPLOAD_ENABLED !== 'false' && (!metadataCid || options?.forceReupload)) {
+      if (!metadataCid || options?.forceReupload) {
         try {
-          const { getPermanentStorage } = require('../../storage/depin');
-          const result = await getPermanentStorage().uploadJSON(passport.metadata, {
+          const { getAnchorDispatcher } = await import('../anchoring');
+          const anchorResult = await getAnchorDispatcher().dispatch({
+            artifact_type: 'passport_metadata',
+            artifact_id: passport.passport_id,
+            agent_passport_id: passport.type === 'agent' ? passport.passport_id : null,
+            producer: 'passportSyncService',
+            storage_tier: 'permanent',
+            payload: passport.metadata,
             tags: {
               'lucid-passport-id': passport.passport_id,
               'lucid-type': passport.type,
               'lucid-version': passport.version || '1.0.0',
             },
           });
-          metadataCid = result.cid;
-          // Store DePIN info on the passport record
-          passport.depin_metadata_cid = result.cid;
-          passport.depin_provider = result.provider;
-          logger.info(`   DePIN: uploaded metadata -> ${result.cid} (${result.provider})`);
+          if (anchorResult) {
+            metadataCid = anchorResult.cid;
+            // Store DePIN info on the passport record
+            passport.depin_metadata_cid = anchorResult.cid;
+            passport.depin_provider = anchorResult.provider;
+            logger.info(`   DePIN: uploaded metadata -> ${anchorResult.cid} (${anchorResult.provider})`);
+          }
         } catch (err) {
           logger.warn(`   DePIN upload failed, continuing without:`, err instanceof Error ? err.message : err);
         }

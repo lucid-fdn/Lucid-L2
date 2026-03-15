@@ -3,13 +3,27 @@ import { SQLiteMemoryStore } from '../store/sqlite/store';
 import { computeMemoryHash } from '../commitments';
 import type { LucidMemoryFile } from '../types';
 
-// Mock DePIN storage
-const mockStorage = {
-  providerName: 'mock',
-  uploadJSON: jest.fn().mockResolvedValue({ cid: 'bafysnap-e2e', url: 'http://mock/bafysnap-e2e' }),
-  uploadBytes: jest.fn().mockResolvedValue({ cid: 'bafybytes', url: 'http://mock/bafybytes' }),
-  retrieve: jest.fn(),
-};
+// Shared dispatch mock — same instance used by both jest.mock and test assertions
+const mockDispatch = jest.fn().mockResolvedValue({
+  anchor_id: 'a1',
+  cid: 'bafysnap-e2e',
+  url: 'http://mock/bafysnap-e2e',
+  provider: 'mock',
+  size_bytes: 100,
+});
+
+// Mock anchoring module
+jest.mock('../../anchoring', () => ({
+  getAnchorDispatcher: () => ({
+    dispatch: mockDispatch,
+  }),
+}));
+
+// Mock DePIN storage for restore reads
+const mockEvolvingRetrieve = jest.fn();
+jest.mock('../../storage/depin', () => ({
+  getEvolvingStorage: () => ({ retrieve: mockEvolvingRetrieve }),
+}));
 
 // Mock signing
 jest.mock('../../crypto/signing', () => ({
@@ -27,8 +41,16 @@ describe('Snapshot E2E (SQLite)', () => {
 
   beforeEach(() => {
     store = new SQLiteMemoryStore(':memory:');
-    pipeline = new ArchivePipeline(store, mockStorage as any, async () => 'mockpub-snapshot-e2e');
+    pipeline = new ArchivePipeline(store, async () => 'mockpub-snapshot-e2e');
     jest.clearAllMocks();
+    // Re-set default resolved value after clearAllMocks
+    mockDispatch.mockResolvedValue({
+      anchor_id: 'a1',
+      cid: 'bafysnap-e2e',
+      url: 'http://mock/bafysnap-e2e',
+      provider: 'mock',
+      size_bytes: 100,
+    });
   });
 
   afterEach(() => {
@@ -83,8 +105,9 @@ describe('Snapshot E2E (SQLite)', () => {
     expect(latestSnapshot!.entry_count).toBe(2);
     expect(latestSnapshot!.snapshot_type).toBe('checkpoint');
 
-    // Verify the uploaded LMF
-    const uploadedLmf = mockStorage.uploadJSON.mock.calls[0][0] as LucidMemoryFile;
+    // Verify the uploaded LMF via the dispatch mock
+    expect(mockDispatch).toHaveBeenCalledTimes(1);
+    const uploadedLmf = mockDispatch.mock.calls[0][0].payload as LucidMemoryFile;
     expect(uploadedLmf.version).toBe('1.0');
     expect(uploadedLmf.agent_passport_id).toBe('agent-snap');
     expect(uploadedLmf.entry_count).toBe(2);
@@ -109,7 +132,7 @@ describe('Snapshot E2E (SQLite)', () => {
       signature: 'mocksig-snapshot-e2e',
       signer_pubkey: 'mockpub-snapshot-e2e',
     };
-    mockStorage.retrieve.mockResolvedValue(lmf);
+    mockEvolvingRetrieve.mockResolvedValue(lmf);
 
     // Attempt to restore as a different agent
     await expect(
@@ -150,7 +173,7 @@ describe('Snapshot E2E (SQLite)', () => {
       signature: 'mocksig-snapshot-e2e',
       signer_pubkey: 'mockpub-snapshot-e2e',
     };
-    mockStorage.retrieve.mockResolvedValue(lmf);
+    mockEvolvingRetrieve.mockResolvedValue(lmf);
 
     // Restore as __admin__ — should succeed
     const result = await pipeline.restoreSnapshot('__admin__', {

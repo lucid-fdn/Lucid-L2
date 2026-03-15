@@ -3,13 +3,27 @@ import { InMemoryMemoryStore } from '../store/in-memory';
 import { computeMemoryHash } from '../commitments';
 import type { LucidMemoryFile } from '../types';
 
-// Mock DePIN storage
-const mockStorage = {
-  providerName: 'mock',
-  uploadJSON: jest.fn().mockResolvedValue({ cid: 'bafymock123', url: 'http://mock/bafymock123' }),
-  uploadBytes: jest.fn().mockResolvedValue({ cid: 'bafymock456', url: 'http://mock/bafymock456' }),
-  retrieve: jest.fn(),
-};
+// Shared dispatch mock — same instance used by both jest.mock and test assertions
+const mockDispatch = jest.fn().mockResolvedValue({
+  anchor_id: 'a1',
+  cid: 'bafymock123',
+  url: 'http://mock/bafymock123',
+  provider: 'mock',
+  size_bytes: 100,
+});
+
+// Mock anchoring module
+jest.mock('../../anchoring', () => ({
+  getAnchorDispatcher: () => ({
+    dispatch: mockDispatch,
+  }),
+}));
+
+// Mock DePIN storage for restore reads
+const mockEvolvingRetrieve = jest.fn();
+jest.mock('../../storage/depin', () => ({
+  getEvolvingStorage: () => ({ retrieve: mockEvolvingRetrieve }),
+}));
 
 // Mock signing
 jest.mock('../../crypto/signing', () => ({
@@ -27,8 +41,16 @@ describe('ArchivePipeline', () => {
 
   beforeEach(() => {
     store = new InMemoryMemoryStore();
-    pipeline = new ArchivePipeline(store, mockStorage as any, async () => 'mockpub456');
+    pipeline = new ArchivePipeline(store, async () => 'mockpub456');
     jest.clearAllMocks();
+    // Re-set default resolved value after clearAllMocks
+    mockDispatch.mockResolvedValue({
+      anchor_id: 'a1',
+      cid: 'bafymock123',
+      url: 'http://mock/bafymock123',
+      provider: 'mock',
+      size_bytes: 100,
+    });
   });
 
   describe('createSnapshot', () => {
@@ -52,10 +74,9 @@ describe('ArchivePipeline', () => {
 
       expect(result.cid).toBe('bafymock123');
       expect(result.snapshot_id).toBeDefined();
-      expect(mockStorage.uploadJSON).toHaveBeenCalledTimes(1);
+      expect(mockDispatch).toHaveBeenCalledTimes(1);
 
-      // Verify the uploaded data is a valid LMF
-      const uploadedData = mockStorage.uploadJSON.mock.calls[0][0] as LucidMemoryFile;
+      const uploadedData = mockDispatch.mock.calls[0][0].payload as LucidMemoryFile;
       expect(uploadedData.version).toBe('1.0');
       expect(uploadedData.agent_passport_id).toBe('agent-1');
       expect(uploadedData.entry_count).toBe(1);
@@ -106,7 +127,7 @@ describe('ArchivePipeline', () => {
         signer_pubkey: 'mockpub456',
       };
 
-      mockStorage.retrieve.mockResolvedValue(lmf);
+      mockEvolvingRetrieve.mockResolvedValue(lmf);
 
       const result = await pipeline.restoreSnapshot('agent-1', { cid: 'bafymock', mode: 'merge' });
 
@@ -193,13 +214,11 @@ describe('ArchivePipeline', () => {
         content_hash: 'h-b', prev_hash: null, memory_lane: 'self',
       } as any);
 
-      // Reset mock so we can capture the uploaded data
-      mockStorage.uploadJSON.mockResolvedValueOnce({ cid: 'bafyns-a', url: 'http://mock/bafyns-a' });
-
       const result = await pipeline.createSnapshot('agent-1', 'checkpoint', 'ns-a');
-      expect(result.cid).toBe('bafyns-a');
+      expect(result.cid).toBe('bafymock123');
 
-      const uploadedData = mockStorage.uploadJSON.mock.calls[0][0] as LucidMemoryFile;
+      expect(mockDispatch).toHaveBeenCalledTimes(1);
+      const uploadedData = mockDispatch.mock.calls[0][0].payload as LucidMemoryFile;
       expect(uploadedData.entry_count).toBe(1);
       expect(uploadedData.entries).toHaveLength(1);
       expect(uploadedData.entries[0].namespace).toBe('ns-a');
@@ -227,7 +246,7 @@ describe('ArchivePipeline', () => {
         signature: 'mocksig123',
         signer_pubkey: 'mockpub456',
       };
-      mockStorage.retrieve.mockResolvedValue(lmf);
+      mockEvolvingRetrieve.mockResolvedValue(lmf);
 
       await expect(pipeline.restoreSnapshot('agent-2', { cid, mode: 'replace' }))
         .rejects.toThrow('Identity mismatch');
@@ -254,7 +273,7 @@ describe('ArchivePipeline', () => {
         signature: 'mocksig123',
         signer_pubkey: 'mockpub456',
       };
-      mockStorage.retrieve.mockResolvedValue(lmf);
+      mockEvolvingRetrieve.mockResolvedValue(lmf);
 
       // Restore as __admin__ should succeed
       await expect(pipeline.restoreSnapshot('__admin__', { cid, mode: 'replace' }))

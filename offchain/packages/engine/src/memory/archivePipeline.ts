@@ -10,7 +10,6 @@ import type {
 export class ArchivePipeline {
   constructor(
     private store: IMemoryStore,
-    private depinStorage: { uploadJSON: Function; retrieve: Function },
     private getPassportPubkey: (passportId: string) => Promise<string | null>,
   ) {}
 
@@ -44,10 +43,20 @@ export class ArchivePipeline {
       signer_pubkey: publicKey,
     };
 
-    // Upload
-    const { cid } = await this.depinStorage.uploadJSON(lmf, {
+    // Upload via AnchorDispatcher
+    const { getAnchorDispatcher } = await import('../anchoring');
+    const snapshot_id_pre = `snap_${Date.now()}_${agent_passport_id.slice(0, 8)}`;
+    const anchorResult = await getAnchorDispatcher().dispatch({
+      artifact_type: 'memory_snapshot',
+      artifact_id: snapshot_id_pre,
+      agent_passport_id,
+      producer: 'archivePipeline',
+      storage_tier: 'evolving',
+      payload: lmf,
       tags: { type: 'lucid-memory-file', agent: agent_passport_id, snapshot_type },
+      metadata: { entry_count: lmf.entry_count, chain_head_hash: lmf.chain_head_hash },
     });
+    const cid = anchorResult?.cid || 'disabled';
 
     // Record snapshot
     const snapshot_id = await this.store.saveSnapshot({
@@ -66,8 +75,10 @@ export class ArchivePipeline {
     agent_passport_id: string,
     request: RestoreRequest,
   ): Promise<RestoreResult> {
-    const lmf = await this.depinStorage.retrieve(request.cid) as LucidMemoryFile;
-    if (!lmf) throw new Error(`Snapshot not found: ${request.cid}`);
+    const { getEvolvingStorage } = await import('../storage/depin');
+    const data = await getEvolvingStorage().retrieve(request.cid);
+    if (!data) throw new Error(`Snapshot not found: ${request.cid}`);
+    const lmf = (typeof data === 'object' && !Buffer.isBuffer(data) ? data : JSON.parse(data.toString('utf-8'))) as LucidMemoryFile;
 
     // Identity verification: prevent cross-agent memory injection
     if (lmf.agent_passport_id !== agent_passport_id) {
