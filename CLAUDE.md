@@ -344,7 +344,7 @@ Supabase (eu-north-1): `credentials`, `user_wallets`, `session_signers`, `signer
 - Build: `cd sdk/raijin-labs-lucid-ai-typescript && npm run build` (uses `tshy` for dual CJS/ESM)
 
 ## Cross-Dependencies
-- `@raijinlabs/passport` npm package (shared with lucid-plateform-core)
+- `@lucid-fdn/passport` npm package (shared with lucid-plateform-core)
 - Calls **TrustGate** (`TRUSTGATE_URL`) for model catalog validation
 - Uses **n8n** for workflow execution, **CrewAI/LangGraph** for agent planning
 - `raijin-labs-lucid-ai` SDK auto-generated from `openapi.yaml`

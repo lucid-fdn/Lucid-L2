@@ -33,7 +33,7 @@
     "@opentelemetry/semantic-conventions": "^1.39.0",
     "@privy-io/node": "^0.3.0",
     "@privy-io/server-auth": "^1.32.5",
-    "@raijinlabs/passport": "file:./local-packages/passport",
+    "@lucid-fdn/passport": "file:./local-packages/passport",
     "@sentry/node": "^10.39.0",
     "@solana/spl-token": "^0.4.13",
     "@solana/web3.js": "^1.95.0",
