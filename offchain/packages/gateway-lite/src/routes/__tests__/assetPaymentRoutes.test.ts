@@ -14,7 +14,7 @@ const mockDeletePricing = jest.fn();
 const mockGetRevenue = jest.fn();
 const mockWithdraw = jest.fn();
 
-jest.mock('../../../../engine/src/payment/pricingService', () => ({
+jest.mock('../../../../engine/src/payment/services/pricingService', () => ({
   PricingService: jest.fn().mockImplementation(() => ({
     getPricing: mockGetPricing,
     setPricing: mockSetPricing,
@@ -22,7 +22,7 @@ jest.mock('../../../../engine/src/payment/pricingService', () => ({
   })),
 }));
 
-jest.mock('../../../../engine/src/payment/revenueService', () => ({
+jest.mock('../../../../engine/src/payment/services/revenueService', () => ({
   RevenueService: jest.fn().mockImplementation(() => ({
     getRevenue: mockGetRevenue,
     withdraw: mockWithdraw,

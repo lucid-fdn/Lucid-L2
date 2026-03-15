@@ -19,7 +19,7 @@ jest.mock('../../../../engine/src/chains/factory', () => ({
 
 const mockGetEscrow = jest.fn();
 
-jest.mock('../../../../engine/src/finance/escrowService', () => ({
+jest.mock('../../../../engine/src/payment/escrow/escrowService', () => ({
   getEscrowService: () => ({
     getEscrow: mockGetEscrow,
   }),
