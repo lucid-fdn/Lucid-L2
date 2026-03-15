@@ -102,7 +102,7 @@ export interface AnchorRecord {
   provider: string;                // 'arweave' | 'lighthouse' | 'mock'
   storage_tier: StorageTier;
   cid: string;
-  content_hash: string | null;     // SHA-256 of payload (for verification)
+  content_hash: string;             // SHA-256 of canonical JSON payload (always populated by dispatcher)
   url: string;
   size_bytes: number;
   status: 'uploaded' | 'verified' | 'unreachable';
@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS anchor_records (
   provider TEXT NOT NULL,
   storage_tier TEXT NOT NULL CHECK (storage_tier IN ('permanent', 'evolving')),
   cid TEXT NOT NULL,
-  content_hash TEXT,
+  content_hash TEXT NOT NULL,
   url TEXT NOT NULL,
   size_bytes BIGINT NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'uploaded' CHECK (status IN ('uploaded', 'verified', 'unreachable')),
@@ -146,7 +146,7 @@ CREATE INDEX idx_anchor_agent ON anchor_records(agent_passport_id, created_at DE
 CREATE INDEX idx_anchor_cid ON anchor_records(cid);
 CREATE INDEX idx_anchor_parent ON anchor_records(parent_anchor_id) WHERE parent_anchor_id IS NOT NULL;
 CREATE INDEX idx_anchor_status ON anchor_records(status) WHERE status != 'uploaded';
-CREATE UNIQUE INDEX idx_anchor_dedup ON anchor_records(artifact_type, artifact_id, content_hash) WHERE content_hash IS NOT NULL;
+CREATE UNIQUE INDEX idx_anchor_dedup ON anchor_records(artifact_type, artifact_id, content_hash);
 ```
 
 ---

@@ -17,8 +17,21 @@
 **Hard rules:**
 - Every `dispatch()` caller MUST null-guard the result (`result === null` when kill switch active).
 - `canonicalJson()` top-level import, never runtime require.
-- Artifact IDs follow deterministic conventions per type.
-- Dedup via UNIQUE constraint on `(artifact_type, artifact_id, content_hash)`.
+- Dedup via UNIQUE constraint on `(artifact_type, artifact_id, content_hash)`. `content_hash` is always populated by the dispatcher (never null) — making dedup reliable.
+- `created_at`/`verified_at`: TypeScript uses Unix ms (`number`). Postgres uses TIMESTAMPTZ. Registry converts on read via `.getTime()`.
+- `registry.create()` uses `ON CONFLICT DO UPDATE SET updated_at = NOW() RETURNING *` — always returns a record, even on dedup collision.
+
+**Artifact ID conventions (deterministic per type):**
+
+| Artifact Type | `artifact_id` | Example |
+|--------------|--------------|---------|
+| `epoch_bundle` | `{epoch_id}` | `ep_abc123` |
+| `epoch_proof` | `{epoch_id}` | `ep_abc123` |
+| `memory_snapshot` | `{snapshot_id}` | `snap_def456` |
+| `deploy_artifact` | `{passport_id}:{target}` | `agent_xyz:railway` |
+| `passport_metadata` | `{passport_id}` | `agent_xyz` |
+| `nft_metadata` | `{passport_id}:nft` | `agent_xyz:nft` |
+| `mmr_checkpoint` | `mmr:{root_hash_prefix_16}` | `mmr:a1b2c3d4e5f6g7h8` |
 
 ---
 
@@ -27,33 +40,33 @@
 ### Files to Create (7)
 | File | Responsibility |
 |------|---------------|
-| `engine/src/anchoring/types.ts` | `ArtifactType`, `StorageTier`, `AnchorRecord`, `AnchorRequest`, `AnchorResult` |
-| `engine/src/anchoring/registry.ts` | `IAnchorRegistry`, `InMemoryAnchorRegistry`, `PostgresAnchorRegistry` |
-| `engine/src/anchoring/dispatcher.ts` | `AnchorDispatcher` — upload + registry write |
-| `engine/src/anchoring/verifier.ts` | `AnchorVerifier` — CID existence check |
-| `engine/src/anchoring/index.ts` | Factory singletons + barrel exports |
-| `gateway-lite/src/routes/core/anchorRoutes.ts` | REST API for anchor queries |
+| `offchain/packages/engine/src/anchoring/types.ts` | `ArtifactType`, `StorageTier`, `AnchorRecord`, `AnchorRequest`, `AnchorResult` |
+| `offchain/packages/engine/src/anchoring/registry.ts` | `IAnchorRegistry`, `InMemoryAnchorRegistry`, `PostgresAnchorRegistry` |
+| `offchain/packages/engine/src/anchoring/dispatcher.ts` | `AnchorDispatcher` — upload + registry write |
+| `offchain/packages/engine/src/anchoring/verifier.ts` | `AnchorVerifier` — CID existence check |
+| `offchain/packages/engine/src/anchoring/index.ts` | Factory singletons + barrel exports |
+| `offchain/packages/gateway-lite/src/routes/core/anchorRoutes.ts` | REST API for anchor queries |
 | `infrastructure/migrations/20260315_anchor_registry.sql` | `anchor_records` table |
 
 ### Files to Modify (11)
 | File | Changes |
 |------|---------|
-| `jobs/epochArchiver.ts` | Replace `getPermanentStorage().uploadJSON()` with `getAnchorDispatcher().dispatch()` |
-| `receipt/anchoringService.ts` | Replace batch proof upload with dispatcher |
-| `memory/archivePipeline.ts` | Remove `depinStorage` constructor param, use dispatcher |
-| `agent/agentDeploymentService.ts` | Replace upload with dispatcher |
-| `passport/passportSyncService.ts` | Replace upload with dispatcher |
-| `passport/passportManager.ts` | Replace NFT metadata upload with dispatcher |
-| `jobs/mmrCheckpoint.ts` | Replace upload with dispatcher |
-| `gateway-lite/src/routes/core/lucidLayerRoutes.ts` | Mount anchorRoutes |
-| `memory/__tests__/archivePipeline.test.ts` | Update constructor mock (remove depinStorage) |
-| `memory/__tests__/snapshot-e2e.test.ts` | Update constructor mock (remove depinStorage) |
+| `offchain/packages/engine/src/jobs/epochArchiver.ts` | Replace `getPermanentStorage().uploadJSON()` with `getAnchorDispatcher().dispatch()` |
+| `offchain/packages/engine/src/receipt/anchoringService.ts` | Replace batch proof upload with dispatcher |
+| `offchain/packages/engine/src/memory/archivePipeline.ts` | Remove `depinStorage` constructor param, use dispatcher |
+| `offchain/packages/engine/src/agent/agentDeploymentService.ts` | Replace upload with dispatcher |
+| `offchain/packages/engine/src/passport/passportSyncService.ts` | Replace upload with dispatcher |
+| `offchain/packages/engine/src/passport/passportManager.ts` | Replace NFT metadata upload with dispatcher |
+| `offchain/packages/engine/src/jobs/mmrCheckpoint.ts` | Replace upload with dispatcher |
+| `offchain/packages/gateway-lite/src/routes/core/lucidLayerRoutes.ts` | Mount anchorRoutes |
+| `offchain/packages/engine/src/memory/__tests__/archivePipeline.test.ts` | Update constructor mock (remove depinStorage) |
+| `offchain/packages/engine/src/memory/__tests__/snapshot-e2e.test.ts` | Update constructor mock (remove depinStorage) |
 | `CLAUDE.md` | Add anchoring control plane docs |
 
 ### New Test Files (1)
 | File | Expected Tests |
 |------|---------------|
-| `engine/src/anchoring/__tests__/anchoring.test.ts` | ~16 |
+| `offchain/packages/engine/src/anchoring/__tests__/anchoring.test.ts` | ~16 |
 
 ---
 
@@ -84,7 +97,7 @@ export interface AnchorRecord {
   provider: string;
   storage_tier: StorageTier;
   cid: string;
-  content_hash: string | null;
+  content_hash: string;
   url: string;
   size_bytes: number;
   status: 'uploaded' | 'verified' | 'unreachable';
@@ -147,7 +160,13 @@ Interface methods:
 - `updateStatus(anchor_id, status)` — set status + verified_at
 - `count(filters?)` — count with optional filters
 
-PostgresAnchorRegistry must convert TIMESTAMPTZ to Unix ms via `.getTime()`. Use parameterized queries throughout. Dedup: `ON CONFLICT (artifact_type, artifact_id, content_hash) DO NOTHING` in create().
+**Dedup behavior in `create()`:**
+- Postgres: `INSERT ... ON CONFLICT (artifact_type, artifact_id, content_hash) DO UPDATE SET updated_at = NOW() RETURNING *`. Always returns a record — on collision, returns the existing row (with refreshed timestamp). Never throws on duplicate.
+- InMemory: check for existing `(artifact_type, artifact_id, content_hash)` match. If found, return existing. Otherwise insert new.
+
+**content_hash column:** `NOT NULL` in the DB schema. The dispatcher always computes it via `canonicalJson()` + SHA-256. This makes the dedup UNIQUE constraint reliable (no null gaps).
+
+**Timestamp conversion:** PostgresAnchorRegistry converts TIMESTAMPTZ → Unix ms via `new Date(row.created_at).getTime()` on read. InMemory stores Unix ms directly.
 
 InMemoryAnchorRegistry: use `crypto.randomUUID()` for anchor_id, store in `Map<string, AnchorRecord>`.
 
@@ -468,10 +487,13 @@ Use `InMemoryAnchorRegistry` + mock `IDepinStorage`. Factory functions for mock 
 **Content hash test (1):**
 - dispatcher computes SHA-256 of canonical JSON payload
 
+**Dedup test (1):**
+- dispatch same artifact twice with identical content_hash → single record in registry, no error, second call returns existing record
+
 - [ ] **Step 2: Run tests**
 
 Run: `cd offchain && npx jest packages/engine/src/anchoring/__tests__/ --no-coverage`
-Expected: ~16 tests passing.
+Expected: ~17 tests passing.
 
 - [ ] **Step 3: Run full suite**
 
