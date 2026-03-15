@@ -35,14 +35,10 @@ function getService(): MemoryService {
 function getArchivePipelineForAgent(agentPassportId: string): ArchivePipeline | null {
   const key = agentPassportId === '__admin__' ? '__admin__' : agentPassportId;
   if (archiveRegistry.has(key)) return archiveRegistry.get(key)!;
-  const provider = process.env.DEPIN_STORAGE_PROVIDER;
-  if (!provider) { archiveRegistry.set(key, null); return null; }
   try {
-    const { getPermanentStorage } = require('../../../../engine/src/storage/depin');
-    const storage = getPermanentStorage();
     const store = key === '__admin__' ? getMemoryStore() : getStoreForAgent(key);
     const pipeline = new ArchivePipeline(
-      store, storage,
+      store,
       async (_id: string) => null, // passport pubkey lookup — wire later
     );
     archiveRegistry.set(key, pipeline);

@@ -245,21 +245,26 @@ export class AgentDeploymentService {
     }
 
     // Step 7.6: Store deployment artifact on DePIN (if enabled)
-    if (process.env.DEPIN_UPLOAD_ENABLED !== 'false') {
-      try {
-        const { getPermanentStorage } = await import('../storage/depin');
-        const storage = getPermanentStorage();
-        await storage.uploadJSON({
-            passport_id: passportId,
-            deployment_target: input.descriptor.deployment_config.target.type,
-            deployment_url: deployerResult.url,
-            adapter: adapter.name,
-            deployed_at: new Date().toISOString(),
-          }, { tags: { type: 'agent-deployment', passport_id: passportId } });
-        logger.info(`[AgentDeploy] Deployment artifact stored on DePIN`);
-      } catch (error) {
-        logger.warn(`[AgentDeploy] DePIN storage failed (non-blocking): ${error instanceof Error ? error.message : 'Unknown'}`);
-      }
+    try {
+      const { getAnchorDispatcher } = await import('../anchoring');
+      await getAnchorDispatcher().dispatch({
+        artifact_type: 'deploy_artifact',
+        artifact_id: `${passportId}:${input.descriptor.deployment_config.target.type}`,
+        agent_passport_id: passportId,
+        producer: 'agentDeploymentService',
+        storage_tier: 'permanent',
+        payload: {
+          passport_id: passportId,
+          deployment_target: input.descriptor.deployment_config.target.type,
+          deployment_url: deployerResult.url,
+          adapter: adapter.name,
+          deployed_at: new Date().toISOString(),
+        },
+        tags: { type: 'agent-deployment', passport_id: passportId },
+      });
+      logger.info(`[AgentDeploy] Deployment artifact stored on DePIN`);
+    } catch (depinErr) {
+      logger.warn(`[AgentDeploy] DePIN artifact upload failed: ${depinErr instanceof Error ? depinErr.message : 'Unknown'}`);
     }
 
     // Step 8: Store deployment state

@@ -695,24 +695,30 @@ export async function commitEpochRootsBatch(epoch_ids: string[]): Promise<Anchor
         });
 
         // Upload epoch proof to DePIN permanent storage (non-blocking)
-        if (process.env.DEPIN_UPLOAD_ENABLED !== 'false') {
-          try {
-            const { getPermanentStorage } = require('../storage/depin');
-            const proof = {
-              epoch_id: epoch.epoch_id,
-              mmr_root: epoch.mmr_root,
-              tx_signature: signature,
-              timestamp: Date.now(),
-              leaf_count: epoch.leaf_count,
-              network: config.network,
-            };
-            const upload = await getPermanentStorage().uploadJSON(proof, {
-              tags: { type: 'epoch-proof', epoch: epoch.epoch_id },
-            });
-            logger.info(`   DePIN: epoch proof -> ${upload.cid} (${upload.provider})`);
-          } catch (err) {
-            logger.warn(`   DePIN epoch proof upload failed (non-blocking):`, err instanceof Error ? err.message : err);
+        try {
+          const { getAnchorDispatcher } = await import('../anchoring');
+          const proof = {
+            epoch_id: epoch.epoch_id,
+            mmr_root: epoch.mmr_root,
+            tx_signature: signature,
+            timestamp: Date.now(),
+            leaf_count: epoch.leaf_count,
+            network: config.network,
+          };
+          const anchorResult = await getAnchorDispatcher().dispatch({
+            artifact_type: 'epoch_proof',
+            artifact_id: epoch.epoch_id,
+            producer: 'anchoringService',
+            storage_tier: 'permanent',
+            payload: proof,
+            tags: { type: 'epoch-proof', epoch: epoch.epoch_id },
+            chain_tx: { [config.network]: signature },
+          });
+          if (anchorResult) {
+            logger.info(`   DePIN: epoch proof -> ${anchorResult.cid} (${anchorResult.provider})`);
           }
+        } catch (depinErr) {
+          logger.warn('   DePIN: epoch proof upload failed:', depinErr);
         }
       }
 

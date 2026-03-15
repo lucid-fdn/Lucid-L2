@@ -52,24 +52,30 @@ export async function createCheckpoint(): Promise<string | null> {
       timestamp: new Date().toISOString(),
     };
 
-    if (process.env.DEPIN_UPLOAD_ENABLED === 'false') {
-      logger.info('[MMRCheckpoint] Skipping checkpoint upload (DEPIN_UPLOAD_ENABLED=false)');
+    const { getAnchorDispatcher } = await import('../anchoring');
+    const anchorResult = await getAnchorDispatcher().dispatch({
+      artifact_type: 'mmr_checkpoint',
+      artifact_id: `mmr:${checkpoint.root_hash.slice(0, 16)}`,
+      producer: 'mmrCheckpoint',
+      storage_tier: 'evolving',
+      payload: checkpoint,
+      tags: { type: 'mmr-checkpoint', root: checkpoint.root_hash },
+      metadata: { mmr_size: checkpoint.mmr_size, leaf_count: checkpoint.leaf_count },
+    });
+
+    if (!anchorResult) {
+      logger.info('[MMRCheckpoint] Skipping checkpoint upload (DePIN disabled)');
       return null;
     }
-
-    const { getEvolvingStorage } = await import('../storage/depin');
-    const upload = await getEvolvingStorage().uploadJSON(checkpoint, {
-      tags: { type: 'mmr-checkpoint', root: checkpoint.root_hash },
-    });
 
     // Store CID reference in fast DB
     await pool.query(
       'UPDATE mmr_state SET checkpoint_cid = $1, updated_at = now() WHERE id = $2',
-      [upload.cid, 'receipt_mmr'],
+      [anchorResult.cid, 'receipt_mmr'],
     );
 
-    logger.info(`[MMRCheckpoint] Snapshot → ${upload.cid} (${mmr.getLeafCount()} leaves, ${upload.provider})`);
-    return upload.cid;
+    logger.info(`[MMRCheckpoint] Snapshot → ${anchorResult.cid} (${mmr.getLeafCount()} leaves, ${anchorResult.provider})`);
+    return anchorResult.cid;
   } catch (err) {
     logger.warn('[MMRCheckpoint] Failed:', err instanceof Error ? err.message : err);
     return null;

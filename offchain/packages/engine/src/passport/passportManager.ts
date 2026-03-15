@@ -422,13 +422,17 @@ export class PassportManager {
       };
 
       let metadataUri = '';
-      if (process.env.DEPIN_UPLOAD_ENABLED !== 'false') {
-        const { getPermanentStorage } = await import('../storage/depin');
-        const uploadResult = await getPermanentStorage().uploadJSON(metadataJson, {
-          tags: { 'Content-Type': 'application/json', 'lucid-nft': 'true' },
-        });
-        metadataUri = uploadResult.url;
-      }
+      const { getAnchorDispatcher } = await import('../anchoring');
+      const anchorResult = await getAnchorDispatcher().dispatch({
+        artifact_type: 'nft_metadata',
+        artifact_id: `${passport.passport_id}:nft`,
+        agent_passport_id: passport.type === 'agent' ? passport.passport_id : null,
+        producer: 'passportManager',
+        storage_tier: 'permanent',
+        payload: metadataJson,
+        tags: { 'Content-Type': 'application/json', 'lucid-nft': 'true' },
+      });
+      metadataUri = anchorResult?.url || '';
 
       const nft = getNFTProvider();
       const result = await nft.mint(passport.owner, {

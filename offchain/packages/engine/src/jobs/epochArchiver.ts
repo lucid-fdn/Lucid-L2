@@ -54,7 +54,7 @@ export async function archiveEpoch(epoch_id: string): Promise<ArchiveResult | nu
     // Load epoch from DB
     const epochResult = await pool.query(
       `SELECT epoch_id, epoch_index, mmr_root, leaf_count, start_leaf_index, end_leaf_index,
-              chain_tx, finalized_at, archive_cid
+              chain_tx, finalized_at, archive_cid, agent_passport_id
        FROM epochs WHERE epoch_id = $1 AND status = 'anchored'`,
       [epoch_id],
     );
@@ -116,25 +116,29 @@ export async function archiveEpoch(epoch_id: string): Promise<ArchiveResult | nu
       mmr_size: mmrState?.mmr_size ?? 0,
     };
 
-    // Upload to permanent storage (respects kill switch)
-    if (process.env.DEPIN_UPLOAD_ENABLED === 'false') {
-      logger.info(`[EpochArchiver] Skipping upload for epoch ${epoch_id} (DEPIN_UPLOAD_ENABLED=false)`);
+    // Upload to permanent storage via AnchorDispatcher (handles kill switch)
+    const { getAnchorDispatcher } = await import('../anchoring');
+    const result = await getAnchorDispatcher().dispatch({
+      artifact_type: 'epoch_bundle',
+      artifact_id: epoch_id,
+      agent_passport_id: row.agent_passport_id || null,
+      producer: 'epochArchiver',
+      storage_tier: 'permanent',
+      payload: bundle,
+      tags: { type: 'epoch-archive', epoch: epoch_id, version: '1.0' },
+      chain_tx: chainTx,
+      metadata: { epoch_index: row.epoch_index, leaf_count: row.leaf_count },
+    });
+
+    if (!result) {
+      logger.info(`[EpochArchiver] Skipping upload for epoch ${epoch_id} (DePIN disabled)`);
       return null;
     }
-
-    const { getPermanentStorage } = await import('../storage/depin');
-    const upload = await getPermanentStorage().uploadJSON(bundle, {
-      tags: {
-        type: 'epoch-archive',
-        epoch: epoch_id,
-        version: '1.0',
-      },
-    });
 
     // Store CID reference in fast DB (bucket 3)
     await pool.query(
       'UPDATE epochs SET archive_cid = $1 WHERE epoch_id = $2',
-      [upload.cid, epoch_id],
+      [result.cid, epoch_id],
     );
 
     // Clean up hot data: remove epoch_receipts join rows (the bundle has them now)
@@ -145,14 +149,14 @@ export async function archiveEpoch(epoch_id: string): Promise<ArchiveResult | nu
     const cleaned = cleanResult.rowCount ?? 0;
 
     logger.info(
-      `[EpochArchiver] Archived epoch ${epoch_id} → ${upload.cid} (${upload.provider}), cleaned ${cleaned} join rows`,
+      `[EpochArchiver] Archived epoch ${epoch_id} → ${result.cid} (${result.provider}), cleaned ${cleaned} join rows`,
     );
 
     return {
       epoch_id,
-      archive_cid: upload.cid,
-      archive_url: upload.url,
-      provider: upload.provider,
+      archive_cid: result.cid,
+      archive_url: result.url,
+      provider: result.provider,
       cleaned_receipts: cleaned,
     };
   } catch (err) {
