@@ -1,4 +1,4 @@
-jest.mock('../../db/pool', () => {
+jest.mock('../../shared/db/pool', () => {
   const mockQuery = jest.fn();
   return {
     __esModule: true,
@@ -8,7 +8,7 @@ jest.mock('../../db/pool', () => {
   };
 });
 
-import pool from '../../db/pool';
+import pool from '../../shared/db/pool';
 import { LucidDBProvider } from '../providers/LucidDBProvider';
 import type { FeedbackParams, ValidationParams } from '../types';
 

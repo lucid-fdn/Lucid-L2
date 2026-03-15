@@ -7,7 +7,7 @@ import { CHAIN_CONFIGS } from '../../../../engine/src/chain/blockchain/chains';
 import { getReputationAggregator } from '../../reputation/reputationAggregator';
 import { getReceiptReputation, submitReceiptReputation } from '../../reputation/receiptReputationService';
 import { getReputationProvider } from '../../../../engine/src/reputation';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export const crossChainRouter = Router();
 

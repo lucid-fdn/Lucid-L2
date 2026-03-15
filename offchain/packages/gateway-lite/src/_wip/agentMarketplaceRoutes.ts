@@ -6,7 +6,7 @@ import { verifyAdminAuth } from '../../middleware/adminAuth';
 
 // Lazy import to avoid circular deps
 function getMarketplace() {
-  const { getMarketplaceService } = require('../../../engine/src/agent/marketplace');
+  const { getMarketplaceService } = require('../../../engine/src/compute/agent/marketplace');
   return getMarketplaceService();
 }
 

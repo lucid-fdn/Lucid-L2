@@ -28,7 +28,7 @@ export class DockerAdapter implements IRuntimeAdapter {
  * Universal Docker agent (minimal dependencies)
  */
 import http from "node:http";
-import { logger } from '../lib/logger';
+import { logger } from '../shared/lib/logger';
 
 const TRUSTGATE_URL = process.env.TRUSTGATE_URL || "https://trustgate-api-production.up.railway.app";
 const TRUSTGATE_API_KEY = process.env.TRUSTGATE_API_KEY || "";

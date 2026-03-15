@@ -1,6 +1,6 @@
 import express from 'express';
 import { getMMRService } from '../../../../engine/src/epoch/services/mmrService';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export const systemApiRouter = express.Router();
 

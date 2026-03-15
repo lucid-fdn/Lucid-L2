@@ -1,10 +1,10 @@
 import { PublicKey } from '@solana/web3.js';
-import { AgentMMR } from '../../crypto/mmr';
-import { AgentMMRRegistry } from '../../crypto/ipfsStorage';
+import { AgentMMR } from '../../shared/crypto/mmr';
+import { AgentMMRRegistry } from '../../shared/crypto/ipfsStorage';
 import { createHash } from 'crypto';
 import { initSolana, getKeypair } from '../../chain/solana/client';
 import { calculateGasCost } from '../../chain/solana/gas';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 /**
  * MMR Service for Lucid L2

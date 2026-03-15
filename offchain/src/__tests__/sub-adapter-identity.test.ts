@@ -3,8 +3,8 @@
  * Solana: all methods throw ChainFeatureUnavailable (EVM-only feature)
  * EVM: returns sub-adapter with correct method shape
  */
-import { SolanaAdapter } from '../../packages/engine/src/chains/solana/adapter';
-import { EVMAdapter } from '../../packages/engine/src/chains/evm/adapter';
+import { SolanaAdapter } from '../../packages/engine/src/shared/chains/solana/adapter';
+import { EVMAdapter } from '../../packages/engine/src/shared/chains/evm/adapter';
 import { ChainFeatureUnavailable } from '../../packages/engine/src/errors';
 
 describe('SolanaAdapter.identity()', () => {

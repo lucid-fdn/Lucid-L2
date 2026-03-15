@@ -120,7 +120,7 @@ program
   .option('--share-supply <supply>', 'Share token total supply', '1000000')
   .action(async (options) => {
     try {
-      const { getAgentDeploymentService } = await import('../packages/engine/src/agent/agentDeploymentService');
+      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/agent/agentDeploymentService');
       const service = getAgentDeploymentService();
 
       const descriptor = {
@@ -187,7 +187,7 @@ program
   .description('Get deployment status for an agent')
   .action(async (passportId: string) => {
     try {
-      const { getAgentDeploymentService } = await import('../packages/engine/src/agent/agentDeploymentService');
+      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/agent/agentDeploymentService');
       const service = getAgentDeploymentService();
       const status = await service.getAgentStatus(passportId);
       if (status) {
@@ -208,7 +208,7 @@ program
   .option('--tail <lines>', 'Number of log lines', '100')
   .action(async (passportId: string, options: any) => {
     try {
-      const { getAgentDeploymentService } = await import('../packages/engine/src/agent/agentDeploymentService');
+      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/agent/agentDeploymentService');
       const service = getAgentDeploymentService();
       const logs = await service.getAgentLogs(passportId, parseInt(options.tail));
       console.log(logs);
@@ -225,7 +225,7 @@ program
   .option('--target <target>', 'Filter by target')
   .action(async (options: any) => {
     try {
-      const { getAgentDeploymentService } = await import('../packages/engine/src/agent/agentDeploymentService');
+      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/agent/agentDeploymentService');
       const service = getAgentDeploymentService();
       const deployments = await service.listDeployments({
         status: options.status,
@@ -249,7 +249,7 @@ program
   .description('Terminate an agent deployment')
   .action(async (passportId: string) => {
     try {
-      const { getAgentDeploymentService } = await import('../packages/engine/src/agent/agentDeploymentService');
+      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/agent/agentDeploymentService');
       const service = getAgentDeploymentService();
       const result = await service.terminateAgent(passportId);
       if (result.success) {
@@ -269,7 +269,7 @@ program
   .description('List available deployment targets')
   .action(async () => {
     try {
-      const { listDeployerTargets } = await import('../packages/engine/src/deploy');
+      const { listDeployerTargets } = await import('../packages/engine/src/compute/deploy');
       const targets = listDeployerTargets();
       console.log('Available deployment targets:');
       for (const t of targets) {

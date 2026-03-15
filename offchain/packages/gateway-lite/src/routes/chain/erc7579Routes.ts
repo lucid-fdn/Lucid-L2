@@ -6,7 +6,7 @@
  */
 
 import { Router } from 'express';
-import { blockchainAdapterFactory } from '../../../../engine/src/chains/factory';
+import { blockchainAdapterFactory } from '../../../../engine/src/shared/chains/factory';
 import { getERC7579Service } from '../../../../engine/src/identity/erc7579Service';
 
 export const erc7579Router = Router();

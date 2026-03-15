@@ -1,7 +1,7 @@
 // offchain/src/storage/searchQueryBuilder.ts
 // Advanced search query builder for passport discovery
 
-import type { Passport, PassportType, PassportStatus, PassportFilters } from '../../storage/passportStore';
+import type { Passport, PassportType, PassportStatus, PassportFilters } from '../../identity/stores/passportStore';
 
 /**
  * Search filters for unified search

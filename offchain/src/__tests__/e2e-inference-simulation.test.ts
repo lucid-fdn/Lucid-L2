@@ -44,7 +44,7 @@ jest.mock('../services/passport/passportManager', () => ({
   }),
 }));
 // Dual-path: gateway-lite routes + executionGateway import from engine
-jest.mock('../../packages/engine/src/passport/passportManager', () =>
+jest.mock('../../packages/engine/src/identity/passport/passportManager', () =>
   require('../services/passport/passportManager'));
 
 // Compute registry mock

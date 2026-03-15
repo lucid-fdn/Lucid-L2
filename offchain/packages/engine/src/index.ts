@@ -4,22 +4,22 @@
 export * from './errors';
 
 // ─── Crypto ─────────────────────────────────────────────────────────────────
-export * from './crypto/hash';
-export * from './crypto/signing';
-export * from './crypto/canonicalJson';
-export { AgentMMR, MMR } from './crypto/mmr';
-export { MMR as AgentMerkleTree } from './crypto/mmr';
-export type { MMRNode, MMRProof, MMRState } from './crypto/mmr';
-export { getReceiptMMR, resetReceiptMMR, initReceiptMMR, ReceiptMMR } from './crypto/receiptMMR';
-export type { SerializedMMRProof } from './crypto/receiptMMR';
+export * from './shared/crypto/hash';
+export * from './shared/crypto/signing';
+export * from './shared/crypto/canonicalJson';
+export { AgentMMR, MMR } from './shared/crypto/mmr';
+export { MMR as AgentMerkleTree } from './shared/crypto/mmr';
+export type { MMRNode, MMRProof, MMRState } from './shared/crypto/mmr';
+export { getReceiptMMR, resetReceiptMMR, initReceiptMMR, ReceiptMMR } from './shared/crypto/receiptMMR';
+export type { SerializedMMRProof } from './shared/crypto/receiptMMR';
 // Deprecated: binary Merkle tree kept for backward compatibility
-export { MerkleTree, getReceiptTree, resetReceiptTree } from './crypto/merkleTree';
-export type { MerkleProof, MerkleVerifyResult } from './crypto/merkleTree';
-export * from './crypto/schemaValidator';
+export { MerkleTree, getReceiptTree, resetReceiptTree } from './shared/crypto/merkleTree';
+export type { MerkleProof, MerkleVerifyResult } from './shared/crypto/merkleTree';
+export * from './shared/crypto/schemaValidator';
 
 // ─── Config ─────────────────────────────────────────────────────────────────
-export * from './config/config';
-export * from './config/paths';
+export * from './shared/config/config';
+export * from './shared/config/paths';
 
 // ─── Receipt & Epoch ────────────────────────────────────────────────────────
 export {
@@ -54,7 +54,7 @@ export type {
   DatasetReceipt, DatasetReceiptInput, DatasetReceiptBody,
   ReceiptVerifyResult,
 } from './receipt/receiptService';
-export type { ComputeReceiptInput } from './types/fluidCompute';
+export type { ComputeReceiptInput } from './shared/types/fluidCompute';
 export {
   createEpoch, getAllEpochs, getEpoch, finalizeEpoch, getCurrentEpoch,
   addReceiptToEpoch, resetEpochStore, prepareEpochForFinalization, failEpoch,
@@ -68,26 +68,26 @@ export { getMMRService } from './epoch/services/mmrService';
 export type { AgentEpochData } from './epoch/services/mmrService';
 
 // ─── Passport ───────────────────────────────────────────────────────────────
-export { getPassportManager, resetPassportManager, PassportManager } from './passport/passportManager';
-export type { CreatePassportInput, OperationResult, OnChainSyncHandler } from './passport/passportManager';
-export { getPassportSyncService, PassportSyncService } from './passport/passportSyncService';
-export { getPassportService } from './passport/passportService';
+export { getPassportManager, resetPassportManager, PassportManager } from './identity/passport/passportManager';
+export type { CreatePassportInput, OperationResult, OnChainSyncHandler } from './identity/passport/passportManager';
+export { getPassportSyncService, PassportSyncService } from './identity/passport/passportSyncService';
+export { getPassportService } from './identity/passport/passportService';
 
 // ─── Chains ─────────────────────────────────────────────────────────────────
-export type { IBlockchainAdapter } from './chains/adapter-interface';
-export { BlockchainAdapterFactory, blockchainAdapterFactory } from './chains/factory';
-export { CHAIN_CONFIGS, getChainConfig, getEVMChains, getSolanaChains } from './chains/configs';
+export type { IBlockchainAdapter } from './shared/chains/adapter-interface';
+export { BlockchainAdapterFactory, blockchainAdapterFactory } from './shared/chains/factory';
+export { CHAIN_CONFIGS, getChainConfig, getEVMChains, getSolanaChains } from './shared/chains/configs';
 export type {
   ChainConfig, ChainType, ChainHealthStatus, TxReceipt, UnsignedTx,
   AgentRegistration, AgentIdentity,
-} from './chains/types';
+} from './shared/chains/types';
 export type {
   IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter,
   IGasAdapter, IIdentityAdapter, IValidationAdapter,
   ChainCapabilities, EscrowCreateParams, WalletPolicy, GasRecipient,
-} from './chains/domain-interfaces';
-export { EVMAdapter } from './chains/evm/adapter';
-export { SolanaAdapter } from './chains/solana/adapter';
+} from './shared/chains/domain-interfaces';
+export { EVMAdapter } from './shared/chains/evm/adapter';
+export { SolanaAdapter } from './shared/chains/solana/adapter';
 
 // ─── Finance / Payment ──────────────────────────────────────────────────────
 export {
@@ -105,48 +105,48 @@ export { DisputeStatus } from './payment/escrow/disputeTypes';
 // ─── Deploy ─────────────────────────────────────────────────────────────────
 export {
   getDeployer, listDeployerTargets, getAllDeployers,
-} from './deploy';
+} from './compute/deploy';
 export type {
   IDeployer, DeploymentResult, DeploymentStatus, DeploymentStatusType,
   DeploymentConfig, RuntimeArtifact, LogOptions,
-} from './deploy';
+} from './compute/deploy';
 
 // ─── Agent ──────────────────────────────────────────────────────────────────
-export { getAgentDeploymentService, AgentDeploymentService } from './agent/agentDeploymentService';
-export type { DeployAgentInput, DeployAgentResult } from './agent/agentDeploymentService';
-export { processAgentRevenue, triggerAgentAirdrop, getAgentRevenuePool, getAllRevenuePools } from './agent/agentRevenueService';
-export type { AgentRevenuePool } from './agent/agentRevenueService';
+export { getAgentDeploymentService, AgentDeploymentService } from './compute/agent/agentDeploymentService';
+export type { DeployAgentInput, DeployAgentResult } from './compute/agent/agentDeploymentService';
+export { processAgentRevenue, triggerAgentAirdrop, getAgentRevenuePool, getAllRevenuePools } from './compute/agent/agentRevenueService';
+export type { AgentRevenuePool } from './compute/agent/agentRevenueService';
 
 // ─── A2A Protocol ──────────────────────────────────────────────────────────
 export {
   generateAgentCard, validateAgentCard,
   createA2ATask, updateTaskState, addTaskArtifact, createTaskStore,
   discoverAgent, sendTask, getTaskStatus, cancelTask,
-} from './agent/a2a';
+} from './compute/agent/a2a';
 export type {
   AgentCard, AgentCardSkill,
   A2ATask, A2AMessage, A2APart, A2ATaskState, A2ATaskStore,
   A2AClientOptions,
-} from './agent/a2a';
+} from './compute/agent/a2a';
 
 // ─── Marketplace (WIP — moved to _wip/, needs DB persistence) ─────────────
 // export {
 //   getMarketplaceService, resetMarketplaceService, MarketplaceService,
-// } from './agent/marketplace';
+// } from './compute/agent/marketplace';
 // export type {
 //   MarketplaceListing, AgentReview, AgentUsageRecord, ListingFilters,
-// } from './agent/marketplace';
+// } from './compute/agent/marketplace';
 
 // ─── Storage ────────────────────────────────────────────────────────────────
-export { getPassportStore } from './storage/passportStore';
-export { getIdentityStore } from './storage/identityStore';
+export { getPassportStore } from './identity/stores/passportStore';
+export { getIdentityStore } from './identity/stores/identityStore';
 
 // ─── Assets ─────────────────────────────────────────────────────────────────
-export { getNFTProvider } from './assets/nft';
-export { getTokenLauncher } from './assets/shares';
+export { getNFTProvider } from './identity/nft';
+export { getTokenLauncher } from './identity/shares';
 
 // ─── DePIN Storage ──────────────────────────────────────────────────────────
-export { getPermanentStorage, getEvolvingStorage } from './storage/depin';
+export { getPermanentStorage, getEvolvingStorage } from './shared/depin';
 
 // ─── Utils ─────────────────────────────────────────────────────────────────
 export { withRetry, withTimeout, withRetryAndTimeout } from './utils/retry';

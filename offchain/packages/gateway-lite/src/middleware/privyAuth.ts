@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { PrivyClient } from '@privy-io/server-auth';
-import { logger } from '../../../engine/src/lib/logger';
+import { logger } from '../../../engine/src/shared/lib/logger';
 
 export interface PrivyRequest extends Request {
   user?: {

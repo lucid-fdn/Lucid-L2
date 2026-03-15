@@ -6,8 +6,8 @@ import { INFTProvider, MintResult, NFTMetadata } from './INFTProvider';
 import { ChainFeatureUnavailable } from '../../errors';
 import { SolanaPassportClient } from './solana/solana-token2022';
 import { getSolanaKeypair } from '../../chain/solana/keypair';
-import { getChainConfig } from '../../chains/configs';
-import { logger } from '../../lib/logger';
+import { getChainConfig } from '../../shared/chains/configs';
+import { logger } from '../../shared/lib/logger';
 
 export class Token2022Provider implements INFTProvider {
   readonly providerName = 'token2022';

@@ -2,7 +2,7 @@
 // Execution Gateway - Orchestrates end-to-end inference execution
 
 import { v4 as uuid } from 'uuid';
-import { getPassportManager } from '../../../engine/src/passport/passportManager';
+import { getPassportManager } from '../../../engine/src/identity/passport/passportManager';
 import { matchComputeForModel, MatchResult } from '../compute/matchingEngine';
 import { createInferenceReceipt, InferenceReceiptInput } from '../../../engine/src/receipt/receiptService';
 import { addReceiptToEpoch } from '../../../engine/src/epoch/services/epochService';
@@ -17,7 +17,7 @@ import {
 } from './computeClient';
 import { estimateTokens, estimateChatTokens } from '../../../../src/utils/tokenCounter';
 import { evaluatePolicy, Policy } from '../compute/policyEngine';
-import { logger } from '../../../engine/src/lib/logger';
+import { logger } from '../../../engine/src/shared/lib/logger';
 
 // ============================================================================
 // TRUSTGATE PROVIDER CONFIGURATION

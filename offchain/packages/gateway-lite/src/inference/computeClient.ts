@@ -1,6 +1,6 @@
 // offchain/src/services/computeClient.ts
 // HTTP client for calling inference endpoints (vLLM, TGI, TensorRT-LLM)
-import { logger } from '../../../engine/src/lib/logger';
+import { logger } from '../../../engine/src/shared/lib/logger';
 
 /**
  * Compute Client - Handles communication with inference endpoints.

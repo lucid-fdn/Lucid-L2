@@ -3,7 +3,7 @@
 
 import { randomUUID } from 'crypto';
 import { IAgentWalletProvider, AgentWallet, WalletBalance, TransactionRequest, TransactionResult, SpendingLimits } from './IAgentWalletProvider';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 /**
  * Mock Wallet Provider (Dev/Test)

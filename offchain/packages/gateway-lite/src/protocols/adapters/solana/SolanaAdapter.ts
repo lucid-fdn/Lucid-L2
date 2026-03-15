@@ -37,7 +37,7 @@ import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID
 } from '@solana/spl-token';
-import { logger } from '../../../../../engine/src/lib/logger';
+import { logger } from '../../../../../engine/src/shared/lib/logger';
 
 export class SolanaProtocolAdapter extends BaseProtocolAdapter {
   private connection: Connection | null = null;

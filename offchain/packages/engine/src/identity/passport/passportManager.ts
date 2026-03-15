@@ -9,9 +9,9 @@ import {
   PassportFilters,
   PaginatedResult,
   getPassportStore,
-} from '../../storage/passportStore';
-import { validateWithSchema, SchemaId } from '../../crypto/schemaValidator';
-import { logger } from '../../lib/logger';
+} from '../stores/passportStore';
+import { validateWithSchema, SchemaId } from '../../shared/crypto/schemaValidator';
+import { logger } from '../../shared/lib/logger';
 
 /**
  * Compute availability checker — injected by gateway-lite to avoid circular dependency.
@@ -409,7 +409,7 @@ export class PassportManager {
    */
   private async attemptNFTMint(passport: Passport, chain: 'solana' | 'evm' = 'solana'): Promise<void> {
     try {
-      const { getNFTProvider, getAllNFTProviders } = await import('../../assets/nft');
+      const { getNFTProvider, getAllNFTProviders } = await import('../nft');
 
       // Upload NFT metadata JSON to permanent storage (respects kill switch)
       const metadataJson = {

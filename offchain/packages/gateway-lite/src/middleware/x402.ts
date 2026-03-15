@@ -27,7 +27,7 @@ import type { SpentProofsStore } from '../../../engine/src/payment/stores/spentP
 import type { FacilitatorRegistry } from '../../../engine/src/payment/facilitators';
 import type { X402ResponseV2 } from '../../../engine/src/payment/types';
 import { PricingService } from '../../../engine/src/payment/services/pricingService';
-import { logger } from '../../../engine/src/lib/logger';
+import { logger } from '../../../engine/src/shared/lib/logger';
 
 // =============================================================================
 // Configuration

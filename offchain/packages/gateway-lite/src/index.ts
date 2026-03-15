@@ -1,6 +1,6 @@
 // Copyright 2024-2026 Raijin Labs. Licensed under AGPL-3.0 — see LICENSE in this package.
 import 'dotenv/config';
-import { hijackConsole } from '../../engine/src/lib/logger';
+import { hijackConsole } from '../../engine/src/shared/lib/logger';
 hijackConsole(); // Redirect console.* to structured JSON logging (must be first)
 
 import express from 'express';
@@ -10,8 +10,8 @@ import swaggerUi from 'swagger-ui-express';
 import fs from 'fs';
 // Note: body-parser no longer needed — using express.json() with size limit
 import { createApiRouter } from './api';
-import { API_PORT } from '../../engine/src/config/config';
-import { PATHS } from '../../engine/src/config/paths';
+import { API_PORT } from '../../engine/src/shared/config/config';
+import { PATHS } from '../../engine/src/shared/config/paths';
 import { validateEnvironmentOrThrow, printEnvironmentStatus } from '../../../src/utils/environmentValidator';
 
 // --- Observability ---------------------------------------------------------
@@ -52,15 +52,15 @@ import { solanaRouter } from './routes/chain/solanaRoutes';
 import { lucidLayerRouter } from './routes/core/lucidLayerRoutes';
 import { passportRouter } from './routes/core/passportRoutes';
 import { shareRouter } from './routes/core/shareRoutes';
-import { getPassportManager, OnChainSyncHandler } from '../../engine/src/passport/passportManager';
+import { getPassportManager, OnChainSyncHandler } from '../../engine/src/identity/passport/passportManager';
 import { hasAvailableCompute } from './compute/matchingEngine';
 import { MODEL_CATALOG } from './compute/modelCatalog';
-import type { Passport } from '../../engine/src/storage/passportStore';
-import { initReceiptConsumer, startReceiptConsumer, stopReceiptConsumer } from '../../engine/src/jobs/receiptConsumer';
-import pool from '../../engine/src/db/pool';
-import { initReceiptMMR } from '../../engine/src/crypto/receiptMMR';
+import type { Passport } from '../../engine/src/identity/stores/passportStore';
+import { initReceiptConsumer, startReceiptConsumer, stopReceiptConsumer } from '../../engine/src/shared/jobs/receiptConsumer';
+import pool from '../../engine/src/shared/db/pool';
+import { initReceiptMMR } from '../../engine/src/shared/crypto/receiptMMR';
 import { setAnchoringConfig, setAuthorityKeypair, commitEpochRoot } from '../../engine/src/epoch/services/anchoringService';
-import { startAnchoringJob, setAnchoringJobConfig } from '../../engine/src/jobs/anchoringJob';
+import { startAnchoringJob, setAnchoringJobConfig } from '../../engine/src/shared/jobs/anchoringJob';
 import { setAnchorCallback, startAutoFinalization } from '../../engine/src/epoch/services/epochService';
 import { getKeypair } from '../../engine/src/chain/solana/client';
 import { blockchainAdapterFactory } from '../../engine/src/chain/blockchain/BlockchainAdapterFactory';
@@ -90,7 +90,7 @@ import { agentWalletRouter } from './routes/agent/agentWalletRoutes';
 import { agentRevenueRouter } from './routes/agent/agentRevenueRoutes';
 // Agent mirror + proof routes
 import { agentMirrorRouter } from './routes/agent/agentMirrorRoutes';
-import { initAgentMirrorConsumer, startAgentMirrorConsumer, stopAgentMirrorConsumer } from '../../engine/src/jobs/agentMirrorConsumer';
+import { initAgentMirrorConsumer, startAgentMirrorConsumer, stopAgentMirrorConsumer } from '../../engine/src/shared/jobs/agentMirrorConsumer';
 import { createAssetPaymentRouter } from './routes/core/assetPaymentRoutes';
 import { createPaymentConfigRouter } from './routes/core/paymentConfigRoutes';
 import { createSubscriptionRouter } from './routes/core/subscriptionRoutes';
@@ -344,7 +344,7 @@ getPassportManager().init().then(async () => {
     const mmr = await initReceiptMMR();
     if (mmr.getLeafCount() === 0) {
       // Fast DB empty — try DePIN checkpoint fallback
-      const { restoreFromCheckpoint } = await import('../../engine/src/jobs/mmrCheckpoint');
+      const { restoreFromCheckpoint } = await import('../../engine/src/shared/jobs/mmrCheckpoint');
       const restored = await restoreFromCheckpoint();
       if (restored) {
         // Re-init singleton from the now-populated DB
@@ -371,7 +371,7 @@ getPassportManager().init().then(async () => {
 
   // Start periodic MMR checkpoint to DePIN (non-blocking)
   try {
-    const { startCheckpointJob } = await import('../../engine/src/jobs/mmrCheckpoint');
+    const { startCheckpointJob } = await import('../../engine/src/shared/jobs/mmrCheckpoint');
     startCheckpointJob(parseInt(process.env.MMR_CHECKPOINT_INTERVAL_MS || '1800000'));
   } catch (err) {
     console.warn('⚠️ MMR checkpoint job failed to start:', err instanceof Error ? err.message : err);
@@ -455,7 +455,7 @@ const gracefulShutdown = async (signal: string) => {
   try { const { stopMemorySystem } = require('../../engine/src/memory/boot'); stopMemorySystem(); } catch { /* best-effort */ }
   // Final MMR checkpoint before exit (best-effort)
   try {
-    const { stopCheckpointJob, createCheckpoint } = await import('../../engine/src/jobs/mmrCheckpoint');
+    const { stopCheckpointJob, createCheckpoint } = await import('../../engine/src/shared/jobs/mmrCheckpoint');
     stopCheckpointJob();
     await createCheckpoint();
   } catch { /* best-effort */ }

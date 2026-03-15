@@ -12,7 +12,7 @@ export {
   RuntimeArtifact,
   LogOptions,
 } from './IDeployer';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 type DeployerTarget = 'docker' | 'railway' | 'akash' | 'phala' | 'ionet' | 'nosana';
 

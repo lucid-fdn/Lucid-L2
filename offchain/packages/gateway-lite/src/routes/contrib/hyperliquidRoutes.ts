@@ -8,7 +8,7 @@
 import { Router, Request, Response } from 'express';
 import { HyperliquidTradingService } from '../../../../contrib/integrations/hyperliquid/tradingService';
 import { verifyPrivyToken, PrivyRequest } from '../../middleware/privyAuth';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 const router = Router();
 

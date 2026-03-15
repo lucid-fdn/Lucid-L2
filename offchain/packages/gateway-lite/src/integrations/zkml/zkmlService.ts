@@ -13,7 +13,7 @@ import type {
   CircuitMetadata,
   ZkMLReceiptExtension,
 } from './zkmlTypes';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 // ZkMLVerifier ABI (minimal)
 const ZKML_VERIFIER_ABI = [
@@ -327,7 +327,7 @@ export class ZkMLService {
     proof: ZkMLProof,
     receiptHash: string,
   ): Promise<{ valid: boolean; proofHash?: string }> {
-    const { getChainConfig } = await import('../../../../engine/src/chains/configs');
+    const { getChainConfig } = await import('../../../../engine/src/shared/chains/configs');
     const config = getChainConfig('solana-devnet');
     if (!config?.zkmlVerifierProgram) {
       throw new Error('LucidZkMLVerifier program not configured');
@@ -362,7 +362,7 @@ export class ZkMLService {
     modelHash: string,
     verifyingKey: VerifyingKeyData,
   ): Promise<{ success: boolean }> {
-    const { getChainConfig } = await import('../../../../engine/src/chains/configs');
+    const { getChainConfig } = await import('../../../../engine/src/shared/chains/configs');
     const config = getChainConfig('solana-devnet');
     if (!config?.zkmlVerifierProgram) {
       throw new Error('LucidZkMLVerifier program not configured');
@@ -386,7 +386,7 @@ export class ZkMLService {
   async verifyBatchOnSolana(
     proofs: Array<{ proof: ZkMLProof; receiptHash: string }>,
   ): Promise<{ valid: boolean; count: number }> {
-    const { getChainConfig } = await import('../../../../engine/src/chains/configs');
+    const { getChainConfig } = await import('../../../../engine/src/shared/chains/configs');
     const config = getChainConfig('solana-devnet');
     if (!config?.zkmlVerifierProgram) {
       throw new Error('LucidZkMLVerifier program not configured');

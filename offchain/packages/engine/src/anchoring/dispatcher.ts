@@ -2,8 +2,8 @@
 // Uploads artifacts to DePIN storage and writes registry records
 
 import { createHash } from 'crypto';
-import { canonicalJson } from '../crypto/canonicalJson';
-import type { IDepinStorage, UploadResult } from '../storage/depin/IDepinStorage';
+import { canonicalJson } from '../shared/crypto/canonicalJson';
+import type { IDepinStorage, UploadResult } from '../shared/depin/IDepinStorage';
 import type { AnchorRecord, AnchorRequest, AnchorResult } from './types';
 import type { IAnchorRegistry } from './registry';
 

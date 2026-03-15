@@ -12,9 +12,9 @@ import { blockchainAdapterFactory } from '../../../engine/src/chain/blockchain/B
 import { CHAIN_CONFIGS, getEVMChains } from '../../../engine/src/chain/blockchain/chains';
 import type { ChainConfig } from '../../../engine/src/chain/blockchain/types';
 import type { ReputationService } from './reputationService';
-import { getIdentityBridgeService } from '../../../engine/src/identity/identityBridgeService';
-import { fromCaip10, isEvmCaip10 } from '../../../engine/src/identity/caip10';
-import { logger } from '../../../engine/src/lib/logger';
+import { getIdentityBridgeService } from '../../../engine/src/identity/bridge/identityBridgeService';
+import { fromCaip10, isEvmCaip10 } from '../../../engine/src/identity/bridge/caip10';
+import { logger } from '../../../engine/src/shared/lib/logger';
 
 // =============================================================================
 // Types

@@ -27,7 +27,7 @@ import type {
   LogOptions,
 } from './IDeployer';
 import { resilientFetch } from './resilientFetch';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 // ---------------------------------------------------------------------------
 // GPU mapping — abstract name → SDL gpu.units + gpu.attributes vendor/model

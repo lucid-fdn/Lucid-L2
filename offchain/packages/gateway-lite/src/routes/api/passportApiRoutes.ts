@@ -1,5 +1,5 @@
 import express from 'express';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export const passportApiRouter = express.Router();
 
@@ -13,7 +13,7 @@ export const passportApiRouter = express.Router();
  */
 async function handlePassportRegister(req: express.Request, res: express.Response) {
   try {
-    const { getPassportService } = await import('../../../../engine/src/passport/passportService');
+    const { getPassportService } = await import('../../../../engine/src/identity/passport/passportService');
     const { getContentService } = await import('../../inference/contentService');
 
     const passportService = getPassportService();
@@ -74,7 +74,7 @@ async function handlePassportRegister(req: express.Request, res: express.Respons
  */
 async function handlePassportGet(req: express.Request, res: express.Response) {
   try {
-    const { getPassportService } = await import('../../../../engine/src/passport/passportService');
+    const { getPassportService } = await import('../../../../engine/src/identity/passport/passportService');
     const { PublicKey } = await import('@solana/web3.js');
 
     const passportService = getPassportService();
@@ -121,7 +121,7 @@ async function handlePassportGet(req: express.Request, res: express.Response) {
  */
 async function handlePassportsByOwner(req: express.Request, res: express.Response) {
   try {
-    const { getPassportService } = await import('../../../../engine/src/passport/passportService');
+    const { getPassportService } = await import('../../../../engine/src/identity/passport/passportService');
     const { PublicKey } = await import('@solana/web3.js');
 
     const passportService = getPassportService();
@@ -219,7 +219,7 @@ async function handleSyncHFDatasets(req: express.Request, res: express.Response)
  */
 async function handlePassportSearch(req: express.Request, res: express.Response) {
   try {
-    const { getPassportService } = await import('../../../../engine/src/passport/passportService');
+    const { getPassportService } = await import('../../../../engine/src/identity/passport/passportService');
 
     const passportService = getPassportService();
     const { type } = req.query;
@@ -572,7 +572,7 @@ async function handleDetectDeprecations(req: express.Request, res: express.Respo
  */
 async function handleSetPaymentGate(req: express.Request, res: express.Response) {
   try {
-    const { blockchainAdapterFactory } = await import('../../../../engine/src/chains/factory');
+    const { blockchainAdapterFactory } = await import('../../../../engine/src/shared/chains/factory');
     const { id } = req.params;
     const { priceLamports = 0, priceLucid = 0 } = req.body;
 
@@ -603,7 +603,7 @@ async function handleSetPaymentGate(req: express.Request, res: express.Response)
  */
 async function handlePayForAccess(req: express.Request, res: express.Response) {
   try {
-    const { blockchainAdapterFactory } = await import('../../../../engine/src/chains/factory');
+    const { blockchainAdapterFactory } = await import('../../../../engine/src/shared/chains/factory');
     const { id } = req.params;
     const { expiresAt = 0 } = req.body;
 
@@ -633,7 +633,7 @@ async function handlePayForAccess(req: express.Request, res: express.Response) {
  */
 async function handleCheckAccess(req: express.Request, res: express.Response) {
   try {
-    const { blockchainAdapterFactory } = await import('../../../../engine/src/chains/factory');
+    const { blockchainAdapterFactory } = await import('../../../../engine/src/shared/chains/factory');
     const { id, wallet } = req.params;
 
     const chainId = (process.env.ANCHORING_CHAINS || 'solana-devnet').split(',')[0].trim();
@@ -672,7 +672,7 @@ async function handleCheckAccess(req: express.Request, res: express.Response) {
  */
 async function handleWithdrawRevenue(req: express.Request, res: express.Response) {
   try {
-    const { blockchainAdapterFactory } = await import('../../../../engine/src/chains/factory');
+    const { blockchainAdapterFactory } = await import('../../../../engine/src/shared/chains/factory');
     const { id } = req.params;
 
     const chainId = (process.env.ANCHORING_CHAINS || 'solana-devnet').split(',')[0].trim();

@@ -1,6 +1,6 @@
 // services/contentService.ts
 import { createHash } from 'crypto';
-import { logger } from '../../../engine/src/lib/logger';
+import { logger } from '../../../engine/src/shared/lib/logger';
 
 /**
  * Content addressing and IPFS service for Lucid Passports

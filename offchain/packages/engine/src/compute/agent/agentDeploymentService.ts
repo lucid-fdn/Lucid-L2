@@ -5,9 +5,9 @@
  * schema validation -> runtime adapter -> deployer -> wallet -> passport -> NFT -> monitoring
  */
 
-import { validateWithSchema } from '../../crypto/schemaValidator';
-import { getPassportManager } from '../../passport/passportManager';
-import type { CreatePassportInput } from '../../passport/passportManager';
+import { validateWithSchema } from '../../shared/crypto/schemaValidator';
+import { getPassportManager } from '../../identity/passport/passportManager';
+import type { CreatePassportInput } from '../../identity/passport/passportManager';
 import {
   AgentDescriptor,
   AgentDeployment,
@@ -17,12 +17,12 @@ import {
   DeploymentStatus,
   HealthStatus,
 } from './agentDescriptor';
-import type { DeploymentResult as DeployerResult } from '../../deploy/IDeployer';
-import { getRuntimeAdapter, selectBestAdapter, listAdapterNames } from '../../runtime';
-import { getDeployer, listDeployerTargets } from '../../deploy';
-import { getAgentWalletProvider } from '../../agent/wallet';
-import { generateAgentCard } from '../../agent/a2a/agentCard';
-import { logger } from '../../lib/logger';
+import type { DeploymentResult as DeployerResult } from '../deploy/IDeployer';
+import { getRuntimeAdapter, selectBestAdapter, listAdapterNames } from '../runtime';
+import { getDeployer, listDeployerTargets } from '../deploy';
+import { getAgentWalletProvider } from '../../identity/wallet';
+import { generateAgentCard } from './a2a/agentCard';
+import { logger } from '../../shared/lib/logger';
 // WIP: marketplace moved to _wip/ — needs DB persistence before ship
 // import { getMarketplaceService } from './marketplace';
 
@@ -224,7 +224,7 @@ export class AgentDeploymentService {
     if (input.descriptor.monetization?.share_token?.auto_launch) {
       logger.info(`[AgentDeploy] Step 7.5: Auto-launching share token...`);
       try {
-        const { getTokenLauncher } = await import('../../assets/shares');
+        const { getTokenLauncher } = await import('../../identity/shares');
         const launcher = getTokenLauncher();
         const shareConfig = input.descriptor.monetization.share_token;
         const launchResult = await launcher.launchToken({

@@ -8,7 +8,7 @@ import express from 'express';
 import { createClient } from '@supabase/supabase-js';
 import Redis from 'ioredis';
 import { Nango } from '@nangohq/node';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 const router = express.Router();
 

@@ -2,8 +2,8 @@
 // REST API routes for Passport CRUD operations
 
 import express from 'express';
-import { getPassportManager } from '../../../../engine/src/passport/passportManager';
-import type { PassportType, PassportStatus, PassportFilters } from '../../../../engine/src/storage/passportStore';
+import { getPassportManager } from '../../../../engine/src/identity/passport/passportManager';
+import type { PassportType, PassportStatus, PassportFilters } from '../../../../engine/src/identity/stores/passportStore';
 import { logger } from '../../../../engine/src/shared/lib/logger';
 
 function sanitizeQueryInt(val: any, defaultVal: number, min: number, max: number): number {

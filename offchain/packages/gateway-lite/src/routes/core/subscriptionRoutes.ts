@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { requirePayment } from '../../middleware/x402';
-import { blockchainAdapterFactory } from '../../../../engine/src/chains/factory';
-import { logger } from '../../../../engine/src/lib/logger';
+import { blockchainAdapterFactory } from '../../../../engine/src/shared/chains/factory';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 /**
  * Subscription Routes

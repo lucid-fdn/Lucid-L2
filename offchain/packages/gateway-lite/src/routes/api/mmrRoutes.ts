@@ -5,9 +5,9 @@ import { runInference, runBatchInference } from '../../../../../src/utils/infere
 import { initSolana, deriveEpochPDA } from '../../../../engine/src/chain/solana/client';
 import { loadStore, saveStore, MemoryStore } from '../../../../../src/utils/memoryStore';
 import { makeComputeIx, makeBurnIx, calculateGasCost } from '../../../../engine/src/chain/solana/gas';
-import { LUCID_MINT } from '../../../../engine/src/config/config';
+import { LUCID_MINT } from '../../../../engine/src/shared/config/config';
 import { batchCommit } from '../../../../../src/commands/batch';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export const mmrApiRouter = express.Router();
 

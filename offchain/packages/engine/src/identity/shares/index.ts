@@ -2,7 +2,7 @@
 // Factory for token launchers — singleton pattern
 
 import { ITokenLauncher } from './ITokenLauncher';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 export { ITokenLauncher, TokenLaunchResult, TokenLaunchParams, TokenInfo } from './ITokenLauncher';
 

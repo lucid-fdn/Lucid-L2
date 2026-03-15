@@ -5,7 +5,7 @@
 
 import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, DeploymentStatus, DeploymentStatusType, LogOptions } from './IDeployer';
 import { resilientFetch } from './resilientFetch';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 /**
  * GPU market addresses — Solana pubkeys for Nosana GPU node markets.

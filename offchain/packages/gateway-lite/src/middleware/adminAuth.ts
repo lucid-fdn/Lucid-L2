@@ -6,8 +6,8 @@
 
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import pool from '../../../engine/src/db/pool';
-import { logger } from '../../../engine/src/lib/logger';
+import pool from '../../../engine/src/shared/db/pool';
+import { logger } from '../../../engine/src/shared/lib/logger';
 
 export interface AdminRequest extends Request {
   isAdmin?: boolean;

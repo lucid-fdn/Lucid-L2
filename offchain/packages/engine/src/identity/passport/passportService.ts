@@ -1,9 +1,9 @@
 // services/passportService.ts
 import { Program, AnchorProvider, BN } from '@coral-xyz/anchor';
 import { PublicKey, SystemProgram, Keypair } from '@solana/web3.js';
-import { LucidPassports } from '../../types/lucid_passports';
+import { LucidPassports } from '../../shared/types/lucid_passports';
 import { initSolana } from '../../chain/solana/client';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 // Asset type enum matching the Solana program
 export enum AssetType {

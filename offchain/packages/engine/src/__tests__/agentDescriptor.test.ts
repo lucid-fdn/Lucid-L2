@@ -1,10 +1,10 @@
-import { validateWithSchema } from '../crypto/schemaValidator';
+import { validateWithSchema } from '../shared/crypto/schemaValidator';
 import {
   AgentDescriptor,
   DEFAULT_AGENT_CONFIG,
   DEFAULT_DEPLOYMENT_CONFIG,
   DEFAULT_COMPLIANCE,
-} from '../agent/agentDescriptor';
+} from '../compute/agent/agentDescriptor';
 
 describe('AgentDescriptor Schema Validation', () => {
   const validDescriptor: AgentDescriptor = {

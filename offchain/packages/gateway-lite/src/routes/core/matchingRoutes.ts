@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { validateWithSchema } from '../../../../engine/src/crypto/schemaValidator';
+import { validateWithSchema } from '../../../../engine/src/shared/crypto/schemaValidator';
 import { evaluatePolicy } from '../../compute/policyEngine';
 import { matchComputeForModel } from '../../compute/matchingEngine';
 import { requirePayment } from '../../middleware/x402';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export const matchingRouter = Router();
 

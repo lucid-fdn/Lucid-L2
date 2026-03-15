@@ -6,7 +6,7 @@
  */
 
 import type { IReputationAlgorithm, AlgorithmScore, ReputationContext } from './IReputationAlgorithm';
-import { logger } from '../../../engine/src/lib/logger';
+import { logger } from '../../../engine/src/shared/lib/logger';
 
 export interface CompositeScore {
   overall: number;

@@ -1,8 +1,8 @@
 import express from 'express';
 import { FlowSpecService } from '../../../../contrib/integrations/flowspec/flowspecService';
 import { FlowSpec, FlowExecutionContext } from '../../../../contrib/integrations/flowspec/types';
-import { N8N_URL, N8N_HMAC_SECRET, N8N_API_KEY } from '../../../../engine/src/config/config';
-import { logger } from '../../../../engine/src/lib/logger';
+import { N8N_URL, N8N_HMAC_SECRET, N8N_API_KEY } from '../../../../engine/src/shared/config/config';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export const flowspecApiRouter = express.Router();
 

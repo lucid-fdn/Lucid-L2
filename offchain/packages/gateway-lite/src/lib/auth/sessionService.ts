@@ -16,8 +16,8 @@
  */
 
 import crypto from 'crypto';
-import pool, { getClient } from '../../../../engine/src/db/pool';
-import { logger } from '../../../../engine/src/lib/logger';
+import pool, { getClient } from '../../../../engine/src/shared/db/pool';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 // Types
 export interface UserProfile {

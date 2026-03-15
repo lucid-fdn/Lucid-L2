@@ -2,7 +2,7 @@
 // Factory for runtime adapters — singleton pattern matching codebase conventions
 
 import { IRuntimeAdapter } from './IRuntimeAdapter';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 export { IRuntimeAdapter, RuntimeArtifact } from './IRuntimeAdapter';
 

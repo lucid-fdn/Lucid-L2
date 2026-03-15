@@ -7,8 +7,8 @@
 import axios from 'axios';
 import { FlowSpec, FlowExecutionContext, FlowExecutionResult } from '../../../contrib/integrations/flowspec/types';
 import { FlowSpecService } from '../../../contrib/integrations/flowspec/flowspecService';
-import { N8N_URL, N8N_HMAC_SECRET, N8N_API_KEY } from '../../../engine/src/config/config';
-import { logger } from '../../../engine/src/lib/logger';
+import { N8N_URL, N8N_HMAC_SECRET, N8N_API_KEY } from '../../../engine/src/shared/config/config';
+import { logger } from '../../../engine/src/shared/lib/logger';
 
 export type ExecutorType = 'n8n' | 'langgraph';
 

@@ -8,7 +8,7 @@ import { evaluatePolicy } from '../../../gateway-lite/src/compute/policyEngine';
 import { matchComputeForModel } from '../../../gateway-lite/src/compute/matchingEngine';
 import { getComputeRegistry } from '../../../gateway-lite/src/compute/computeRegistry';
 import { createInferenceReceipt } from '../../../engine/src/receipt/receiptService';
-import { getReceiptTree } from '../../../engine/src/crypto/merkleTree';
+import { getReceiptTree } from '../../../engine/src/shared/crypto/merkleTree';
 import { calculatePayoutSplit } from '../../../engine/src/payment/services/payoutService';
 import { MEMORY_TOOL_DEFINITIONS, executeMemoryTool } from './memoryTools';
 

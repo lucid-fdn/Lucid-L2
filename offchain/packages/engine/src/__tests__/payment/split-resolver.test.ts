@@ -1,4 +1,4 @@
-jest.mock('../../db/pool', () => ({
+jest.mock('../../shared/db/pool', () => ({
   getClient: jest.fn(),
 }));
 

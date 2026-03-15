@@ -9,19 +9,19 @@
  * Also tests factory: getAgentWalletProvider, resetAgentWalletProvider
  */
 
-import { MockWalletProvider } from '../agent/wallet/MockWalletProvider';
-import { CrossmintWalletProvider } from '../agent/wallet/CrossmintWalletProvider';
-import { ERC6551WalletProvider } from '../agent/wallet/ERC6551WalletProvider';
+import { MockWalletProvider } from '../identity/wallet/MockWalletProvider';
+import { CrossmintWalletProvider } from '../identity/wallet/CrossmintWalletProvider';
+import { ERC6551WalletProvider } from '../identity/wallet/ERC6551WalletProvider';
 import {
   getAgentWalletProvider,
   resetAgentWalletProvider,
-} from '../agent/wallet';
+} from '../identity/wallet';
 import type {
   AgentWallet,
   WalletBalance,
   TransactionResult,
   SpendingLimits,
-} from '../agent/wallet/IAgentWalletProvider';
+} from '../identity/wallet/IAgentWalletProvider';
 
 const PASSPORT_ID = 'passport_wallet_test_abc';
 

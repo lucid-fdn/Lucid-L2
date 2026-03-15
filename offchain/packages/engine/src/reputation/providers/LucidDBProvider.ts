@@ -1,4 +1,4 @@
-import pool from '../../db/pool';
+import pool from '../../shared/db/pool';
 import { IReputationProvider } from '../IReputationProvider';
 import {
   FeedbackParams,
@@ -10,7 +10,7 @@ import {
   ReadOptions,
   AssetType,
 } from '../types';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 export class LucidDBProvider implements IReputationProvider {
   readonly providerName = 'lucid-db';

@@ -3,7 +3,7 @@
 // Using shared PostgreSQL connection pool to prevent connection exhaustion
 
 import { PoolClient } from 'pg';
-import pool, { getClient } from '../../../engine/src/db/pool';
+import pool, { getClient } from '../../../engine/src/shared/db/pool';
 import { resolveInternalUserId, ResolvedUser } from '../lib/auth/sessionService';
 
 // Types

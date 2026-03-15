@@ -9,7 +9,7 @@ import { protocolRegistry } from '../ProtocolRegistry';
 import { HyperliquidAdapter } from '../../../../contrib/protocols/hyperliquid';
 import { PrivyAdapter } from '../../../../contrib/protocols/privy';
 import { SolanaProtocolAdapter } from './solana';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 // =============================================================================
 // Auto-register all adapters

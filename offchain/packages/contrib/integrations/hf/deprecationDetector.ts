@@ -4,8 +4,8 @@
 import axios from 'axios';
 import { SyncState, SyncStateManager, getSyncStateManager, AssetIndexEntry } from './syncStateManager';
 import { HFBridgeService, getHFBridgeService } from './hfBridgeService';
-import { blockchainAdapterFactory } from '../../../engine/src/chains/factory';
-import type { IPassportAdapter } from '../../../engine/src/chains/domain-interfaces';
+import { blockchainAdapterFactory } from '../../../engine/src/shared/chains/factory';
+import type { IPassportAdapter } from '../../../engine/src/shared/chains/domain-interfaces';
 
 export class DeprecationDetector {
     private stateManager: SyncStateManager;

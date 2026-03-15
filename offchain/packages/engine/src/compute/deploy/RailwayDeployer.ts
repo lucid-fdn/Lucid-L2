@@ -4,7 +4,7 @@
 
 import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, DeploymentStatus, LogOptions } from './IDeployer';
 import { resilientFetch } from './resilientFetch';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 const RAILWAY_API_URL = 'https://backboard.railway.app/graphql/v2';
 

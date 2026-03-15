@@ -13,7 +13,7 @@ import type {
 import type { FeedbackParams, TxReceipt, AssetType } from '../types';
 import type { ValidationRegistryClient } from '../../identity/registries/evm-validation';
 import type { ReputationRegistryClient } from '../../identity/registries/evm-reputation';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 export class EVM8004Syncer implements IReputationSyncer {
   readonly syncerName = 'evm-8004';

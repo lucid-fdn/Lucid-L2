@@ -14,11 +14,11 @@
  * 8. Support for worker-signed receipts
  */
 import { v4 as uuid } from 'uuid';
-import { canonicalSha256Hex } from '../crypto/hash';
-import { validateWithSchema } from '../crypto/schemaValidator';
-import { signMessage, verifySignature, getOrchestratorPublicKey } from '../crypto/signing';
-import { getReceiptMMR, ReceiptMMR, SerializedMMRProof } from '../crypto/receiptMMR';
-import pool from '../db/pool';
+import { canonicalSha256Hex } from '../shared/crypto/hash';
+import { validateWithSchema } from '../shared/crypto/schemaValidator';
+import { signMessage, verifySignature, getOrchestratorPublicKey } from '../shared/crypto/signing';
+import { getReceiptMMR, ReceiptMMR, SerializedMMRProof } from '../shared/crypto/receiptMMR';
+import pool from '../shared/db/pool';
 import type {
   ExecutionMode,
   ComputeReceiptInput,
@@ -27,8 +27,8 @@ import type {
   SignerType,
   ReceiptMetrics,
   ReceiptBilling,
-} from '../types/fluidCompute';
-import { logger } from '../lib/logger';
+} from '../shared/types/fluidCompute';
+import { logger } from '../shared/lib/logger';
 
 /**
  * Receipt body - the data that gets hashed for receipt_hash.

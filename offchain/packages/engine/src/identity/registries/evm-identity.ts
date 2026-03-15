@@ -6,7 +6,7 @@
  */
 
 import type { Hash } from 'viem';
-import type { AgentIdentity } from '../../chains/types';
+import type { AgentIdentity } from '../../shared/chains/types';
 import IdentityRegistryABI from './abis/IdentityRegistry.json';
 
 export class IdentityRegistryClient {

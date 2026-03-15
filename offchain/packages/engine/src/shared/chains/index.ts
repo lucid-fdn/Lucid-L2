@@ -8,7 +8,7 @@ export * from './domain-interfaces';
 // Chain-specific adapters
 export { EVMAdapter } from './evm/adapter';
 export { SolanaAdapter } from './solana/adapter';
-export { SolanaPassportClient } from '../../passport/nft/solana-token2022'; // re-export for backward compat
+export { SolanaPassportClient } from '../../identity/nft/solana/solana-token2022'; // re-export for backward compat
 
 // Solana utilities
 export { initSolana, getConnection, getKeypair, deriveEpochPDA, deriveEpochBatchPDA, createCommitInstruction, resetSolanaCache } from './solana/client';

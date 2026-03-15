@@ -12,7 +12,7 @@ import {
 } from '@solana/spl-token';
 import { ITokenLauncher, TokenLaunchResult, TokenLaunchParams, TokenInfo } from './ITokenLauncher';
 import { getSolanaKeypair } from '../../chain/solana/keypair';
-import { getChainConfig } from '../../chains/configs';
+import { getChainConfig } from '../../shared/chains/configs';
 
 // In-memory registry of launched tokens (passport_id -> mint)
 const tokenRegistry = new Map<string, TokenInfo>();

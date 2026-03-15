@@ -10,7 +10,7 @@ import {
     POLICY_REQUIRE_ATTRIBUTION,
     POLICY_SHARE_ALIKE,
     POLICY_ALLOW_FINETUNE,
-} from '../../../engine/src/passport/passportService';
+} from '../../../engine/src/identity/passport/passportService';
 import { getContentService, ContentService } from '../../../gateway-lite/src/inference/contentService';
 
 // Agent-indicating tags for space categorization

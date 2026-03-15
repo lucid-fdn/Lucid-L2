@@ -1,2 +1,2 @@
 // PROXY
-export * from '../../../chains/solana/types';
+export * from '../../../shared/chains/solana/types';

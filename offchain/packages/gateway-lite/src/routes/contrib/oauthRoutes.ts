@@ -3,7 +3,7 @@ import { NangoService, SUPPORTED_PROVIDERS } from '../../../../contrib/integrati
 import { verifyPrivyToken, PrivyRequest } from '../../middleware/privyAuth';
 import { verifyHmacSignature, HmacRequest } from '../../middleware/hmacAuth';
 import { verifyAdminAuth, AdminRequest } from '../../middleware/adminAuth';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 const router = express.Router();
 const nangoService = new NangoService();

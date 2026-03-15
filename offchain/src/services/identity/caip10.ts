@@ -1,2 +1,2 @@
 // PROXY — real implementation moved to @lucid-l2/engine
-export * from '../../../packages/engine/src/identity/caip10';
+export * from '../../../packages/engine/src/identity/bridge/caip10';

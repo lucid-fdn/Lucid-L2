@@ -3,11 +3,11 @@
 
 import express from 'express';
 import { verifyAdminAuth } from '../../middleware/adminAuth';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 // Lazy import to avoid circular deps — matches codebase convention for engine imports
 function getService() {
-  const { getAgentDeploymentService } = require('../../../engine/src/agent/agentDeploymentService');
+  const { getAgentDeploymentService } = require('../../../engine/src/compute/agent/agentDeploymentService');
   return getAgentDeploymentService();
 }
 

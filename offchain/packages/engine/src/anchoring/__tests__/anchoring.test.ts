@@ -10,7 +10,7 @@ import {
   getAnchorRegistry,
   resetAnchoring,
 } from '../index';
-import type { IDepinStorage, UploadResult } from '../../storage/depin/IDepinStorage';
+import type { IDepinStorage, UploadResult } from '../../shared/depin/IDepinStorage';
 import type { AnchorRequest } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -365,7 +365,7 @@ describe('Content hash', () => {
     expect(record).not.toBeNull();
 
     // canonicalJson sorts keys: {"a":2,"z":1}
-    const { canonicalJson } = require('../../crypto/canonicalJson');
+    const { canonicalJson } = require('../../shared/crypto/canonicalJson');
     const expected = createHash('sha256').update(Buffer.from(canonicalJson(payload))).digest('hex');
     expect(record!.content_hash).toBe(expected);
   });

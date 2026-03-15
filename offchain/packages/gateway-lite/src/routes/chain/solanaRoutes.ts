@@ -23,7 +23,7 @@ import {
   createTransferInstruction,
   TOKEN_PROGRAM_ID
 } from '@solana/spl-token';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 const router = Router();
 

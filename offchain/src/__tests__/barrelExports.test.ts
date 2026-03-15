@@ -51,9 +51,9 @@ jest.mock('../storage/depin', () => ({
   resetDepinStorage: jest.fn(),
 }));
 // Dual-path: engine storage module (both /index and bare directory forms)
-jest.mock('../../packages/engine/src/storage/depin/index', () =>
+jest.mock('../../packages/engine/src/shared/depin/index', () =>
   require('../storage/depin'));
-jest.mock('../../packages/engine/src/storage/depin', () =>
+jest.mock('../../packages/engine/src/shared/depin', () =>
   require('../storage/depin'));
 
 // Mock @nangohq/node which needs a secret key on construction (used by oauthRoutes)
@@ -197,26 +197,34 @@ describe('Barrel Exports — services/receipt/index.ts', () => {
     expect(receipt.listComputeReceipts).toBeDefined();
     expect(receipt.getComputeReceipt).toBeDefined();
     expect(receipt.verifyComputeReceipt).toBeDefined();
+  });
+});
+
+describe('Barrel Exports — epoch module (previously in receipt)', () => {
+  it('should export epoch/anchoring/MMR symbols from epoch module', () => {
+    const epoch = require('../../packages/engine/src/epoch/services/epochService');
+    const anchoring = require('../../packages/engine/src/epoch/services/anchoringService');
+    const mmr = require('../../packages/engine/src/epoch/services/mmrService');
 
     // Epoch
-    expect(receipt.createEpoch).toBeDefined();
-    expect(receipt.getAllEpochs).toBeDefined();
-    expect(receipt.getEpoch).toBeDefined();
-    expect(receipt.finalizeEpoch).toBeDefined();
-    expect(receipt.getCurrentEpoch).toBeDefined();
-    expect(receipt.addReceiptToEpoch).toBeDefined();
-    expect(receipt.resetEpochStore).toBeDefined();
-    expect(receipt.prepareEpochForFinalization).toBeDefined();
-    expect(receipt.failEpoch).toBeDefined();
+    expect(epoch.createEpoch).toBeDefined();
+    expect(epoch.getAllEpochs).toBeDefined();
+    expect(epoch.getEpoch).toBeDefined();
+    expect(epoch.finalizeEpoch).toBeDefined();
+    expect(epoch.getCurrentEpoch).toBeDefined();
+    expect(epoch.addReceiptToEpoch).toBeDefined();
+    expect(epoch.resetEpochStore).toBeDefined();
+    expect(epoch.prepareEpochForFinalization).toBeDefined();
+    expect(epoch.failEpoch).toBeDefined();
 
     // Anchoring
-    expect(receipt.setAnchoringConfig).toBeDefined();
-    expect(receipt.setAuthorityKeypair).toBeDefined();
-    expect(receipt.commitEpochRoot).toBeDefined();
-    expect(receipt.commitEpochRootsBatch).toBeDefined();
+    expect(anchoring.setAnchoringConfig).toBeDefined();
+    expect(anchoring.setAuthorityKeypair).toBeDefined();
+    expect(anchoring.commitEpochRoot).toBeDefined();
+    expect(anchoring.commitEpochRootsBatch).toBeDefined();
 
     // MMR
-    expect(receipt.getMMRService).toBeDefined();
+    expect(mmr.getMMRService).toBeDefined();
   });
 });
 

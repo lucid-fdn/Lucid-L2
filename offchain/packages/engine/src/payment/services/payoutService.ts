@@ -8,8 +8,8 @@
  * - Optional: agent/orchestrator fee
  */
 
-import { getClient } from '../../db/pool';
-import { logger } from '../../lib/logger';
+import { getClient } from '../../shared/db/pool';
+import { logger } from '../../shared/lib/logger';
 
 export interface SplitConfig {
   // Basis points (1 bp = 0.01%, 10000 bp = 100%)
@@ -177,8 +177,8 @@ export async function resolvePayoutRecipient(
   fallbackWallet: string,
 ): Promise<string> {
   try {
-    const { blockchainAdapterFactory } = await import('../../chains/factory');
-    const { getChainConfig } = await import('../../chains/configs');
+    const { blockchainAdapterFactory } = await import('../../shared/chains/factory');
+    const { getChainConfig } = await import('../../shared/chains/configs');
     const config = getChainConfig(chainId);
     const identityRegistry = config?.erc8004?.identityRegistry;
     if (!identityRegistry) return fallbackWallet;
@@ -533,7 +533,7 @@ export async function executeSolanaPayoutSplit(
     burnBps?: number; // Default 5000 (50%)
   },
 ): Promise<PayoutExecution> {
-  const { getChainConfig } = await import('../../chains/configs');
+  const { getChainConfig } = await import('../../shared/chains/configs');
   const config = getChainConfig('solana-devnet');
   if (!config?.gasUtilsProgram) {
     throw new Error('gas-utils program not configured');
@@ -596,7 +596,7 @@ export async function createEscrowedPayout(params: {
   await storePayout(payout);
 
   // Create escrow for the compute provider's share via adapter.escrow()
-  const { blockchainAdapterFactory } = await import('../../chains/factory');
+  const { blockchainAdapterFactory } = await import('../../shared/chains/factory');
 
   const computeRecipient = payout.recipients.find((r) => r.role === 'compute');
   if (!computeRecipient) throw new Error('No compute recipient in payout split');

@@ -40,7 +40,7 @@ const mockPassportAdapter = {
 const mockAdapter = {
   passports: jest.fn(() => mockPassportAdapter),
 };
-jest.mock('../../packages/engine/src/chains/factory', () => ({
+jest.mock('../../packages/engine/src/shared/chains/factory', () => ({
   blockchainAdapterFactory: {
     getAdapter: jest.fn().mockResolvedValue(mockAdapter),
     has: jest.fn().mockReturnValue(true),

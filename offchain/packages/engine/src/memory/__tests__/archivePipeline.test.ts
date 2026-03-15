@@ -21,12 +21,12 @@ jest.mock('../../anchoring', () => ({
 
 // Mock DePIN storage for restore reads
 const mockEvolvingRetrieve = jest.fn();
-jest.mock('../../storage/depin', () => ({
+jest.mock('../../shared/depin', () => ({
   getEvolvingStorage: () => ({ retrieve: mockEvolvingRetrieve }),
 }));
 
 // Mock signing
-jest.mock('../../crypto/signing', () => ({
+jest.mock('../../shared/crypto/signing', () => ({
   signMessage: jest.fn().mockReturnValue({
     signature: 'mocksig123',
     publicKey: 'mockpub456',

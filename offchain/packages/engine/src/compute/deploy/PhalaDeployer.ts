@@ -5,7 +5,7 @@
 
 import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, DeploymentStatus, LogOptions } from './IDeployer';
 import { resilientFetch } from './resilientFetch';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 const PHALA_API_URL = 'https://cloud-api.phala.com/api/v1';
 const PHALA_API_VERSION = '2026-01-21';

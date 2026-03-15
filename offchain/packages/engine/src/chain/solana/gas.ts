@@ -1,2 +1,2 @@
 // PROXY
-export { makeComputeIx, makeBurnIx, calculateGasCost } from '../../chains/solana/gas';
+export { makeComputeIx, makeBurnIx, calculateGasCost } from '../../shared/chains/solana/gas';

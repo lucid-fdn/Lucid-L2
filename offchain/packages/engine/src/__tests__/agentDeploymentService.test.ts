@@ -13,44 +13,44 @@
 import {
   AgentDeploymentService,
   resetAgentDeploymentService,
-} from '../agent/agentDeploymentService';
-import type { DeployAgentInput } from '../agent/agentDeploymentService';
-import type { AgentDescriptor } from '../agent/agentDescriptor';
+} from '../compute/agent/agentDeploymentService';
+import type { DeployAgentInput } from '../compute/agent/agentDeploymentService';
+import type { AgentDescriptor } from '../compute/agent/agentDescriptor';
 
 // ---------------------------------------------------------------------------
 // Mock external dependencies
 // ---------------------------------------------------------------------------
 
 // Mock schemaValidator
-jest.mock('../crypto/schemaValidator', () => ({
+jest.mock('../shared/crypto/schemaValidator', () => ({
   validateWithSchema: jest.fn(),
 }));
 
 // Mock passportManager
-jest.mock('../passport/passportManager', () => ({
+jest.mock('../identity/passport/passportManager', () => ({
   getPassportManager: jest.fn(),
 }));
 
 // Mock runtime adapters
-jest.mock('../runtime', () => ({
+jest.mock('../compute/runtime', () => ({
   getRuntimeAdapter: jest.fn(),
   selectBestAdapter: jest.fn(),
   listAdapterNames: jest.fn(() => ['vercel-ai', 'openclaw', 'docker']),
 }));
 
 // Mock deployers
-jest.mock('../deploy', () => ({
+jest.mock('../compute/deploy', () => ({
   getDeployer: jest.fn(),
   listDeployerTargets: jest.fn(() => ['docker', 'railway']),
 }));
 
 // Mock wallet
-jest.mock('../agent/wallet', () => ({
+jest.mock('../identity/wallet', () => ({
   getAgentWalletProvider: jest.fn(),
 }));
 
 // Mock A2A
-jest.mock('../agent/a2a/agentCard', () => ({
+jest.mock('../compute/agent/a2a/agentCard', () => ({
   generateAgentCard: jest.fn(() => ({
     name: 'test-agent',
     capabilities: ['research'],
@@ -60,12 +60,12 @@ jest.mock('../agent/a2a/agentCard', () => ({
 // Marketplace moved to _wip/ — no mock needed
 
 // Import mocked modules
-import { validateWithSchema } from '../crypto/schemaValidator';
-import { getPassportManager } from '../passport/passportManager';
-import { getRuntimeAdapter, selectBestAdapter, listAdapterNames } from '../runtime';
-import { getDeployer, listDeployerTargets } from '../deploy';
-import { getAgentWalletProvider } from '../agent/wallet';
-import { generateAgentCard } from '../agent/a2a/agentCard';
+import { validateWithSchema } from '../shared/crypto/schemaValidator';
+import { getPassportManager } from '../identity/passport/passportManager';
+import { getRuntimeAdapter, selectBestAdapter, listAdapterNames } from '../compute/runtime';
+import { getDeployer, listDeployerTargets } from '../compute/deploy';
+import { getAgentWalletProvider } from '../identity/wallet';
+import { generateAgentCard } from '../compute/agent/a2a/agentCard';
 // Marketplace moved to _wip/
 // import { getMarketplaceService } from '../agent/marketplace';
 

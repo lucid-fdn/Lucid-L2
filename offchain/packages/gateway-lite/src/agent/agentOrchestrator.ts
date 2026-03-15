@@ -8,7 +8,7 @@
 import { AgentPlannerService, PlanRequest, PlanResponse } from './agentPlanner';
 import { ExecutorRouter, ExecutorType } from './executorRouter';
 import { FlowSpec } from '../../../contrib/integrations/flowspec/types';
-import { logger } from '../../../engine/src/lib/logger';
+import { logger } from '../../../engine/src/shared/lib/logger';
 
 export interface AgentAccomplishRequest {
   goal: string;

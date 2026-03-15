@@ -1,7 +1,7 @@
 import express from 'express';
 import axios from 'axios';
-import { N8N_URL, N8N_API_KEY } from '../../../../engine/src/config/config';
-import { logger } from '../../../../engine/src/lib/logger';
+import { N8N_URL, N8N_API_KEY } from '../../../../engine/src/shared/config/config';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export const n8nFlowApiRouter = express.Router();
 

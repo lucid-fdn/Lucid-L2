@@ -2,7 +2,7 @@
 // Crossmint Smart Wallet provider for Solana agent wallets
 
 import { IAgentWalletProvider, AgentWallet, WalletBalance, TransactionRequest, TransactionResult, SpendingLimits } from './IAgentWalletProvider';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 /**
  * Crossmint Wallet Provider (Solana)

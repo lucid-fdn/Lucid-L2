@@ -1,5 +1,5 @@
 import express from 'express';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export const toolApiRouter = express.Router();
 

@@ -1,2 +1,2 @@
 // PROXY
-export * from '../../chains/types';
+export * from '../../shared/chains/types';

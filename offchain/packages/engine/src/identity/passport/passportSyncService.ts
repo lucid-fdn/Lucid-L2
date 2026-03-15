@@ -6,12 +6,12 @@ import { AnchorProvider, Program, Wallet, setProvider, Idl, BN } from '@coral-xy
 import * as fs from 'fs';
 import path from 'path';
 import { createHash } from 'crypto';
-import { PATHS } from '../../config/paths';
+import { PATHS } from '../../shared/config/paths';
 import { getSolanaKeypair } from '../../chain/solana/keypair';
 
-import { Passport, PassportType } from '../../storage/passportStore';
+import { Passport, PassportType } from '../stores/passportStore';
 import { OnChainSyncHandler } from './passportManager';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 // Program ID - deployed to devnet on Jan 27, 2026
 const PASSPORT_PROGRAM_ID = process.env.PASSPORT_PROGRAM_ID || 'FhoemNdqwPMt8nmX4HT3WpSqUuqeAUXRb7WchAehmSaL';

@@ -11,7 +11,7 @@ const mockCreateEscrow = jest.fn();
 const mockReleaseEscrow = jest.fn();
 const mockDisputeEscrow = jest.fn();
 
-jest.mock('../../../../engine/src/chains/factory', () => ({
+jest.mock('../../../../engine/src/shared/chains/factory', () => ({
   blockchainAdapterFactory: {
     getAdapter: mockGetAdapter,
   },

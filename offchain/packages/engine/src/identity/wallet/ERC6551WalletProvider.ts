@@ -2,7 +2,7 @@
 // ERC-6551 Token Bound Account wallet provider for EVM agent wallets
 
 import { IAgentWalletProvider, AgentWallet, WalletBalance, TransactionRequest, TransactionResult, SpendingLimits } from './IAgentWalletProvider';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 /**
  * ERC-6551 Token Bound Account Wallet Provider (EVM)

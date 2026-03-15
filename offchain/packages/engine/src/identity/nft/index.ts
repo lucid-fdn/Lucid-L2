@@ -2,7 +2,7 @@
 // Factory for NFT providers — singleton pattern matching codebase conventions
 
 import { INFTProvider } from './INFTProvider';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 export { INFTProvider, MintResult, NFTMetadata } from './INFTProvider';
 

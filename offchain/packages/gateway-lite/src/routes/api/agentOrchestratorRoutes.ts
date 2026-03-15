@@ -1,7 +1,7 @@
 import express from 'express';
 import { getMMRService, AgentEpochData } from '../../../../engine/src/epoch/services/mmrService';
 import { FlowSpec, FlowExecutionContext } from '../../../../contrib/integrations/flowspec/types';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export const agentOrchestratorApiRouter = express.Router();
 
@@ -453,7 +453,7 @@ async function handleAgentPlan(req: express.Request, res: express.Response) {
   try {
     const { getAgentPlanner } = await import('../../agent/agentPlanner');
     const { FlowSpecService } = await import('../../../../contrib/integrations/flowspec/flowspecService');
-    const { N8N_URL, N8N_HMAC_SECRET, N8N_API_KEY } = await import('../../../../engine/src/config/config');
+    const { N8N_URL, N8N_HMAC_SECRET, N8N_API_KEY } = await import('../../../../engine/src/shared/config/config');
     const { goal, context, constraints, autoExecute } = req.body as {
       goal: string;
       context?: Record<string, any>;

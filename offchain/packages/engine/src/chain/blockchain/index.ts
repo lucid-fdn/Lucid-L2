@@ -1,2 +1,2 @@
 // PROXY — moved to chains/
-export * from '../../chains/index';
+export * from '../../shared/chains/index';

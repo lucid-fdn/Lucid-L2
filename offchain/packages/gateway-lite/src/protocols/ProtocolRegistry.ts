@@ -7,7 +7,7 @@
 
 import { BaseProtocolAdapter } from './BaseProtocolAdapter';
 import { ProtocolMetadata, ProtocolConfig, HealthStatus } from './types';
-import { logger } from '../../../engine/src/lib/logger';
+import { logger } from '../../../engine/src/shared/lib/logger';
 
 interface RegisteredProtocol {
   adapter: BaseProtocolAdapter;

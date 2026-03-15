@@ -1,2 +1,2 @@
 // PROXY
-export { SolanaAdapter } from '../../../chains/solana/adapter';
+export { SolanaAdapter } from '../../../shared/chains/solana/adapter';

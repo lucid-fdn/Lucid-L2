@@ -5,7 +5,7 @@
 
 import axios from 'axios';
 import { MCPTool, MCPToolExecuteRequest, MCPToolExecuteResponse } from './mcpTypes';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export class MCPToolRegistry {
   private tools: Map<string, MCPTool> = new Map();

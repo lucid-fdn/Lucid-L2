@@ -3,10 +3,10 @@
 
 import express from 'express';
 import { verifyAdminAuth } from '../../middleware/adminAuth';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 function getRevenueService() {
-  const mod = require('../../../engine/src/agent/agentRevenueService');
+  const mod = require('../../../engine/src/compute/agent/agentRevenueService');
   return mod;
 }
 
@@ -94,7 +94,7 @@ agentRevenueRouter.get('/v1/agents/:id/revenue/history', async (req, res) => {
     const { id } = req.params;
 
     // Lazy import payoutService to get agent-attributed payouts
-    const { getAllPayouts } = require('../../../engine/src/finance/payoutService');
+    const { getAllPayouts } = require('../../../engine/src/payment/services/payoutService');
     const allPayouts = getAllPayouts();
     const agentPayouts = allPayouts.filter(
       (p: any) => p.agent_passport_id === id,

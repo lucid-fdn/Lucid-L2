@@ -6,7 +6,7 @@
  */
 
 import { Router } from 'express';
-import { blockchainAdapterFactory } from '../../../../engine/src/chains/factory';
+import { blockchainAdapterFactory } from '../../../../engine/src/shared/chains/factory';
 
 export const tbaRouter = Router();
 

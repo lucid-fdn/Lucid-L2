@@ -7,7 +7,7 @@
 
 import { trace, context, SpanStatusCode } from '@opentelemetry/api'
 import type { Tracer, Span } from '@opentelemetry/api'
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 /** Handle to the running SDK so we can shut it down cleanly. */
 let _sdk: { shutdown: () => Promise<void> } | null = null

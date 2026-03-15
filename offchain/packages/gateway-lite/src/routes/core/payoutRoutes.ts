@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { calculatePayoutSplit, createPayoutFromReceipt, getPayout, storePayout, verifyPayoutSplit } from '../../../../engine/src/payment/services/payoutService';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export const payoutRouter = Router();
 

@@ -1,2 +1,2 @@
 // PROXY
-export { getSolanaKeypair, parseKeypairString, loadKeypairFromFile } from '../../chains/solana/keypair';
+export { getSolanaKeypair, parseKeypairString, loadKeypairFromFile } from '../../shared/chains/solana/keypair';

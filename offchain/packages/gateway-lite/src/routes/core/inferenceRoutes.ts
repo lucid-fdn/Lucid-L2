@@ -7,7 +7,7 @@ import {
   ChatCompletionRequest,
 } from '../../inference/executionGateway';
 import { requirePayment } from '../../middleware/x402';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export const inferenceRouter = Router();
 

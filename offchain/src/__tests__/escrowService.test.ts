@@ -3,7 +3,7 @@
  */
 
 // Mock DB pool so getEscrow/listEscrows don't require a real Postgres connection
-jest.mock('../../packages/engine/src/db/pool', () => ({
+jest.mock('../../packages/engine/src/shared/db/pool', () => ({
   __esModule: true,
   default: {
     query: jest.fn().mockResolvedValue({ rows: [] }),

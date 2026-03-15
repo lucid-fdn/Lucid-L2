@@ -12,7 +12,7 @@
  */
 
 import type { SplitConfig } from '../../payment/services/payoutService';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 export interface AgentRevenuePool {
   agent_passport_id: string;
@@ -104,7 +104,7 @@ export async function processAgentRevenue(receipt: {
 
     // Attempt auto-airdrop if share token is configured
     try {
-      const { getTokenLauncher } = await import('../../assets/shares');
+      const { getTokenLauncher } = await import('../../identity/shares');
       const launcher = getTokenLauncher();
       const tokenInfo = await launcher.getTokenInfo(receipt.agent_passport_id);
       if (tokenInfo) {

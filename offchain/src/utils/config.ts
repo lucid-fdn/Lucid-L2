@@ -27,5 +27,5 @@ export {
   N8N_HMAC_SECRET,
   N8N_API_KEY,
   MEMORY_WALLET_PATH,
-} from '../../packages/engine/src/config/config';
-export type { Environment, EnvironmentConfig } from '../../packages/engine/src/config/config';
+} from '../../packages/engine/src/shared/config/config';
+export type { Environment, EnvironmentConfig } from '../../packages/engine/src/shared/config/config';

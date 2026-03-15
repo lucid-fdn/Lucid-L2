@@ -11,7 +11,7 @@ import {
   generateAgentCard,
   validateAgentCard,
   AgentCard,
-} from '../agent/a2a/agentCard';
+} from '../compute/agent/a2a/agentCard';
 import {
   createA2ATask,
   updateTaskState,
@@ -20,13 +20,13 @@ import {
   createTaskStore,
   A2ATask,
   A2AMessage,
-} from '../agent/a2a/a2aServer';
+} from '../compute/agent/a2a/a2aServer';
 import {
   discoverAgent,
   sendTask,
   getTaskStatus,
   cancelTask,
-} from '../agent/a2a/a2aClient';
+} from '../compute/agent/a2a/a2aClient';
 
 const PASSPORT_ID = 'passport_a2a_test_123';
 const AGENT_URL = 'https://agent.example.com';

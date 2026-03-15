@@ -1,2 +1,2 @@
 // PROXY
-export { initSolana, getConnection, getKeypair, deriveEpochPDA, deriveEpochBatchPDA, createCommitInstruction, resetSolanaCache } from '../../chains/solana/client';
+export { initSolana, getConnection, getKeypair, deriveEpochPDA, deriveEpochBatchPDA, createCommitInstruction, resetSolanaCache } from '../../shared/chains/solana/client';

@@ -5,7 +5,7 @@
  */
 
 import type { Hash } from 'viem';
-import type { ReputationData } from '../../chains/types';
+import type { ReputationData } from '../../shared/chains/types';
 import type { ReputationSummary } from './types';
 import ReputationRegistryABI from './abis/ReputationRegistry.json';
 

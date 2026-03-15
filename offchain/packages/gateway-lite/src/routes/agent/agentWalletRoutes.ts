@@ -3,10 +3,10 @@
 
 import express from 'express';
 import { verifyAdminAuth } from '../../middleware/adminAuth';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 function getWalletProvider() {
-  const { getAgentWalletProvider } = require('../../../engine/src/agent/wallet');
+  const { getAgentWalletProvider } = require('../../../engine/src/identity/wallet');
   return getAgentWalletProvider();
 }
 

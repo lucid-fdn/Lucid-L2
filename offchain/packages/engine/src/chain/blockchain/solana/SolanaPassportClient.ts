@@ -1,2 +1,2 @@
 // PROXY — moved to passport/nft/
-export { SolanaPassportClient } from '../../../passport/nft/solana-token2022';
+export { SolanaPassportClient } from '../../../identity/nft/solana/solana-token2022';

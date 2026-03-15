@@ -2,7 +2,7 @@ import express from 'express';
 import { Nango } from '@nangohq/node';
 import { verifyPrivyToken, PrivyRequest } from '../../middleware/privyAuth';
 import { PROVIDER_TO_NANGO_MAP } from '../../../../contrib/integrations/oauth/nangoService';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 const router = express.Router();
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { getComputeRegistry } from '../../compute/computeRegistry';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export const computeNodeRouter = Router();
 

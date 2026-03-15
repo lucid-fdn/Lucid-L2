@@ -2,7 +2,7 @@
 // Factory for agent wallet providers — singleton pattern matching codebase conventions
 
 import { IAgentWalletProvider } from './IAgentWalletProvider';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 export { IAgentWalletProvider, AgentWallet, WalletBalance, TransactionRequest, TransactionResult, SpendingLimits } from './IAgentWalletProvider';
 

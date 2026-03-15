@@ -16,8 +16,8 @@ jest.mock('../services/passport/passportManager', () => ({
     listPassports: mockListPassports,
   }),
 }));
-// Dual-path: executionGateway imports from ../../../engine/src/passport/passportManager
-jest.mock('../../packages/engine/src/passport/passportManager', () =>
+// Dual-path: executionGateway imports from ../../../engine/src/identity/passport/passportManager
+jest.mock('../../packages/engine/src/identity/passport/passportManager', () =>
   require('../services/passport/passportManager'));
 
 // Mock computeRegistry

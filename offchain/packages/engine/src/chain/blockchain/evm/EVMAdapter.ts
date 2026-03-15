@@ -1,2 +1,2 @@
 // PROXY
-export { EVMAdapter } from '../../../chains/evm/adapter';
+export { EVMAdapter } from '../../../shared/chains/evm/adapter';

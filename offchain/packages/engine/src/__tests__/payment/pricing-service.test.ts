@@ -1,8 +1,8 @@
-jest.mock('../../db/pool', () => ({
+jest.mock('../../shared/db/pool', () => ({
   getClient: jest.fn(),
 }));
 
-import { getClient } from '../../db/pool';
+import { getClient } from '../../shared/db/pool';
 import { PricingService } from '../../payment/services/pricingService';
 
 const mockQuery = jest.fn();

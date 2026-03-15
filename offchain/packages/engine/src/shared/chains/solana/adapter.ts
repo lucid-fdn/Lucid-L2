@@ -31,7 +31,7 @@ import type {
 } from '../types';
 import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapter, IGasAdapter, IIdentityAdapter, IValidationAdapter, ChainCapabilities } from '../domain-interfaces';
 import { ChainFeatureUnavailable } from '../../../errors';
-import { SolanaPassportClient } from '../../../passport/nft/solana-token2022';
+import { SolanaPassportClient } from '../../../identity/nft/solana/solana-token2022';
 import { logger } from '../../lib/logger';
 
 // =============================================================================
@@ -925,8 +925,8 @@ export class SolanaAdapter implements IBlockchainAdapter {
     return {
       async anchorPassport(passportId, _contentHash, _owner) {
         // Delegate to PassportSyncService which handles full Anchor IDL interaction
-        const { getPassportSyncService } = await import('../../../passport/passportSyncService');
-        const { getPassportStore } = await import('../../../storage/passportStore');
+        const { getPassportSyncService } = await import('../../../identity/passport/passportSyncService');
+        const { getPassportStore } = await import('../../../identity/stores/passportStore');
         const syncService = getPassportSyncService();
         const passport = await getPassportStore().get(passportId);
         if (!passport) {
@@ -940,8 +940,8 @@ export class SolanaAdapter implements IBlockchainAdapter {
       },
       async updatePassportStatus(passportId, status) {
         // Delegate to PassportSyncService which handles Anchor IDL interaction
-        const { getPassportSyncService } = await import('../../../passport/passportSyncService');
-        const { getPassportStore } = await import('../../../storage/passportStore');
+        const { getPassportSyncService } = await import('../../../identity/passport/passportSyncService');
+        const { getPassportStore } = await import('../../../identity/stores/passportStore');
         const syncService = getPassportSyncService();
         const passport = await getPassportStore().get(passportId);
         if (!passport?.on_chain_pda) {
@@ -961,7 +961,7 @@ export class SolanaAdapter implements IBlockchainAdapter {
       async verifyAnchor(passportId, contentHash) {
         try {
           // Look up the passport from the store to find the on-chain PDA address
-          const { getPassportStore } = await import('../../../storage/passportStore');
+          const { getPassportStore } = await import('../../../identity/stores/passportStore');
           const store = getPassportStore();
           const passport = await store.get(passportId);
 
@@ -977,7 +977,7 @@ export class SolanaAdapter implements IBlockchainAdapter {
           }
 
           // Use PassportSyncService to fetch the deserialized on-chain account via Anchor IDL
-          const { getPassportSyncService } = await import('../../../passport/passportSyncService');
+          const { getPassportSyncService } = await import('../../../identity/passport/passportSyncService');
           const syncService = getPassportSyncService();
           const onChainData = await syncService.getOnChainPassport(pdaAddress);
 

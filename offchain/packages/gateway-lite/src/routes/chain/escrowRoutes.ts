@@ -7,7 +7,7 @@
  */
 
 import { Router } from 'express';
-import { blockchainAdapterFactory } from '../../../../engine/src/chains/factory';
+import { blockchainAdapterFactory } from '../../../../engine/src/shared/chains/factory';
 import { getEscrowService } from '../../../../engine/src/payment/escrow/escrowService';
 
 export const escrowRouter = Router();

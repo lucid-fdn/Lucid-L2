@@ -15,19 +15,19 @@
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
-import { DockerDeployer } from '../deploy/DockerDeployer';
-import { RailwayDeployer } from '../deploy/RailwayDeployer';
-import { AkashDeployer } from '../deploy/AkashDeployer';
-import { PhalaDeployer } from '../deploy/PhalaDeployer';
-import { IoNetDeployer } from '../deploy/IoNetDeployer';
-import { NosanaDeployer } from '../deploy/NosanaDeployer';
+import { DockerDeployer } from '../compute/deploy/DockerDeployer';
+import { RailwayDeployer } from '../compute/deploy/RailwayDeployer';
+import { AkashDeployer } from '../compute/deploy/AkashDeployer';
+import { PhalaDeployer } from '../compute/deploy/PhalaDeployer';
+import { IoNetDeployer } from '../compute/deploy/IoNetDeployer';
+import { NosanaDeployer } from '../compute/deploy/NosanaDeployer';
 import {
   getDeployer,
   getAllDeployers,
   listDeployerTargets,
   resetDeployers,
-} from '../deploy';
-import type { RuntimeArtifact, DeploymentConfig } from '../deploy/IDeployer';
+} from '../compute/deploy';
+import type { RuntimeArtifact, DeploymentConfig } from '../compute/deploy/IDeployer';
 
 // ---------------------------------------------------------------------------
 // Shared test fixtures

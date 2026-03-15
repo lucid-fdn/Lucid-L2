@@ -75,7 +75,7 @@ function createDepinMock() {
 
 const depinMock = createDepinMock();
 jest.mock('../storage/depin', () => depinMock);
-jest.mock('../../packages/engine/src/storage/depin', () => depinMock);
+jest.mock('../../packages/engine/src/shared/depin', () => depinMock);
 
 import { MMRService, getMMRService, MMRCommitResult, AgentEpochData } from '../services/receipt/mmrService';
 

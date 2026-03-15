@@ -7,5 +7,5 @@ export {
   resetKeypair,
   generateKeypair,
   exportKeypairToHex,
-} from '../../packages/engine/src/crypto/signing';
-export type { SigningKeypair, SignatureResult } from '../../packages/engine/src/crypto/signing';
+} from '../../packages/engine/src/shared/crypto/signing';
+export type { SigningKeypair, SignatureResult } from '../../packages/engine/src/shared/crypto/signing';

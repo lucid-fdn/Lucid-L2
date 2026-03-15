@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { ec } from 'elliptic';
 import crypto from 'crypto';
-import { logger } from '../../../engine/src/lib/logger';
+import { logger } from '../../../engine/src/shared/lib/logger';
 
 export interface SignerPolicy {
   ttl?: number;

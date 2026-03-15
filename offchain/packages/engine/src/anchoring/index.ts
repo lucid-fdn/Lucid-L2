@@ -1,7 +1,7 @@
 // offchain/packages/engine/src/anchoring/index.ts
 // Factory singletons + barrel exports for the Anchoring Control Plane
 
-import { getPermanentStorage, getEvolvingStorage } from '../storage/depin';
+import { getPermanentStorage, getEvolvingStorage } from '../shared/depin';
 import { AnchorDispatcher } from './dispatcher';
 import { PostgresAnchorRegistry, InMemoryAnchorRegistry } from './registry';
 import type { IAnchorRegistry } from './registry';

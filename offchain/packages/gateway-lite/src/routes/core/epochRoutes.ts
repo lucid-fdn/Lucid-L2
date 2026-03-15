@@ -16,7 +16,7 @@ import {
   getAnchorTransaction,
   checkAnchoringHealth,
 } from '../../../../engine/src/epoch/services/anchoringService';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export const epochRouter = Router();
 

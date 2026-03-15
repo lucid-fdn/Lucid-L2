@@ -1,4 +1,4 @@
-import { canonicalSha256Hex } from '../crypto/hash';
+import { canonicalSha256Hex } from '../shared/crypto/hash';
 import type { IMemoryStore } from './store/interface';
 import type { MemoryEntry, MemoryType } from './types';
 

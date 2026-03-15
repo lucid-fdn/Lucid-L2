@@ -3,7 +3,7 @@
 
 import { IReputationProvider } from './IReputationProvider';
 import { IReputationSyncer } from './IReputationSyncer';
-import { logger } from '../lib/logger';
+import { logger } from '../shared/lib/logger';
 
 export { IReputationProvider } from './IReputationProvider';
 export { IReputationSyncer, ExternalFeedback, ExternalSummary } from './IReputationSyncer';

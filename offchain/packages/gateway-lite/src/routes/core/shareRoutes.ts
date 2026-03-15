@@ -2,9 +2,9 @@
 // REST API routes for share token operations
 
 import express from 'express';
-import { getTokenLauncher } from '../../../../engine/src/assets/shares';
-import { getPassportManager } from '../../../../engine/src/passport/passportManager';
-import { getPermanentStorage } from '../../../../engine/src/storage/depin';
+import { getTokenLauncher } from '../../../../engine/src/identity/shares';
+import { getPassportManager } from '../../../../engine/src/identity/passport/passportManager';
+import { getPermanentStorage } from '../../../../engine/src/shared/depin';
 
 export const shareRouter = express.Router();
 

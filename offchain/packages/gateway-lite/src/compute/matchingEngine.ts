@@ -1,4 +1,4 @@
-import { validateWithSchema } from '../../../engine/src/crypto/schemaValidator';
+import { validateWithSchema } from '../../../engine/src/shared/crypto/schemaValidator';
 import { evaluatePolicy, Policy, ReasonCode as PolicyReasonCode } from './policyEngine';
 import { getComputeRegistry, ComputeLiveState } from './computeRegistry';
 

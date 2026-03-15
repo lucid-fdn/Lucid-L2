@@ -10,8 +10,8 @@ import { getX402Config } from '../../middleware/x402';
 import { getFacilitatorRegistry } from '../../middleware/x402';
 import { verifyAdminAuth } from '../../middleware/adminAuth';
 import { createPaymentGrant } from '../../../../engine/src/payment/settlement/paymentGrant';
-import { getOrchestratorKeypair } from '../../../../engine/src/crypto/signing';
-import { logger } from '../../../../engine/src/lib/logger';
+import { getOrchestratorKeypair } from '../../../../engine/src/shared/crypto/signing';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export function createPaymentConfigRouter(): Router {
   const router = Router();

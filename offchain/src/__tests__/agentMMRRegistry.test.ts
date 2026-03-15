@@ -86,7 +86,7 @@ jest.mock('../storage/depin', () => {
     __mockInstance: mockInstance,
   };
 });
-jest.mock('../../packages/engine/src/storage/depin', () => require('../storage/depin'));
+jest.mock('../../packages/engine/src/shared/depin', () => require('../storage/depin'));
 
 // =============================================================================
 // TESTS

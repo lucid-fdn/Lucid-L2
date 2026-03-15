@@ -6,7 +6,7 @@
 
 import { AgentCard, validateAgentCard } from './agentCard';
 import { A2ATask, A2AMessage, A2APart } from './a2aServer';
-import { logger } from '../../../lib/logger';
+import { logger } from '../../../shared/lib/logger';
 
 export interface A2AClientOptions {
   timeout_ms?: number;

@@ -8,8 +8,8 @@
  * @module endpointHealthService
  */
 
-import type { CapacityBucket } from '../../../engine/src/types/fluidCompute';
-import { logger } from '../../../engine/src/lib/logger';
+import type { CapacityBucket } from '../../../engine/src/shared/types/fluidCompute';
+import { logger } from '../../../engine/src/shared/lib/logger';
 
 /**
  * Configuration for the health service

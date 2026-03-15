@@ -33,7 +33,7 @@ export class VercelAIAdapter implements IRuntimeAdapter {
 import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import express from "express";
-import { logger } from '../lib/logger';
+import { logger } from '../shared/lib/logger';
 
 // --- LLM Provider (routes through TrustGate) ---
 const provider = createOpenAI({

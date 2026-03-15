@@ -174,7 +174,7 @@ describe('CircuitBreaker', () => {
 
 describe('BlockchainAdapterFactory circuit breaker integration', () => {
   it('factory exports circuit breaker access methods', () => {
-    const { blockchainAdapterFactory } = require('../../packages/engine/src/chains/factory');
+    const { blockchainAdapterFactory } = require('../../packages/engine/src/shared/chains/factory');
     expect(typeof blockchainAdapterFactory.getCircuitBreaker).toBe('function');
     expect(typeof blockchainAdapterFactory.resetAllCircuitBreakers).toBe('function');
     expect(typeof blockchainAdapterFactory.run).toBe('function');

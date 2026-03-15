@@ -8,7 +8,7 @@ import { Router } from 'express';
 import { PricingService } from '../../../../engine/src/payment/services/pricingService';
 import { RevenueService } from '../../../../engine/src/payment/services/revenueService';
 import { verifyAdminAuth } from '../../middleware/adminAuth';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 /**
  * Serialize a value that may contain BigInt fields into JSON-safe form.

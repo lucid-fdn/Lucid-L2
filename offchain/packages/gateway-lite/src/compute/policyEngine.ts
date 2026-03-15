@@ -1,5 +1,5 @@
-import { canonicalSha256Hex } from '../../../engine/src/crypto/hash';
-import { validateWithSchema } from '../../../engine/src/crypto/schemaValidator';
+import { canonicalSha256Hex } from '../../../engine/src/shared/crypto/hash';
+import { validateWithSchema } from '../../../engine/src/shared/crypto/schemaValidator';
 
 export type ReasonCode =
   | 'INVALID_POLICY'

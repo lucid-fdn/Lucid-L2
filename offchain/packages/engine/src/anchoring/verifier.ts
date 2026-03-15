@@ -1,7 +1,7 @@
 // offchain/packages/engine/src/anchoring/verifier.ts
 // Verifies that anchored artifacts still exist on DePIN storage
 
-import type { IDepinStorage } from '../storage/depin/IDepinStorage';
+import type { IDepinStorage } from '../shared/depin/IDepinStorage';
 import type { IAnchorRegistry } from './registry';
 
 export class AnchorVerifier {

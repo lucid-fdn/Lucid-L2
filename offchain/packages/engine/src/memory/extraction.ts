@@ -1,6 +1,6 @@
 import type { IMemoryStore } from './store/interface';
 import type { MemoryServiceConfig, EpisodicMemory, ValidatedExtractionResult } from './types';
-import { sha256Hex } from '../crypto/hash';
+import { sha256Hex } from '../shared/crypto/hash';
 
 // ─── Extraction Response Validation ─────────────────────────────────
 

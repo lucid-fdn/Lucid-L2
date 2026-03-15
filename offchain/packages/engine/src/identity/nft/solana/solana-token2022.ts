@@ -33,8 +33,8 @@ import {
   createInitializeInstruction as createInitializeMetadataInstruction,
   createUpdateFieldInstruction,
 } from '@solana/spl-token-metadata';
-import type { AgentIdentity } from '../../../chains/types';
-import type { PassportNFTMetadata, PassportNFT } from '../../../chains/solana/types';
+import type { AgentIdentity } from '../../../shared/chains/types';
+import type { PassportNFTMetadata, PassportNFT } from '../../../shared/chains/solana/types';
 
 // Token-2022 metadata extension discriminator (8 bytes)
 const TOKEN_METADATA_DISCRIMINATOR = Buffer.from([112, 132, 90, 90, 11, 88, 157, 87]);

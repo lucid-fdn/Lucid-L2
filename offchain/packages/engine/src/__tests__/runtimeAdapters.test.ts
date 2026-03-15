@@ -13,20 +13,20 @@
  * Also tests factory functions: getRuntimeAdapter, selectBestAdapter, listAdapterNames
  */
 
-import { VercelAIAdapter } from '../runtime/VercelAIAdapter';
-import { OpenClawAdapter } from '../runtime/OpenClawAdapter';
-import { OpenAIAgentsAdapter } from '../runtime/OpenAIAgentsAdapter';
-import { LangGraphAdapter } from '../runtime/LangGraphAdapter';
-import { CrewAIAdapter } from '../runtime/CrewAIAdapter';
-import { GoogleADKAdapter } from '../runtime/GoogleADKAdapter';
-import { DockerAdapter } from '../runtime/DockerAdapter';
+import { VercelAIAdapter } from '../compute/runtime/VercelAIAdapter';
+import { OpenClawAdapter } from '../compute/runtime/OpenClawAdapter';
+import { OpenAIAgentsAdapter } from '../compute/runtime/OpenAIAgentsAdapter';
+import { LangGraphAdapter } from '../compute/runtime/LangGraphAdapter';
+import { CrewAIAdapter } from '../compute/runtime/CrewAIAdapter';
+import { GoogleADKAdapter } from '../compute/runtime/GoogleADKAdapter';
+import { DockerAdapter } from '../compute/runtime/DockerAdapter';
 import {
   getRuntimeAdapter,
   selectBestAdapter,
   listAdapterNames,
   resetRuntimeAdapters,
-} from '../runtime';
-import type { IRuntimeAdapter, RuntimeArtifact } from '../runtime/IRuntimeAdapter';
+} from '../compute/runtime';
+import type { IRuntimeAdapter, RuntimeArtifact } from '../compute/runtime/IRuntimeAdapter';
 
 // ---------------------------------------------------------------------------
 // Shared test fixtures

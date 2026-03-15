@@ -1,2 +1,2 @@
 // PROXY
-export type { IBlockchainAdapter } from '../../chains/adapter-interface';
+export type { IBlockchainAdapter } from '../../shared/chains/adapter-interface';

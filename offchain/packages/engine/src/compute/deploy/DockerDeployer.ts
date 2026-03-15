@@ -6,7 +6,7 @@ import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, Deploym
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 export class DockerDeployer implements IDeployer {
   readonly target = 'docker';

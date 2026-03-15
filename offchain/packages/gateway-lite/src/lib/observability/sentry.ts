@@ -6,7 +6,7 @@
 
 import * as Sentry from '@sentry/node'
 import type { Application } from 'express'
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 /**
  * Initialize Sentry SDK.  Must be called as early as possible so that the

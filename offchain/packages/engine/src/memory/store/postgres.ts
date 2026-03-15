@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { pool, getClient } from '../../db/pool';
+import { pool, getClient } from '../../shared/db/pool';
 import type { PoolClient } from 'pg';
 import type {
   MemoryEntry, MemoryType, MemoryStatus, WritableMemoryEntry,
@@ -8,7 +8,7 @@ import type {
 } from '../types';
 import { MEMORY_TYPES, MEMORY_STATUSES } from '../types';
 import type { IMemoryStore, MemoryQuery, MemoryWriteResult, MemoryStats } from './interface';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 

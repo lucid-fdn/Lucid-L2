@@ -13,7 +13,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { verifyPaymentGrant, type PaymentGrant } from '../../../engine/src/payment/settlement/paymentGrant';
-import { logger } from '../../../engine/src/lib/logger';
+import { logger } from '../../../engine/src/shared/lib/logger';
 
 const TRUSTED_SIGNER = process.env.PAYMENT_GRANT_SIGNER_PUBKEY || '';
 
@@ -39,7 +39,7 @@ export function requirePaymentAuth() {
 
         // Atomic spend tracking via grant_budgets table
         try {
-          const pool = (await import('../../../engine/src/db/pool')).default;
+          const pool = (await import('../../../engine/src/shared/db/pool')).default;
 
           // Ensure grant budget row exists (lazy init from signed grant limits)
           await pool.query(

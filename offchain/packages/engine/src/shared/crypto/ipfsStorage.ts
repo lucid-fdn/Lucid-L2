@@ -2,7 +2,7 @@ import { MMRState, AgentMMR } from './mmr';
 import { createHash } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import { getEvolvingStorage, IDepinStorage } from '../../storage/depin';
+import { getEvolvingStorage, IDepinStorage } from '../depin';
 import { logger } from '../lib/logger';
 
 /**

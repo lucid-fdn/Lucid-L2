@@ -5,9 +5,9 @@ import { Connection, PublicKey, Keypair, Commitment, Transaction, SystemProgram,
 import { AnchorProvider, Program, Wallet, setProvider, Idl } from '@coral-xyz/anchor';
 import * as fs from 'fs';
 import path from 'path';
-import { PATHS } from '../../config/paths';
+import { PATHS } from '../../shared/config/paths';
 import { getSolanaKeypair } from '../../chain/solana/keypair';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 const PASSPORT_PROGRAM_ID = process.env.PASSPORT_PROGRAM_ID || 'FhoemNdqwPMt8nmX4HT3WpSqUuqeAUXRb7WchAehmSaL';
 

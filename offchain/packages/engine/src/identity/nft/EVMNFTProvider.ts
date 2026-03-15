@@ -3,7 +3,7 @@
 
 import { INFTProvider, MintResult, NFTMetadata } from './INFTProvider';
 import { ChainFeatureUnavailable } from '../../errors';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 export class EVMNFTProvider implements INFTProvider {
   readonly providerName = 'evm-erc721';

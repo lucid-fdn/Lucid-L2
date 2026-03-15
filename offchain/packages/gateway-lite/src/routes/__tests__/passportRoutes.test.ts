@@ -18,7 +18,7 @@ const mockUpdateEndpoints = jest.fn();
 const mockSearchModels = jest.fn();
 const mockSearchCompute = jest.fn();
 
-jest.mock('../../../../engine/src/passport/passportManager', () => ({
+jest.mock('../../../../engine/src/identity/passport/passportManager', () => ({
   getPassportManager: () => ({
     createPassport: mockCreatePassport,
     getPassport: mockGetPassport,

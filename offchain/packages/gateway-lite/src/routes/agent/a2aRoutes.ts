@@ -3,18 +3,18 @@
 
 import express from 'express';
 import { verifyAdminAuth } from '../../middleware/adminAuth';
-import { logger } from '../../../../engine/src/lib/logger';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 // Lazy imports to avoid circular deps
 function getDeploymentService() {
-  const { getAgentDeploymentService } = require('../../../engine/src/agent/agentDeploymentService');
+  const { getAgentDeploymentService } = require('../../../engine/src/compute/agent/agentDeploymentService');
   return getAgentDeploymentService();
 }
 
 function getA2AModules() {
-  const agentCard = require('../../../engine/src/agent/a2a/agentCard');
-  const a2aServer = require('../../../engine/src/agent/a2a/a2aServer');
-  const a2aClient = require('../../../engine/src/agent/a2a/a2aClient');
+  const agentCard = require('../../../engine/src/compute/agent/a2a/agentCard');
+  const a2aServer = require('../../../engine/src/compute/agent/a2a/a2aServer');
+  const a2aClient = require('../../../engine/src/compute/agent/a2a/a2aClient');
   return { agentCard, a2aServer, a2aClient };
 }
 

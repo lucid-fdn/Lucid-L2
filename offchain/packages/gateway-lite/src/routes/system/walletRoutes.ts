@@ -2,8 +2,8 @@ import express from 'express';
 import { protocolManager } from '../../protocols/protocolManager';
 import { SessionSignerService } from '../../services/sessionSignerService';
 import path from 'path';
-import { PATHS } from '../../../../engine/src/config/paths';
-import { logger } from '../../../../engine/src/lib/logger';
+import { PATHS } from '../../../../engine/src/shared/config/paths';
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 const router = express.Router();
 

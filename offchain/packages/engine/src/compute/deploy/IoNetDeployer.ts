@@ -5,7 +5,7 @@
 
 import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, DeploymentStatus, LogOptions } from './IDeployer';
 import { resilientFetch } from './resilientFetch';
-import { logger } from '../../lib/logger';
+import { logger } from '../../shared/lib/logger';
 
 const IONET_API_URL = 'https://api.io.solutions/enterprise/v1/io-cloud/caas';
 

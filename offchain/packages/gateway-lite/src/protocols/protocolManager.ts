@@ -14,7 +14,7 @@ import {
   ProtocolMetadata,
   OperationDefinition
 } from './types';
-import { logger } from '../../../engine/src/lib/logger';
+import { logger } from '../../../engine/src/shared/lib/logger';
 
 export interface ProtocolExecutionRequest {
   protocolId: string;

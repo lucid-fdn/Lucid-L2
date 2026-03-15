@@ -1,6 +1,6 @@
-import { signMessage, verifySignature } from '../crypto/signing';
-import { sha256Hex } from '../crypto/hash';
-import { MMR } from '../crypto/mmr';
+import { signMessage, verifySignature } from '../shared/crypto/signing';
+import { sha256Hex } from '../shared/crypto/hash';
+import { MMR } from '../shared/crypto/mmr';
 import type { IMemoryStore } from './store/interface';
 import type {
   MemoryEntry, ProvenanceRecord, MemorySession,
@@ -75,7 +75,7 @@ export class ArchivePipeline {
     agent_passport_id: string,
     request: RestoreRequest,
   ): Promise<RestoreResult> {
-    const { getEvolvingStorage } = await import('../storage/depin');
+    const { getEvolvingStorage } = await import('../shared/depin');
     const data = await getEvolvingStorage().retrieve(request.cid);
     if (!data) throw new Error(`Snapshot not found: ${request.cid}`);
     const lmf = (typeof data === 'object' && !Buffer.isBuffer(data) ? data : JSON.parse(data.toString('utf-8'))) as LucidMemoryFile;

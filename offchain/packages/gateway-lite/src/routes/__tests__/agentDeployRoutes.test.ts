@@ -14,12 +14,12 @@ jest.mock('../../middleware/adminAuth', () => ({
 }));
 
 // Mock DB pool (adminAuth imports it)
-jest.mock('../../../../engine/src/db/pool', () => ({
+jest.mock('../../../../engine/src/shared/db/pool', () => ({
   __esModule: true,
   default: { query: jest.fn().mockResolvedValue({ rows: [] }) },
 }));
 
-// The route file uses a lazy require('../../../engine/src/agent/agentDeploymentService')
+// The route file uses a lazy require('../../../engine/src/compute/agent/agentDeploymentService')
 // which resolves to a non-standard path. We mock at the path that resolves from the
 // route file's location (routes/agent/ -> 3 ups -> gateway-lite/engine/...).
 // Using { virtual: true } because the physical file lives elsewhere.
@@ -44,12 +44,12 @@ const mockServiceObject = {
 // Mock at BOTH possible resolution paths — the route's lazy require resolves
 // relative to the route file, and Jest resolves mock paths relative to the test file.
 // Path from route file (routes/agent): ../../../engine = gateway-lite/engine
-jest.mock('../../../engine/src/agent/agentDeploymentService', () => ({
+jest.mock('../../../engine/src/compute/agent/agentDeploymentService', () => ({
   getAgentDeploymentService: () => mockServiceObject,
 }), { virtual: true });
 
 // Also mock at the correct physical path in case ts-jest resolves it differently
-jest.mock('../../../../engine/src/agent/agentDeploymentService', () => ({
+jest.mock('../../../../engine/src/compute/agent/agentDeploymentService', () => ({
   getAgentDeploymentService: () => mockServiceObject,
 }));
 

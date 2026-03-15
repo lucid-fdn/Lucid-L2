@@ -13,8 +13,8 @@
 import { Router, Request, Response } from 'express'
 import { verifyAdminAuth } from '../../middleware/adminAuth'
 import { getCurrentEpoch } from '../../../../engine/src/epoch/services/epochService'
-import pool from '../../../../engine/src/db/pool'
-import { logger } from '../../../../engine/src/lib/logger';
+import pool from '../../../../engine/src/shared/db/pool'
+import { logger } from '../../../../engine/src/shared/lib/logger';
 
 const router = Router()
 
