@@ -8,6 +8,7 @@
 
 import { Pool, PoolClient } from 'pg';
 import { logger } from '../lib/logger';
+import { isMultiTenant, getTenantId } from './tenantContext';
 
 const getPassword = (): string => {
   const pwd = process.env.POSTGRES_PASSWORD || process.env.SUPABASE_DB_PASSWORD;
@@ -34,9 +35,7 @@ const pool = new Pool({
   allowExitOnIdle: true,
 });
 
-pool.on('connect', (client) => {
-  // Set search_path to include all domain schemas
-  client.query("SET search_path TO public, lucid_l2, gateway, identity, marketplace, platform, assistant, workflow, trading");
+pool.on('connect', () => {
   logger.info('PostgreSQL shared pool — new connection');
 });
 
@@ -51,7 +50,12 @@ pool.on('error', (err) => {
 export async function getClient(retries = 3): Promise<PoolClient> {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      return await pool.connect();
+      const client = await pool.connect();
+      // In multi-tenant mode, set RLS context on every connection
+      if (isMultiTenant) {
+        await client.query(`SET app.current_tenant = $1`, [getTenantId()]);
+      }
+      return client;
     } catch (err) {
       if (attempt === retries) throw err;
       const delay = Math.min(500 * Math.pow(2, attempt - 1), 4000);
