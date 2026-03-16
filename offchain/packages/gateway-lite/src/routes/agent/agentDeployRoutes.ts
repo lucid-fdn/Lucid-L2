@@ -230,3 +230,108 @@ agentDeployRouter.get('/v1/agents/:passportId/events', async (req, res) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 });
+
+/* ================================================================== */
+/*  Phase 3: Blue-Green Rollout Routes                                */
+/* ================================================================== */
+
+// Lazy import for RolloutManager to avoid circular deps
+function getRollout() {
+  const { getRolloutManager } = require('../../../../engine/src/deployment/rollout');
+  return getRolloutManager();
+}
+
+/**
+ * POST /v1/agents/:passportId/deploy/blue-green
+ * Deploy a new version to the blue slot
+ */
+agentDeployRouter.post('/v1/agents/:passportId/deploy/blue-green', verifyAdminAuth, async (req, res) => {
+  try {
+    const { passportId } = req.params;
+    const { descriptor } = req.body || {};
+
+    if (!descriptor) {
+      return res.status(400).json({ success: false, error: 'Missing required field: descriptor' });
+    }
+
+    const rollout = getRollout();
+    const deployment = await rollout.deployBlueGreen(passportId, descriptor);
+
+    return res.status(201).json({ success: true, data: deployment });
+  } catch (error: any) {
+    logger.error('Error in POST /v1/agents/:passportId/deploy/blue-green:', error);
+    const status = error.message?.includes('already has an active blue') ? 409 : 500;
+    return res.status(status).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /v1/agents/:passportId/promote
+ * Promote blue -> primary (atomic slot swap)
+ */
+agentDeployRouter.post('/v1/agents/:passportId/promote', verifyAdminAuth, async (req, res) => {
+  try {
+    const { passportId } = req.params;
+    const rollout = getRollout();
+    const result = await rollout.promote(passportId);
+
+    return res.json({ success: true, data: result });
+  } catch (error: any) {
+    logger.error('Error in POST /v1/agents/:passportId/promote:', error);
+    const status = error.message?.includes('No blue deployment') || error.message?.includes('No primary deployment') ? 404 : 500;
+    return res.status(status).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /v1/agents/:passportId/rollback
+ * Rollback to previous revision (deploys as blue-green)
+ */
+agentDeployRouter.post('/v1/agents/:passportId/rollback', verifyAdminAuth, async (req, res) => {
+  try {
+    const { passportId } = req.params;
+    const rollout = getRollout();
+    const deployment = await rollout.rollback(passportId);
+
+    return res.status(201).json({ success: true, data: deployment });
+  } catch (error: any) {
+    logger.error('Error in POST /v1/agents/:passportId/rollback:', error);
+    const status = error.message?.includes('No previous revision') ? 404 : 500;
+    return res.status(status).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /v1/agents/:passportId/blue
+ * Get blue slot deployment status
+ */
+agentDeployRouter.get('/v1/agents/:passportId/blue', async (req, res) => {
+  try {
+    const { passportId } = req.params;
+    const rollout = getRollout();
+    const deployment = await rollout.getBlueStatus(passportId);
+
+    return res.json({ success: true, data: deployment });
+  } catch (error: any) {
+    logger.error('Error in GET /v1/agents/:passportId/blue:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /v1/agents/:passportId/blue/cancel
+ * Cancel blue deployment without promoting
+ */
+agentDeployRouter.post('/v1/agents/:passportId/blue/cancel', verifyAdminAuth, async (req, res) => {
+  try {
+    const { passportId } = req.params;
+    const rollout = getRollout();
+    await rollout.cancelBlue(passportId);
+
+    return res.json({ success: true });
+  } catch (error: any) {
+    logger.error('Error in POST /v1/agents/:passportId/blue/cancel:', error);
+    const status = error.message?.includes('No blue deployment') ? 404 : 500;
+    return res.status(status).json({ success: false, error: error.message });
+  }
+});
