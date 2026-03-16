@@ -58,9 +58,13 @@ CREATE TABLE deployments (
 
   -- Provider resources
   provider_deployment_id TEXT,                           -- Railway service ID, Akash deployment ID, etc.
+  provider_region       TEXT,                            -- Provider region/location if available
   deployment_url         TEXT,
   a2a_endpoint          TEXT,
   wallet_address        TEXT,
+
+  -- Rollout slot (Phase 3 prep — supports blue/green without schema surgery)
+  deployment_slot       TEXT NOT NULL DEFAULT 'primary', -- 'primary', 'blue', 'green', 'canary'
 
   -- Config (frozen at deploy time)
   descriptor_snapshot   JSONB NOT NULL,                  -- full AgentDescriptor at this revision
@@ -72,6 +76,7 @@ CREATE TABLE deployments (
   last_health_at        TIMESTAMPTZ,
   last_transition_at    TIMESTAMPTZ DEFAULT NOW(),
   terminated_at         TIMESTAMPTZ,
+  terminated_reason     TEXT,                            -- 'user_request', 'lease_expired', 'deploy_failed', 'policy', 'reconciler'
   error                 TEXT,
 
   -- Audit
@@ -91,10 +96,11 @@ CREATE INDEX idx_deploy_desired ON deployments(desired_state, actual_state);
 CREATE INDEX idx_deploy_health ON deployments(health_status, updated_at);
 CREATE INDEX idx_deploy_lease ON deployments(lease_expires_at) WHERE lease_expires_at IS NOT NULL;
 CREATE INDEX idx_deploy_provider ON deployments(provider, actual_state);
+CREATE INDEX idx_deploy_provider_id ON deployments(provider, provider_deployment_id) WHERE provider_deployment_id IS NOT NULL;
 CREATE UNIQUE INDEX idx_deploy_idempotency ON deployments(idempotency_key) WHERE idempotency_key IS NOT NULL;
 
--- Active deployment per agent (one active at a time in Phase 1)
-CREATE UNIQUE INDEX idx_deploy_active_agent ON deployments(agent_passport_id)
+-- Active deployment per agent per slot (supports blue/green in Phase 3)
+CREATE UNIQUE INDEX idx_deploy_active_agent_slot ON deployments(agent_passport_id, deployment_slot)
   WHERE actual_state NOT IN ('terminated', 'failed');
 ```
 
@@ -202,6 +208,22 @@ export type DeploymentEventType =
   | (typeof ROLLOUT_EVENTS)[number];
 ```
 
+### Version semantics (strict rule)
+
+**Any mutation to the deployments row increments `version`.** This includes:
+- `transition()` — state change
+- `updateHealth()` — health status
+- `updateProviderResources()` — provider fields
+- `updateLease()` — lease expiry
+- `incrementRevision()` — redeploy/config change (bumps BOTH version and revision)
+
+Every store method that writes to the `deployments` table MUST:
+1. Increment `version` by 1
+2. Set `updated_at = NOW()`
+3. Set `updated_by` to the actor
+
+Optimistic locking: callers pass current `version`. If DB `version != expected`, throw `StaleVersionError`. Caller retries with fresh read.
+
 ---
 
 ## Section 4: IDeploymentStore Interface
@@ -214,6 +236,7 @@ export interface IDeploymentStore {
   create(input: CreateDeploymentInput): Promise<Deployment>;
   getById(deploymentId: string): Promise<Deployment | null>;
   getActiveByAgent(agentPassportId: string): Promise<Deployment | null>;
+  getByProviderDeploymentId(provider: string, providerDeploymentId: string): Promise<Deployment | null>;
   listByAgent(agentPassportId: string, filters?: DeploymentFilters): Promise<Deployment[]>;
   list(filters?: DeploymentFilters): Promise<Deployment[]>;
 
