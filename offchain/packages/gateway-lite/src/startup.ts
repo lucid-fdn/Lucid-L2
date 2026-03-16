@@ -160,6 +160,18 @@ export function initializeBackgroundServices(app: Express): void {
     }
   }
 
+  // Start Deployment Control Plane (Reconciler + LeaseManager)
+  if (process.env.DEPLOYMENT_CONTROL_PLANE !== 'false') {
+    try {
+      const { startDeploymentControlPlane } = require('../../engine/src/deployment/boot');
+      startDeploymentControlPlane();
+    } catch (err) {
+      console.warn('[deployment] Failed to start control plane:', err instanceof Error ? err.message : err);
+    }
+  } else {
+    console.log('[deployment] Control plane disabled (DEPLOYMENT_CONTROL_PLANE=false)');
+  }
+
   // Initialize Agent Mirror Consumer
   const PLATFORM_CORE_DB_URL = process.env.PLATFORM_CORE_DB_URL;
   if (PLATFORM_CORE_DB_URL) {
@@ -358,6 +370,7 @@ export function registerShutdownHandlers(): void {
     console.log(`${signal} received — shutting down`);
     stopReceiptConsumer();
     stopAgentMirrorConsumer();
+    try { const { stopDeploymentControlPlane } = require('../../engine/src/deployment/boot'); stopDeploymentControlPlane(); } catch { /* best-effort */ }
     try { const { stopMemorySystem } = require('../../engine/src/memory/boot'); stopMemorySystem(); } catch { /* best-effort */ }
     // Final MMR checkpoint before exit (best-effort)
     try {

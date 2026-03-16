@@ -17,7 +17,7 @@ anchor deploy --provider.cluster devnet
 
 # Tests
 cd tests && npm test                        # Mocha on-chain (6 programs)
-cd offchain && npm test                     # Jest API (99 suites, 1648 tests)
+cd offchain && npm test                     # Jest API (102 suites, 1668 tests)
 ```
 
 ## Architecture
@@ -187,6 +187,17 @@ Events: append-only audit log (`created`, `succeeded`, `failed`, `terminated`, `
 Route: `GET /v1/agents/:passportId/events` — deployment event history.
 Env: `DEPLOYMENT_STORE=postgres|memory` (default: postgres).
 Files: `engine/src/deployment/control-plane/` (types, state-machine, store, postgres-store, in-memory-store).
+Phase 2: Reconciler (polling every 60s, drift detection, stuck repair), LeaseManager (io.net extension),
+WebhookHandler (`POST /v1/webhooks/:provider`). Provider status mapped through `mapProviderStatus()`.
+Provider capabilities: `supportsStop/Resume/Extend/Status/Scale/Logs` per provider.
+Drift repair rules: running+stopped->redeploy, terminated+running->terminate, failed+terminated->terminated.
+Stuck repair: check provider, transition to running/failed, retry with backoff.
+Files: `engine/src/deployment/reconciler/` (service, policies, provider-sync),
+`engine/src/deployment/lease-manager/` (service, policies),
+`engine/src/deployment/webhooks/` (handler, types, normalizers for railway/akash/phala/ionet/nosana),
+`engine/src/deployment/boot.ts` (start/stop control plane).
+Env: `DEPLOYMENT_CONTROL_PLANE=false` (disable), `RECONCILER_POLL_MS`, `RECONCILER_STUCK_TIMEOUT_MS`,
+`RECONCILER_STALENESS_MS`, `RECONCILER_LEASE_WARNING_MS`, `RECONCILER_MAX_RETRIES`, `LEASE_EXTENSION_HOURS`.
 
 ### NFT Provider Layer (Chain-Agnostic)
 NFT minting behind `INFTProvider` interface. String-based addresses work for both Solana base58 and EVM 0x.
@@ -412,7 +423,7 @@ Supabase (eu-north-1, project `kwihlcnapmkaivijyiif`):
 - `better-sqlite3` + `sqlite-vec` (optional deps for `MEMORY_STORE=sqlite`)
 
 ## Testing
-- **99 test suites, 1648 tests** (offchain)
+- **102 test suites, 1668 tests** (offchain)
 - On-chain: `anchor test` (Mocha, 6 programs)
 - Type check: `cd offchain && npm run type-check`
 - E2E: start server (`npm start`) + curl endpoints

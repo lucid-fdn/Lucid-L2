@@ -8,6 +8,7 @@ import { inferenceRouter } from './inferenceRoutes';
 import { crossChainRouter } from '../chain/crossChainRoutes';
 import { memoryRouter } from './memoryRoutes';
 import { anchorRouter } from './anchorRoutes';
+import { webhookRouter } from '../agent/webhookRoutes';
 
 export const lucidLayerRouter = Router();
 lucidLayerRouter.use('/', matchingRouter);
@@ -19,3 +20,4 @@ lucidLayerRouter.use('/', epochRouter);
 lucidLayerRouter.use('/', crossChainRouter);
 lucidLayerRouter.use('/', memoryRouter);
 lucidLayerRouter.use('/', anchorRouter);
+lucidLayerRouter.use('/', webhookRouter);
