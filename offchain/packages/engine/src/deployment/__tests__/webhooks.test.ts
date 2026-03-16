@@ -4,7 +4,7 @@
 import { InMemoryDeploymentStore } from '../control-plane/in-memory-store';
 import { WebhookHandler } from '../webhooks/handler';
 import { getNormalizer } from '../webhooks/normalizers';
-import type { CreateDeploymentInput } from '../control-plane/types';
+import { CreateDeploymentInput } from '../control-plane/types';
 
 function makeInput(overrides?: Partial<CreateDeploymentInput>): CreateDeploymentInput {
   return {

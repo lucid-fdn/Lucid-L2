@@ -64,12 +64,12 @@ export const PROVIDER_CAPABILITIES: Record<string, ProviderCapabilities> = {
     supportsLogs: true,
   },
   docker: {
-    supportsStop: false,
+    supportsStop: true,
     supportsResume: false,
     supportsExtend: false,
-    supportsStatus: false,
+    supportsStatus: true,
     supportsScale: false,
-    supportsLogs: false,
+    supportsLogs: true,
   },
 };
 

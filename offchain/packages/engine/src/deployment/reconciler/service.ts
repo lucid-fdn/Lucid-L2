@@ -32,6 +32,9 @@ export class ReconcilerService {
     if (!deployment) return;
     if (deployment.actual_state === 'terminated') return;
 
+    // Cooldown: don't hammer broken deployments
+    this.markReconcileAttempt(deploymentId);
+
     // 1. Sync with provider if stale
     if (this.isProviderStale(deployment)) {
       await syncProviderState(deployment, this.store);
@@ -96,6 +99,19 @@ export class ReconcilerService {
       }
     }
 
+    // Stale running — running deployments with stale health (provider may have died silently)
+    const running = await this.store.listByState('running');
+    for (const d of running) {
+      if (this.isProviderStale(d) && !this.isOnCooldown(d.deployment_id)) {
+        try {
+          await this.reconcileDeployment(d.deployment_id);
+          result.health++;
+        } catch (_err) {
+          // Best effort
+        }
+      }
+    }
+
     // Expiring leases
     const expiring = await this.store.listExpiringLeases(this.config.leaseWarningMs);
     for (const d of expiring) {
@@ -110,6 +126,20 @@ export class ReconcilerService {
     return result;
   }
 
+  /** Cooldown: prevent hammering broken deployments */
+  private lastReconcileAttempt = new Map<string, number>();
+
+  private isOnCooldown(deploymentId: string): boolean {
+    const last = this.lastReconcileAttempt.get(deploymentId);
+    if (!last) return false;
+    const cooldownMs = Math.min(this.pollIntervalMs * 5, 300_000); // 5x poll interval or 5min max
+    return Date.now() - last < cooldownMs;
+  }
+
+  private markReconcileAttempt(deploymentId: string): void {
+    this.lastReconcileAttempt.set(deploymentId, Date.now());
+  }
+
   /* ---------------------------------------------------------------- */
   /*  Lifecycle                                                        */
   /* ---------------------------------------------------------------- */
@@ -119,8 +149,21 @@ export class ReconcilerService {
     // NOTE: Reconciler is triggered by polling only in Phase 2.
     // Webhook handler enqueues reconcile requests via deployment_events table.
     // The sweep() picks up reconcile_requested events.
-    // Phase 3+ may add a dedicated deployment event bus for lower-latency triggers.
-    this.interval = setInterval(() => this.sweep().catch(() => {}), this.pollIntervalMs);
+
+    // Add startup jitter (0-10s) to prevent synchronized sweeps across multiple instances
+    const jitterMs = Math.floor(Math.random() * 10_000);
+    setTimeout(() => {
+      // Per-cycle jitter: ±10% of pollIntervalMs
+      const scheduleNext = () => {
+        const jitter = this.pollIntervalMs * 0.1 * (Math.random() * 2 - 1);
+        this.interval = setTimeout(() => {
+          this.sweep().catch(() => {});
+          scheduleNext();
+        }, this.pollIntervalMs + jitter);
+      };
+      this.sweep().catch(() => {});
+      scheduleNext();
+    }, jitterMs);
   }
 
   stop(): void {

@@ -124,8 +124,8 @@ import {
   AgentDeploymentService,
   resetAgentDeploymentService,
 } from '../../compute/agent/agentDeploymentService';
-import type { DeployAgentInput } from '../../compute/agent/agentDeploymentService';
-import type { AgentDescriptor } from '../../compute/agent/agentDescriptor';
+import { DeployAgentInput } from '../../compute/agent/agentDeploymentService';
+import { AgentDescriptor } from '../../compute/agent/agentDescriptor';
 
 // ---------------------------------------------------------------------------
 // Fixtures

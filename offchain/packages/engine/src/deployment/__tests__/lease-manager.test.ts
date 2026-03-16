@@ -3,8 +3,8 @@
 
 import { InMemoryDeploymentStore } from '../control-plane/in-memory-store';
 import { LeaseManagerService } from '../lease-manager/service';
-import type { CreateDeploymentInput, Deployment } from '../control-plane/types';
-import type { LeaseConfig } from '../lease-manager/policies';
+import { CreateDeploymentInput, Deployment } from '../control-plane/types';
+import { LeaseConfig } from '../lease-manager/policies';
 
 // Mock the deploy module
 jest.mock('../../compute/deploy', () => ({

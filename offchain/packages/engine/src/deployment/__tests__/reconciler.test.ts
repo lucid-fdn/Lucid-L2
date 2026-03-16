@@ -5,9 +5,9 @@ import { InMemoryDeploymentStore } from '../control-plane/in-memory-store';
 import { ReconcilerService } from '../reconciler/service';
 import { LeaseManagerService } from '../lease-manager/service';
 import { mapProviderStatus } from '../reconciler/provider-sync';
-import type { CreateDeploymentInput, Deployment } from '../control-plane/types';
-import type { LeaseConfig } from '../lease-manager/policies';
-import type { ReconcilerConfig } from '../reconciler/policies';
+import { CreateDeploymentInput, Deployment } from '../control-plane/types';
+import { LeaseConfig } from '../lease-manager/policies';
+import { ReconcilerConfig } from '../reconciler/policies';
 
 // Mock the deploy module
 jest.mock('../../compute/deploy', () => ({

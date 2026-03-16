@@ -5,8 +5,6 @@ import { InMemoryDeploymentStore } from '../control-plane/in-memory-store';
 import {
   StaleVersionError,
   InvalidTransitionError,
-} from '../control-plane/types';
-import type {
   Deployment,
   CreateDeploymentInput,
 } from '../control-plane/types';
