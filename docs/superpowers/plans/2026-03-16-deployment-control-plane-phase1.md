@@ -99,6 +99,7 @@ git commit -m "feat(deployment): IDeploymentStore interface — 18 methods"
 
 Map-based implementation for tests. All 18 methods. Key behaviors:
 - `create()` — UUID generation, default version=1, revision=1, actual_state='pending', idempotency check
+- `getActiveByAgent()` — returns latest deployment in 'primary' slot where actual_state NOT IN ('terminated', 'failed'). This means pending, deploying, running, or stopped deployments are all considered "active".
 - `transition()` — validate via `assertValidTransition()`, check version matches, increment version, set last_transition_at, if 'terminated' set terminated_at
 - `updateHealth/updateProviderResources/updateLease` — all increment version, set updated_at + updated_by
 - `appendEvent()` — assign UUID event_id, global sequence counter, idempotency check
@@ -214,21 +215,30 @@ git commit -m "test(deployment): 19 control plane tests — store, transitions, 
 Key changes:
 - Constructor: accept `IDeploymentStore` parameter (lazy-loaded via factory)
 - Remove: `private deployments = new Map<string, AgentDeployment>()`
-- deploy():
-  - After deployer succeeds, call `store.create()` with all fields
-  - Call `store.transition(id, 'deploying', version)` before deployer call
-  - Call `store.transition(id, 'running', version)` after success
-  - Call `store.appendEvent({ type: 'created', actor: 'system', ... })`
-  - Call `store.appendEvent({ type: 'succeeded', ... })`
-  - If deployer fails: `store.transition(id, 'failed', version, { error })`
-  - Support `idempotency_key` — check first, return existing if found
-- getDeployment(): `store.getActiveByAgent(passportId)`
+
+**deploy() — durable lifecycle flow (record exists BEFORE provider call):**
+  1. Check idempotency_key — if exists, return existing deployment
+  2. `store.create()` — creates row in `pending` state (record exists in DB now)
+  3. `store.appendEvent({ type: 'created', actor: 'system' })`
+  4. `store.transition(id, 'deploying', version)` + `appendEvent({ type: 'started' })`
+  5. Call deployer.deploy() — the actual provider call
+  6. On success: `store.updateProviderResources(id, { provider_deployment_id, url, ... })`
+  7. On success: `store.transition(id, 'running', version)` + `appendEvent({ type: 'succeeded' })`
+  8. On failure: `store.transition(id, 'failed', version, { error })` + `appendEvent({ type: 'failed' })`
+
+  **Why create before provider call:** If the provider call hangs or server crashes, we still have an operational record in 'deploying' state. The future reconciler (Phase 2) can detect and repair it.
+
+**transition + event MUST be transactional:**
+  For PostgresDeploymentStore, wrap transition() + appendEvent() in a single DB transaction (BEGIN/COMMIT). For InMemoryDeploymentStore, sequential calls are fine (same memory).
+  The service should call a helper: `store.transitionWithEvent(id, newState, version, event)` or wrap both calls. Never let state change without its corresponding event.
+
+- getDeployment(): `store.getActiveByAgent(passportId)` — returns latest non-terminated deployment in 'primary' slot
 - listDeployments(): `store.list(filters)`
 - terminateAgent():
   - Read current deployment from store
   - Call deployer.terminate()
-  - `store.transition(id, 'terminated', version, { actor: 'user' })`
-  - `store.appendEvent({ type: 'terminated', ... })`
+  - `store.transition(id, 'terminated', version, { actor: 'user', terminated_reason: 'user_request' })`
+  - `store.appendEvent({ type: 'terminated', ... })` (transactional with transition)
 - getAgentStatus(): Read from store first, optionally refresh from deployer
 
 - [ ] **Step 2: Update compute/index.ts exports**
