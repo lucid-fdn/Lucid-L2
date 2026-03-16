@@ -96,7 +96,7 @@ export async function restoreFromCheckpoint(): Promise<boolean> {
     const cid = result.rows[0]?.checkpoint_cid;
     if (!cid) return false;
 
-    const { getEvolvingStorage } = await import('../../storage/depin');
+    const { getEvolvingStorage } = await import('../depin');
     const data = await getEvolvingStorage().retrieve(cid);
     if (!data) {
       logger.warn(`[MMRCheckpoint] Checkpoint CID ${cid} not retrievable`);

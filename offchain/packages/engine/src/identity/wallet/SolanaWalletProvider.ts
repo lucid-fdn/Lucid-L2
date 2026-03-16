@@ -102,7 +102,7 @@ export class SolanaWalletProvider implements IAgentWalletProvider {
   }
 
   private async getAdapter() {
-    const { BlockchainAdapterFactory } = await import('../../chains/factory');
+    const { BlockchainAdapterFactory } = await import('../../shared/chains/factory');
     const factory = BlockchainAdapterFactory.getInstance();
     return factory.getAdapter(this.chainId);
   }

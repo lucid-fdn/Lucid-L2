@@ -6,7 +6,7 @@
  * Updates deployment state and health status.
  */
 
-import type { AgentDeployment, HealthStatus } from '../../agent/agentDescriptor';
+import type { AgentDeployment, HealthStatus } from '../../compute/agent/agentDescriptor';
 import { logger } from '../lib/logger';
 
 // Default check interval: 5 minutes
@@ -67,8 +67,8 @@ export function stopAgentHealthMonitor(): void {
  */
 export async function runHealthCheck(): Promise<HealthCheckResult[]> {
   // Lazy import to avoid circular deps
-  const { getAgentDeploymentService } = await import('../../agent/agentDeploymentService');
-  const { getDeployer } = await import('../../deploy');
+  const { getAgentDeploymentService } = await import('../../compute/agent/agentDeploymentService');
+  const { getDeployer } = await import('../../compute/deploy');
 
   const service = getAgentDeploymentService();
   const deployments = await service.listDeployments({ status: 'running' });

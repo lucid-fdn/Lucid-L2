@@ -214,7 +214,7 @@ export async function retrieveEpochArchive(epoch_id: string): Promise<EpochArchi
     }
 
     const cid = result.rows[0].archive_cid;
-    const { getPermanentStorage } = await import('../../storage/depin');
+    const { getPermanentStorage } = await import('../depin');
     const data = await getPermanentStorage().retrieve(cid);
     if (!data) return null;
 

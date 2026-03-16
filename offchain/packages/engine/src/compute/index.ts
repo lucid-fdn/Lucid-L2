@@ -1,6 +1,13 @@
 // Deploy and runtime exports (primary)
 export * from './deploy';
-export * from './runtime';
+export {
+  IRuntimeAdapter,
+  getRuntimeAdapter,
+  getAllRuntimeAdapters,
+  selectBestAdapter,
+  listAdapterNames,
+  resetRuntimeAdapters,
+} from './runtime';
 
 // Agent exports — explicit to avoid conflicts with deploy types
 export { getAgentDeploymentService, resetAgentDeploymentService, AgentDeploymentService } from './agent/agentDeploymentService';

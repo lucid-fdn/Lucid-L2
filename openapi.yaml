@@ -168,6 +168,7 @@ paths:
         content:
           application/json:
             schema:
+              $ref: '#/components/schemas/CreatePassportRequest'
             example:
               type: model
               owner: "7xK9mQ2vNbPfYkRd3JhEzV1LnWqA8tUcGp4SyDfH5Bo"
@@ -183,7 +184,6 @@ paths:
                 context_length: 32768
                 hf:
                   repo_id: "mistralai/Mistral-7B-Instruct-v0.3"
-              $ref: '#/components/schemas/CreatePassportRequest'
       responses:
         '201':
           description: Created
@@ -4340,9 +4340,8 @@ paths:
                 properties:
                   success: { type: boolean }
                   pricing:
-                    oneOf:
-                      - $ref: '#/components/schemas/AssetPricing'
-                      - type: 'null'
+                    nullable: true
+                    $ref: '#/components/schemas/AssetPricing'
         '500': { $ref: '#/components/responses/InternalServerError' }
     put:
       tags: [Payments]
@@ -5704,8 +5703,12 @@ paths:
                 receipt_hash: { type: string }
                 run_id: { type: string }
                 signature: { type: string }
-                chain_id: { type: string, description: If provided, submit validation on-chain }
-                agent_token_id: { type: string, description: ERC-8004 token ID for on-chain submission }
+                chain_id:
+                  type: string
+                  description: If provided, submit validation on-chain
+                agent_token_id:
+                  type: string
+                  description: ERC-8004 token ID for on-chain submission
             example:
               receipt_hash: "a3f2b8c1d4e5f6789012345678901234567890abcdef1234567890abcdef1234"
               run_id: "run_abc123def456"
@@ -7892,7 +7895,9 @@ components:
       required: [total, pending, withdrawn, token]
       properties:
         total: { type: string, description: Total revenue in micro-units }
-        pending: { type: string, description: Pending (confirmed, not yet withdrawn) }
+        pending:
+          type: string
+          description: Pending revenue that is confirmed but not yet withdrawn
         withdrawn: { type: string, description: Already withdrawn }
         token: { type: string }
 
