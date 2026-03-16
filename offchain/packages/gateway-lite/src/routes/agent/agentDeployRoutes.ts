@@ -211,3 +211,22 @@ agentDeployRouter.post('/v1/agents/:passportId/terminate', verifyAdminAuth, asyn
     });
   }
 });
+
+/**
+ * GET /v1/agents/:passportId/events
+ * Deployment event history (append-only audit log)
+ */
+agentDeployRouter.get('/v1/agents/:passportId/events', async (req, res) => {
+  try {
+    const { getDeploymentStore } = await import('../../../../engine/src/deployment/control-plane');
+    const store = getDeploymentStore();
+    const deployment = await store.getActiveByAgent(req.params.passportId);
+    if (!deployment) return res.status(404).json({ success: false, error: 'No active deployment found' });
+    const limit = parseInt(req.query.limit as string || '50', 10);
+    const events = await store.getEvents(deployment.deployment_id, { limit });
+    return res.json({ success: true, data: events });
+  } catch (error: any) {
+    logger.error('Error in GET /v1/agents/:passportId/events:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});

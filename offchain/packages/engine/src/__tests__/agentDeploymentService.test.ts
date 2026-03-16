@@ -5,7 +5,7 @@
  * - deployAgent(): schema validation -> passport -> adapter -> wallet -> deployer -> A2A -> marketplace
  * - previewAgent(): code gen without deploying
  * - getCapabilities(): list adapters and deployers
- * - listDeployments(), getDeployment(): deployment state management
+ * - listDeployments(), getDeployment(): deployment state management (now via IDeploymentStore)
  * - terminateAgent(): graceful termination
  * - Error cases: invalid descriptor, missing adapter, failed deployment, etc.
  */
@@ -16,6 +16,8 @@ import {
 } from '../compute/agent/agentDeploymentService';
 import type { DeployAgentInput } from '../compute/agent/agentDeploymentService';
 import type { AgentDescriptor } from '../compute/agent/agentDescriptor';
+import { InMemoryDeploymentStore } from '../deployment/control-plane/in-memory-store';
+import { resetDeploymentStore } from '../deployment/control-plane';
 
 // ---------------------------------------------------------------------------
 // Mock external dependencies
@@ -56,6 +58,19 @@ jest.mock('../compute/agent/a2a/agentCard', () => ({
     capabilities: ['research'],
   })),
 }));
+
+// Mock deployment control plane — use InMemoryDeploymentStore for tests
+let testStore: InMemoryDeploymentStore;
+jest.mock('../deployment/control-plane', () => {
+  const actual = jest.requireActual('../deployment/control-plane/in-memory-store');
+  return {
+    ...jest.requireActual('../deployment/control-plane'),
+    getDeploymentStore: () => {
+      // testStore is set in beforeEach
+      return testStore;
+    },
+  };
+});
 
 // Marketplace moved to _wip/ — no mock needed
 
@@ -210,6 +225,8 @@ describe('AgentDeploymentService', () => {
 
   beforeEach(() => {
     resetAgentDeploymentService();
+    // Fresh InMemoryDeploymentStore for each test
+    testStore = new InMemoryDeploymentStore();
     service = new AgentDeploymentService();
     jest.clearAllMocks();
   });
@@ -311,7 +328,7 @@ describe('AgentDeploymentService', () => {
 
     // WIP: marketplace listing test removed — marketplace moved to _wip/
 
-    it('should store deployment state in internal map', async () => {
+    it('should store deployment state in durable store', async () => {
       setupDefaultMocks();
       await service.deployAgent(makeInput());
 
@@ -337,6 +354,20 @@ describe('AgentDeploymentService', () => {
       const config = deployCall[1]; // DeploymentConfig
       expect(config.env_vars.AGENT_PASSPORT_ID).toBe('passport_new_agent_123');
       expect(config.env_vars.AGENT_WALLET_ADDRESS).toBe('mock_wallet_addr');
+    });
+
+    it('should emit deployment events (created, started, succeeded)', async () => {
+      setupDefaultMocks();
+      await service.deployAgent(makeInput());
+
+      // Get all deployments to find the deployment_id
+      const deployments = await testStore.list();
+      expect(deployments).toHaveLength(1);
+      const events = await testStore.getEvents(deployments[0].deployment_id);
+      const eventTypes = events.map(e => e.event_type);
+      expect(eventTypes).toContain('created');
+      expect(eventTypes).toContain('started');
+      expect(eventTypes).toContain('succeeded');
     });
   });
 
@@ -431,6 +462,42 @@ describe('AgentDeploymentService', () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('Deployment error');
       expect(result.error).toContain('Network failure');
+    });
+
+    it('should transition to failed state when deployer returns failure', async () => {
+      setupDefaultMocks();
+      mockedGetDeployer.mockReturnValue({
+        target: 'docker',
+        deploy: jest.fn().mockResolvedValue({
+          success: false,
+          deployment_id: 'deploy_fail',
+          target: 'docker',
+          error: 'Out of disk space',
+        }),
+      });
+
+      await service.deployAgent(makeInput());
+
+      // The deployment should be in 'failed' state in the store
+      const deployments = await testStore.list();
+      expect(deployments).toHaveLength(1);
+      expect(deployments[0].actual_state).toBe('failed');
+    });
+
+    it('should emit failed event when deployer throws', async () => {
+      setupDefaultMocks();
+      mockedGetDeployer.mockReturnValue({
+        target: 'docker',
+        deploy: jest.fn().mockRejectedValue(new Error('Network failure')),
+      });
+
+      await service.deployAgent(makeInput());
+
+      const deployments = await testStore.list();
+      expect(deployments).toHaveLength(1);
+      const events = await testStore.getEvents(deployments[0].deployment_id);
+      const eventTypes = events.map(e => e.event_type);
+      expect(eventTypes).toContain('failed');
     });
 
     it('should continue (non-blocking) when wallet creation fails', async () => {
@@ -599,8 +666,9 @@ describe('AgentDeploymentService', () => {
       expect(result.success).toBe(true);
       expect(mockDeployer.terminate).toHaveBeenCalledWith('deploy_abc123');
 
+      // After termination, getDeployment returns null (terminated is excluded from getActiveByAgent)
       const deployment = await service.getDeployment('passport_new_agent_123');
-      expect(deployment!.status).toBe('terminated');
+      expect(deployment).toBeNull();
     });
 
     it('should return error for non-existent deployment', async () => {
@@ -619,6 +687,20 @@ describe('AgentDeploymentService', () => {
       const result = await service.terminateAgent('passport_new_agent_123');
       expect(result.success).toBe(false);
       expect(result.error).toContain('Service not reachable');
+    });
+
+    it('should emit terminated event', async () => {
+      setupDefaultMocks();
+      await service.deployAgent(makeInput());
+      await service.terminateAgent('passport_new_agent_123');
+
+      const deployments = await testStore.list();
+      // Find the terminated one
+      const terminated = deployments.find(d => d.actual_state === 'terminated');
+      expect(terminated).toBeTruthy();
+      const events = await testStore.getEvents(terminated!.deployment_id);
+      const eventTypes = events.map(e => e.event_type);
+      expect(eventTypes).toContain('terminated');
     });
   });
 
@@ -653,7 +735,7 @@ describe('AgentDeploymentService', () => {
 
       const status = await service.getAgentStatus('passport_new_agent_123');
       expect(status).not.toBeNull();
-      expect(status!.status).toBe('running'); // Cached from initial deployment
+      expect(status!.status).toBe('running'); // Cached from durable store
     });
   });
 
@@ -684,6 +766,22 @@ describe('AgentDeploymentService', () => {
 
       const logs = await service.getAgentLogs('passport_new_agent_123');
       expect(logs).toContain('Failed to fetch logs');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Idempotency
+  // -------------------------------------------------------------------------
+
+  describe('Idempotency', () => {
+    it('should return existing deployment when idempotency_key matches', async () => {
+      setupDefaultMocks();
+      const result1 = await service.deployAgent(makeInput({ idempotency_key: 'idem-key-1' }));
+      expect(result1.success).toBe(true);
+
+      const result2 = await service.deployAgent(makeInput({ idempotency_key: 'idem-key-1' }));
+      expect(result2.success).toBe(true);
+      expect(result2.passport_id).toBe(result1.passport_id);
     });
   });
 });

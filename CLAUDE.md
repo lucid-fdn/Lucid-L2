@@ -17,7 +17,7 @@ anchor deploy --provider.cluster devnet
 
 # Tests
 cd tests && npm test                        # Mocha on-chain (6 programs)
-cd offchain && npm test                     # Jest API (96 suites, 1605 tests)
+cd offchain && npm test                     # Jest API (99 suites, 1648 tests)
 ```
 
 ## Architecture
@@ -175,6 +175,18 @@ All 7 producers use `getAnchorDispatcher().dispatch()`:
 - `POST /v1/anchors/:id/verify` — check CID still exists on provider
 
 **Env:** `DEPIN_PERMANENT_PROVIDER`, `DEPIN_EVOLVING_PROVIDER` (default: `mock`). `DEPIN_UPLOAD_ENABLED=false` (kill switch). `ANCHOR_REGISTRY_STORE=postgres|memory`.
+
+### Deployment Control Plane
+Durable deployment state in Supabase (`deployments` + `deployment_events` tables).
+Status machine: `pending -> deploying -> running -> stopped -> terminated` (+ `failed` path).
+Desired state vs actual state. Provider status tracked separately (`provider_status` column).
+Optimistic locking via `version` column. Deployment revision via `revision` column.
+`deployment_slot` supports blue/green in Phase 3 (default: 'primary').
+Events: append-only audit log (`created`, `succeeded`, `failed`, `terminated`, `health_changed`, etc.).
+`IDeploymentStore` interface with Postgres (production) + InMemory (tests) implementations.
+Route: `GET /v1/agents/:passportId/events` — deployment event history.
+Env: `DEPLOYMENT_STORE=postgres|memory` (default: postgres).
+Files: `engine/src/deployment/control-plane/` (types, state-machine, store, postgres-store, in-memory-store).
 
 ### NFT Provider Layer (Chain-Agnostic)
 NFT minting behind `INFTProvider` interface. String-based addresses work for both Solana base58 and EVM 0x.
@@ -363,6 +375,7 @@ Supabase (eu-north-1, project `kwihlcnapmkaivijyiif`):
 - **Memory:** `memory_entries`, `memory_sessions`, `memory_provenance`, `memory_snapshots`, `memory_outbox`
 - **Anchoring:** `anchor_records` (unified CID registry)
 - **Payment:** `asset_pricing`, `payment_events`, `grant_budgets`, `payment_epochs`
+- **Deployment:** `deployments`, `deployment_events` (durable deployment state + audit log)
 
 **4-Layer Architecture:**
 - L1 (Commitment): Solana/EVM — roots, proofs, anchors
@@ -397,7 +410,7 @@ Supabase (eu-north-1, project `kwihlcnapmkaivijyiif`):
 - `better-sqlite3` + `sqlite-vec` (optional deps for `MEMORY_STORE=sqlite`)
 
 ## Testing
-- **96 test suites, 1605 tests** (offchain)
+- **99 test suites, 1648 tests** (offchain)
 - On-chain: `anchor test` (Mocha, 6 programs)
 - Type check: `cd offchain && npm run type-check`
 - E2E: start server (`npm start`) + curl endpoints

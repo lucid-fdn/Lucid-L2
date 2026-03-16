@@ -3,7 +3,8 @@ export * from './deploy';
 export * from './runtime';
 
 // Agent exports — explicit to avoid conflicts with deploy types
-export { deployAgent } from './agent/agentDeploymentService';
+export { getAgentDeploymentService, resetAgentDeploymentService, AgentDeploymentService } from './agent/agentDeploymentService';
+export type { DeployAgentInput, DeployAgentResult } from './agent/agentDeploymentService';
 export type {
   AgentDescriptor, AgentConfig, WalletConfig, WalletProvider,
   SpendingLimits, MonetizationConfig, DeploymentTargetType,
