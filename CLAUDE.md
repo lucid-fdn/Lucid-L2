@@ -17,7 +17,7 @@ anchor deploy --provider.cluster devnet
 
 # Tests
 cd tests && npm test                        # Mocha on-chain (6 programs)
-cd offchain && npm test                     # Jest API (98 suites, 1630 tests)
+cd offchain && npm test                     # Jest API (99 suites, 1648 tests)
 ```
 
 ## Architecture
@@ -375,6 +375,7 @@ Supabase (eu-north-1, project `kwihlcnapmkaivijyiif`):
 - **Memory:** `memory_entries`, `memory_sessions`, `memory_provenance`, `memory_snapshots`, `memory_outbox`
 - **Anchoring:** `anchor_records` (unified CID registry)
 - **Payment:** `asset_pricing`, `payment_events`, `grant_budgets`, `payment_epochs`
+- **Deployment:** `deployments`, `deployment_events` (durable deployment state + audit log)
 
 **4-Layer Architecture:**
 - L1 (Commitment): Solana/EVM — roots, proofs, anchors
@@ -409,7 +410,7 @@ Supabase (eu-north-1, project `kwihlcnapmkaivijyiif`):
 - `better-sqlite3` + `sqlite-vec` (optional deps for `MEMORY_STORE=sqlite`)
 
 ## Testing
-- **98 test suites, 1630 tests** (offchain)
+- **99 test suites, 1648 tests** (offchain)
 - On-chain: `anchor test` (Mocha, 6 programs)
 - Type check: `cd offchain && npm run type-check`
 - E2E: start server (`npm start`) + curl endpoints
