@@ -67,17 +67,27 @@ webhookRouter.post('/v1/webhooks/:provider', async (req, res) => {
       idempotency_key: `webhook:${provider}:${event.provider_deployment_id}:${event.timestamp}`,
     });
 
-    // 6. Trigger immediate reconcile (non-blocking)
-    getReconciler().reconcileDeployment(deployment.deployment_id).catch(() => {});
+    // 6. Mark for reconciliation (enqueue, don't execute inline)
+    await store.appendEvent({
+      deployment_id: deployment.deployment_id,
+      event_type: 'health_changed',
+      actor: `webhook:${provider}`,
+      metadata: { reconcile_requested: true },
+    });
 
     return res.json({ success: true });
   } catch (error: any) {
-    return res.status(500).json({ success: false, error: error.message });
+    // After signature/shape validation passes, ALWAYS return 2xx
+    // Otherwise providers retry endlessly, creating webhook storms
+    console.warn(`[webhook] Internal error processing ${req.params.provider} callback:`, error.message);
+    return res.json({ success: true, warning: 'accepted but processing failed' });
   }
 });
 ```
 
-Always returns 200/success to the provider (even if reconcile fails). Never block the provider callback.
+**Webhook acknowledgment rule:** Reject only on invalid payload or signature (400/401). Everything else returns 2xx — even if the deployment is unknown or reconcile fails. Log internally, never block the provider.
+
+**Reconcile trigger:** Webhook does NOT call `reconcileDeployment()` inline. It appends a `reconcile_requested` event. The reconciler picks it up on its next poll cycle or via the deployment event bus. This decouples HTTP ingestion from reconcile execution, avoids thundering herd under webhook bursts, and enables debouncing.
 
 ### 1.2 Normalized Provider Event
 
@@ -203,10 +213,13 @@ export class ReconcilerService {
   // --- Lifecycle ---
   start(): void {
     if (this.interval) return;
-    // Event-driven: listen for webhook events
-    const bus = getMemoryEventBus();
-    bus.on('deployment.webhook', (e: any) => this.reconcileDeployment(e.deployment_id).catch(() => {}));
-    // Polling safety net
+    // NOTE: Do NOT use getMemoryEventBus() — deployment has its own event bus
+    // The reconciler is triggered by polling only in Phase 2.
+    // Webhook handler enqueues reconcile requests via deployment_events table.
+    // The sweep() picks up reconcile_requested events.
+    // Phase 3+ may add a dedicated deployment event bus for lower-latency triggers.
+
+    // Polling safety net (primary trigger in Phase 2)
     this.interval = setInterval(() => this.sweep().catch(() => {}), this.pollIntervalMs);
   }
 
@@ -287,6 +300,77 @@ export async function syncProviderState(
   }
 }
 ```
+
+### 2.6 Provider capability flags
+
+Each provider declares what control-plane operations it supports:
+
+```typescript
+export interface ProviderCapabilities {
+  supportsStop: boolean;      // can pause without destroying
+  supportsResume: boolean;    // can restart after stop
+  supportsExtend: boolean;    // can extend lease/duration
+  supportsStatus: boolean;    // can query current state
+  supportsScale: boolean;     // can change replica count
+  supportsLogs: boolean;      // can fetch runtime logs
+}
+```
+
+| Provider | stop | resume | extend | status | scale | logs |
+|----------|------|--------|--------|--------|-------|------|
+| Railway | No | No | N/A | Yes | Partial | Yes |
+| Akash | No | No | No | Yes | Yes | Yes |
+| Phala | Yes | No | No | Yes | No | Yes |
+| io.net | No | No | Yes | Yes | Yes | Yes |
+| Nosana | Yes | No | N/A | Yes | Yes | Yes |
+| Docker | No | No | N/A | No | No | No |
+
+The reconciler uses capabilities to decide actions — never assumes a provider supports an operation.
+
+### 2.7 Provider status mapping layer
+
+**File:** `reconciler/provider-sync.ts`
+
+Single canonical mapping from provider-specific status strings to Lucid platform state:
+
+```typescript
+export function mapProviderStatus(provider: string, rawStatus: string): {
+  actualState?: ActualState;
+  health?: HealthStatus;
+  isTerminal: boolean;
+  isTransitional: boolean;
+} {
+  const normalized = rawStatus.toUpperCase();
+
+  // Universal terminal states
+  if (['FAILED', 'CRASHED', 'ERROR', 'DEAD'].includes(normalized)) {
+    return { actualState: 'failed', health: 'unhealthy', isTerminal: true, isTransitional: false };
+  }
+  if (['REMOVED', 'REMOVING', 'DELETED', 'ARCHIVED'].includes(normalized)) {
+    return { actualState: 'terminated', health: 'unknown', isTerminal: true, isTransitional: false };
+  }
+
+  // Universal transitional states
+  if (['BUILDING', 'DEPLOYING', 'INITIALIZING', 'PROVISIONING', 'COMMITTING', 'STARTING', 'WAITING', 'PENDING'].includes(normalized)) {
+    return { actualState: 'deploying', health: 'unknown', isTerminal: false, isTransitional: true };
+  }
+
+  // Universal running states
+  if (['RUNNING', 'ACTIVE', 'SUCCESS', 'READY'].includes(normalized)) {
+    return { actualState: 'running', health: 'healthy', isTerminal: false, isTransitional: false };
+  }
+
+  // Universal stopped states
+  if (['STOPPED', 'PAUSED', 'SLEEPING', 'STOPPING'].includes(normalized)) {
+    return { actualState: 'stopped', health: 'unknown', isTerminal: false, isTransitional: false };
+  }
+
+  // Unknown — don't change state
+  return { health: 'unknown', isTerminal: false, isTransitional: false };
+}
+```
+
+This lives in ONE place. The reconciler, webhook handler, and provider sync all use it. Never ad-hoc status parsing.
 
 ---
 
@@ -391,6 +475,8 @@ Shared across all three controllers.
 3. Every reconcile step is safe to retry (idempotent)
 4. Webhook handler and reconciler can race on the same deployment — version check decides winner, loser retries with fresh read
 5. Multiple reconciler instances can run concurrently — optimistic locking prevents conflicts
+
+**Scope note:** Optimistic locking is sufficient for Phase 2. If multiple gateway instances create noisy duplicate provider checks at scale, Phase 3+ can add leader election or shard ownership. Not needed now.
 
 ### Retry pattern
 
