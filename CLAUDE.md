@@ -385,6 +385,8 @@ Supabase (eu-north-1, project `kwihlcnapmkaivijyiif`):
 
 **Key rule:** Supabase is operational state, never canonical truth. If Supabase is lost, rebuild from chain + DePIN.
 
+**Decentralization principle:** Lucid Core is the control plane — not the execution authority. It stores desired state, observes actual state, and coordinates transitions. It does NOT execute workloads. Agents run outside Lucid on decentralized providers (Akash, Phala, io.net, Nosana). Agent memory is local-first (SQLite, agent-owned). Agent identity is on-chain (passport). Lucid coordinates agents — it does not own them.
+
 ### SDK (`@lucid-l2/sdk` + `raijin-labs-lucid-ai`)
 
 **Internal SDK** (`offchain/packages/sdk/`):
