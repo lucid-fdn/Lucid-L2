@@ -487,6 +487,84 @@ export class PostgresDeploymentStore implements IDeploymentStore {
   }
 
   /* ---------------------------------------------------------------- */
+  /*  Phase 3: Blue-green slot management                             */
+  /* ---------------------------------------------------------------- */
+
+  async promoteBlue(agentPassportId: string): Promise<{ promoted: Deployment; terminated: Deployment }> {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Terminate old primary
+      const terminateResult = await client.query(
+        `UPDATE deployments
+         SET deployment_slot = 'old',
+             actual_state = 'terminated',
+             desired_state = 'terminated',
+             terminated_at = NOW(),
+             terminated_reason = 'promoted',
+             version = version + 1,
+             updated_at = NOW(),
+             updated_by = 'rollout_manager'
+         WHERE agent_passport_id = $1
+           AND deployment_slot = 'primary'
+           AND actual_state NOT IN ('terminated')
+         RETURNING *`,
+        [agentPassportId],
+      );
+
+      if (terminateResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        throw new Error(`No primary deployment found for agent ${agentPassportId}`);
+      }
+
+      // Promote blue → primary
+      const promoteResult = await client.query(
+        `UPDATE deployments
+         SET deployment_slot = 'primary',
+             version = version + 1,
+             updated_at = NOW(),
+             updated_by = 'rollout_manager'
+         WHERE agent_passport_id = $1
+           AND deployment_slot = 'blue'
+           AND actual_state NOT IN ('terminated')
+         RETURNING *`,
+        [agentPassportId],
+      );
+
+      if (promoteResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        throw new Error(`No blue deployment found for agent ${agentPassportId}`);
+      }
+
+      await client.query('COMMIT');
+
+      return {
+        promoted: mapDeploymentRow(promoteResult.rows[0]),
+        terminated: mapDeploymentRow(terminateResult.rows[0]),
+      };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async getBySlot(agentPassportId: string, slot: string): Promise<Deployment | null> {
+    const result = await pool.query(
+      `SELECT * FROM deployments
+       WHERE agent_passport_id = $1
+         AND deployment_slot = $2
+         AND actual_state NOT IN ('terminated')
+       ORDER BY created_at DESC
+       LIMIT 1`,
+      [agentPassportId, slot],
+    );
+    return result.rows.length > 0 ? mapDeploymentRow(result.rows[0]) : null;
+  }
+
+  /* ---------------------------------------------------------------- */
   /*  Private helpers                                                 */
   /* ---------------------------------------------------------------- */
 
