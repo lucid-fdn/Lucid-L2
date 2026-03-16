@@ -4951,6 +4951,51 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
+  /v1/agents/{passportId}/events:
+    get:
+      tags: [AgentDeploy]
+      operationId: lucid_get_deployment_events
+      x-speakeasy-group: agents.deploy
+      summary: Get deployment event history
+      description: Returns append-only audit log of deployment lifecycle events.
+      x-speakeasy-mcp:
+        name: lucid_get_deployment_events
+        description: Get deployment event history for an agent by passport ID.
+      parameters:
+        - name: passportId
+          in: path
+          description: Agent passport identifier
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          description: Maximum number of events to return
+          schema: { type: integer, default: 50 }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        event_id: { type: string }
+                        deployment_id: { type: string }
+                        event_type: { type: string }
+                        actor: { type: string }
+                        previous_state: { type: string }
+                        new_state: { type: string }
+                        metadata: { type: object }
+                        created_at: { type: string, format: date-time }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
   # ===========================================================================
   # Agent Wallet
   # ===========================================================================
