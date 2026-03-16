@@ -34,8 +34,10 @@ const pool = new Pool({
   allowExitOnIdle: true,
 });
 
-pool.on('connect', () => {
-  logger.info('✅ PostgreSQL shared pool — new connection');
+pool.on('connect', (client) => {
+  // Set search_path to include all domain schemas
+  client.query("SET search_path TO public, lucid_l2, gateway, identity, marketplace, platform, assistant, workflow, trading");
+  logger.info('PostgreSQL shared pool — new connection');
 });
 
 pool.on('error', (err) => {

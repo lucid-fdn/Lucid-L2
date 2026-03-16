@@ -8,6 +8,7 @@ import express from 'express';
 import { createClient } from '@supabase/supabase-js';
 import Redis from 'ioredis';
 import { Nango } from '@nangohq/node';
+import pool from '../../../../engine/src/shared/db/pool';
 import { logger } from '../../../../engine/src/shared/lib/logger';
 
 const router = express.Router();
@@ -209,28 +210,9 @@ async function checkDatabase(): Promise<HealthCheckResult> {
   const startTime = Date.now();
   
   try {
-    const supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!
-    );
-    
-    // Simple query to test connectivity
-    const { error } = await supabase
-      .from('user_wallets')
-      .select('count')
-      .limit(1)
-      .single();
-    
+    // Use raw pg pool — works across all schemas via search_path
+    await pool.query('SELECT 1');
     const latency = Date.now() - startTime;
-    
-    if (error && !error.message.includes('multiple')) {
-      // Ignore "multiple rows" error - means DB is working
-      return {
-        status: 'down',
-        latency,
-        error: error.message
-      };
-    }
     
     // Check if latency is acceptable (< 500ms)
     if (latency > 500) {
