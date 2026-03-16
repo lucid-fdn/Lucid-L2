@@ -354,6 +354,79 @@ export class InMemoryDeploymentStore implements IDeploymentStore {
   }
 
   /* ---------------------------------------------------------------- */
+  /*  Phase 3: Blue-green slot management                             */
+  /* ---------------------------------------------------------------- */
+
+  async promoteBlue(agentPassportId: string): Promise<{ promoted: Deployment; terminated: Deployment }> {
+    // Find the blue deployment
+    let blue: Deployment | undefined;
+    for (const d of this.deployments.values()) {
+      if (d.agent_passport_id === agentPassportId && d.deployment_slot === 'blue' && d.actual_state !== 'terminated') {
+        blue = d;
+        break;
+      }
+    }
+    if (!blue) {
+      throw new Error(`No blue deployment found for agent ${agentPassportId}`);
+    }
+
+    // Find the current primary (non-terminated)
+    let primary: Deployment | undefined;
+    for (const d of this.deployments.values()) {
+      if (
+        d.agent_passport_id === agentPassportId &&
+        d.deployment_slot === 'primary' &&
+        d.actual_state !== 'terminated'
+      ) {
+        primary = d;
+        break;
+      }
+    }
+
+    const now = Date.now();
+
+    // Terminate old primary (if exists)
+    let terminatedDeployment: Deployment;
+    if (primary) {
+      primary.deployment_slot = 'old';
+      primary.actual_state = 'terminated';
+      primary.desired_state = 'terminated';
+      primary.terminated_at = now;
+      primary.terminated_reason = 'promoted';
+      primary.version += 1;
+      primary.updated_at = now;
+      primary.updated_by = 'rollout_manager';
+      terminatedDeployment = { ...primary };
+    } else {
+      // No primary to terminate — create a synthetic record for the return type
+      // This handles the case where blue is deployed without an existing primary
+      throw new Error(`No primary deployment found for agent ${agentPassportId}`);
+    }
+
+    // Promote blue → primary
+    blue.deployment_slot = 'primary';
+    blue.version += 1;
+    blue.updated_at = now;
+    blue.updated_by = 'rollout_manager';
+    const promotedDeployment = { ...blue };
+
+    return { promoted: promotedDeployment, terminated: terminatedDeployment };
+  }
+
+  async getBySlot(agentPassportId: string, slot: string): Promise<Deployment | null> {
+    for (const d of this.deployments.values()) {
+      if (
+        d.agent_passport_id === agentPassportId &&
+        d.deployment_slot === slot &&
+        d.actual_state !== 'terminated'
+      ) {
+        return { ...d };
+      }
+    }
+    return null;
+  }
+
+  /* ---------------------------------------------------------------- */
   /*  Private helpers                                                 */
   /* ---------------------------------------------------------------- */
 

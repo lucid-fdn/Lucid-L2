@@ -17,7 +17,7 @@ anchor deploy --provider.cluster devnet
 
 # Tests
 cd tests && npm test                        # Mocha on-chain (6 programs)
-cd offchain && npm test                     # Jest API (102 suites, 1668 tests)
+cd offchain && npm test                     # Jest API (103 suites, 1683 tests)
 ```
 
 ## Architecture
@@ -198,6 +198,13 @@ Files: `engine/src/deployment/reconciler/` (service, policies, provider-sync),
 `engine/src/deployment/boot.ts` (start/stop control plane).
 Env: `DEPLOYMENT_CONTROL_PLANE=false` (disable), `RECONCILER_POLL_MS`, `RECONCILER_STUCK_TIMEOUT_MS`,
 `RECONCILER_STALENESS_MS`, `RECONCILER_LEASE_WARNING_MS`, `RECONCILER_MAX_RETRIES`, `LEASE_EXTENSION_HOURS`.
+Phase 3: Blue-green rollout, rollback, secrets abstraction.
+RolloutManager (`engine/src/deployment/rollout/`) owns blue-green + rollback + promotion. Separate from Reconciler.
+Secrets: `ISecretsResolver` interface (`engine/src/deployment/secrets/`) — resolve at deploy time, never stored.
+Implementations: `EnvSecretsResolver` (process.env), `MockSecretsResolver` (tests). Factory: `getSecretsResolver()`.
+Store extensions: `promoteBlue()` (atomic blue->primary swap), `getBySlot()` (slot-based lookup).
+Routes: `POST .../deploy/blue-green`, `POST .../promote`, `POST .../rollback`, `GET .../blue`, `POST .../blue/cancel`.
+Env: `SECRETS_PROVIDER=env|mock`, `ROLLOUT_HEALTH_GATE_MS=30000`, `ROLLOUT_AUTO_PROMOTE=false`, `ROLLOUT_AUTO_ROLLBACK=false`.
 
 ### NFT Provider Layer (Chain-Agnostic)
 NFT minting behind `INFTProvider` interface. String-based addresses work for both Solana base58 and EVM 0x.
@@ -423,7 +430,7 @@ Supabase (eu-north-1, project `kwihlcnapmkaivijyiif`):
 - `better-sqlite3` + `sqlite-vec` (optional deps for `MEMORY_STORE=sqlite`)
 
 ## Testing
-- **102 test suites, 1668 tests** (offchain)
+- **103 test suites, 1683 tests** (offchain)
 - On-chain: `anchor test` (Mocha, 6 programs)
 - Type check: `cd offchain && npm run type-check`
 - E2E: start server (`npm start`) + curl endpoints

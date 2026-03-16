@@ -124,4 +124,21 @@ export interface IDeploymentStore {
 
   /** Find a deployment by its idempotency key. */
   getByIdempotencyKey(key: string): Promise<Deployment | null>;
+
+  /* ---------------------------------------------------------------- */
+  /*  Phase 3: Blue-green slot management                             */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * Atomically promote blue → primary, old primary → terminated.
+   * Both updates must succeed or neither does.
+   * Throws if no blue deployment exists for the agent.
+   */
+  promoteBlue(agentPassportId: string): Promise<{ promoted: Deployment; terminated: Deployment }>;
+
+  /**
+   * Find a deployment by agent + slot.
+   * Returns null if no deployment exists in that slot.
+   */
+  getBySlot(agentPassportId: string, slot: string): Promise<Deployment | null>;
 }
