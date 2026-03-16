@@ -6,7 +6,7 @@
  * - TBA resolution for agents
  */
 
-import { ERC6551RegistryClient, ERC6551_REGISTRY_ADDRESS } from '../blockchain/evm/erc6551/ERC6551RegistryClient';
+import { ERC6551RegistryClient, ERC6551_REGISTRY_ADDRESS } from '../../packages/engine/src/chain/blockchain/evm/erc6551/ERC6551RegistryClient';
 
 describe('ERC6551RegistryClient', () => {
   it('uses canonical registry address', () => {
@@ -49,13 +49,13 @@ describe('TBAService', () => {
   // and deterministic behavior without actual RPC calls
 
   it('imports successfully', async () => {
-    const { TBAService, getTBAService } = await import('../services/identity/tbaService');
+    const { TBAService, getTBAService } = await import('../../packages/engine/src/identity/tbaService');
     expect(TBAService).toBeDefined();
     expect(getTBAService).toBeDefined();
   });
 
   it('singleton returns same instance', async () => {
-    const { getTBAService } = await import('../services/identity/tbaService');
+    const { getTBAService } = await import('../../packages/engine/src/identity/tbaService');
     const a = getTBAService();
     const b = getTBAService();
     expect(a).toBe(b);
@@ -63,7 +63,7 @@ describe('TBAService', () => {
 
   describe('TBA resolution', () => {
     it('returns null for chain without ERC-6551 config', async () => {
-      const { getTBAService } = await import('../services/identity/tbaService');
+      const { getTBAService } = await import('../../packages/engine/src/identity/tbaService');
       const service = getTBAService();
 
       // solana-devnet has no ERC-6551 config
@@ -72,7 +72,7 @@ describe('TBAService', () => {
     });
 
     it('returns null for unknown chain', async () => {
-      const { getTBAService } = await import('../services/identity/tbaService');
+      const { getTBAService } = await import('../../packages/engine/src/identity/tbaService');
       const service = getTBAService();
 
       const result = await service.resolveTBAForAgent('nonexistent-chain', '1');
@@ -83,7 +83,7 @@ describe('TBAService', () => {
 
 describe('ERC-6551 ABI', () => {
   it('loads ABI correctly', () => {
-    const abi = require('../blockchain/evm/erc6551/abis/ERC6551Registry.json');
+    const abi = require('../../packages/engine/src/chain/blockchain/evm/erc6551/abis/ERC6551Registry.json');
     expect(Array.isArray(abi)).toBe(true);
     expect(abi.length).toBeGreaterThan(0);
 

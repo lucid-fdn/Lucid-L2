@@ -19,7 +19,7 @@ import cors from 'cors';
 import { HuggingFaceClient } from './hfClient';
 import { QuoteService } from './quoteService';
 import { JobExecutor } from './jobExecutor';
-import { WorkerIdentity, ExecutionMode, HealthCheckResponse } from '../../types/fluidCompute';
+import { WorkerIdentity, ExecutionMode, HealthCheckResponse } from '../../../packages/engine/src/shared/types/fluidCompute';
 
 // Configuration
 const PORT = parseInt(process.env.WORKER_PORT || '3100', 10);

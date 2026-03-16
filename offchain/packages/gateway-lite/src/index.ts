@@ -4,33 +4,14 @@ import { hijackConsole } from '../../engine/src/shared/lib/logger';
 hijackConsole(); // Redirect console.* to structured JSON logging (must be first)
 
 import express from 'express';
-import helmet from 'helmet';
-import path from 'path';
-import swaggerUi from 'swagger-ui-express';
-import fs from 'fs';
-// Note: body-parser no longer needed — using express.json() with size limit
-import { createApiRouter } from './api';
 import { API_PORT } from '../../engine/src/shared/config/config';
-import { PATHS } from '../../engine/src/shared/config/paths';
 import { validateEnvironmentOrThrow, printEnvironmentStatus } from '../../../src/utils/environmentValidator';
 
 // --- Observability ---------------------------------------------------------
-// Sentry & OTel provide error tracking, performance monitoring, and
-// distributed tracing.  Both degrade gracefully when env vars are absent.
-import {
-  initSentry,
-  setupSentryErrorHandler,
-  captureError,
-  flushSentry,
-} from './lib/observability';
-import { initTracing, shutdownTracing } from './lib/observability';
+import { initSentry } from './lib/observability';
+import { initTracing } from './lib/observability';
 
-// Initialise Sentry early (synchronous, no-op when SENTRY_DSN is unset)
 initSentry();
-
-// Kick off OTel tracing (async, no-op when OTEL_ENABLED !== 'true').
-// The dynamic imports inside initTracing will register instrumentation hooks
-// for HTTP, Express, and pg as soon as the promise resolves.
 initTracing().catch((err) =>
   console.warn('[otel] Failed to initialize tracing:', err),
 );
@@ -52,172 +33,35 @@ import { solanaRouter } from './routes/chain/solanaRoutes';
 import { lucidLayerRouter } from './routes/core/lucidLayerRoutes';
 import { passportRouter } from './routes/core/passportRoutes';
 import { shareRouter } from './routes/core/shareRoutes';
-import { getPassportManager, OnChainSyncHandler } from '../../engine/src/identity/passport/passportManager';
-import { hasAvailableCompute } from './compute/matchingEngine';
-import { MODEL_CATALOG } from './compute/modelCatalog';
-import type { Passport } from '../../engine/src/identity/stores/passportStore';
-import { initReceiptConsumer, startReceiptConsumer, stopReceiptConsumer } from '../../engine/src/shared/jobs/receiptConsumer';
-import pool from '../../engine/src/shared/db/pool';
-import { initReceiptMMR } from '../../engine/src/shared/crypto/receiptMMR';
-import { setAnchoringConfig, setAuthorityKeypair, commitEpochRoot } from '../../engine/src/epoch/services/anchoringService';
-import { startAnchoringJob, setAnchoringJobConfig } from '../../engine/src/shared/jobs/anchoringJob';
-import { setAnchorCallback, startAutoFinalization } from '../../engine/src/epoch/services/epochService';
-import { getKeypair } from '../../engine/src/chain/solana/client';
-import { blockchainAdapterFactory } from '../../engine/src/chain/blockchain/BlockchainAdapterFactory';
-import { EVMAdapter } from '../../engine/src/chain/blockchain/evm/EVMAdapter';
-import { SolanaAdapter } from '../../engine/src/chain/blockchain/solana/SolanaAdapter';
-import { CHAIN_CONFIGS, getEVMChains, getSolanaChains } from '../../engine/src/chain/blockchain/chains';
-import { setX402Config } from './middleware/x402';
-import { getReputationAggregator } from './reputation/reputationAggregator';
+import { createApiRouter } from './api';
 import { identityBridgeRouter } from './routes/chain/identityBridgeRoutes';
 import { reputationMarketplaceRouter } from './routes/chain/reputationMarketplaceRoutes';
-import { reputationAlgorithmRegistry } from './reputation';
-import { ReceiptVolumeAlgorithm } from './reputation/algorithms/ReceiptVolumeAlgorithm';
-import { CrossChainWeightedAlgorithm } from './reputation/algorithms/CrossChainWeightedAlgorithm';
-import { StakeWeightedAlgorithm } from './reputation/algorithms/StakeWeightedAlgorithm';
 import { tbaRouter } from './routes/chain/tbaRoutes';
 import { escrowRouter } from './routes/chain/escrowRoutes';
 import { disputeRouter } from './routes/chain/disputeRoutes';
 import { paymasterRouter } from './routes/chain/paymasterRoutes';
 import { erc7579Router } from './routes/chain/erc7579Routes';
 import { zkmlRouter } from './routes/chain/zkmlRoutes';
-// Agent deployment pipeline routes
 import { agentDeployRouter } from './routes/agent/agentDeployRoutes';
-// WIP: marketplace routes moved to _wip/ — needs DB persistence before ship
-// import { agentMarketplaceRouter } from './routes/agent/agentMarketplaceRoutes';
 import { a2aRouter } from './routes/agent/a2aRoutes';
 import { agentWalletRouter } from './routes/agent/agentWalletRoutes';
 import { agentRevenueRouter } from './routes/agent/agentRevenueRoutes';
-// Agent mirror + proof routes
 import { agentMirrorRouter } from './routes/agent/agentMirrorRoutes';
-import { initAgentMirrorConsumer, startAgentMirrorConsumer, stopAgentMirrorConsumer } from '../../engine/src/shared/jobs/agentMirrorConsumer';
 import { createAssetPaymentRouter } from './routes/core/assetPaymentRoutes';
 import { createPaymentConfigRouter } from './routes/core/paymentConfigRoutes';
 import { createSubscriptionRouter } from './routes/core/subscriptionRoutes';
-import rateLimit from 'express-rate-limit';
 
+// Middleware & startup modules
+import { applyMiddleware } from './middleware';
+import { initializeBackgroundServices, registerShutdownHandlers } from './startup';
+
+// ---------------------------------------------------------------------------
+// Create Express app
+// ---------------------------------------------------------------------------
 const app = express();
 
-// Security headers (OWASP best practice)
-app.use(helmet({
-  contentSecurityPolicy: false, // CSP disabled — API-only server, no HTML to protect
-}));
-
-// Global rate limiting (per IP)
-const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10); // 1 minute
-const RATE_LIMIT_MAX = parseInt(process.env.RATE_LIMIT_MAX || '200', 10); // 200 req/min per IP
-app.use(rateLimit({
-  windowMs: RATE_LIMIT_WINDOW_MS,
-  max: RATE_LIMIT_MAX,
-  standardHeaders: true, // Return RateLimit-* headers (draft-6)
-  legacyHeaders: false,  // Disable X-RateLimit-* headers
-  message: { success: false, error: 'Too many requests, please try again later' },
-  keyGenerator: (req) => req.ip || req.headers['x-forwarded-for'] as string || 'unknown',
-}));
-
-// Stricter rate limit for inference endpoint (expensive operation)
-const INFERENCE_RATE_LIMIT_MAX = parseInt(process.env.INFERENCE_RATE_LIMIT_MAX || '30', 10);
-app.use('/v1/chat/completions', rateLimit({
-  windowMs: RATE_LIMIT_WINDOW_MS,
-  max: INFERENCE_RATE_LIMIT_MAX,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, error: 'Inference rate limit exceeded' },
-  keyGenerator: (req) => req.ip || req.headers['x-forwarded-for'] as string || 'unknown',
-}));
-
-// Body size limit — prevent OOM from oversized payloads
-const BODY_LIMIT = process.env.BODY_SIZE_LIMIT || '5mb';
-app.use(express.json({ limit: BODY_LIMIT }));
-app.use(express.urlencoded({ extended: true, limit: BODY_LIMIT }));
-
-// CORS — restrict to known origins (env-configurable)
-const ALLOWED_ORIGINS = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:3001').split(',').map(o => o.trim());
-
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  if (origin && ALLOWED_ORIGINS.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-  }
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Payment-Proof');
-  // Allow Chrome private network access preflight from secure pages
-  res.header('Access-Control-Allow-Private-Network', 'true');
-
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
-    return;
-  }
-
-  next();
-});
-
-// -----------------------------------------------------------------------------
-// OpenAPI / Swagger UI
-// -----------------------------------------------------------------------------
-
-// Serve raw OpenAPI spec
-app.get('/api/openapi.yaml', (_req, res) => {
-  try {
-    const specPath = PATHS.OPENAPI_SPEC;
-    const yaml = fs.readFileSync(specPath, 'utf8');
-    res.setHeader('Content-Type', 'text/yaml; charset=utf-8');
-    res.send(yaml);
-  } catch (err) {
-    console.error('Failed to read openapi.yaml:', err);
-    res.status(500).json({ success: false, error: 'Failed to load OpenAPI spec' });
-  }
-});
-
-// Swagger UI (loads the spec via URL so we don't need a YAML parser at runtime)
-app.use(
-  '/api/docs',
-  swaggerUi.serve,
-  swaggerUi.setup(undefined, {
-    swaggerOptions: {
-      url: '/api/openapi.yaml',
-    },
-  })
-);
-
-// -----------------------------------------------------------------------------
-// OpenAPI request validation
-// -----------------------------------------------------------------------------
-// Validates only routes that are described in openapi.yaml.
-// We load the YAML ourselves (no runtime YAML parser dependency) and pass the
-// parsed document to the validator.
-(async () => {
-  try {
-    const specPath = PATHS.OPENAPI_SPEC;
-    const yamlContent = fs.readFileSync(specPath, 'utf8');
-
-    // Very small inline YAML->JSON conversion without adding a YAML parser:
-    // express-openapi-validator can accept a path, but it expects JSON/YAML parsing.
-    // To avoid adding new deps, we use the built-in `yaml` parser already shipped
-    // by express-openapi-validator via its transitive deps.
-    const yamlModule = await import('yaml');
-    const apiSpec = yamlModule.parse(yamlContent);
-
-    const OpenApiValidator = await import('express-openapi-validator');
-    app.use(
-      OpenApiValidator.middleware({
-        apiSpec,
-        validateRequests: true,
-        // Response validation is useful but can be noisy until the spec fully matches
-        // every endpoint and all error shapes.
-        validateResponses: false,
-        validateApiSpec: true,
-        ignorePaths: /^(\/api\/|\/v1\/memory|\/v1\/anchors)/,   // Legacy /api/*, memory, and anchor routes handle their own validation
-      })
-    );
-  } catch (err) {
-    console.warn('OpenAPI validator disabled (failed to load/parse openapi.yaml):', err);
-  }
-})();
-
-// Serve static assets from auth-frontend build
-app.use('/api/wallets/auth/assets', express.static(path.join(PATHS.AUTH_FRONTEND_DIST, 'assets')));
+// Apply all middleware (helmet, CORS, rate limits, body parsing, OpenAPI, Swagger)
+applyMiddleware(app);
 
 // Mount API routes (async router needs to be awaited)
 (async () => {
@@ -247,28 +91,24 @@ app.use('/api/solana', solanaRouter);
 // Mount health check routes
 app.use('/health', healthRouter);
 
-// ─── Preview / Phase 3 routes ───────────────────────────────────────────
-// These are gated behind PREVIEW_ROUTES_ENABLED. In production, they are
-// disabled by default. Enable with PREVIEW_ROUTES_ENABLED=true for dev/devnet.
+// Preview / Phase 3 routes (gated behind env flag)
 if (process.env.PREVIEW_ROUTES_ENABLED === 'true') {
-  app.use('/', identityBridgeRouter);     // CAIP-10 cross-chain identity
-  app.use('/', reputationMarketplaceRouter); // Reputation marketplace
-  app.use('/', tbaRouter);                // ERC-6551 Token Bound Accounts
-  app.use('/', escrowRouter);             // Trustless escrow
-  app.use('/', disputeRouter);            // Dispute resolution
-  app.use('/', paymasterRouter);          // ERC-4337 gas sponsorship
-  app.use('/', erc7579Router);            // ERC-7579 smart account modules
-  app.use('/', zkmlRouter);               // zkML proof verification
+  app.use('/', identityBridgeRouter);
+  app.use('/', reputationMarketplaceRouter);
+  app.use('/', tbaRouter);
+  app.use('/', escrowRouter);
+  app.use('/', disputeRouter);
+  app.use('/', paymasterRouter);
+  app.use('/', erc7579Router);
+  app.use('/', zkmlRouter);
   console.log('[gateway-lite] Preview routes enabled (identity, reputation, TBA, escrow, dispute, paymaster, erc7579, zkml)');
 }
 
 // Mount Agent Deployment pipeline routes
 app.use('/', agentDeployRouter);
-// WIP: app.use('/', agentMarketplaceRouter);
 app.use('/', a2aRouter);
 app.use('/', agentWalletRouter);
 app.use('/', agentRevenueRouter);
-// Mount Agent Mirror routes (proof + receipts + epoch endpoints)
 app.use('/', agentMirrorRouter);
 
 // Mount Asset Payment & Config routes
@@ -278,349 +118,15 @@ app.use('/v1/config', createPaymentConfigRouter());
 // Mount Subscription route (x402-gated access)
 app.use('/', createSubscriptionRouter());
 
-// Register built-in reputation algorithms
-reputationAlgorithmRegistry.register(new ReceiptVolumeAlgorithm());
-reputationAlgorithmRegistry.register(new CrossChainWeightedAlgorithm());
-reputationAlgorithmRegistry.register(new StakeWeightedAlgorithm());
-console.log(`Reputation Marketplace: ${reputationAlgorithmRegistry.count()} algorithm(s) registered`);
+// ---------------------------------------------------------------------------
+// Background services + shutdown
+// ---------------------------------------------------------------------------
+initializeBackgroundServices(app);
+registerShutdownHandlers();
 
-// Initialize Passport Manager and wire up On-Chain Sync
-getPassportManager().setComputeAvailabilityChecker(hasAvailableCompute);
-getPassportManager().setModelCatalog(MODEL_CATALOG);
-getPassportManager().init().then(async () => {
-  console.log('📦 Passport Manager ready');
-
-  // Auto-sync API models from TrustGate catalog
-  if (process.env.TRUSTGATE_SYNC_ENABLED !== 'false') {
-    try {
-      const syncResult = await getPassportManager().syncApiModels();
-      console.log(`🔄 TrustGate Sync: ${syncResult.created} created, ${syncResult.skipped} existing, ${syncResult.removed} revoked`);
-    } catch (err) {
-      console.warn('⚠️ TrustGate Sync failed (non-blocking):', err instanceof Error ? err.message : err);
-    }
-  } else {
-    console.log('ℹ️ TrustGate Sync disabled (TRUSTGATE_SYNC_ENABLED=false)');
-  }
-
-  // Wire up Passport On-Chain Sync via blockchain adapter (if enabled)
-  if (process.env.PASSPORT_SYNC_ENABLED !== 'false') {
-    try {
-      const chainId = (process.env.ANCHORING_CHAINS || 'solana-devnet').split(',')[0].trim();
-      const adapter = await blockchainAdapterFactory.getAdapter(chainId);
-      const passportAdapter = adapter.passports();
-
-      // Adapter-backed OnChainSyncHandler — delegates to IPassportAdapter
-      const adapterSyncHandler: OnChainSyncHandler = {
-        async syncToChain(passport: Passport): Promise<{ pda: string; tx: string } | null> {
-          const { createHash } = await import('crypto');
-          const contentHash = passport.metadata?.content_hash
-            || passport.metadata?.sha256
-            || createHash('sha256').update(JSON.stringify(passport.metadata || {})).digest('hex');
-          const owner = passport.owner || '';
-          const receipt = await passportAdapter.anchorPassport(passport.passport_id, contentHash, owner);
-          if (!receipt.success) return null;
-          return { pda: passport.passport_id, tx: receipt.hash };
-        },
-      };
-
-      getPassportManager().setOnChainSyncHandler(adapterSyncHandler);
-      console.log('🔗 Passport On-Chain Sync enabled (via adapter)');
-      console.log(`   Chain: ${chainId}`);
-    } catch (err) {
-      console.warn('⚠️ Passport On-Chain Sync not available:', err instanceof Error ? err.message : err);
-      console.warn('   Passports will be stored offchain only.');
-    }
-  } else {
-    console.log('ℹ️ Passport On-Chain Sync disabled (PASSPORT_SYNC_ENABLED=false)');
-  }
-}).catch((err) => {
-  console.error('Failed to initialize Passport Manager:', err);
-});
-
-// Restore MMR + epoch state from DB (must run before receipt consumer & anchoring)
-// Fallback: if DB is empty, try DePIN checkpoint (bucket 2 → bucket 1 recovery)
-(async () => {
-  try {
-    const mmr = await initReceiptMMR();
-    if (mmr.getLeafCount() === 0) {
-      // Fast DB empty — try DePIN checkpoint fallback
-      const { restoreFromCheckpoint } = await import('../../engine/src/shared/jobs/mmrCheckpoint');
-      const restored = await restoreFromCheckpoint();
-      if (restored) {
-        // Re-init singleton from the now-populated DB
-        const reloaded = await initReceiptMMR();
-        console.log(`🌲 Receipt MMR: restored from DePIN checkpoint (${reloaded.getLeafCount()} leaves)`);
-      } else {
-        console.log('🌲 Receipt MMR: starting fresh (no DB state, no DePIN checkpoint)');
-      }
-    } else {
-      console.log(`🌲 Receipt MMR: ${mmr.getLeafCount()} leaves, size ${mmr.getSize()}`);
-    }
-  } catch (err) {
-    console.warn('⚠️ Receipt MMR restore failed (starting fresh):', err instanceof Error ? err.message : err);
-  }
-  try {
-    const { loadEpochsFromDb } = await import('../../engine/src/epoch/services/epochService');
-    const loaded = await loadEpochsFromDb();
-    if (loaded > 0) {
-      console.log(`📦 Epoch state: restored ${loaded} active epoch(s) from DB`);
-    }
-  } catch (err) {
-    console.warn('⚠️ Epoch state restore failed (starting fresh):', err instanceof Error ? err.message : err);
-  }
-
-  // Start periodic MMR checkpoint to DePIN (non-blocking)
-  try {
-    const { startCheckpointJob } = await import('../../engine/src/shared/jobs/mmrCheckpoint');
-    startCheckpointJob(parseInt(process.env.MMR_CHECKPOINT_INTERVAL_MS || '1800000'));
-  } catch (err) {
-    console.warn('⚠️ MMR checkpoint job failed to start:', err instanceof Error ? err.message : err);
-  }
-})();
-
-// Initialize Receipt Consumer (polls receipt_events from TrustGate)
-try {
-  initReceiptConsumer(
-    async (sql, params) => {
-      const result = await pool.query(sql, params);
-      return { rows: result.rows };
-    },
-    {
-      interval_ms: parseInt(process.env.RECEIPT_CONSUMER_INTERVAL_MS || '5000'),
-      batch_size: parseInt(process.env.RECEIPT_CONSUMER_BATCH_SIZE || '50'),
-      enabled: process.env.RECEIPT_CONSUMER_ENABLED !== 'false',
-    }
-  );
-  startReceiptConsumer();
-  console.log('🧾 Receipt Consumer started');
-} catch (err) {
-  console.warn('⚠️ Receipt Consumer failed to start:', err instanceof Error ? err.message : err);
-}
-
-// Start Memory background services (embedding worker + projection)
-if (process.env.MEMORY_ENABLED !== 'false') {
-  try {
-    const { startMemorySystem } = require('../../engine/src/memory/boot');
-    startMemorySystem();
-  } catch (err) {
-    console.warn('[memory] Failed to start memory system:', err instanceof Error ? err.message : err);
-  }
-}
-
-// Initialize Agent Mirror Consumer (polls agent_created_events from platform-core DB)
-const PLATFORM_CORE_DB_URL = process.env.PLATFORM_CORE_DB_URL;
-if (PLATFORM_CORE_DB_URL) {
-  try {
-    initAgentMirrorConsumer(
-      async (sql, params) => {
-        const result = await pool.query(sql, params);
-        return { rows: result.rows as Record<string, unknown>[] };
-      },
-      PLATFORM_CORE_DB_URL,
-      {
-        interval_ms: parseInt(process.env.AGENT_MIRROR_INTERVAL_MS || '10000'),
-        batch_size: parseInt(process.env.AGENT_MIRROR_BATCH_SIZE || '50'),
-        enabled: process.env.AGENT_MIRROR_ENABLED !== 'false',
-      }
-    );
-    startAgentMirrorConsumer();
-    console.log('🤖 Agent Mirror Consumer started (PLATFORM_CORE_DB_URL configured)');
-  } catch (err) {
-    console.warn('⚠️ Agent Mirror Consumer failed to start:', err instanceof Error ? err.message : err);
-  }
-} else {
-  console.log('ℹ️ Agent Mirror Consumer disabled (PLATFORM_CORE_DB_URL not set)');
-}
-
-// Receipt retention cron — clean up processed events older than 30 days
-const RECEIPT_RETENTION_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
-setInterval(async () => {
-  try {
-    const result = await pool.query(
-      `DELETE FROM receipt_events WHERE processed = true AND created_at < now() - interval '30 days'`
-    );
-    if (result.rowCount && result.rowCount > 0) {
-      console.log(`🗑️  Receipt retention: deleted ${result.rowCount} processed events older than 30d`);
-    }
-  } catch (err) {
-    console.warn('⚠️ Receipt retention cleanup failed:', err instanceof Error ? err.message : err);
-  }
-}, RECEIPT_RETENTION_INTERVAL_MS);
-
-// Graceful shutdown — stop consumers, checkpoint, flush observability
-const gracefulShutdown = async (signal: string) => {
-  console.log(`${signal} received — shutting down`);
-  stopReceiptConsumer();
-  stopAgentMirrorConsumer();
-  try { const { stopMemorySystem } = require('../../engine/src/memory/boot'); stopMemorySystem(); } catch { /* best-effort */ }
-  // Final MMR checkpoint before exit (best-effort)
-  try {
-    const { stopCheckpointJob, createCheckpoint } = await import('../../engine/src/shared/jobs/mmrCheckpoint');
-    stopCheckpointJob();
-    await createCheckpoint();
-  } catch { /* best-effort */ }
-  await Promise.all([flushSentry(), shutdownTracing()]);
-  process.exit(0);
-};
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-// Initialize Anchoring Service with Solana keypair
-try {
-  const keypair = getKeypair();
-  const network = (process.env.SOLANA_NETWORK || 'devnet') as 'devnet' | 'testnet' | 'mainnet' | 'localnet';
-  
-  setAnchoringConfig({
-    network,
-    rpc_url: process.env.SOLANA_RPC_URL,
-    commitment: 'confirmed',
-    mock_mode: process.env.ANCHORING_MOCK_MODE === 'true',
-  });
-  setAuthorityKeypair(keypair);
-  
-  console.log('⚓ Anchoring Service configured');
-  console.log(`   Network: ${network}`);
-  console.log(`   Authority: ${keypair.publicKey.toBase58()}`);
-  console.log(`   Mock Mode: ${process.env.ANCHORING_MOCK_MODE === 'true'}`);
-  // Start anchoring pipeline (job + auto-finalization)
-  if (process.env.ANCHORING_MOCK_MODE !== 'true') {
-    // Wire epoch auto-finalization to anchoring service
-    setAnchorCallback(async (epoch_id: string) => {
-      const result = await commitEpochRoot(epoch_id);
-      return { success: result.success, error: result.error };
-    });
-
-    // Start periodic anchoring job (every 10 min by default)
-    setAnchoringJobConfig({
-      enabled: true,
-      interval_ms: parseInt(process.env.ANCHORING_JOB_INTERVAL_MS || '600000'),
-    });
-    startAnchoringJob();
-
-    // Start auto-finalization scheduler (every 60s by default)
-    startAutoFinalization(parseInt(process.env.EPOCH_FINALIZATION_INTERVAL_MS || '60000'));
-
-    console.log('⚓ Anchoring pipeline started (job + auto-finalization)');
-  } else {
-    console.log('⚓ Anchoring pipeline skipped (mock mode)');
-  }
-} catch (err) {
-  console.warn('⚠️ Anchoring Service not configured (Solana keypair not available):', err instanceof Error ? err.message : err);
-  console.warn('   Epoch anchoring will not work until a keypair is configured.');
-}
-
-// Initialize EVM Blockchain Adapters (ERC-8004 Multi-Chain)
-(async () => {
-  try {
-    // Determine which chains to enable
-    const enabledChains = process.env.EVM_ENABLED_CHAINS
-      ? process.env.EVM_ENABLED_CHAINS.split(',').map((s) => s.trim())
-      : getEVMChains().filter((c) => c.isTestnet).map((c) => c.chainId);
-
-    let registered = 0;
-    for (const chainId of enabledChains) {
-      const config = CHAIN_CONFIGS[chainId];
-      if (!config) {
-        console.warn(`Unknown chain: ${chainId}, skipping`);
-        continue;
-      }
-
-      // Allow per-chain RPC override via env (e.g., APECHAIN_RPC_URL)
-      const envKey = chainId.toUpperCase().replace(/-/g, '_') + '_RPC_URL';
-      if (process.env[envKey]) {
-        config.rpcUrl = process.env[envKey]!;
-      }
-
-      // Allow per-chain ERC-8004 contract overrides
-      const contractsEnvKey = chainId.toUpperCase().replace(/-/g, '_') + '_CONTRACTS';
-      if (process.env[contractsEnvKey]) {
-        try {
-          config.erc8004 = { ...config.erc8004, ...JSON.parse(process.env[contractsEnvKey]!) };
-        } catch {
-          // Ignore malformed JSON
-        }
-      }
-
-      const adapter = new EVMAdapter();
-      blockchainAdapterFactory.register(adapter, config);
-      registered++;
-    }
-
-    if (registered > 0) {
-      console.log(`EVM Multi-Chain: ${registered} chain(s) registered`);
-      console.log(`   Chains: ${enabledChains.join(', ')}`);
-      if (process.env.EVM_PRIVATE_KEY) {
-        console.log(`   Wallet: configured`);
-      } else {
-        console.log(`   Wallet: not configured (read-only mode)`);
-      }
-    }
-  } catch (err) {
-    console.warn('EVM Multi-Chain init failed:', err instanceof Error ? err.message : err);
-  }
-})();
-
-// Initialize Solana Blockchain Adapters
-(async () => {
-  try {
-    const enabledSolanaChains = process.env.SOLANA_ENABLED_CHAINS
-      ? process.env.SOLANA_ENABLED_CHAINS.split(',').map((s) => s.trim())
-      : getSolanaChains().filter((c) => c.isTestnet).map((c) => c.chainId);
-
-    let registered = 0;
-    for (const chainId of enabledSolanaChains) {
-      const config = CHAIN_CONFIGS[chainId];
-      if (!config || config.chainType !== 'solana') {
-        console.warn(`Unknown or non-Solana chain: ${chainId}, skipping`);
-        continue;
-      }
-
-      // Allow per-chain RPC override
-      const envKey = chainId.toUpperCase().replace(/-/g, '_') + '_RPC_URL';
-      if (process.env[envKey]) {
-        config.rpcUrl = process.env[envKey]!;
-      }
-
-      const adapter = new SolanaAdapter();
-      blockchainAdapterFactory.register(adapter, config);
-      registered++;
-    }
-
-    if (registered > 0) {
-      console.log(`Solana Multi-Chain: ${registered} chain(s) registered`);
-      console.log(`   Chains: ${enabledSolanaChains.join(', ')}`);
-    }
-  } catch (err) {
-    console.warn('Solana Multi-Chain init failed:', err instanceof Error ? err.message : err);
-  }
-})();
-
-// Initialize Cross-Chain Reputation Aggregator
-if (process.env.REPUTATION_INDEXING_ENABLED === 'true') {
-  const intervalMs = parseInt(process.env.REPUTATION_INDEXING_INTERVAL || '60000', 10);
-  const aggregator = getReputationAggregator();
-  aggregator.startIndexing(intervalMs);
-  console.log(`Reputation Indexer: enabled (interval: ${intervalMs}ms)`);
-} else {
-  console.log('Reputation Indexer: disabled (set REPUTATION_INDEXING_ENABLED=true to enable)');
-}
-
-// Configure x402 payment middleware
-if (process.env.X402_ENABLED === 'true') {
-  setX402Config({
-    enabled: true,
-    paymentAddress: process.env.X402_PAYMENT_ADDRESS || '',
-    paymentChain: (process.env.X402_PAYMENT_CHAIN as 'base' | 'base-sepolia') || 'base-sepolia',
-  });
-  console.log(`x402 Payment: enabled (chain: ${process.env.X402_PAYMENT_CHAIN || 'base-sepolia'})`);
-} else {
-  console.log('x402 Payment: disabled (set X402_ENABLED=true to enable)');
-}
-
-// Sentry error handler — must be registered after all routes but before any
-// custom error-handling middleware so that Sentry sees unhandled errors first.
-setupSentryErrorHandler(app);
-
+// ---------------------------------------------------------------------------
+// Start server
+// ---------------------------------------------------------------------------
 app.listen(API_PORT, '0.0.0.0', () => {
   console.log(`Lucid L2 API listening on:`);
   console.log(`   Local:  http://localhost:${API_PORT}`);

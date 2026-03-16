@@ -12,9 +12,9 @@ import {
   ReceiptVolumeAlgorithm,
   CrossChainWeightedAlgorithm,
   StakeWeightedAlgorithm,
-} from '../services/reputation';
-import type { IReputationAlgorithm, AlgorithmScore, ReputationContext } from '../services/reputation';
-import { computeReceiptReputation } from '../services/receiptReputationService';
+} from '../../packages/gateway-lite/src/reputation';
+import type { IReputationAlgorithm, AlgorithmScore, ReputationContext } from '../../packages/gateway-lite/src/reputation';
+import { computeReceiptReputation } from '../../packages/gateway-lite/src/reputation/receiptReputationService';
 
 describe('ReputationAlgorithmRegistry', () => {
   let registry: ReputationAlgorithmRegistry;

@@ -1,8 +1,8 @@
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
-import { MockStorage } from '../storage/depin/MockStorage';
-import { getPermanentStorage, getEvolvingStorage, resetDepinStorage } from '../storage/depin';
+import { MockStorage } from '../../packages/engine/src/shared/depin/MockStorage';
+import { getPermanentStorage, getEvolvingStorage, resetDepinStorage } from '../../packages/engine/src/shared/depin';
 
 describe('MockStorage', () => {
   let storage: MockStorage;

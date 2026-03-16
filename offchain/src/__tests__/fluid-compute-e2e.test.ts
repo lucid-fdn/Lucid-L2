@@ -20,7 +20,7 @@ import {
   resetReceiptStore,
   getMmrRoot,
   getMmrLeafCount,
-} from '../services/receipt/receiptService';
+} from '../../packages/engine/src/receipt/receiptService';
 import {
   createEpoch,
   getCurrentEpoch,
@@ -31,7 +31,7 @@ import {
   getEpochStats,
   setEpochConfig,
   resetEpochStore,
-} from '../services/receipt/epochService';
+} from '../../packages/engine/src/epoch/services/epochService';
 import {
   enableMockMode,
   disableMockMode,
@@ -39,14 +39,14 @@ import {
   verifyEpochAnchor,
   resetAnchoringState,
   checkAnchoringHealth,
-} from '../services/receipt/anchoringService';
+} from '../../packages/engine/src/epoch/services/anchoringService';
 import type {
   OfferQuote,
   JobRequest,
   JobInput,
   Price,
   ExecutionMode,
-} from '../types/fluidCompute';
+} from '../../packages/engine/src/shared/types/fluidCompute';
 
 // Helper to create a mock quote
 function createMockQuote(overrides: Partial<OfferQuote> = {}): Omit<OfferQuote, 'quote_hash' | 'quote_signature'> {

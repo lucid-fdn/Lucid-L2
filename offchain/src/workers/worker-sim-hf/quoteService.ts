@@ -8,15 +8,15 @@
  */
 
 import { v4 as uuid } from 'uuid';
-import { computeQuoteHash, verifyQuoteHash } from '../../services/receipt/receiptService';
-import { signMessage, verifySignature, getOrchestratorPublicKey } from '../../utils/signing';
+import { computeQuoteHash, verifyQuoteHash } from '../../../packages/engine/src/receipt/receiptService';
+import { signMessage, verifySignature, getOrchestratorPublicKey } from '../../../packages/engine/src/shared/crypto/signing';
 import type {
   OfferQuote,
   WorkerIdentity,
   QuoteRequest,
   Price,
   CapacityHint,
-} from '../../types/fluidCompute';
+} from '../../../packages/engine/src/shared/types/fluidCompute';
 
 /**
  * Pricing configuration for different models

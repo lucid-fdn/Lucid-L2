@@ -2,9 +2,9 @@
 import { SystemProgram } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { runBatchInference } from '../utils/inference';
-import { initSolana, deriveEpochBatchPDA } from '../solana/client';
-import { makeComputeIx, makeBurnIx, calculateGasCost } from '../solana/gas';
-import { LUCID_MINT, MGAS_PER_ROOT, IGAS_PER_BATCH } from '../utils/config';
+import { initSolana, deriveEpochBatchPDA } from '../../packages/engine/src/chain/solana/client';
+import { makeComputeIx, makeBurnIx, calculateGasCost } from '../../packages/engine/src/chain/solana/gas';
+import { LUCID_MINT, MGAS_PER_ROOT, IGAS_PER_BATCH } from '../../packages/engine/src/shared/config/config';
 
 export async function batchCommit(texts: string[]) {
   const roots = await runBatchInference(texts);

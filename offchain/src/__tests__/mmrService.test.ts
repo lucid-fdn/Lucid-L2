@@ -34,9 +34,7 @@ const solanaGasMock = {
 };
 
 // Mock both proxy paths and engine paths (engine code uses different import paths)
-jest.mock('../solana/client', () => solanaClientMock);
 jest.mock('../../packages/engine/src/chain/solana/client', () => solanaClientMock);
-jest.mock('../solana/gas', () => solanaGasMock);
 jest.mock('../../packages/engine/src/chain/solana/gas', () => solanaGasMock);
 
 // Mock the DePIN storage so AgentMMRRegistry uses in-memory storage
@@ -74,10 +72,10 @@ function createDepinMock() {
 }
 
 const depinMock = createDepinMock();
-jest.mock('../storage/depin', () => depinMock);
+// proxy removed
 jest.mock('../../packages/engine/src/shared/depin', () => depinMock);
 
-import { MMRService, getMMRService, MMRCommitResult, AgentEpochData } from '../services/receipt/mmrService';
+import { MMRService, getMMRService, MMRCommitResult, AgentEpochData } from '../../packages/engine/src/epoch/services/mmrService';
 
 // =============================================================================
 // TESTS

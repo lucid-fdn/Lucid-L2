@@ -11,13 +11,13 @@ import {
   buildSearchResult,
   modelsForCompute,
   computeForModel,
-} from '../storage/searchQueryBuilder';
-import { PassportStore, Passport, PassportType } from '../storage/passportStore';
-import { PassportManager, getPassportManager, resetPassportManager } from '../services/passport/passportManager';
+} from '../../packages/engine/src/shared/storage/searchQueryBuilder';
+import { PassportStore, Passport, PassportType } from '../../packages/engine/src/identity/stores/passportStore';
+import { PassportManager, getPassportManager, resetPassportManager } from '../../packages/engine/src/identity/passport/passportManager';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { PATHS } from '../utils/paths';
+import { PATHS } from '../../packages/engine/src/shared/config/paths';
 
 // Test data directory
 const TEST_DATA_DIR = path.join(PATHS.OFFCHAIN_ROOT, 'data', 'test-search');

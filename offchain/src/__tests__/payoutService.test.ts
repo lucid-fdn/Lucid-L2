@@ -11,7 +11,7 @@ import {
   getPayout,
   DEFAULT_SPLIT_CONFIG,
   SplitConfig,
-} from '../services/finance/payoutService';
+} from '../../packages/engine/src/payment/services/payoutService';
 
 describe('PayoutService', () => {
   describe('validateSplitConfig', () => {

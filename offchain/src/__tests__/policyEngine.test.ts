@@ -1,4 +1,4 @@
-import { evaluatePolicy } from '../services/compute/policyEngine';
+import { evaluatePolicy } from '../../packages/gateway-lite/src/compute/policyEngine';
 
 describe('policyEngine.evaluatePolicy', () => {
   test('allows when regions overlap and no constraints violated', () => {

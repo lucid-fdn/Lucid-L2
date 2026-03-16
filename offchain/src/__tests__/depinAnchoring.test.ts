@@ -11,7 +11,7 @@ import {
   enableMockMode,
   disableMockMode,
   resetAnchoringState,
-} from '../services/receipt/anchoringService';
+} from '../../packages/engine/src/epoch/services/anchoringService';
 
 import {
   createEpoch,
@@ -19,14 +19,14 @@ import {
   addReceiptToEpoch,
   resetEpochStore,
   getEpoch,
-} from '../services/receipt/epochService';
+} from '../../packages/engine/src/epoch/services/epochService';
 
 import {
   createInferenceReceipt,
   resetReceiptStore,
-} from '../services/receipt/receiptService';
+} from '../../packages/engine/src/receipt/receiptService';
 
-import { resetReceiptTree } from '../utils/merkleTree';
+import { resetReceiptTree } from '../../packages/engine/src/shared/crypto/merkleTree';
 
 // =============================================================================
 // Mock DePIN permanent storage
@@ -53,7 +53,7 @@ const mockPermanentStorage = {
 // location (services/receipt/anchoringService.ts). Jest resolves mock paths
 // relative to the test file, so we use ../storage/depin (from __tests__/ to src/).
 // Jest's module mapper will also intercept the require() inside anchoringService.
-jest.mock('../storage/depin', () => ({
+jest.mock('../../packages/engine/src/shared/depin', () => ({
   getPermanentStorage: jest.fn(() => mockPermanentStorage),
   getEvolvingStorage: jest.fn(() => mockPermanentStorage),
   resetDepinStorage: jest.fn(),

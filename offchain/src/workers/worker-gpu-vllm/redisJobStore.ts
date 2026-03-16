@@ -16,8 +16,8 @@ import type {
   JobResult,
   JobStatus,
   JobErrorCode,
-} from '../../types/fluidCompute';
-import { ComputeReceipt } from '../../services/receipt/receiptService';
+} from '../../../packages/engine/src/shared/types/fluidCompute';
+import { ComputeReceipt } from '../../../packages/engine/src/receipt/receiptService';
 
 /**
  * Serializable job state for Redis storage

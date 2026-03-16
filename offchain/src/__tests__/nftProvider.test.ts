@@ -1,6 +1,6 @@
-import { MockNFTProvider } from '../nft/MockNFTProvider';
-import { getNFTProvider, resetNFTProvider } from '../nft';
-import { NFTMetadata } from '../nft/INFTProvider';
+import { MockNFTProvider } from '../../packages/engine/src/identity/nft/MockNFTProvider';
+import { getNFTProvider, resetNFTProvider } from '../../packages/engine/src/identity/nft';
+import { NFTMetadata } from '../../packages/engine/src/identity/nft/INFTProvider';
 
 const testMetadata: NFTMetadata = {
   name: 'Test Model NFT',

@@ -8,7 +8,7 @@ import {
   resetKeypair,
   generateKeypair,
   exportKeypairToHex,
-} from '../utils/signing';
+} from '../../packages/engine/src/shared/crypto/signing';
 
 describe('signing utilities', () => {
   beforeEach(() => {

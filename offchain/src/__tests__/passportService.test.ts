@@ -1,8 +1,8 @@
 // offchain/src/__tests__/passportService.test.ts
 // Tests for Passport Store, Manager, and Routes
 
-import { PassportStore, resetPassportStore } from '../storage/passportStore';
-import { PassportManager, resetPassportManager } from '../services/passport/passportManager';
+import { PassportStore, resetPassportStore } from '../../packages/engine/src/identity/stores/passportStore';
+import { PassportManager, resetPassportManager } from '../../packages/engine/src/identity/passport/passportManager';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -422,7 +422,7 @@ describe('PassportManager', () => {
 
     it('should reject format=api passport when model not in TrustGate catalog', async () => {
       const originalFetch = global.fetch;
-      const { _resetTrustGateCatalogCache } = require('../services/passport/passportManager');
+      const { _resetTrustGateCatalogCache } = require('../../packages/engine/src/identity/passport/passportManager');
       _resetTrustGateCatalogCache();
 
       global.fetch = jest.fn().mockResolvedValueOnce({
@@ -456,7 +456,7 @@ describe('PassportManager', () => {
 
     it('should accept format=api passport when model IS in TrustGate catalog', async () => {
       const originalFetch = global.fetch;
-      const { _resetTrustGateCatalogCache } = require('../services/passport/passportManager');
+      const { _resetTrustGateCatalogCache } = require('../../packages/engine/src/identity/passport/passportManager');
       _resetTrustGateCatalogCache();
 
       global.fetch = jest.fn().mockResolvedValueOnce({
@@ -486,7 +486,7 @@ describe('PassportManager', () => {
 
     it('should allow downloadable model even when not in TrustGate catalog', async () => {
       const originalFetch = global.fetch;
-      const { _resetTrustGateCatalogCache } = require('../services/passport/passportManager');
+      const { _resetTrustGateCatalogCache } = require('../../packages/engine/src/identity/passport/passportManager');
       _resetTrustGateCatalogCache();
 
       global.fetch = jest.fn().mockResolvedValueOnce({

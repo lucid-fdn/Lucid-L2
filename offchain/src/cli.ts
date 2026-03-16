@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { batchCommit } from './commands/batch';
 import { runSingle } from './commands/run';
 import { loadStore } from './utils/memoryStore';
-import { MEMORY_WALLET_PATH } from './utils/config';
+import { MEMORY_WALLET_PATH } from '../packages/engine/src/shared/config/config';
 import * as mmrCommands from './commands/mmr';
 
 const program = new Command()

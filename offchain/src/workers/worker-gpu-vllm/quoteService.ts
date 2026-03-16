@@ -14,9 +14,9 @@
  */
 
 import { v4 as uuid } from 'uuid';
-import { canonicalSha256Hex } from '../../utils/hash';
+import { canonicalSha256Hex } from '../../../packages/engine/src/shared/crypto/hash';
 import { WorkerSigningService } from './signingService';
-import type { OfferQuote, WorkerIdentity } from '../../types/fluidCompute';
+import type { OfferQuote, WorkerIdentity } from '../../../packages/engine/src/shared/types/fluidCompute';
 
 /**
  * Quote creation input

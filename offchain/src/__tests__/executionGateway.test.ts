@@ -10,20 +10,17 @@ const mockFetch = jest.fn<typeof fetch>();
 // Mock passportManager
 const mockGetPassport = jest.fn<() => Promise<any>>();
 const mockListPassports = jest.fn<() => Promise<any>>();
-jest.mock('../services/passport/passportManager', () => ({
+jest.mock('../../packages/engine/src/identity/passport/passportManager', () => ({
   getPassportManager: () => ({
     getPassport: mockGetPassport,
     listPassports: mockListPassports,
   }),
 }));
-// Dual-path: executionGateway imports from ../../../engine/src/identity/passport/passportManager
-jest.mock('../../packages/engine/src/identity/passport/passportManager', () =>
-  require('../services/passport/passportManager'));
 
 // Mock computeRegistry
 const mockGetLiveState = jest.fn<(id: string) => any>();
 const mockUpsertHeartbeat = jest.fn<() => any>();
-jest.mock('../services/compute/computeRegistry', () => ({
+jest.mock('../../packages/gateway-lite/src/compute/computeRegistry', () => ({
   getComputeRegistry: () => ({
     getLiveState: mockGetLiveState,
     upsertHeartbeat: mockUpsertHeartbeat,
@@ -33,18 +30,12 @@ jest.mock('../services/compute/computeRegistry', () => ({
     },
   }),
 }));
-// Dual-path: executionGateway imports from ../compute/computeRegistry (gateway-lite internal)
-jest.mock('../../packages/gateway-lite/src/compute/computeRegistry', () =>
-  require('../services/compute/computeRegistry'));
 
 // Mock receiptService
 const mockCreateReceipt = jest.fn<() => any>();
-jest.mock('../services/receipt/receiptService', () => ({
+jest.mock('../../packages/engine/src/receipt/receiptService', () => ({
   createInferenceReceipt: mockCreateReceipt,
 }));
-// Dual-path: executionGateway imports from ../../../engine/src/receipt/receiptService
-jest.mock('../../packages/engine/src/receipt/receiptService', () =>
-  require('../services/receipt/receiptService'));
 
 import {
   executeInferenceRequest,
@@ -54,7 +45,7 @@ import {
   getGatewayConfig,
   ExecutionRequest,
   ChatCompletionRequest,
-} from '../services/inference/executionGateway';
+} from '../../packages/gateway-lite/src/inference/executionGateway';
 import { estimateTokens, estimateChatTokens } from '../utils/tokenCounter';
 
 describe('Execution Gateway', () => {

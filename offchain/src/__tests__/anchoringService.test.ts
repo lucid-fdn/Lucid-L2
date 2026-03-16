@@ -22,7 +22,7 @@ import {
   resetEpochStore,
   getAllEpochs,
   Epoch,
-} from '../services/receipt/epochService';
+} from '../../packages/engine/src/epoch/services/epochService';
 
 import {
   commitEpochRoot,
@@ -35,14 +35,14 @@ import {
   resetAnchoringState,
   deriveEpochRecordPDA,
   buildCommitEpochInstruction,
-} from '../services/receipt/anchoringService';
+} from '../../packages/engine/src/epoch/services/anchoringService';
 
 import {
   createInferenceReceipt,
   resetReceiptStore,
-} from '../services/receipt/receiptService';
+} from '../../packages/engine/src/receipt/receiptService';
 
-import { resetReceiptTree } from '../utils/merkleTree';
+import { resetReceiptTree } from '../../packages/engine/src/shared/crypto/merkleTree';
 
 import { PublicKey, Keypair } from '@solana/web3.js';
 

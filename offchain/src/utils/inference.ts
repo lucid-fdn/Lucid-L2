@@ -1,8 +1,8 @@
 // offchain/src/utils/inference.ts
 import * as crypto from 'crypto';
-import { LLMRouter } from '../providers/router';
-import { LLMResponse } from '../providers/llm';
-import { LLM_CONFIG, USE_INTERNAL_LLM } from './config';
+import { LLMRouter } from '../../packages/contrib/providers/router';
+import { LLMResponse } from '../../packages/contrib/providers/llm';
+import { LLM_CONFIG, USE_INTERNAL_LLM } from '../../packages/engine/src/shared/config/config';
 
 // Global LLM router instance
 let llmRouter: LLMRouter | null = null;

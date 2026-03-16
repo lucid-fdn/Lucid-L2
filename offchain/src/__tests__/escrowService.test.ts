@@ -10,9 +10,9 @@ jest.mock('../../packages/engine/src/shared/db/pool', () => ({
   },
 }));
 
-import { EscrowService, getEscrowService } from '../services/finance/escrowService';
-import type { EscrowParams } from '../services/finance/escrowTypes';
-import { EscrowStatus } from '../services/finance/escrowTypes';
+import { EscrowService, getEscrowService } from '../../packages/engine/src/payment/escrow/escrowService';
+import type { EscrowParams } from '../../packages/engine/src/payment/escrow/escrowTypes';
+import { EscrowStatus } from '../../packages/engine/src/payment/escrow/escrowTypes';
 
 describe('EscrowService', () => {
   describe('singleton', () => {

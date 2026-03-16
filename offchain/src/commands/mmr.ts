@@ -1,4 +1,4 @@
-import { getMMRService, AgentEpochData } from '../services/receipt/mmrService';
+import { getMMRService, AgentEpochData } from '../../packages/engine/src/epoch/services/mmrService';
 
 /**
  * MMR CLI Commands

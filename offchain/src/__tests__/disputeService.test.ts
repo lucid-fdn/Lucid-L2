@@ -1,8 +1,8 @@
 /**
  * Tests for DisputeService
  */
-import { DisputeService, getDisputeService } from '../services/finance/disputeService';
-import { DisputeStatus } from '../services/finance/disputeTypes';
+import { DisputeService, getDisputeService } from '../../packages/engine/src/payment/escrow/disputeService';
+import { DisputeStatus } from '../../packages/engine/src/payment/escrow/disputeTypes';
 
 describe('DisputeService', () => {
   describe('singleton', () => {

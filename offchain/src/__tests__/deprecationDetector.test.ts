@@ -8,7 +8,7 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 // Mock syncStateManager
 const mockAssetIndex: Record<string, any> = {};
-jest.mock('../services/hf/syncStateManager', () => ({
+jest.mock('../../packages/contrib/integrations/hf/syncStateManager', () => ({
   getSyncStateManager: jest.fn(() => ({
     load: jest.fn().mockResolvedValue(undefined),
     save: jest.fn().mockResolvedValue(undefined),
@@ -19,18 +19,12 @@ jest.mock('../services/hf/syncStateManager', () => ({
   })),
   SyncStateManager: jest.fn(),
 }));
-// Dual-path: gateway-lite imports ./syncStateManager relative to its own file
-jest.mock('../../packages/contrib/integrations/hf/syncStateManager', () =>
-  require('../services/hf/syncStateManager'));
 
 // Mock hfBridgeService
-jest.mock('../services/hf/hfBridgeService', () => ({
+jest.mock('../../packages/contrib/integrations/hf/hfBridgeService', () => ({
   getHFBridgeService: jest.fn(() => ({})),
   HFBridgeService: jest.fn(),
 }));
-// Dual-path: gateway-lite imports ./hfBridgeService relative to its own file
-jest.mock('../../packages/contrib/integrations/hf/hfBridgeService', () =>
-  require('../services/hf/hfBridgeService'));
 
 // Mock blockchainAdapterFactory (deprecationDetector now uses adapter.passports())
 const mockUpdatePassportStatus = jest.fn().mockResolvedValue({ hash: 'mock-tx-id', chainId: 'solana-devnet', success: true });
@@ -53,7 +47,7 @@ describe('DeprecationDetector', () => {
   let getDeprecationDetector: any;
 
   beforeAll(() => {
-    const mod = require('../services/hf/deprecationDetector');
+    const mod = require('../../packages/contrib/integrations/hf/deprecationDetector');
     DeprecationDetector = mod.DeprecationDetector;
     getDeprecationDetector = mod.getDeprecationDetector;
   });
@@ -232,15 +226,15 @@ describe('DeprecationDetector', () => {
       jest.resetModules();
 
       // Re-mock everything for clean module
-      jest.doMock('../services/hf/syncStateManager', () => ({
+      jest.doMock('../../packages/contrib/integrations/hf/syncStateManager', () => ({
         getSyncStateManager: jest.fn(() => ({
           load: jest.fn(), save: jest.fn(), getAssetIndex: jest.fn(() => ({})),
           removeAssetIndexEntry: jest.fn(),
         })),
       }));
-      jest.doMock('../services/hf/hfBridgeService', () => ({ getHFBridgeService: jest.fn(() => ({})) }));
+      jest.doMock('../../packages/contrib/integrations/hf/hfBridgeService', () => ({ getHFBridgeService: jest.fn(() => ({})) }));
 
-      const mod = require('../services/hf/deprecationDetector');
+      const mod = require('../../packages/contrib/integrations/hf/deprecationDetector');
       const inst1 = mod.getDeprecationDetector();
       const inst2 = mod.getDeprecationDetector();
       expect(inst1).toBe(inst2);

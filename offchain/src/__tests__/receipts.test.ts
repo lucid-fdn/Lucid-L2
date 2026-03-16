@@ -1,6 +1,6 @@
 import request from 'supertest';
 import express from 'express';
-import { lucidLayerRouter } from '../routes/lucidLayerRoutes';
+import { lucidLayerRouter } from '../../packages/gateway-lite/src/routes/core/lucidLayerRoutes';
 
 describe('receipts pipeline', () => {
   const app = express();

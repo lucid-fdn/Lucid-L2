@@ -16,8 +16,8 @@ import {
   verifyJobHash, 
   createComputeReceiptFromJob,
   ComputeReceipt,
-} from '../../services/receipt/receiptService';
-import { addReceiptToEpoch } from '../../services/receipt/epochService';
+} from '../../../packages/engine/src/receipt/receiptService';
+import { addReceiptToEpoch } from '../../../packages/engine/src/epoch/services/epochService';
 import type {
   JobRequest,
   JobResult,
@@ -25,8 +25,8 @@ import type {
   JobErrorCode,
   JobSubmitResponse,
   WorkerIdentity,
-} from '../../types/fluidCompute';
-import { mapToV0ErrorCode } from '../../types/fluidCompute';
+} from '../../../packages/engine/src/shared/types/fluidCompute';
+import { mapToV0ErrorCode } from '../../../packages/engine/src/shared/types/fluidCompute';
 
 /**
  * Internal job state

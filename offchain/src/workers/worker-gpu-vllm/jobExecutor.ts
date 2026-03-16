@@ -20,8 +20,8 @@ import { VllmClient, VllmChatMessage, VllmGenerateOptions } from './vllmClient';
 import { QuoteService } from './quoteService';
 import { WorkerSigningService } from './signingService';
 import { getRuntimeHash, getGpuFingerprint, validatePinnedRevision } from './runtimeUtils';
-import { canonicalSha256Hex } from '../../utils/hash';
-import { addReceiptToEpoch } from '../../services/receipt/epochService';
+import { canonicalSha256Hex } from '../../../packages/engine/src/shared/crypto/hash';
+import { addReceiptToEpoch } from '../../../packages/engine/src/epoch/services/epochService';
 import type {
   JobRequest,
   JobResult,
@@ -31,9 +31,9 @@ import type {
   WorkerIdentity,
   ComputeReceiptInput,
   JobOutput,
-} from '../../types/fluidCompute';
-import { mapToV0ErrorCode } from '../../types/fluidCompute';
-import { createComputeReceipt, ComputeReceipt } from '../../services/receipt/receiptService';
+} from '../../../packages/engine/src/shared/types/fluidCompute';
+import { mapToV0ErrorCode } from '../../../packages/engine/src/shared/types/fluidCompute';
+import { createComputeReceipt, ComputeReceipt } from '../../../packages/engine/src/receipt/receiptService';
 
 /**
  * S3 Storage configuration

@@ -6,7 +6,7 @@
  * - IdentityBridgeService (in-memory storage)
  */
 
-import { SolanaAdapter } from '../blockchain/solana/SolanaAdapter';
+import { SolanaAdapter } from '../../packages/engine/src/chain/blockchain/solana/SolanaAdapter';
 import {
   toCaip10,
   fromCaip10,
@@ -15,8 +15,8 @@ import {
   evmCaip10,
   isSolanaCaip10,
   isEvmCaip10,
-} from '../services/identity/caip10';
-import { IdentityBridgeService } from '../services/identity/identityBridgeService';
+} from '../../packages/engine/src/identity/bridge/caip10';
+import { IdentityBridgeService } from '../../packages/engine/src/identity/bridge/identityBridgeService';
 
 // =============================================================================
 // CAIP-10 Utilities
@@ -163,7 +163,7 @@ describe('IdentityBridgeService', () => {
   beforeEach(async () => {
     // Reset singletons to get clean state per test
     IdentityBridgeService.reset();
-    const { resetIdentityStore, getIdentityStore } = await import('../storage/identityStore');
+    const { resetIdentityStore, getIdentityStore } = await import('../../packages/engine/src/identity/stores/identityStore');
     resetIdentityStore();
 
     // Create a fresh store with unique temp dir so no data leaks between tests
@@ -177,7 +177,7 @@ describe('IdentityBridgeService', () => {
 
   afterEach(async () => {
     IdentityBridgeService.reset();
-    const { resetIdentityStore } = await import('../storage/identityStore');
+    const { resetIdentityStore } = await import('../../packages/engine/src/identity/stores/identityStore');
     resetIdentityStore();
   });
 

@@ -29,7 +29,7 @@ import type {
   JobResult,
   HealthCheckResponse,
   OfferQuote,
-} from '../../types/fluidCompute';
+} from '../../../packages/engine/src/shared/types/fluidCompute';
 
 // ============================================================================
 // CONFIGURATION

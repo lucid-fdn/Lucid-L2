@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { canonicalJson } from '../utils/canonicalJson';
-import { canonicalSha256Hex } from '../utils/hash';
-import { validateWithSchema } from '../utils/schemaValidator';
-import { PATHS } from '../utils/paths';
+import { canonicalJson } from '../../packages/engine/src/shared/crypto/canonicalJson';
+import { canonicalSha256Hex } from '../../packages/engine/src/shared/crypto/hash';
+import { validateWithSchema } from '../../packages/engine/src/shared/crypto/schemaValidator';
+import { PATHS } from '../../packages/engine/src/shared/config/paths';
 
 function goldenDir(): string {
   return PATHS.GOLDEN_DIR;

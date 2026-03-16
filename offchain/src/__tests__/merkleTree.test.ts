@@ -1,7 +1,7 @@
 /**
  * Tests for Merkle Tree implementation.
  */
-import { MerkleTree, getReceiptTree, resetReceiptTree } from '../utils/merkleTree';
+import { MerkleTree, getReceiptTree, resetReceiptTree } from '../../packages/engine/src/shared/crypto/merkleTree';
 
 describe('MerkleTree', () => {
   let tree: MerkleTree;

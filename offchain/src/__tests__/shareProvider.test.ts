@@ -1,6 +1,6 @@
-import { MockTokenLauncher } from '../shares/MockTokenLauncher';
-import { getTokenLauncher, resetTokenLauncher } from '../shares';
-import { TokenLaunchParams } from '../shares/ITokenLauncher';
+import { MockTokenLauncher } from '../../packages/engine/src/identity/shares/MockTokenLauncher';
+import { getTokenLauncher, resetTokenLauncher } from '../../packages/engine/src/identity/shares';
+import { TokenLaunchParams } from '../../packages/engine/src/identity/shares/ITokenLauncher';
 
 const testParams: TokenLaunchParams = {
   passportId: 'mdl_test_share',

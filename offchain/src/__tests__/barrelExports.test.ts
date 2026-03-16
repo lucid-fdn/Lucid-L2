@@ -10,26 +10,20 @@
  */
 
 // Some modules try to init Solana/network on import — mock the heavy deps.
-jest.mock('../solana/client', () => ({
+jest.mock('../../packages/engine/src/chain/solana/client', () => ({
   initSolana: jest.fn(),
   getKeypair: jest.fn(),
   getConnection: jest.fn(),
   resetSolanaCache: jest.fn(),
 }));
-// Dual-path: engine mmrService imports from ../chain/solana/client
-jest.mock('../../packages/engine/src/chain/solana/client', () =>
-  require('../solana/client'));
 
-jest.mock('../solana/gas', () => ({
+jest.mock('../../packages/engine/src/chain/solana/gas', () => ({
   calculateGasCost: jest.fn(() => ({ iGas: 0, mGas: 0, total: 0 })),
   makeComputeIx: jest.fn(),
   makeBurnIx: jest.fn(),
 }));
-// Dual-path: engine mmrService imports from ../chain/solana/gas
-jest.mock('../../packages/engine/src/chain/solana/gas', () =>
-  require('../solana/gas'));
 
-jest.mock('../storage/depin', () => ({
+const depinMock = {
   getPermanentStorage: jest.fn(() => ({
     providerName: 'mock',
     uploadJSON: jest.fn(),
@@ -49,12 +43,9 @@ jest.mock('../storage/depin', () => ({
     getUrl: jest.fn(),
   })),
   resetDepinStorage: jest.fn(),
-}));
-// Dual-path: engine storage module (both /index and bare directory forms)
-jest.mock('../../packages/engine/src/shared/depin/index', () =>
-  require('../storage/depin'));
-jest.mock('../../packages/engine/src/shared/depin', () =>
-  require('../storage/depin'));
+};
+jest.mock('../../packages/engine/src/shared/depin/index', () => depinMock);
+jest.mock('../../packages/engine/src/shared/depin', () => depinMock);
 
 // Mock @nangohq/node which needs a secret key on construction (used by oauthRoutes)
 jest.mock('@nangohq/node', () => {
@@ -107,18 +98,12 @@ jest.mock('@nktkas/hyperliquid', () => ({
 // Mock the route modules that have heavy transitive imports requiring env/config
 // oauthRoutes -> NangoService -> @nangohq/node + @supabase/supabase-js at module scope
 // hyperliquidRoutes -> @nktkas/hyperliquid (ESM only, can't be parsed by Jest)
-jest.mock('../routes/oauthRoutes', () => ({
+jest.mock('../../packages/gateway-lite/src/routes/contrib/oauthRoutes', () => ({
   oauthRouter: { __mock: true },
 }));
-// Dual-path: gateway-lite routes/contrib/ imports (moved during reorg)
-jest.mock('../../packages/gateway-lite/src/routes/contrib/oauthRoutes', () =>
-  require('../routes/oauthRoutes'));
-jest.mock('../routes/hyperliquidRoutes', () => ({
+jest.mock('../../packages/gateway-lite/src/routes/contrib/hyperliquidRoutes', () => ({
   hyperliquidRouter: { __mock: true },
 }));
-// Dual-path: gateway-lite routes/contrib/ imports (moved during reorg)
-jest.mock('../../packages/gateway-lite/src/routes/contrib/hyperliquidRoutes', () =>
-  require('../routes/hyperliquidRoutes'));
 
 // =============================================================================
 // ROUTE BARREL
@@ -126,7 +111,7 @@ jest.mock('../../packages/gateway-lite/src/routes/contrib/hyperliquidRoutes', ()
 
 describe('Barrel Exports — routes/index.ts', () => {
   it('should export all route routers', () => {
-    const routes = require('../routes');
+    const routes = require('../../packages/gateway-lite/src/routes/index');
 
     const expectedRouters = [
       'lucidLayerRouter',
@@ -165,25 +150,31 @@ describe('Barrel Exports — routes/index.ts', () => {
 // SERVICE BARRELS
 // =============================================================================
 
-describe('Barrel Exports — services/passport/index.ts', () => {
+describe('Barrel Exports — identity/passport/index.ts', () => {
   it('should export passport service symbols', () => {
-    const passport = require('../services/passport');
+    const passport = require('../../packages/engine/src/identity/passport/index');
 
     expect(passport.getPassportManager).toBeDefined();
     expect(passport.resetPassportManager).toBeDefined();
     expect(passport.PassportManager).toBeDefined();
-    expect(passport.hasAvailableCompute).toBeDefined();
-    expect(passport.matchComputeForModel).toBeDefined();
-    expect(passport.MODEL_CATALOG).toBeDefined();
     expect(passport.getPassportSyncService).toBeDefined();
     expect(passport.PassportSyncService).toBeDefined();
     expect(passport.getPassportService).toBeDefined();
+  });
+
+  it('should export matching/compute symbols from gateway-lite', () => {
+    const matching = require('../../packages/gateway-lite/src/compute/matchingEngine');
+    const catalog = require('../../packages/gateway-lite/src/compute/modelCatalog');
+
+    expect(matching.hasAvailableCompute).toBeDefined();
+    expect(matching.matchComputeForModel).toBeDefined();
+    expect(catalog.MODEL_CATALOG).toBeDefined();
   });
 });
 
 describe('Barrel Exports — services/receipt/index.ts', () => {
   it('should export receipt service symbols', () => {
-    const receipt = require('../services/receipt');
+    const receipt = require('../../packages/engine/src/receipt/index');
 
     expect(receipt.createInferenceReceipt).toBeDefined();
     expect(receipt.getInferenceReceipt).toBeDefined();
@@ -230,7 +221,7 @@ describe('Barrel Exports — epoch module (previously in receipt)', () => {
 
 describe('Barrel Exports — services/agent/index.ts', () => {
   it('should export agent service symbols', () => {
-    const agent = require('../services/agent');
+    const agent = require('../../packages/gateway-lite/src/agent/index');
 
     expect(agent.getAgentOrchestrator).toBeDefined();
     expect(agent.AgentOrchestrator).toBeDefined();
@@ -243,7 +234,7 @@ describe('Barrel Exports — services/agent/index.ts', () => {
 
 describe('Barrel Exports — services/compute/index.ts', () => {
   it('should export compute service symbols', () => {
-    const compute = require('../services/compute');
+    const compute = require('../../packages/gateway-lite/src/compute/index');
 
     expect(compute.getComputeRegistry).toBeDefined();
     expect(compute.ComputeRegistry).toBeDefined();
@@ -254,7 +245,7 @@ describe('Barrel Exports — services/compute/index.ts', () => {
 
 describe('Barrel Exports — services/finance/index.ts', () => {
   it('should export finance service symbols', () => {
-    const finance = require('../services/finance');
+    const finance = require('../../packages/engine/src/payment/index');
 
     expect(finance.calculatePayoutSplit).toBeDefined();
     expect(finance.createPayoutFromReceipt).toBeDefined();
@@ -275,7 +266,7 @@ describe('Barrel Exports — services/finance/index.ts', () => {
 
 describe('Barrel Exports — services/identity/index.ts', () => {
   it('should export identity service symbols', () => {
-    const identity = require('../services/identity');
+    const identity = require('../../packages/engine/src/identity/index');
 
     expect(identity.getIdentityBridgeService).toBeDefined();
     expect(identity.IdentityBridgeService).toBeDefined();
@@ -293,7 +284,7 @@ describe('Barrel Exports — services/identity/index.ts', () => {
 
 describe('Barrel Exports — services/inference/index.ts', () => {
   it('should export inference service symbols', () => {
-    const inference = require('../services/inference');
+    const inference = require('../../packages/gateway-lite/src/inference/index');
 
     expect(inference.executeInferenceRequest).toBeDefined();
     expect(inference.executeStreamingInferenceRequest).toBeDefined();
@@ -317,7 +308,7 @@ describe('Barrel Exports — services/hf/index.ts', () => {
     // network/config but we only care that the exports are resolved, not that they work.
     let hf: any;
     try {
-      hf = require('../services/hf');
+      hf = require('../../packages/contrib/integrations/hf/index');
     } catch (err) {
       // If the module fails to load due to env/network, skip instead of fail.
       // This is acceptable: the barrel file itself is correct; the singleton
@@ -337,7 +328,7 @@ describe('Barrel Exports — services/hf/index.ts', () => {
 
 describe('Barrel Exports — services/n8n/index.ts', () => {
   it('should export n8n service symbols', () => {
-    const n8n = require('../services/n8n');
+    const n8n = require('../../packages/contrib/integrations/n8n/index');
 
     expect(n8n.getN8nNodeIndexer).toBeDefined();
     expect(n8n.getElasticsearchService).toBeDefined();
@@ -346,7 +337,7 @@ describe('Barrel Exports — services/n8n/index.ts', () => {
 
 describe('Barrel Exports — services/reputation/index.ts', () => {
   it('should export reputation service symbols', () => {
-    const reputation = require('../services/reputation');
+    const reputation = require('../../packages/gateway-lite/src/reputation/index');
 
     expect(reputation.ReputationAlgorithmRegistry).toBeDefined();
     expect(reputation.reputationAlgorithmRegistry).toBeDefined();
@@ -363,7 +354,7 @@ describe('Barrel Exports — services/reputation/index.ts', () => {
 describe('Barrel Exports — storage/depin/index.ts', () => {
   it('should export DePIN storage symbols', () => {
     // Already mocked, but the mock re-exports the right shapes
-    const depin = require('../storage/depin');
+    const depin = require('../../packages/engine/src/shared/depin/index');
 
     expect(depin.getPermanentStorage).toBeDefined();
     expect(depin.getEvolvingStorage).toBeDefined();
@@ -373,7 +364,7 @@ describe('Barrel Exports — storage/depin/index.ts', () => {
 
 describe('Barrel Exports — nft/index.ts', () => {
   it('should export NFT provider symbols', () => {
-    const nft = require('../nft');
+    const nft = require('../../packages/engine/src/identity/nft/index');
 
     expect(nft.getNFTProvider).toBeDefined();
     expect(nft.getAllNFTProviders).toBeDefined();
@@ -383,7 +374,7 @@ describe('Barrel Exports — nft/index.ts', () => {
 
 describe('Barrel Exports — shares/index.ts', () => {
   it('should export token launcher symbols', () => {
-    const shares = require('../shares');
+    const shares = require('../../packages/engine/src/identity/shares/index');
 
     expect(shares.getTokenLauncher).toBeDefined();
     expect(shares.resetTokenLauncher).toBeDefined();
@@ -396,7 +387,7 @@ describe('Barrel Exports — shares/index.ts', () => {
 
 describe('Barrel Exports — utils/index.ts', () => {
   it('should export utility symbols', () => {
-    const utils = require('../utils');
+    const utils = require('../utils/index');
 
     expect(utils.validateWithSchema).toBeDefined();
     expect(utils.loadSchema).toBeDefined();
@@ -415,7 +406,7 @@ describe('Barrel Exports — utils/index.ts', () => {
 
 describe('Barrel Exports — blockchain/index.ts', () => {
   it('should export blockchain symbols', () => {
-    const blockchain = require('../blockchain');
+    const blockchain = require('../../packages/engine/src/chain/blockchain/index');
 
     expect(blockchain.BlockchainAdapterFactory).toBeDefined();
     expect(blockchain.blockchainAdapterFactory).toBeDefined();

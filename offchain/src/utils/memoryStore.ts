@@ -1,6 +1,6 @@
 // offchain/src/utils/memoryStore.ts
 import * as fs from 'fs';
-import { MEMORY_WALLET_PATH } from './config';
+import { MEMORY_WALLET_PATH } from '../../packages/engine/src/shared/config/config';
 
 export interface MemoryStore {
   [authority: string]: string; // authority -> hex root

@@ -4,9 +4,9 @@
  * Validates that the registry correctly uses IDepinStorage
  * instead of the old IPFSStorageManager.
  */
-import { AgentMMRRegistry } from '../utils/ipfsStorage';
-import { IDepinStorage, UploadResult, UploadOptions } from '../storage/depin/IDepinStorage';
-import { AgentMMR } from '../utils/mmr';
+import { AgentMMRRegistry } from '../../packages/engine/src/shared/crypto/ipfsStorage';
+import { IDepinStorage, UploadResult, UploadOptions } from '../../packages/engine/src/shared/depin/IDepinStorage';
+import { AgentMMR } from '../../packages/engine/src/shared/crypto/mmr';
 import { createHash } from 'crypto';
 
 // =============================================================================
@@ -59,7 +59,7 @@ class InMemoryMockStorage implements IDepinStorage {
 
 // Mock both the proxy path and the engine path — engine path delegates to proxy
 // so all spies share the same instances
-jest.mock('../storage/depin', () => {
+jest.mock('../../packages/engine/src/shared/depin', () => {
   const mockInstance = {
     providerName: 'jest-mock',
     uploadJSON: jest.fn(async (data: unknown) => ({
@@ -86,7 +86,6 @@ jest.mock('../storage/depin', () => {
     __mockInstance: mockInstance,
   };
 });
-jest.mock('../../packages/engine/src/shared/depin', () => require('../storage/depin'));
 
 // =============================================================================
 // TESTS
@@ -107,7 +106,7 @@ describe('AgentMMRRegistry', () => {
 
   describe('constructor', () => {
     it('should use getEvolvingStorage() by default when no storage is passed', () => {
-      const { getEvolvingStorage } = require('../storage/depin');
+      const { getEvolvingStorage } = require('../../packages/engine/src/shared/depin');
       const defaultRegistry = new AgentMMRRegistry();
       // The mock getEvolvingStorage should have been called
       expect(getEvolvingStorage).toHaveBeenCalled();

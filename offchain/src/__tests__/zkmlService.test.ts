@@ -1,8 +1,8 @@
 /**
  * Tests for ZkMLService
  */
-import { ZkMLService, getZkMLService } from '../services/zkml/zkmlService';
-import type { ZkMLProof, ProofRequest } from '../services/zkml/zkmlTypes';
+import { ZkMLService, getZkMLService } from '../../packages/gateway-lite/src/integrations/zkml/zkmlService';
+import type { ZkMLProof, ProofRequest } from '../../packages/gateway-lite/src/integrations/zkml/zkmlTypes';
 
 const mockRequest: ProofRequest = {
   modelId: 'model-gpt2-ezkl',
