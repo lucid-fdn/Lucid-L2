@@ -1,7 +1,7 @@
 <p align="center">
-  <h1 align="center">Lucid Layer</h1>
+  <h1 align="center">Lucid Layer - Internet of AI</h1>
   <p align="center">
-    <strong>The Internet of AI - autonomous infrastructure.</strong>
+    <strong>Autonomous AI Infrastructure.</strong>
     <br />
     Everything an AI agent needs to exist, think, act, earn, and prove — without human intervention.
     <br />
