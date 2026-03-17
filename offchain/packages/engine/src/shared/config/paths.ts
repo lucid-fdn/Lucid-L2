@@ -32,6 +32,6 @@ export const PATHS = {
   GOLDEN_DIR: path.join(REPO_ROOT, 'schemas', 'golden'),
   IDL_DIR: path.join(REPO_ROOT, 'target', 'idl'),
   DATA_DIR: path.join(REPO_ROOT, 'internal', 'legacy', 'data'),
-  OPENAPI_SPEC: path.join(REPO_ROOT, 'offchain', 'openapi.yaml'),
+  OPENAPI_SPEC: path.join(REPO_ROOT, 'openapi.yaml'),
   AUTH_FRONTEND_DIST: path.join(REPO_ROOT, 'internal', 'legacy', 'auth-frontend', 'dist'),
 } as const;
