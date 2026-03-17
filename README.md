@@ -47,12 +47,30 @@ Agent creates passport (on-chain identity)
 
 **The vision:** AI agents that don't need human interaction anymore. Lucid is the infrastructure that makes that possible.
 
-**The endgame:** Every layer of this stack becomes decentralized. Identity is already on-chain. Memory is already agent-owned. Compute already runs on DePIN. Progressively, through R&D and ecosystem partnerships, the engine itself — matching, routing, settlement, reputation — moves from centralized coordination to trustless on-chain execution. The goal is infrastructure that no single entity controls, where agents operate as sovereign economic participants in an open network.
+### The Internet of AI
+
+The internet has two layers: **protocols** (TCP/IP, DNS, HTTP) and **edge infrastructure** (Cloudflare, AWS, Akamai). AI needs the same.
+
+| Internet | Lucid | What it does |
+|----------|-------|-------------|
+| TCP/IP | **Lucid Layer** (this repo) | The open protocol. Identity, memory, receipts, reputation, deployment — the foundational truth layer that any AI agent can build on. Runs anywhere. No vendor lock-in. |
+| Cloudflare | **Lucid Cloud** (managed service) | The edge acceleration layer. TrustGate (inference gateway), MCPGate (tool routing), control plane dashboards, fleet analytics, billing. The managed experience that makes the protocol effortless to use at scale. |
+
+**Lucid Layer** is the open-source engine — the protocol specification and reference implementation. It defines how AI assets get identity, how agents store memory, how compute is matched, how payments flow, and how every action is cryptographically verified. It's designed to run independently, on any infrastructure, without depending on any centralized service.
+
+**Lucid Cloud** is the managed platform built on top of the protocol — the Cloudflare of AI. It accelerates inference, routes tools, manages fleets of agents, handles billing, and provides the operational layer that enterprises need. It consumes the protocol but doesn't own it.
+
+Together, they form the **Internet of AI**: an open protocol layer that anyone can build on, plus managed infrastructure that makes it production-ready at scale.
+
+### Progressive Decentralization
+
+Every layer of this stack is designed to become fully decentralized. Identity and verification are already on-chain. Memory is already agent-owned. Compute already runs on DePIN. Progressively — through R&D and partnerships with DePIN networks, chain infrastructure teams, and the open-source community — the remaining coordination logic moves from centralized services to trustless on-chain execution.
 
 ---
 
 ## Table of Contents
 
+- [The Internet of AI](#the-internet-of-ai)
 - [The Autonomous Stack](#the-autonomous-stack)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
@@ -160,22 +178,20 @@ offchain/packages/
 
 ### Decentralization Principle
 
-> **Lucid is the control plane — not the execution authority.** Agents run on decentralized providers (Akash, Phala, io.net, Nosana). Agent memory is local-first (SQLite, agent-owned). Agent identity is on-chain (passport). Lucid coordinates agents — it does not own them.
+> **Lucid Layer is the protocol — not the execution authority.** Agents run on decentralized providers. Memory is agent-owned. Identity is on-chain. Lucid coordinates — it doesn't own.
 
-Our goal is to progressively decentralize the entire engine. Today, coordination logic runs as centralized services. Tomorrow, it moves on-chain and into trustless protocols — through R&D and partnerships with DePIN networks, chain infrastructure teams, and the open-source community.
+Every design decision supports [progressive decentralization](#progressive-decentralization). Interfaces are swappable. State is rebuildable from chain + DePIN. Centralized components can be replaced without rewriting the system.
 
-| Layer | Today | Tomorrow |
-|-------|-------|----------|
-| **Identity** | On-chain (Solana + EVM) | On-chain (done) |
+| Layer | Today | Trajectory |
+|-------|-------|-----------|
+| **Identity** | On-chain (Solana + EVM) | Done |
 | **Memory** | Agent-owned SQLite | Agent-owned + decentralized storage |
-| **Compute** | DePIN providers (Akash, Phala, io.net, Nosana) | Fully decentralized marketplace |
-| **Verification** | Receipts + epochs anchored on-chain | On-chain (done) |
+| **Compute** | DePIN (Akash, Phala, io.net, Nosana) | Fully decentralized marketplace |
+| **Verification** | Receipts + epochs on-chain | Done |
 | **Matching** | Centralized policy engine | On-chain matching protocol |
 | **Settlement** | Centralized batch settlement | On-chain automated settlement |
 | **Reputation** | Hybrid (on-chain + off-chain) | Fully on-chain reputation mesh |
-| **Routing** | Centralized gateway | Decentralized routing network |
-
-Every design decision is made with this trajectory in mind. Interfaces are swappable. State is rebuildable from chain + DePIN. The architecture is built so that centralized components can be replaced without rewriting the system.
+| **Routing** | Centralized gateway (Lucid Cloud) | Decentralized routing network |
 
 ---
 
