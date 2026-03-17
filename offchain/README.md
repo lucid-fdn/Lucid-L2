@@ -1,8 +1,8 @@
-# Lucid Layer — Offchain Monorepo
+# Lucid Layer — Offchain Engine
 
-The TypeScript engine powering autonomous AI infrastructure. Identity, memory, receipts, epochs, payments, deployment, anchoring, reputation — all in one workspace.
+The offchain engine of Lucid Layer — a TypeScript implementation of the protocol's core logic: identity, memory, receipts, epochs, payments, deployment, anchoring, and reputation.
 
-This is **Lucid Layer** — the open protocol. It runs independently on any infrastructure. For fully managed, globally accelerated infrastructure, see **Lucid Cloud**.
+This engine is designed to be progressively decentralized. Today it runs as centralized services. Tomorrow, through R&D and ecosystem partnerships, its coordination logic moves on-chain and into trustless protocols. For the fully managed, globally accelerated version, see **Lucid Cloud**.
 
 ---
 
