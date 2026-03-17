@@ -47,6 +47,8 @@ Agent creates passport (on-chain identity)
 
 **The vision:** AI agents that don't need human interaction anymore. Lucid is the infrastructure that makes that possible.
 
+**The endgame:** Every layer of this stack becomes decentralized. Identity is already on-chain. Memory is already agent-owned. Compute already runs on DePIN. Progressively, through R&D and ecosystem partnerships, the engine itself — matching, routing, settlement, reputation — moves from centralized coordination to trustless on-chain execution. The goal is infrastructure that no single entity controls, where agents operate as sovereign economic participants in an open network.
+
 ---
 
 ## Table of Contents
@@ -159,6 +161,21 @@ offchain/packages/
 ### Decentralization Principle
 
 > **Lucid is the control plane — not the execution authority.** Agents run on decentralized providers (Akash, Phala, io.net, Nosana). Agent memory is local-first (SQLite, agent-owned). Agent identity is on-chain (passport). Lucid coordinates agents — it does not own them.
+
+Our goal is to progressively decentralize the entire engine. Today, coordination logic runs as centralized services. Tomorrow, it moves on-chain and into trustless protocols — through R&D and partnerships with DePIN networks, chain infrastructure teams, and the open-source community.
+
+| Layer | Today | Tomorrow |
+|-------|-------|----------|
+| **Identity** | On-chain (Solana + EVM) | On-chain (done) |
+| **Memory** | Agent-owned SQLite | Agent-owned + decentralized storage |
+| **Compute** | DePIN providers (Akash, Phala, io.net, Nosana) | Fully decentralized marketplace |
+| **Verification** | Receipts + epochs anchored on-chain | On-chain (done) |
+| **Matching** | Centralized policy engine | On-chain matching protocol |
+| **Settlement** | Centralized batch settlement | On-chain automated settlement |
+| **Reputation** | Hybrid (on-chain + off-chain) | Fully on-chain reputation mesh |
+| **Routing** | Centralized gateway | Decentralized routing network |
+
+Every design decision is made with this trajectory in mind. Interfaces are swappable. State is rebuildable from chain + DePIN. The architecture is built so that centralized components can be replaced without rewriting the system.
 
 ---
 
