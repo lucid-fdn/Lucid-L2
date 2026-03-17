@@ -54,11 +54,11 @@ The internet has two layers: **protocols** (TCP/IP, DNS, HTTP) and **edge infras
 | Internet | Lucid | What it does |
 |----------|-------|-------------|
 | TCP/IP | **Lucid Layer** (this repo) | The open protocol. Identity, memory, receipts, reputation, deployment — the foundational truth layer that any AI agent can build on. Runs anywhere. No vendor lock-in. |
-| Cloudflare | **Lucid Cloud** (managed service) | The edge acceleration layer. TrustGate (inference gateway), MCPGate (tool routing), control plane dashboards, fleet analytics, billing. The managed experience that makes the protocol effortless to use at scale. |
+| Cloudflare | **Lucid Cloud** (managed service) | The fully managed, performant, accelerated edge layer on top of Lucid Layer. Not just dashboards — it runs every protocol operation faster, at scale, globally. |
 
 **Lucid Layer** is the open-source engine — the protocol specification and reference implementation. It defines how AI assets get identity, how agents store memory, how compute is matched, how payments flow, and how every action is cryptographically verified. It's designed to run independently, on any infrastructure, without depending on any centralized service.
 
-**Lucid Cloud** is the managed platform built on top of the protocol — the Cloudflare of AI. It accelerates inference, routes tools, manages fleets of agents, handles billing, and provides the operational layer that enterprises need. It consumes the protocol but doesn't own it.
+**Lucid Cloud** is the fully managed acceleration layer for Lucid Layer — the Cloudflare of AI. Just as Cloudflare doesn't replace HTTP but makes it faster, cached, secured, and globally distributed, Lucid Cloud takes everything the protocol does and runs it at production scale: accelerated inference routing (TrustGate), edge tool dispatch (MCPGate), managed deployment orchestration, fleet-wide observability, real-time reputation scoring, automated billing and settlement, and enterprise-grade security. It's the entire Lucid Layer protocol, fully managed, globally performant, with zero operational overhead.
 
 Together, they form the **Internet of AI**: an open protocol layer that anyone can build on, plus managed infrastructure that makes it production-ready at scale.
 
