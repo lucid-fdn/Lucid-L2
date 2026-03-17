@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center">Lucid Layer</h1>
   <p align="center">
-    <strong>The autonomous AI infrastructure layer.</strong>
+    <strong>The autonomous AI infrastructure.</strong>
     <br />
     Everything an AI agent needs to exist, think, act, earn, and prove — without human intervention.
     <br />
