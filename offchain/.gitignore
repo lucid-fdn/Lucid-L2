@@ -14,3 +14,4 @@ bun.lock
 *.mcpb
 keys/
 .depin-mock-storage/
+.mmr-storage
