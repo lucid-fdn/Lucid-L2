@@ -1,4 +1,4 @@
-# Lucid Layer — Offchain Engine
+# Offchain Engine
 
 The offchain engine of Lucid Layer — a TypeScript implementation of the protocol's core logic: identity, memory, receipts, epochs, payments, deployment, anchoring, and reputation.
 
