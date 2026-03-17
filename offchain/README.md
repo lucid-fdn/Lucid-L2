@@ -2,6 +2,8 @@
 
 The TypeScript engine powering autonomous AI infrastructure. Identity, memory, receipts, epochs, payments, deployment, anchoring, reputation — all in one workspace.
 
+This is **Lucid Layer** — the open protocol. It runs independently on any infrastructure. For fully managed, globally accelerated infrastructure, see **Lucid Cloud**.
+
 ---
 
 ## Table of Contents
