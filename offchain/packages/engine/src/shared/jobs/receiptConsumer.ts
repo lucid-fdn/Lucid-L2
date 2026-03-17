@@ -136,11 +136,9 @@ async function pollOnce(): Promise<number> {
 
   try {
     // Fetch unprocessed events — use FOR UPDATE SKIP LOCKED for safe concurrency
+    // Use SELECT * to be resilient to missing columns (020_agent_system migration may not be applied)
     const result = await queryFn(
-      `SELECT id, model_passport_id, compute_passport_id, policy_hash,
-              tokens_in, tokens_out, tenant_id, model, endpoint, created_at,
-              agent_passport_id, run_id, call_type, tool_name, mcp_server_id,
-              latency_ms, status, provider, pricing_version, cost_usd
+      `SELECT *
        FROM receipt_events
        WHERE processed = false
        ORDER BY id ASC

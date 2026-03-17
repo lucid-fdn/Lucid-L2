@@ -8,9 +8,6 @@ Verifiable AI execution layer — Solana on-chain programs (Anchor/Rust) + Expre
 # Backend API
 cd offchain && npm install && npm start     # Port 3001
 
-# Frontend
-cd frontend && npm install && npm run dev   # Port 3000
-
 # Solana programs
 anchor build
 anchor deploy --provider.cluster devnet
