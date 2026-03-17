@@ -1,9 +1,13 @@
 <p align="center">
   <h1 align="center">Lucid L2</h1>
   <p align="center">
-    <strong>The verifiable AI execution layer.</strong>
+    <strong>The autonomous AI infrastructure layer.</strong>
     <br />
-    Blockchain-anchored infrastructure giving AI assets — models, agents, tools, compute, datasets — provable identity, cryptographic receipts, and reputation backed by real traffic data.
+    Everything an AI agent needs to exist, think, act, earn, and prove — without human intervention.
+    <br />
+    Identity. Memory. Compute. Deployment. Payments. Reputation. Verification.
+    <br />
+    All on-chain. All autonomous. All open.
   </p>
 </p>
 
@@ -12,34 +16,48 @@
   <a href="#testing"><img src="https://img.shields.io/badge/tests-1,683%20passing-brightgreen" alt="Tests" /></a>
   <a href="#"><img src="https://img.shields.io/badge/Solana-devnet-purple" alt="Solana" /></a>
   <a href="#"><img src="https://img.shields.io/badge/EVM-Base%20%7C%20Ethereum-blue" alt="EVM" /></a>
-  <a href="#"><img src="https://img.shields.io/badge/TypeScript-527%20files-blue" alt="TypeScript" /></a>
+  <a href="#"><img src="https://img.shields.io/badge/DePIN-Akash%20%7C%20Phala%20%7C%20io.net%20%7C%20Nosana-orange" alt="DePIN" /></a>
 </p>
 
 ---
 
 ## Why Lucid Exists
 
-AI agents are making real decisions, spending real money, and operating autonomously. But there's no way to verify what they did, prove who they are, or trust their track record.
+AI agents are becoming autonomous economic actors. They make decisions, call APIs, spend money, hire other agents, and operate 24/7. But today, they can't:
 
-Lucid fixes this. Every AI interaction gets a **cryptographic receipt**, batched into **epochs**, committed **on-chain**, and provable **forever**. AI assets get **verifiable identity** (passports), **earned reputation** (from real traffic), and **portable memory** (agent-owned, not platform-owned).
+- **Prove who they are** — no verifiable identity
+- **Remember what they learned** — memory locked in platforms
+- **Choose where to run** — tied to a single cloud provider
+- **Earn and spend** — no wallet, no payment rails
+- **Build a reputation** — no track record from real usage
+- **Deploy themselves** — dependent on human operators
+
+**Lucid gives agents the full stack to operate autonomously.**
 
 ```
-Request → Passport matching → AI execution → Receipt (Ed25519 signed)
-  → MMR append → Epoch finalization → On-chain anchor (Solana + EVM)
-  → Verifiable Merkle proof available for any receipt, any time
+Agent creates passport (on-chain identity)
+  → Selects its own runtime (CrewAI, LangGraph, Vercel AI, OpenAI Agents...)
+  → Auto-deploys to DePIN (Akash, Phala, io.net, Nosana)
+  → Owns its memory (local-first SQLite, portable, provable)
+  → Earns revenue (x402 payments, revenue splits, share tokens)
+  → Builds reputation (from real traffic, synced on-chain)
+  → Every action gets a cryptographic receipt → batched into epochs → anchored on-chain
+  → Fully verifiable. Fully autonomous. No human in the loop.
 ```
 
-**The result:** A trust layer for AI that works across chains, across providers, across frameworks.
+**The vision:** AI agents that don't need human interaction anymore. Lucid is the infrastructure that makes that possible.
 
 ---
 
 ## Table of Contents
 
+- [The Autonomous Stack](#the-autonomous-stack)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
 - [On-Chain Programs](#on-chain-programs)
 - [Deployment Control Plane](#deployment-control-plane)
 - [Agent Memory (MemoryMap v3)](#agent-memory-memorymap-v3)
+- [Payments & Economics](#payments--economics)
 - [Anchoring & DePIN](#anchoring--depin)
 - [API Reference](#api-reference)
 - [SDK](#sdk)
@@ -48,6 +66,26 @@ Request → Passport matching → AI execution → Receipt (Ed25519 signed)
 - [Environment Variables](#environment-variables)
 - [Contributing](#contributing)
 - [License](#license)
+
+---
+
+## The Autonomous Stack
+
+Every capability an AI agent needs to operate end-to-end without human intervention:
+
+| Layer | What | How | Routes |
+|-------|------|-----|--------|
+| **Identity** | Verifiable passport for any AI asset | On-chain registry (Solana + EVM), Metaplex NFT, CAIP-10 | `/v1/passports/*` |
+| **Inference** | OpenAI-compatible execution | Policy-based compute matching, heartbeat registry | `/v1/chat/completions`, `/v1/models` |
+| **Memory** | Agent-owned, portable, provable | Local-first SQLite, 6 memory types, semantic recall, hash-chained | `/v1/memory/*` |
+| **Compute** | Self-selected runtime + provider | 7 adapters (CrewAI, LangGraph, Vercel AI...) + 6 DePIN deployers | `/v1/compute/*`, `/v1/match` |
+| **Deployment** | Auto-deploy to decentralized infra | Blue-green rollout, reconciler, lease manager, webhook ingestion | `/v1/agents/*` |
+| **Payments** | Earn and spend autonomously | x402 protocol, revenue splits, share tokens, escrow | `/v1/assets/*/pricing`, `/v1/payouts` |
+| **Reputation** | Trust score from real traffic | On-chain + off-chain, ERC-8004 sync, composite scoring | Chain routes |
+| **Verification** | Cryptographic proof of every action | Ed25519 receipts, MMR epochs, multi-chain anchoring | `/v1/receipts/*`, `/v1/epochs/*` |
+| **Storage** | Permanent decentralized archival | Arweave (permanent) + Lighthouse (evolving), unified CID registry | `/v1/anchors/*` |
+
+**171 API endpoints.** One SDK. Full agent autonomy.
 
 ---
 
@@ -267,27 +305,51 @@ Content-addressed (SHA-256), deduplicated, with parent lineage tracking.
 
 ---
 
-## API Reference
+## Payments & Economics
 
-171 endpoints documented in [`openapi.yaml`](openapi.yaml). Key groups:
-
-| Group | Endpoints | Purpose |
-|-------|-----------|---------|
-| **Inference** | `/v1/chat/completions`, `/v1/models` | OpenAI-compatible AI execution |
-| **Passports** | `/v1/passports/*` | AI asset identity (model, agent, tool, compute, dataset) |
-| **Receipts** | `/v1/receipts/*` | Cryptographic receipt creation + verification |
-| **Epochs** | `/v1/epochs/*` | Epoch management + multi-chain anchoring |
-| **Memory** | `/v1/memory/*` | 6 memory types + recall + compaction + snapshots |
-| **Anchoring** | `/v1/anchors/*` | DePIN registry + lineage + verification |
-| **Deployment** | `/v1/agents/*` | Agent lifecycle (deploy, blue-green, rollback) |
-| **Payment** | `/v1/assets/*/pricing`, `/v1/payouts` | x402 protocol + revenue splits |
-| **Compute** | `/v1/compute/nodes/*`, `/v1/match` | Heartbeat + policy-based matching |
-| **Reputation** | Chain routes | On-chain + off-chain reputation queries |
-| **Webhooks** | `/v1/webhooks/:provider` | Provider callback ingestion |
+Agents earn, spend, and manage revenue autonomously.
 
 ### x402 Payment Protocol
 
-HTTP 402 flow — server returns payment instructions, agent pays USDC on-chain, retries with `X-Payment-Proof`. Three facilitators (Direct, Coinbase, PayAI). Dynamic per-asset pricing. Replay protection via spent proof dedup.
+```
+Agent calls paid API → Server returns HTTP 402 + payment instructions
+  → Agent pays USDC on-chain → Retries with X-Payment-Proof header
+  → Server verifies → Access granted
+```
+
+Three facilitators (Direct, Coinbase, PayAI). Dynamic per-asset pricing. Replay protection via spent proof dedup.
+
+### Revenue Splits
+
+Default: 70% compute / 20% model / 10% protocol (configurable per-asset in basis points). Settled via `PaymentEpochService` batch settlement.
+
+### Share Tokens (Fractional Ownership)
+
+Any AI asset can launch a share token. Revenue airdrops proportionally to holders. Launchers: DirectMint (SPL Token-2022), Genesis (Metaplex TGE), Mock.
+
+### Agent Wallets
+
+PDA wallets on Solana, ERC-6551 TBA on EVM. Policy-constrained spending limits, escrow, multi-sig. Agents can hold, send, and receive tokens autonomously.
+
+---
+
+## API Reference
+
+171 endpoints. Full spec in [`openapi.yaml`](openapi.yaml).
+
+| Group | Endpoints | What agents use it for |
+|-------|-----------|----------------------|
+| **Identity** | `/v1/passports/*` | Register as a verifiable AI asset |
+| **Inference** | `/v1/chat/completions`, `/v1/models` | Execute AI workloads |
+| **Memory** | `/v1/memory/*` | Store, recall, compact, snapshot memories |
+| **Deployment** | `/v1/agents/*` | Self-deploy, blue-green, rollback, terminate |
+| **Payments** | `/v1/assets/*/pricing`, `/v1/payouts` | Set pricing, earn revenue, split payouts |
+| **Compute** | `/v1/compute/nodes/*`, `/v1/match` | Heartbeat, discover compute, policy matching |
+| **Receipts** | `/v1/receipts/*` | Create cryptographic proofs of actions |
+| **Epochs** | `/v1/epochs/*` | Batch receipts, anchor on-chain |
+| **Anchoring** | `/v1/anchors/*` | Permanent DePIN storage + verification |
+| **Reputation** | Chain routes | Query on-chain + off-chain trust scores |
+| **Webhooks** | `/v1/webhooks/:provider` | Receive provider lifecycle callbacks |
 
 ---
 
