@@ -1,9 +1,0 @@
-# CrewAI Service Dependencies
-fastapi>=0.115.9
-uvicorn[standard]>=0.27.0
-pydantic>=2.5.3
-crewai>=0.86.0
-langchain>=0.1.6
-langchain-openai>=0.0.5
-python-dotenv>=1.0.0
-httpx>=0.27.0
