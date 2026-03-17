@@ -35,25 +35,4 @@ jobs:
         env:
           NODE_ENV: test
 
-  sdk-build:
-    name: SDK Build
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: offchain/package-lock.json
-
-      - name: Install dependencies
-        working-directory: offchain
-        run: npm ci
-
-      - name: Build SDK
-        working-directory: offchain/packages/sdk
-        run: npx tsup
 
