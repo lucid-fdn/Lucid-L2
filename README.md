@@ -1,5 +1,5 @@
 <p align="center">
-  <h1 align="center">Lucid L2</h1>
+  <h1 align="center">Lucid Layer</h1>
   <p align="center">
     <strong>The autonomous AI infrastructure layer.</strong>
     <br />
@@ -148,7 +148,7 @@ offchain/packages/
 | **L1 Commitment** | Solana / EVM | Roots, proofs, anchors |
 | **L2 Data Availability** | Arweave / Lighthouse | Payloads, bundles, snapshots |
 | **L3 Operational** | Supabase | Index, jobs, projections |
-| **L4 Product** | Platform Core | Dashboards, APIs, UX |
+| **L4 Product** | Lucid Cloud | Dashboards, APIs, UX |
 
 **Key rule:** L3 is operational state, never canonical truth. Rebuild from L1+L2 if needed.
 

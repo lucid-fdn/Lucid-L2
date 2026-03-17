@@ -1,4 +1,4 @@
-# Contributing to Lucid-L2
+# Contributing to Lucid Layer
 
 Thank you for your interest in contributing to Lucid. This document covers the process for contributing to this repository.
 

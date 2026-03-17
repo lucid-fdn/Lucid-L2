@@ -1,4 +1,4 @@
-# Lucid-L2
+# Lucid Layer
 
 ## What This Is
 Verifiable AI execution layer — Solana on-chain programs (Anchor/Rust) + Express offchain API. Blockchain-anchored infrastructure giving AI assets (models, agents, tools, compute, datasets) provable identity, cryptographic receipts, and reputation backed by real traffic data.
@@ -396,7 +396,7 @@ Supabase (eu-north-1, project `kwihlcnapmkaivijyiif`):
 - L1 (Commitment): Solana/EVM — roots, proofs, anchors
 - L2 (Data Availability): Arweave/Lighthouse — payloads, bundles, snapshots
 - L3 (Operational): Supabase — index, jobs, projections (rebuildable from L1+L2)
-- L4 (Product): platform-core — dashboards, APIs, UX
+- L4 (Product): Lucid Cloud — dashboards, APIs, UX
 
 **Key rule:** Supabase is operational state, never canonical truth. If Supabase is lost, rebuild from chain + DePIN.
 
