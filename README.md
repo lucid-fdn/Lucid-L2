@@ -53,7 +53,7 @@ The internet has two layers: **protocols** (TCP/IP, DNS, HTTP) and **edge infras
 
 | Internet | Lucid | What it does |
 |----------|-------|-------------|
-| TCP/IP | **Lucid Layer** (this repo) | The open protocol. Identity, memory, receipts, reputation, deployment — the foundational truth layer that any AI agent can build on. Runs anywhere. No vendor lock-in. |
+| TCP/IP | **Lucid Layer** (this repo) | The open protocol. The complete autonomous AI infrastructure — identity, memory, compute, deployment, payments, reputation, verification. Everything an agent needs to exist and operate independently. Runs anywhere. No vendor lock-in. |
 | Cloudflare | **Lucid Cloud** (managed service) | The fully managed, performant, accelerated edge layer on top of Lucid Layer. Not just dashboards — it runs every protocol operation faster, at scale, globally. |
 
 **Lucid Layer** is the open-source engine — the protocol specification and reference implementation. It defines how AI assets get identity, how agents store memory, how compute is matched, how payments flow, and how every action is cryptographically verified. It's designed to run independently, on any infrastructure, without depending on any centralized service.
