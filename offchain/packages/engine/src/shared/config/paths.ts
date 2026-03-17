@@ -28,8 +28,8 @@ const REPO_ROOT = findRepoRoot();
 export const PATHS = {
   REPO_ROOT,
   OFFCHAIN_ROOT: path.join(REPO_ROOT, 'offchain'),
-  SCHEMAS_DIR: path.join(REPO_ROOT, 'schemas'),
-  GOLDEN_DIR: path.join(REPO_ROOT, 'schemas', 'golden'),
+  SCHEMAS_DIR: path.join(REPO_ROOT, 'offchain', 'packages', 'engine', 'schemas'),
+  GOLDEN_DIR: path.join(REPO_ROOT, 'offchain', 'packages', 'engine', 'schemas', 'golden'),
   IDL_DIR: path.join(REPO_ROOT, 'target', 'idl'),
   DATA_DIR: path.join(REPO_ROOT, 'internal', 'legacy', 'data'),
   OPENAPI_SPEC: path.join(REPO_ROOT, 'offchain', 'openapi.yaml'),
