@@ -1,0 +1,76 @@
+Lucid Layer
+Copyright 2024-2026 Raijin Labs
+
+This project uses a dual-license structure:
+
+================================================================================
+
+1. Engine, Solana Programs, EVM Contracts, SDK, Schemas, Examples
+   License: Apache License 2.0
+   File:    /LICENSE
+
+   Covers:
+   - offchain/packages/engine/       (core truth library)
+   - offchain/packages/sdk/          (developer SDK)
+   - programs/                       (6 Solana Anchor programs)
+   - contracts/                      (17 EVM Solidity contracts)
+   - schemas/                        (JSON validation schemas)
+   - examples/                       (quickstart guides)
+   - tests/                          (on-chain test suites)
+
+   You may use, modify, and distribute this code freely under Apache 2.0
+   terms, including in proprietary software.
+
+================================================================================
+
+2. Gateway-Lite (API Server)
+   License: GNU Affero General Public License v3.0 (AGPL-3.0)
+   File:    /offchain/packages/gateway-lite/LICENSE
+
+   Covers:
+   - offchain/packages/gateway-lite/  (Express API server)
+
+   If you run a modified version of gateway-lite as a network service,
+   you must make your modified source code available to users of that
+   service under the AGPL-3.0.
+
+================================================================================
+
+Why dual-license?
+
+The engine is Apache 2.0 so anyone can build on the core truth library —
+integrate verifiable receipts, agent memory, deployment orchestration,
+and on-chain anchoring into any product, commercial or otherwise.
+
+The gateway-lite API server is AGPL-3.0 to ensure that improvements to
+the network-facing service are shared back with the community. If you
+run a modified Lucid gateway as a service, your users deserve access to
+those improvements.
+
+This is the same pattern used by MongoDB (SSPL), Grafana (AGPL),
+and other infrastructure projects that balance open collaboration with
+sustainable development.
+
+================================================================================
+
+Third-Party Notices
+
+This software includes or depends on the following open-source projects:
+
+- Anchor Framework (Apache 2.0) — Solana program framework
+- Express.js (MIT) — HTTP server
+- tweetnacl (Unlicense) — Ed25519 signing
+- better-sqlite3 (MIT) — SQLite bindings
+- @metaplex-foundation/mpl-core (Apache 2.0) — Metaplex NFT SDK
+- 8004-solana (MIT) — ERC-8004 reputation SDK
+- OpenZeppelin Contracts (MIT) — EVM contract libraries
+
+Full dependency licenses are available in node_modules of each package.
+
+================================================================================
+
+Contact
+
+Raijin Labs
+kevin.wayne@raijinlabs.io
+https://github.com/lucid-fdn
