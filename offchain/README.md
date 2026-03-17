@@ -1,44 +1,163 @@
-# Lucid Layer — Offchain
+# Lucid Layer — Offchain Monorepo
 
-Two-package monorepo powering the Lucid Layer API and truth engine.
+The TypeScript engine powering autonomous AI infrastructure. Identity, memory, receipts, epochs, payments, deployment, anchoring, reputation — all in one workspace.
 
-## Packages
+---
 
-| Package | Purpose |
-|---------|---------|
-| `packages/engine/` | Core truth library — identity, memory, receipts, epochs, payments, compute, deployment, anchoring, reputation. No HTTP. |
-| `packages/gateway-lite/` | Express API server — thin route handlers, middleware, providers. |
-| `packages/contrib/` | External integrations — LLM providers, n8n, HuggingFace, OAuth, MCP, FlowSpec. |
+## Table of Contents
 
-**Dependency rule:** `gateway-lite → engine` (OK). `engine → gateway-lite` (forbidden).
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [Packages](#packages)
+- [App Layer](#app-layer)
+- [Engine Domains](#engine-domains)
+- [Gateway Routes](#gateway-routes)
+- [Deployment CLI](#deployment-cli)
+- [Testing](#testing)
+- [Configuration](#configuration)
+
+---
 
 ## Quick Start
 
 ```bash
 npm install
-cp .env.example .env    # Edit with your values
-npm start               # API on :3001
-npm test                # 102 suites, 1,654 tests
+cp .env.example .env       # Edit with your values
+npm start                  # API on :3001
+npm test                   # 102 suites, 1,654 tests
+npm run type-check         # TypeScript compilation
 ```
 
-## Structure
+---
+
+## Architecture
 
 ```
-offchain/
-  package.json           Workspace root
-  src/                   App layer (server boot, CLI, workers)
-  packages/
-    engine/              @lucid-l2/engine
-    gateway-lite/        @lucid-l2/gateway-lite
-    contrib/             External integrations
-  local-packages/        @lucid-fdn/passport (shared with Lucid Cloud)
+src/                    App layer (boots server, CLI, GPU workers)
+  ↓ imports
+packages/
+  engine/               Truth library — pure logic, no HTTP
+  gateway-lite/         Express API — thin routes, middleware
+  contrib/              External integrations (LLM, n8n, HF, OAuth, MCP)
+local-packages/
+  passport/             @lucid-fdn/passport (shared with Lucid Cloud)
 ```
 
-## Commands
+**Dependency rule:** `gateway-lite → engine` (OK). `engine → gateway-lite` (forbidden, ESLint-enforced).
+
+---
+
+## Packages
+
+| Package | Scope | Lines | Purpose |
+|---------|-------|-------|---------|
+| `packages/engine/` | `@lucid-l2/engine` | ~53K | Core truth library — no HTTP, no Express. Pure domain logic. |
+| `packages/gateway-lite/` | `@lucid-l2/gateway-lite` | ~29K | Express API server — thin route handlers delegating to engine. |
+| `packages/contrib/` | — | ~5K | LLM providers, n8n gateway, HuggingFace sync, OAuth, MCP server, FlowSpec. |
+
+---
+
+## App Layer
+
+`src/` is the application entry point — it boots the server, CLI, and workers on top of the library packages.
+
+| File | What it does |
+|------|-------------|
+| `src/index.ts` | Boots Express server (delegates to gateway-lite) |
+| `src/cli.ts` | Deploy CLI (`npm run cli deploy <passport_id> <target>`) |
+| `src/commands/` | CLI subcommands (batch, mmr, run) |
+| `src/workers/worker-gpu-vllm/` | GPU inference worker (vLLM backend) |
+| `src/workers/worker-sim-hf/` | HuggingFace simulation worker |
+| `src/utils/` | Token counter, inference helper, environment validator |
+
+---
+
+## Engine Domains
+
+The engine is organized by feature domain. Each domain is self-contained with its own types, interfaces, implementations, and tests.
+
+| Domain | Path | What it owns |
+|--------|------|-------------|
+| **Identity** | `engine/src/identity/` | Passports, wallets, NFT (Token2022, Metaplex, EVM), shares, TBA, CAIP-10 bridge |
+| **Memory** | `engine/src/memory/` | 6 memory types, 3 store backends (SQLite, Postgres, InMemory), semantic recall, compaction, snapshots |
+| **Epoch** | `engine/src/epoch/` | Epoch lifecycle, MMR service, anchoring service |
+| **Receipt** | `engine/src/receipt/` | Receipt creation, Ed25519 signing, verification, MMR proofs |
+| **Payment** | `engine/src/payment/` | x402 protocol, pricing, revenue splits, escrow, facilitators, airdrop |
+| **Compute** | `engine/src/compute/` | 6 deployers, 7 runtime adapters, agent deployment service, image builder |
+| **Deployment** | `engine/src/deployment/` | Control plane (store, state machine, reconciler, lease manager, webhooks, rollout, secrets) |
+| **Anchoring** | `engine/src/anchoring/` | Unified DePIN dispatcher, anchor registry, CID verifier (7 artifact types) |
+| **Reputation** | `engine/src/reputation/` | On-chain + off-chain reputation, ERC-8004 sync, scoring algorithms |
+| **Shared** | `engine/src/shared/` | Crypto (hash, signing, MMR, canonical JSON), DB pool, config, chains (Solana + EVM adapters), DePIN storage, background jobs |
+
+---
+
+## Gateway Routes
+
+54 route files organized by domain. All routes are thin handlers — business logic lives in engine.
+
+| Group | Routes | Key endpoints |
+|-------|--------|--------------|
+| **Core** | 15 files | `/v1/passports/*`, `/v1/receipts/*`, `/v1/epochs/*`, `/v1/memory/*`, `/v1/anchors/*`, `/v1/match` |
+| **Agent** | 6 files | `/v1/agents/deploy`, `/v1/agents/:id/status`, `/v1/agents/:id/promote`, `/v1/webhooks/:provider` |
+| **Chain** | 10 files | Solana + EVM adapters, escrow, dispute, identity bridge, TBA, zkML, reputation |
+| **API** | 7 files | Orchestrator, agent planner, FlowSpec, MMR, passport search |
+| **Contrib** | 3 files | OAuth, Hyperliquid, rewards |
+| **System** | 2 files | `/health`, wallet |
+
+**171 total endpoints** documented in [`openapi.yaml`](../openapi.yaml).
+
+---
+
+## Deployment CLI
 
 ```bash
-npm start                # Start API server
-npm test                 # Run Jest (102 suites)
-npm run type-check       # TypeScript compilation
-npm run cli deploy ...   # Agent deployment CLI
+npm run cli deploy <passport_id> <target>     # Deploy agent
+npm run cli deploy status <passport_id>       # Check status
+npm run cli deploy logs <passport_id>         # View logs
+npm run cli deploy list                       # List all deployments
+npm run cli deploy terminate <passport_id>    # Terminate
+npm run cli deploy targets                    # Available targets
 ```
+
+**Targets:** `docker`, `railway`, `akash`, `phala`, `ionet`, `nosana`
+
+**Runtime adapters:** Vercel AI SDK, CrewAI, LangGraph, OpenAI Agents, OpenClaw, Google ADK, Docker
+
+---
+
+## Testing
+
+```bash
+npm test                                       # Full suite (102 suites, 1,654 tests)
+npx jest packages/engine/src/memory/ --no-coverage   # Single domain
+npx jest --testPathPattern="deployment"        # Pattern match
+npm run type-check                             # TypeScript compilation
+```
+
+| Suite | Tests | Coverage |
+|-------|-------|----------|
+| Engine (control plane, memory, anchoring, receipts, reputation, payment) | ~1,400 | Core domain logic |
+| Gateway-lite (routes, middleware) | ~250 | API layer |
+
+Tests use `InMemory*` store implementations — fast, deterministic, no DB required.
+
+---
+
+## Configuration
+
+Copy `.env.example` and configure. Key variables:
+
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `POSTGRES_*` | Database connection | — |
+| `LUCID_ORCHESTRATOR_SECRET_KEY` | Ed25519 signing key | — |
+| `MEMORY_STORE` | Memory backend | `sqlite` |
+| `DEPLOYMENT_STORE` | Deployment backend | `postgres` |
+| `DEPLOY_TARGET` | Default deployer | `docker` |
+| `NFT_PROVIDER` | NFT backend | `mock` |
+| `DEPIN_PERMANENT_PROVIDER` | Permanent DePIN storage | `mock` |
+| `DEPIN_EVOLVING_PROVIDER` | Evolving DePIN storage | `mock` |
+| `SECRETS_PROVIDER` | Secrets resolver | `env` |
+| `TRUSTGATE_URL` | Inference gateway | — |
+
+See `.env.example` for the full reference.
