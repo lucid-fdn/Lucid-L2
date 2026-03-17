@@ -2,7 +2,9 @@
 
 The offchain engine of Lucid Layer — a TypeScript implementation of the protocol's core logic: identity, memory, receipts, epochs, payments, deployment, anchoring, and reputation.
 
-This engine is designed to be progressively decentralized. Today it runs as centralized services. Tomorrow, through R&D and ecosystem partnerships, its coordination logic moves on-chain and into trustless protocols. For the fully managed, globally accelerated version, see **Lucid Cloud**.
+This engine is designed to be progressively decentralized. Today some parts run as centralized services. Tomorrow, through R&D and ecosystem partnerships, its coordination logic moves on-chain and into trustless protocols. 
+
+For the fully managed, globally accelerated version, see **Lucid Cloud**.
 
 ---
 
