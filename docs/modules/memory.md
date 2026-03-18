@@ -1,14 +1,33 @@
-<!-- generated: commit 0dd79c5, 2026-03-18T16:38:57.350Z -->
+<!-- generated: commit d2cfd9e, 2026-03-18T16:59:32.021Z -->
+<!-- WARNING: unverified identifiers: PostgresMemoryStore, memory, restoreSnapshot -->
 # Memory
 
 ## Purpose
-*AI enrichment pending.*
+The `memory` module in the Lucid L2 platform is designed to manage and manipulate various types of memory entries, such as episodic, semantic, procedural, entity, trust-weighted, and temporal memories. It provides a robust framework for storing, querying, and processing these memories, supporting features like embedding, provenance tracking, and session management. This module is crucial for applications that require complex memory operations, such as AI-driven systems that need to recall, infer, and learn from past interactions.
 
 ## Architecture
-*AI enrichment pending.*
+The module is structured around several key interfaces and classes that define the operations and data structures for memory management. The `IMemoryStore` interface is central, providing methods for writing, reading, querying, and managing memory entries. The module supports multiple storage backends, including in-memory, SQLite, and Postgres, with the `PostgresMemoryStore` class implementing the `IMemoryStore` interface for a persistent, scalable solution.
+
+Design choices include the use of type-specific interfaces for different memory types, ensuring that each memory type has its own set of attributes and validation logic. The `getManager` function dynamically retrieves the appropriate validation function for a given memory type, promoting modularity and ease of extension.
 
 ## Data Flow
-*AI enrichment pending.*
+Data flow in the `memory` module typically follows these paths:
+
+1. **Write Operations**: 
+   - File: `store/index.ts` → Function: `getMemoryStore` → Store: `PostgresMemoryStore.write`
+   - Memory entries are written to the store using the `write` or `writeBatch` methods, which handle serialization and database transactions.
+
+2. **Read Operations**:
+   - File: `store/index.ts` → Function: `getMemoryStore` → Store: `PostgresMemoryStore.read`
+   - Memory entries are retrieved using the `read` method, which queries the database and maps rows to domain objects.
+
+3. **Embedding Operations**:
+   - File: `embedding/index.ts` → Function: `getEmbeddingProvider` → Interface: `IEmbeddingProvider.embed`
+   - Embeddings are computed for memory entries, with results stored back in the memory store using `updateEmbedding`.
+
+4. **Provenance Tracking**:
+   - File: `store/index.ts` → Function: `getMemoryStore` → Store: `PostgresMemoryStore.writeProvenance`
+   - Provenance records are maintained to track changes and operations on memory entries.
 
 ## Key Interfaces
 
@@ -59,4 +78,12 @@
 | imports | shared | `MMR`, `canonicalSha256Hex`, `getClient`, `logger`, `pool`, `sha256Hex`, `signMessage`, `verifySignature` | — |
 
 ## Patterns & Gotchas
-*AI enrichment pending.*
+- **Type-Specific Logic**: Each memory type has specific attributes and validation logic. Use the `getManager` function to obtain the correct validator for a memory type, ensuring that entries are validated according to their type-specific rules.
+
+- **Serializable Transactions**: The `PostgresMemoryStore` uses serializable transactions for write operations to maintain hash chain integrity. This can lead to serialization failures under high concurrency, which are retried up to three times.
+
+- **Embedding Status**: Memory entries have an `embedding_status` field that tracks the state of embedding operations. Be aware of this status when querying or processing entries to avoid acting on incomplete data.
+
+- **Environment Configuration**: The behavior of the memory store can be influenced by environment variables, such as `MEMORY_STORE` for selecting the storage backend. Ensure these are correctly set in your development and production environments.
+
+- **Cross-Agent Operations**: The module supports cross-agent queries and operations, but care must be taken to prevent unauthorized access or data leakage between agents. The `restoreSnapshot` function includes identity verification to prevent cross-agent memory injection.
