@@ -58,7 +58,7 @@ The internet has two layers: **protocols** (TCP/IP, DNS, HTTP) and **edge infras
 
 **Lucid Layer** is the open protocol. Everything an agent needs to exist and operate independently — identity, memory, compute, deployment, payments, reputation, verification. Runs anywhere. No vendor lock-in. This repo.
 
-**Lucid Cloud** is the Cloudflare of AI. It takes the entire protocol and runs it faster, at scale, globally — accelerated inference, edge tool routing, fleet orchestration, real-time intelligence, automated settlement, enterprise security. The more agents use the network, the smarter it gets for everyone. Traffic data generates intelligence that feeds back into the protocol's on-chain reputation, creating a flywheel no competitor can replicate without the network.
+**Lucid Cloud** is the Cloudflare of AI. It takes the entire protocol and runs it faster, at scale, globally — accelerated inference, edge MCP/tool routing, fleet orchestration, real-time intelligence, automated settlement, enterprise security. The more agents use the network, the smarter it gets for everyone. With Lucid Oracle, traffic data generates intelligence that feeds back into the protocol's on-chain reputation, creating a flywheel no competitor can replicate without the network.
 
 ### Progressive Decentralization
 
