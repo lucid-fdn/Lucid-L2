@@ -1,11 +1,23 @@
 import { createHash, randomUUID } from 'crypto';
 import { LucidSDK } from './LucidSDK';
 
+/** Pending receipt for retry queue */
+interface PendingReceipt {
+  data: Record<string, unknown>;
+  attempts: number;
+  nextRetryAt: number;
+}
+
+const MAX_RETRY_ATTEMPTS = 5;
+const RETRY_BACKOFF_MS = [1000, 2000, 5000, 15000, 30000]; // exponential-ish
+const MAX_QUEUE_SIZE = 1000;
+
 /**
  * LucidAgent — high-level wrapper for AI agents in the Lucid verified network.
  *
  * Handles inference routing, automatic receipt creation, and identity propagation.
  * Uses the Lucid API for receipts and any OpenAI-compatible endpoint for inference.
+ * Failed receipts are queued in-memory and retried with exponential backoff.
  *
  * ```typescript
  * import { LucidAgent } from '@lucid-fdn/sdk';
@@ -20,6 +32,8 @@ export class LucidAgent {
   private passportId: string;
   private providerUrl: string;
   private providerApiKey: string;
+  private receiptQueue: PendingReceipt[] = [];
+  private retryTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(opts: {
     /** Lucid API key (from lucid.foundation dashboard) */
@@ -40,7 +54,52 @@ export class LucidAgent {
     this.passportId = opts.passportId || process.env.LUCID_PASSPORT_ID || '';
     this.providerUrl = opts.providerUrl || process.env.PROVIDER_URL || '';
     this.providerApiKey = opts.providerApiKey || process.env.PROVIDER_API_KEY || '';
+    this.startRetryLoop();
   }
+
+  /** Process retry queue every 5 seconds */
+  private startRetryLoop() {
+    this.retryTimer = setInterval(() => this.flushQueue(), 5000);
+    this.retryTimer.unref(); // Don't block process exit
+  }
+
+  /** Attempt to send all pending receipts that are due for retry */
+  private async flushQueue() {
+    const now = Date.now();
+    const due = this.receiptQueue.filter(r => r.nextRetryAt <= now);
+    for (const pending of due) {
+      try {
+        await this.sdk.receipts.lucidCreateReceipt(pending.data as any);
+        this.receiptQueue = this.receiptQueue.filter(r => r !== pending);
+      } catch {
+        pending.attempts++;
+        if (pending.attempts >= MAX_RETRY_ATTEMPTS) {
+          this.receiptQueue = this.receiptQueue.filter(r => r !== pending);
+        } else {
+          pending.nextRetryAt = now + RETRY_BACKOFF_MS[pending.attempts] || 30000;
+        }
+      }
+    }
+  }
+
+  /** Queue a receipt for creation, with retry on failure */
+  private enqueueReceipt(data: Record<string, unknown>) {
+    if (this.receiptQueue.length >= MAX_QUEUE_SIZE) {
+      this.receiptQueue.shift(); // Drop oldest if queue is full
+    }
+    this.receiptQueue.push({ data, attempts: 0, nextRetryAt: 0 });
+    // Try immediately (non-blocking)
+    this.flushQueue().catch(() => {});
+  }
+
+  /** Stop the retry loop (for cleanup/testing) */
+  destroy() {
+    if (this.retryTimer) clearInterval(this.retryTimer);
+    this.retryTimer = null;
+  }
+
+  /** Number of receipts pending retry */
+  get pendingReceipts() { return this.receiptQueue.length; }
 
   /**
    * Run inference with automatic receipt creation.
@@ -96,23 +155,17 @@ export class LucidAgent {
       totalTokens: data.usage.total_tokens || 0,
     } : undefined;
 
-    // Auto-create receipt (fire and forget)
-    let receiptId: string | undefined;
-    try {
-      const result = await this.sdk.receipts.lucidCreateReceipt({
-        model_passport_id: opts.model,
-        agent_passport_id: this.passportId,
-        input_hash: createHash('sha256').update(opts.prompt).digest('hex'),
-        output_hash: createHash('sha256').update(text).digest('hex'),
-        latency_ms: Date.now() - start,
-        timestamp: Date.now(),
-      } as any);
-      receiptId = (result as any)?.receipt_id;
-    } catch {
-      // Don't break inference on receipt failure
-    }
+    // Auto-create receipt (queued with retry — never blocks inference)
+    this.enqueueReceipt({
+      model_passport_id: opts.model,
+      agent_passport_id: this.passportId,
+      input_hash: createHash('sha256').update(opts.prompt).digest('hex'),
+      output_hash: createHash('sha256').update(text).digest('hex'),
+      latency_ms: Date.now() - start,
+      timestamp: Date.now(),
+    });
 
-    return { text, usage, receipt_id: receiptId, passport_id: this.passportId };
+    return { text, usage, passport_id: this.passportId };
   }
 
   /**
