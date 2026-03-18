@@ -9,7 +9,15 @@ function sleep(ms: number): Promise<void> {
 }
 
 export async function enrichDomain(system: string, user: string): Promise<string> {
-  const client = new OpenAI(); // reads OPENAI_API_KEY from env by default
+  // Route through TrustGate (Lucid's OpenAI-compatible inference gateway) by default.
+  // Falls back to direct OpenAI if TRUSTGATE_URL is not set.
+  const trustgateUrl = process.env.TRUSTGATE_URL;
+  const client = trustgateUrl
+    ? new OpenAI({
+        baseURL: `${trustgateUrl}/v1`,
+        apiKey: process.env.TRUSTGATE_API_KEY ?? '',
+      })
+    : new OpenAI(); // fallback: reads OPENAI_API_KEY from env
   const model = process.env.DOCS_MODEL ?? 'gpt-4o';
 
   let lastError: unknown;
