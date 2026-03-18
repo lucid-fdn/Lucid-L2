@@ -1,16 +1,19 @@
 import { cn } from '@/lib/utils'
 
-type Status = 'healthy' | 'degraded' | 'down' | 'running' | 'pending' | 'deploying' | 'stopped' | 'failed' | 'unknown'
+type Status = 'healthy' | 'degraded' | 'down' | 'running' | 'pending' | 'deploying' | 'stopped' | 'failed' | 'active' | 'deprecated' | 'revoked' | 'unknown'
 
 const statusColors: Record<Status, string> = {
   healthy: 'bg-emerald-500',
   running: 'bg-emerald-500',
+  active: 'bg-emerald-500',
   degraded: 'bg-amber-500',
   pending: 'bg-amber-500',
   deploying: 'bg-amber-500',
+  deprecated: 'bg-amber-500',
   down: 'bg-red-500',
   stopped: 'bg-red-500',
   failed: 'bg-red-500',
+  revoked: 'bg-red-500',
   unknown: 'bg-zinc-500',
 }
 
