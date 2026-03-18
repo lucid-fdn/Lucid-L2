@@ -14,7 +14,7 @@ Or manually:
 docker run -p 3100:3100 \
   -e LUCID_MODEL=gpt-4o \
   -e LUCID_PROMPT="You are a helpful assistant" \
-  -e PROVIDER_URL=https://trustgate.lucid.foundation \
+  -e PROVIDER_URL=https://cloud.lucid.foundation \
   -e PROVIDER_API_KEY=your-key \
   -e LUCID_API_URL=https://api.lucid.foundation \
   -e LUCID_PASSPORT_ID=your-passport-id \
@@ -32,7 +32,7 @@ These are independent. You can use any provider AND still be part of the verifie
 
 ```bash
 # Lucid Cloud (default, managed)
-PROVIDER_URL=https://trustgate.lucid.foundation
+PROVIDER_URL=https://cloud.lucid.foundation
 PROVIDER_API_KEY=lk_...
 
 # Ollama (local, free)

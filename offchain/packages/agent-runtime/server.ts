@@ -21,14 +21,14 @@ const RECEIPTS_ENABLED = !!LUCID_API_URL;
 if (!PROVIDER_URL) {
   console.warn('[Runtime] PROVIDER_URL not set. Inference will fail.');
   console.warn('[Runtime] Set PROVIDER_URL to any OpenAI-compatible endpoint:');
-  console.warn('[Runtime]   Lucid Cloud: https://trustgate.lucid.foundation (default, managed)');
+  console.warn('[Runtime]   Lucid Cloud: https://cloud.lucid.foundation (default, managed)');
   console.warn('[Runtime]   Ollama:      http://localhost:11434/v1 (local, free)');
   console.warn('[Runtime]   LiteLLM:     http://localhost:4000 (self-hosted proxy)');
   console.warn('[Runtime]   OpenAI:      https://api.openai.com/v1 (direct)');
 }
 
 const provider = createOpenAICompatible({
-  baseURL: PROVIDER_URL || 'https://trustgate.lucid.foundation',
+  baseURL: PROVIDER_URL || 'https://cloud.lucid.foundation',
   apiKey: PROVIDER_API_KEY,
   name: 'lucid-runtime',
 });
