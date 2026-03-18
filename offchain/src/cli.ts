@@ -387,7 +387,7 @@ program
 
         // Check provider compatibility
         const compat = checkProviderCompat(target, 'source', hasDockerfile);
-        if (!compat.ok) {
+        if (compat.ok === false) {
           console.error(compat.error);
           process.exit(1);
         }
@@ -407,7 +407,7 @@ program
           name: options.name || pathMod.basename(options.path),
           target,
         });
-        if (!passportResult.ok) {
+        if (passportResult.ok === false) {
           console.error(`Passport creation failed: ${passportResult.error}`);
           process.exit(1);
         }
