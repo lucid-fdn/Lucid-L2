@@ -1,5 +1,5 @@
-// Deploy and runtime exports (primary)
-export * from './deploy';
+// Provider and runtime exports (primary)
+export * from './providers';
 export {
   IRuntimeAdapter,
   getRuntimeAdapter,
@@ -10,13 +10,13 @@ export {
 } from './runtime';
 
 // Agent exports — explicit to avoid conflicts with deploy types
-export { getAgentDeploymentService, resetAgentDeploymentService, AgentDeploymentService } from './agent/agentDeploymentService';
-export type { DeployAgentInput, DeployAgentResult } from './agent/agentDeploymentService';
+export { getAgentDeploymentService, resetAgentDeploymentService, AgentDeploymentService } from './control-plane/agent/agentDeploymentService';
+export type { DeployAgentInput, DeployAgentResult } from './control-plane/agent/agentDeploymentService';
 export type {
   AgentDescriptor, AgentConfig, WalletConfig, WalletProvider,
   SpendingLimits, MonetizationConfig, DeploymentTargetType,
   WorkflowType, AutonomyLevel, MemoryProvider,
   StopCondition, Guardrail, HandoffRule, ChannelConfig,
-} from './agent/agentDescriptor';
-export * from './agent/agentRevenueService';
-export * from './agent/a2a';
+} from './control-plane/agent/agentDescriptor';
+export * from './control-plane/agent/agentRevenueService';
+export * from './control-plane/agent/a2a';

@@ -105,37 +105,37 @@ export { DisputeStatus } from './payment/escrow/disputeTypes';
 // ─── Deploy ─────────────────────────────────────────────────────────────────
 export {
   getDeployer, listDeployerTargets, getAllDeployers,
-} from './compute/deploy';
+} from './compute/providers';
 export type {
   IDeployer, DeploymentResult, DeploymentStatus, DeploymentStatusType,
   DeploymentConfig, RuntimeArtifact, LogOptions,
-} from './compute/deploy';
+} from './compute/providers';
 
 // ─── Agent ──────────────────────────────────────────────────────────────────
-export { getAgentDeploymentService, AgentDeploymentService } from './compute/agent/agentDeploymentService';
-export type { DeployAgentInput, DeployAgentResult } from './compute/agent/agentDeploymentService';
-export { processAgentRevenue, triggerAgentAirdrop, getAgentRevenuePool, getAllRevenuePools } from './compute/agent/agentRevenueService';
-export type { AgentRevenuePool } from './compute/agent/agentRevenueService';
+export { getAgentDeploymentService, AgentDeploymentService } from './compute/control-plane/agent/agentDeploymentService';
+export type { DeployAgentInput, DeployAgentResult } from './compute/control-plane/agent/agentDeploymentService';
+export { processAgentRevenue, triggerAgentAirdrop, getAgentRevenuePool, getAllRevenuePools } from './compute/control-plane/agent/agentRevenueService';
+export type { AgentRevenuePool } from './compute/control-plane/agent/agentRevenueService';
 
 // ─── A2A Protocol ──────────────────────────────────────────────────────────
 export {
   generateAgentCard, validateAgentCard,
   createA2ATask, updateTaskState, addTaskArtifact, createTaskStore,
   discoverAgent, sendTask, getTaskStatus, cancelTask,
-} from './compute/agent/a2a';
+} from './compute/control-plane/agent/a2a';
 export type {
   AgentCard, AgentCardSkill,
   A2ATask, A2AMessage, A2APart, A2ATaskState, A2ATaskStore,
   A2AClientOptions,
-} from './compute/agent/a2a';
+} from './compute/control-plane/agent/a2a';
 
 // ─── Marketplace (WIP — moved to _wip/, needs DB persistence) ─────────────
 // export {
 //   getMarketplaceService, resetMarketplaceService, MarketplaceService,
-// } from './compute/agent/marketplace';
+// } from './compute/control-plane/agent/marketplace';
 // export type {
 //   MarketplaceListing, AgentReview, AgentUsageRecord, ListingFilters,
-// } from './compute/agent/marketplace';
+// } from './compute/control-plane/agent/marketplace';
 
 // ─── Storage ────────────────────────────────────────────────────────────────
 export { getPassportStore } from './identity/stores/passportStore';

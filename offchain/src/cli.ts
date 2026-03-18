@@ -120,8 +120,8 @@ program
   .option('--share-supply <supply>', 'Share token total supply', '1000000')
   .action(async (options) => {
     try {
-      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/agent/agentDeploymentService');
-      const { buildAgentDescriptor } = await import('../packages/engine/src/compute/agent/descriptorBuilder');
+      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/control-plane/agent/agentDeploymentService');
+      const { buildAgentDescriptor } = await import('../packages/engine/src/compute/control-plane/agent/descriptorBuilder');
       const service = getAgentDeploymentService();
 
       const descriptor = buildAgentDescriptor(options);
@@ -158,7 +158,7 @@ program
   .description('Get deployment status for an agent')
   .action(async (passportId: string) => {
     try {
-      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/agent/agentDeploymentService');
+      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/control-plane/agent/agentDeploymentService');
       const service = getAgentDeploymentService();
       const status = await service.getAgentStatus(passportId);
       if (status) {
@@ -179,7 +179,7 @@ program
   .option('--tail <lines>', 'Number of log lines', '100')
   .action(async (passportId: string, options: any) => {
     try {
-      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/agent/agentDeploymentService');
+      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/control-plane/agent/agentDeploymentService');
       const service = getAgentDeploymentService();
       const logs = await service.getAgentLogs(passportId, parseInt(options.tail));
       console.log(logs);
@@ -196,7 +196,7 @@ program
   .option('--target <target>', 'Filter by target')
   .action(async (options: any) => {
     try {
-      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/agent/agentDeploymentService');
+      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/control-plane/agent/agentDeploymentService');
       const service = getAgentDeploymentService();
       const deployments = await service.listDeployments({
         status: options.status,
@@ -220,7 +220,7 @@ program
   .description('Terminate an agent deployment')
   .action(async (passportId: string) => {
     try {
-      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/agent/agentDeploymentService');
+      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/control-plane/agent/agentDeploymentService');
       const service = getAgentDeploymentService();
       const result = await service.terminateAgent(passportId);
       if (result.success) {
@@ -240,7 +240,7 @@ program
   .description('List available deployment targets')
   .action(async () => {
     try {
-      const { listDeployerTargets } = await import('../packages/engine/src/compute/deploy');
+      const { listDeployerTargets } = await import('../packages/engine/src/compute/providers');
       const targets = listDeployerTargets();
       console.log('Available deployment targets:');
       for (const t of targets) {
@@ -268,7 +268,7 @@ program
   .option('--verification <mode>', 'Verification mode: full or minimal', 'full')
   .action(async (options) => {
     try {
-      const { launchImage, launchBaseRuntime } = await import('../packages/engine/src/compute/launch');
+      const { launchImage, launchBaseRuntime } = await import('../packages/engine/src/compute/control-plane/launch');
 
       let result;
 

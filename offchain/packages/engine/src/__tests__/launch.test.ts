@@ -72,7 +72,7 @@ const mockDeployer = {
   isHealthy: jest.fn().mockResolvedValue(true),
 };
 
-jest.mock('../compute/deploy', () => ({
+jest.mock('../compute/providers', () => ({
   getDeployer: jest.fn(() => mockDeployer),
   listDeployerTargets: jest.fn(() => ['docker']),
   resetDeployers: jest.fn(),
@@ -82,8 +82,8 @@ jest.mock('../compute/deploy', () => ({
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
 
-import { launchImage, launchBaseRuntime } from '../compute/launch';
-import { resetDeploymentStore } from '../compute/deployment/control-plane';
+import { launchImage, launchBaseRuntime } from '../compute/control-plane/launch';
+import { resetDeploymentStore } from '../compute/control-plane/store';
 
 // ---------------------------------------------------------------------------
 // Constants

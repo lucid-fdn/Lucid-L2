@@ -163,7 +163,7 @@ export function initializeBackgroundServices(app: Express): void {
   // Start Deployment Control Plane (Reconciler + LeaseManager)
   if (process.env.DEPLOYMENT_CONTROL_PLANE !== 'false') {
     try {
-      const { startDeploymentControlPlane } = require('../../engine/src/compute/deployment/boot');
+      const { startDeploymentControlPlane } = require('../../engine/src/compute/control-plane/boot');
       startDeploymentControlPlane();
     } catch (err) {
       console.warn('[deployment] Failed to start control plane:', err instanceof Error ? err.message : err);
@@ -370,7 +370,7 @@ export function registerShutdownHandlers(): void {
     console.log(`${signal} received — shutting down`);
     stopReceiptConsumer();
     stopAgentMirrorConsumer();
-    try { const { stopDeploymentControlPlane } = require('../../engine/src/compute/deployment/boot'); stopDeploymentControlPlane(); } catch { /* best-effort */ }
+    try { const { stopDeploymentControlPlane } = require('../../engine/src/compute/control-plane/boot'); stopDeploymentControlPlane(); } catch { /* best-effort */ }
     try { const { stopMemorySystem } = require('../../engine/src/memory/boot'); stopMemorySystem(); } catch { /* best-effort */ }
     // Final MMR checkpoint before exit (best-effort)
     try {

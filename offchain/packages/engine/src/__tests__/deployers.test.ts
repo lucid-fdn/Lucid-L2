@@ -15,21 +15,21 @@
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
-import { DockerDeployer } from '../compute/deploy/DockerDeployer';
-import { RailwayDeployer } from '../compute/deploy/RailwayDeployer';
-import { AkashDeployer } from '../compute/deploy/AkashDeployer';
-import { PhalaDeployer } from '../compute/deploy/PhalaDeployer';
-import { IoNetDeployer } from '../compute/deploy/IoNetDeployer';
-import { NosanaDeployer } from '../compute/deploy/NosanaDeployer';
+import { DockerDeployer } from '../compute/providers/DockerDeployer';
+import { RailwayDeployer } from '../compute/providers/RailwayDeployer';
+import { AkashDeployer } from '../compute/providers/AkashDeployer';
+import { PhalaDeployer } from '../compute/providers/PhalaDeployer';
+import { IoNetDeployer } from '../compute/providers/IoNetDeployer';
+import { NosanaDeployer } from '../compute/providers/NosanaDeployer';
 import {
   getDeployer,
   getAllDeployers,
   listDeployerTargets,
   resetDeployers,
-} from '../compute/deploy';
-import type { RuntimeArtifact, DeploymentConfig } from '../compute/deploy/IDeployer';
-import { isImageDeploy } from '../compute/deploy/types';
-import type { ImageDeployInput } from '../compute/deploy/types';
+} from '../compute/providers';
+import type { RuntimeArtifact, DeploymentConfig } from '../compute/providers/IDeployer';
+import { isImageDeploy } from '../compute/providers/types';
+import type { ImageDeployInput } from '../compute/providers/types';
 
 // ---------------------------------------------------------------------------
 // Shared test fixtures

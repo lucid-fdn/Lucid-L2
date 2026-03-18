@@ -7,7 +7,7 @@ import { logger } from '../../../../engine/src/shared/lib/logger';
 
 // Lazy import to avoid circular deps — matches codebase convention for engine imports
 function getService() {
-  const { getAgentDeploymentService } = require('../../../engine/src/compute/agent/agentDeploymentService');
+  const { getAgentDeploymentService } = require('../../../engine/src/compute/control-plane/agent/agentDeploymentService');
   return getAgentDeploymentService();
 }
 
@@ -218,7 +218,7 @@ agentDeployRouter.post('/v1/agents/:passportId/terminate', verifyAdminAuth, asyn
  */
 agentDeployRouter.get('/v1/agents/:passportId/events', async (req, res) => {
   try {
-    const { getDeploymentStore } = await import('../../../../engine/src/compute/deployment/control-plane');
+    const { getDeploymentStore } = await import('../../../../engine/src/compute/control-plane/store');
     const store = getDeploymentStore();
     const deployment = await store.getActiveByAgent(req.params.passportId);
     if (!deployment) return res.status(404).json({ success: false, error: 'No active deployment found' });
@@ -237,7 +237,7 @@ agentDeployRouter.get('/v1/agents/:passportId/events', async (req, res) => {
 
 // Lazy import for RolloutManager to avoid circular deps
 function getRollout() {
-  const { getRolloutManager } = require('../../../../engine/src/compute/deployment/rollout');
+  const { getRolloutManager } = require('../../../../engine/src/compute/control-plane/rollout');
   return getRolloutManager();
 }
 
