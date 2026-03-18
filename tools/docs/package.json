@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "generate": "tsx src/generate.ts",
+    "check": "tsx src/check.ts",
     "test": "jest"
   },
   "dependencies": {
