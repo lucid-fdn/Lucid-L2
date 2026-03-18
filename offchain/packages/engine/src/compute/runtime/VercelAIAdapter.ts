@@ -29,12 +29,10 @@ export class VercelAIAdapter implements IRuntimeAdapter {
     const stopConditions = this.generateStopConditions(config.stop_conditions || []);
     const maxSteps = config.stop_conditions?.find((s: any) => s.type === 'max_steps')?.value || 50;
 
-    files.set('agent.ts', `import { generateText, streamText, tool } from "ai";
+    files.set('agent.ts', `import { generateText, streamText, tool, stepCountIs } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 import express from "express";
-import { logger } from '../shared/lib/logger';
-
 // --- LLM Provider (routes through TrustGate) ---
 const provider = createOpenAI({
   baseURL: process.env.TRUSTGATE_URL || "https://trustgate-api-production.up.railway.app",
@@ -80,7 +78,7 @@ app.post("/run", async (req, res) => {
         system: ${JSON.stringify(config.system_prompt)},
         prompt,
         tools: agentTools,
-        maxSteps: ${maxSteps},
+        stopWhen: stepCountIs(${maxSteps}),
       });
       for await (const chunk of result.textStream) {
         res.write(\`data: \${JSON.stringify({ text: chunk })}\\n\\n\`);
@@ -93,7 +91,7 @@ app.post("/run", async (req, res) => {
         system: ${JSON.stringify(config.system_prompt)},
         prompt,
         tools: agentTools,
-        maxSteps: ${maxSteps},
+        stopWhen: stepCountIs(${maxSteps}),
       });
       res.json({
         ok: true,
@@ -103,7 +101,7 @@ app.post("/run", async (req, res) => {
       });
     }
   } catch (error) {
-    logger.error("Agent error:", error);
+    console.error("Agent error:", error);
     res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
   }
 });
@@ -149,7 +147,7 @@ app.post("/tasks/send", async (req, res) => {
 
 const PORT = parseInt(process.env.PORT || "3100");
 app.listen(PORT, () => {
-  logger.info(\`Agent ${passportId} running on port \${PORT} (vercel-ai adapter)\`);
+  console.log(\`Agent ${passportId} running on port \${PORT} (vercel-ai adapter)\`);
 });
 `);
 
@@ -163,7 +161,7 @@ app.listen(PORT, () => {
         dev: 'tsx watch agent.ts',
       },
       dependencies: {
-        'ai': '^4.0.0',
+        'ai': '^6.0.0',
         '@ai-sdk/openai': '^1.0.0',
         'express': '^4.18.2',
         'zod': '^3.22.0',
@@ -206,7 +204,7 @@ CMD ["npx", "tsx", "agent.ts"]
       files,
       entrypoint: 'agent.ts',
       dependencies: {
-        'ai': '^4.0.0',
+        'ai': '^6.0.0',
         '@ai-sdk/openai': '^1.0.0',
         'express': '^4.18.2',
         'zod': '^3.22.0',

@@ -173,6 +173,54 @@ All 7 producers use `getAnchorDispatcher().dispatch()`:
 
 **Env:** `DEPIN_PERMANENT_PROVIDER`, `DEPIN_EVOLVING_PROVIDER` (default: `mock`). `DEPIN_UPLOAD_ENABLED=false` (kill switch). `ANCHOR_REGISTRY_STORE=postgres|memory`.
 
+### Agent Deployment (3 Paths)
+
+Three ways to deploy an agent — no code generation. Lucid deploys containers, not templates.
+
+**Path A: Bring Your Own Image (developers)**
+```bash
+lucid deploy --image ghcr.io/myorg/my-agent:latest --target railway --owner 0x...
+```
+Lucid deploys your Docker image to the target provider. Injects `LUCID_API_URL`, `LUCID_PASSPORT_ID`, `LUCID_API_KEY` as env vars. Your agent calls the Lucid API via `@lucid/sdk` for receipts, memory, payment.
+
+**Path B: Base Runtime (no-code)**
+```bash
+lucid deploy --runtime base --model gpt-4o --prompt "You are a helpful agent" --target docker
+```
+Deploys pre-built `ghcr.io/lucid-fdn/agent-runtime:latest` image. Configured via env vars (`LUCID_MODEL`, `LUCID_PROMPT`, `LUCID_TOOLS`). SDK pre-integrated — receipts flow automatically.
+
+**Path C: External Registration (self-hosted, already operational)**
+```bash
+POST /v1/passports { type: "agent", deployment_config: { target: { type: "self_hosted" } } }
+PATCH /v1/passports/:id/endpoints { invoke_url: "https://my-agent.com/run" }
+```
+No deployment. Just identity + reputation for an already-running agent.
+
+**6 Deployers** (`engine/src/compute/deploy/`):
+| Deployer | API | What it does |
+|----------|-----|-------------|
+| Docker | Local | Writes docker-compose.yml, runs `docker compose up` |
+| Railway | GraphQL API | Creates service, sets env vars, generates domain, polls status |
+| Akash | REST API | Generates SDL v2.0, auto-accepts bids, sends manifest |
+| Phala | REST API | Two-phase CVM provisioning, encrypted env vars, TEE |
+| io.net | REST API | Hardware discovery, container deploy, polls for URL |
+| Nosana | REST API | INFINITE strategy for persistent GPU services |
+
+All deployers accept either a Docker image reference or a RuntimeArtifact.
+
+**SDK** (`@lucid/sdk`): Auto-generated from `openapi.yaml` via Speakeasy. Covers passports, receipts, memory, deploy, anchoring, reputation, epochs. TypeScript + Python.
+
+**CLI commands:**
+```bash
+lucid deploy --image <image> --target <target>    # Path A
+lucid deploy --runtime base --model <m> --prompt  # Path B
+lucid deploy:status <passportId>
+lucid deploy:logs <passportId> [--tail 100]
+lucid deploy:list [--status running] [--target docker]
+lucid deploy:terminate <passportId>
+lucid deploy:targets                               # List available providers
+```
+
 ### Deployment Control Plane
 Durable deployment state in Supabase (`deployments` + `deployment_events` tables).
 Status machine: `pending -> deploying -> running -> stopped -> terminated` (+ `failed` path).
@@ -338,9 +386,9 @@ offchain/
         escrow/                       # escrowService, disputeService
         stores/                       # paymentGateService, spentProofsStore
         airdrop/                      # revenueAirdrop
-      compute/                        # Deploy (6 targets), runtime adapters, agent descriptors
+      compute/                        # Deploy (6 targets), agent orchestration
         deploy/                       # IDeployer -> Docker, Railway, Akash, Phala, io.net, Nosana
-        runtime/                      # IRuntimeAdapter -> VercelAI, OpenClaw, CrewAI, LangGraph, etc.
+        runtime/                      # IRuntimeAdapter interface + factory (adapters moved to examples/)
         agent/                        # agentDeploymentService, agentDescriptor, agentRevenueService
           a2a/                        # A2A protocol client/server/agentCard
       anchoring/                      # Unified DePIN interface — dispatcher, registry, verifier

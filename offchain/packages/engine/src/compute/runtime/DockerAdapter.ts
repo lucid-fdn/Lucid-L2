@@ -28,7 +28,7 @@ export class DockerAdapter implements IRuntimeAdapter {
  * Universal Docker agent (minimal dependencies)
  */
 import http from "node:http";
-import { logger } from '../shared/lib/logger';
+
 
 const TRUSTGATE_URL = process.env.TRUSTGATE_URL || "https://trustgate-api-production.up.railway.app";
 const TRUSTGATE_API_KEY = process.env.TRUSTGATE_API_KEY || "";
@@ -122,7 +122,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  logger.info(\`Agent ${passportId} running on port \${PORT} (docker adapter)\`);
+  console.log(\`Agent ${passportId} running on port \${PORT} (docker adapter)\`);
 });
 `);
 

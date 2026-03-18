@@ -1,3 +1,5 @@
+import type { AgentDescriptor, DeploymentTargetType } from './agentDescriptor';
+
 /**
  * Build a default AgentDescriptor from minimal inputs.
  * Reusable by CLI, API routes, SDK, and tests.
@@ -10,7 +12,7 @@ export function buildAgentDescriptor(options: {
   tools?: string[];
   shareToken?: string;
   shareSupply?: string;
-}) {
+}): AgentDescriptor {
   return {
     agent_config: {
       system_prompt: options.prompt,
@@ -29,7 +31,7 @@ export function buildAgentDescriptor(options: {
       a2a_enabled: false,
     },
     deployment_config: {
-      target: { type: options.target || 'docker', ...(options.gpu ? { gpu: options.gpu } : {}) },
+      target: { type: (options.target || 'docker') as DeploymentTargetType, ...(options.gpu ? { gpu: options.gpu } : {}) },
       restart_policy: 'on_failure' as const,
     },
     monetization: options.shareToken ? {
