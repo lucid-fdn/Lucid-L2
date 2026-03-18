@@ -13,7 +13,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "start:pm2": "pm2 start npm --name \"lucid-offchain\" -- start"
+    "start:pm2": "pm2 start npm --name \"lucid-offchain\" -- start",
+    "docs:generate": "cd ../tools/docs && npx tsx src/generate.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",

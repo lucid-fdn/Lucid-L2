@@ -1,0 +1,38 @@
+{
+  "anchoring": {
+    "apiHash": "fb448f80c1edf4c8da4156d4ac17a922d415f0bcc93e14ca8266520805fa9c90",
+    "contentHash": "6759e214afa4352294c70a34eac20788cb143661e068f2dee2f025c969ccb351"
+  },
+  "identity": {
+    "apiHash": "23ea69dcafcefdeb20e91ceaf8089c535659d63862cc57a34d5a486ddd7deb03",
+    "contentHash": "647ea09ab18afd79dd6ce1fb13c42505fcf0e61f5734266eab61b6a0cf016920"
+  },
+  "memory": {
+    "apiHash": "88f420506627af23f0384e4745b0d52d7a8b7018e11c756650812785d4361661",
+    "contentHash": "6c621ec197ac1fa87ddfc65dd25219dfb007acca785c72e40cdd61e59b599efc"
+  },
+  "receipt": {
+    "apiHash": "b737d8d421cebd2e40f37eba333ffcdccfe48553eb23b85eb30a4b2682a92460",
+    "contentHash": "ec583fcd1bf6894e43ced2bf215a0225ef639b1f3d13fb23bb94dd3eec963817"
+  },
+  "epoch": {
+    "apiHash": "eef4c95f5451bc4cfe9693de940c9692e067e4d0acd0aa170ec18a58bfeef84d",
+    "contentHash": "f48cf3a8936019ac811e9047f0cfe2673aab9e2dd0d8b87ca72c1bfb105a1a03"
+  },
+  "payment": {
+    "apiHash": "e3c3ff6b48d5026ec6cffbcbca94c95dfae5c8aa8b0723c490834aaf5625b816",
+    "contentHash": "790fc2c1c221dfd0ee69ccf42ea26d04d9a2d07b3439cc48c81fe15341726f43"
+  },
+  "compute": {
+    "apiHash": "ee0b10c494e5a21b4fe6a4eebab0e5cdcc2660c74de4f2ae54b3bd56d7ddc7f3",
+    "contentHash": "02cafc0524d872e27610d7fefe141f78aa3720b8eb77a806e30c3648038411b1"
+  },
+  "deployment": {
+    "apiHash": "65c28e3a9bf9c91142bbf0a2447287be52bec2bf2e1394514563f8ecfa6d429c",
+    "contentHash": "c2eb953085755741acc2072a136f5a5f1b96f93fca13f8dafb789b8bb6a6b1c7"
+  },
+  "reputation": {
+    "apiHash": "d3fc2f6b3bdd6a7b1b70321d7903708e830ef78b2a95826cb3ea89f77005e934",
+    "contentHash": "41e3c6531c1c262c0b95e1ba022edabc4aab23dcdd3e8f7c5f7551e171511ce3"
+  }
+}
