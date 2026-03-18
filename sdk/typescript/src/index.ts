@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export { LucidSDK } from './LucidSDK';
+export { LucidAgent } from './LucidAgent';
 
 export { ApiError } from './core/ApiError';
 export { BaseHttpRequest } from './core/BaseHttpRequest';
