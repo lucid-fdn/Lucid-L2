@@ -515,21 +515,24 @@ Supabase (eu-north-1, project `kwihlcnapmkaivijyiif`):
 
 ## AI Documentation Pipeline (`tools/docs/`)
 
-Automated documentation generation — compiler extracts facts, AI writes narrative, templates enforce consistency.
+Automated documentation generation — compiler extracts facts, AI writes narrative, templates enforce consistency. Generates both internal docs (in this repo) and public docs (synced to Mintlify at `/c/docs/`).
 
 **Quick start:**
 ```bash
 cd tools/docs && npm install
 cp .env.example .env   # Add TRUSTGATE_API_KEY
 
-# Generate everything
-npx tsx src/generate.ts                         # All 9 module overviews (AI)
+# Generate everything (internal + public Mintlify sync)
+TRUSTGATE_API_KEY=lk_... npx tsx src/generate.ts
+
+# Individual artifacts
 npx tsx src/generate.ts --artifact reference    # 9 reference docs (deterministic)
 npx tsx src/generate.ts --artifact llms-txt     # llms.txt at repo root
 npx tsx src/generate.ts --artifact programs     # 6 Solana program docs
 npx tsx src/generate.ts --artifact contracts    # 10 EVM contract docs
 npx tsx src/generate.ts --artifact changelog --from v1.0.0  # AI changelog
 npx tsx src/generate.ts --artifact claude-md    # Sync CLAUDE.md sentinels
+npx tsx src/generate.ts --artifact mintlify     # Sync to public Mintlify site only
 
 # Incremental
 npx tsx src/generate.ts --changed              # Skip unchanged domains
@@ -542,19 +545,34 @@ npx tsx src/check.ts                           # Freshness gate (apiHash drift)
 npx jest                                       # 361 tests, 18 suites
 ```
 
-**Architecture:** ts-morph extracts public API surface (barrel-based from `index.ts`), OpenAI generates narrative via TrustGate (RaijinLabs internal tenant), deterministic renderers produce interface tables and dependency graphs. Symbol guard catches hallucinated identifiers.
+**Architecture:** ts-morph extracts public API surface (barrel-based from `index.ts`), OpenAI generates narrative via TrustGate (`tenant_raijinlabs`, internal plan, unlimited quota), deterministic renderers produce interface tables and dependency graphs. Symbol guard catches hallucinated identifiers. Mintlify sync converts generated markdown to `.mdx` with frontmatter and pushes to the public docs repo.
 
-**Generated docs:**
+**Two output targets:**
 ```
-docs/
-  modules/           # 9 AI-enriched module overviews
-    programs/        # 6 Solana program docs
-    contracts/       # 10 EVM contract docs
-  reference/         # 9 deterministic interface/function/type references
-llms.txt             # Machine-readable project summary
+Internal (this repo):
+  docs/modules/          # 9 AI-enriched module overviews
+    programs/            # 6 Solana program docs
+    contracts/           # 10 EVM contract docs
+  docs/reference/        # 9 deterministic interface/function/type references
+  llms.txt               # Machine-readable project summary
+
+Public (synced to /c/docs/ → Mintlify):
+  concepts/*.mdx         # 9 domain concept pages (passports, memory, receipts, etc.)
+  concepts/solana/*.mdx  # 6 Solana program pages
+  docs.json              # Navigation auto-updated for new pages
 ```
+
+**Mintlify sync:** Running with no `--artifact` flag (or `--artifact mintlify`) syncs generated docs to `/c/docs/` as `.mdx` files with Mintlify frontmatter. New pages are auto-added to `docs.json` navigation. Push `/c/docs/` to `main` to deploy to the public site.
+
+**CI:** GitHub Actions runs `docs:check` on every push/PR. Fails if exported symbols drifted from reference docs.
 
 **Env:** `TRUSTGATE_URL`, `TRUSTGATE_API_KEY` (via TrustGate) or `OPENAI_API_KEY` (fallback). `DOCS_MODEL` (default: `gpt-4o`).
+
+**Source of truth boundaries:**
+- **API endpoints** (routes, payloads) → `openapi.yaml` → Speakeasy SDK + Mintlify API Reference
+- **Architecture** (why, how, data flow) → Source code → Our pipeline → `docs/modules/` → Mintlify concepts
+- **Code reference** (interfaces, types) → Source code → Our pipeline → `docs/reference/`
+- No overlap: pipeline never generates API endpoint docs, Speakeasy never generates architecture docs
 
 ## Testing
 - **102 test suites, 1585 tests** (offchain)
