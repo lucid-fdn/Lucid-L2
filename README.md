@@ -60,7 +60,9 @@ The internet has two layers: **protocols** (TCP/IP, DNS, HTTP) and **edge infras
 
 **Lucid Cloud** is the fully managed acceleration layer for Lucid Layer — the Cloudflare of AI. Just as Cloudflare doesn't replace HTTP but makes it faster, cached, secured, and globally distributed, Lucid Cloud takes everything the protocol does and runs it at production scale: accelerated inference routing (TrustGate), edge tool dispatch (MCPGate), managed deployment orchestration, fleet-wide observability, real-time reputation scoring, automated billing and settlement, and enterprise-grade security. It's the entire Lucid Layer protocol, fully managed, globally performant, with zero operational overhead.
 
-Together, they form the **Internet of AI**: an open protocol layer that anyone can build on, plus managed infrastructure that makes it production-ready at scale.
+**Lucid Oracle** is the intelligence layer — real-time feeds derived from live agent traffic flowing through Lucid Cloud: Model Intelligence, Tool Health, Agent Reputation, Capability Index, and Safety Signals. Data that only exists because of the network.
+
+Together, they form the **Internet of AI**: an open protocol anyone can build on, managed infrastructure that makes it production-ready, and live intelligence feeds that make agents smarter.
 
 ### Progressive Decentralization
 
