@@ -467,6 +467,10 @@ infrastructure/migrations/      # Supabase SQL migrations
 sdk/typescript/                 # @lucid-fdn/sdk — TypeScript SDK (29 services, 123 models)
 agent-services/                 # CrewAI + LangGraph microservices
 openapi.yaml                    # 175 paths — source of truth for SDK generation
+tools/docs/                     # AI documentation pipeline (ts-morph + OpenAI, 361 tests)
+docs/modules/                   # Generated module overviews (9 TS + 6 Solana + 10 EVM)
+docs/reference/                 # Generated interface/function/type references (9 domains)
+llms.txt                        # Machine-readable project summary for AI agents
 ```
 
 ## Database
@@ -509,8 +513,52 @@ Supabase (eu-north-1, project `kwihlcnapmkaivijyiif`):
 - Receipt events consumed by **lucid-plateform-core** for billing
 - `better-sqlite3` + `sqlite-vec` (optional deps for `MEMORY_STORE=sqlite`)
 
+## AI Documentation Pipeline (`tools/docs/`)
+
+Automated documentation generation — compiler extracts facts, AI writes narrative, templates enforce consistency.
+
+**Quick start:**
+```bash
+cd tools/docs && npm install
+cp .env.example .env   # Add TRUSTGATE_API_KEY
+
+# Generate everything
+npx tsx src/generate.ts                         # All 9 module overviews (AI)
+npx tsx src/generate.ts --artifact reference    # 9 reference docs (deterministic)
+npx tsx src/generate.ts --artifact llms-txt     # llms.txt at repo root
+npx tsx src/generate.ts --artifact programs     # 6 Solana program docs
+npx tsx src/generate.ts --artifact contracts    # 10 EVM contract docs
+npx tsx src/generate.ts --artifact changelog --from v1.0.0  # AI changelog
+npx tsx src/generate.ts --artifact claude-md    # Sync CLAUDE.md sentinels
+
+# Incremental
+npx tsx src/generate.ts --changed              # Skip unchanged domains
+npx tsx src/generate.ts --domain memory        # Single domain
+
+# CI check
+npx tsx src/check.ts                           # Freshness gate (apiHash drift)
+
+# Tests
+npx jest                                       # 361 tests, 18 suites
+```
+
+**Architecture:** ts-morph extracts public API surface (barrel-based from `index.ts`), OpenAI generates narrative via TrustGate (RaijinLabs internal tenant), deterministic renderers produce interface tables and dependency graphs. Symbol guard catches hallucinated identifiers.
+
+**Generated docs:**
+```
+docs/
+  modules/           # 9 AI-enriched module overviews
+    programs/        # 6 Solana program docs
+    contracts/       # 10 EVM contract docs
+  reference/         # 9 deterministic interface/function/type references
+llms.txt             # Machine-readable project summary
+```
+
+**Env:** `TRUSTGATE_URL`, `TRUSTGATE_API_KEY` (via TrustGate) or `OPENAI_API_KEY` (fallback). `DOCS_MODEL` (default: `gpt-4o`).
+
 ## Testing
 - **102 test suites, 1585 tests** (offchain)
+- **361 tests, 18 suites** (docs pipeline — `tools/docs/`)
 - On-chain: `anchor test` (Mocha, 6 programs)
 - Type check: `cd offchain && npm run type-check`
 - E2E: start server (`npm start`) + curl endpoints
