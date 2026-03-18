@@ -71,22 +71,39 @@ export class DockerDeployer implements IDeployer {
       };
       fs.writeFileSync(path.join(deployDir, 'deployment.json'), JSON.stringify(meta, null, 2), 'utf-8');
 
+      logger.info(`[Deploy] Docker deployment created: ${deployDir}`);
+
+      // Try to start the container (skip if Docker not available)
+      try {
+        const { execFileSync } = require('child_process');
+        execFileSync('docker', ['compose', 'up', '-d'], { cwd: deployDir, timeout: 60000, stdio: 'pipe' });
+        this.deployments.set(deploymentId, { dir: deployDir, status: 'running', passportId, createdAt: Date.now() });
+        logger.info(`[Deploy] Docker container started: ${deploymentId}`);
+        return {
+          success: true,
+          deployment_id: deploymentId,
+          target: this.target,
+          url: `http://localhost:3100`,
+          metadata: { dir: deployDir, status: 'running' },
+        };
+      } catch (startErr: any) {
+        logger.warn(`[Deploy] Docker start skipped (${startErr.message?.split('\n')[0] || 'docker not available'}). Run manually: cd ${deployDir} && docker compose up -d`);
+        // Fall through to prepared state
+      }
+
       this.deployments.set(deploymentId, {
         dir: deployDir,
-        status: 'running',
+        status: 'prepared',
         passportId,
         createdAt: Date.now(),
       });
-
-      logger.info(`[Deploy] Docker deployment created: ${deployDir}`);
-      logger.info(`[Deploy]   To start: cd ${deployDir} && docker compose up -d`);
 
       return {
         success: true,
         deployment_id: deploymentId,
         target: this.target,
         url: `http://localhost:3100`,
-        metadata: { dir: deployDir },
+        metadata: { dir: deployDir, status: 'prepared', requires_manual_start: true },
       };
     } catch (error) {
       return {
@@ -200,16 +217,33 @@ ${envBlock}
         .join('\n');
       fs.writeFileSync(path.join(deployDir, '.env'), envFile, { encoding: 'utf-8', mode: 0o600 });
 
+      logger.info(`[Deploy] Docker image deployment prepared: ${deployDir}`);
+      logger.info(`[Deploy]   Image: ${input.image}`);
+
+      // Try to start the container (skip if Docker not available)
+      try {
+        const { execFileSync } = require('child_process');
+        execFileSync('docker', ['compose', 'up', '-d'], { cwd: deployDir, timeout: 60000, stdio: 'pipe' });
+        this.deployments.set(deployId, { dir: deployDir, status: 'running', passportId, createdAt: Date.now() });
+        logger.info(`[Deploy] Docker container started: ${deployId}`);
+        return {
+          success: true,
+          deployment_id: deployId,
+          target: this.target,
+          url: `http://localhost:${port}`,
+          metadata: { dir: deployDir, status: 'running' },
+        };
+      } catch (startErr: any) {
+        logger.warn(`[Deploy] Docker start skipped (${startErr.message?.split('\n')[0] || 'docker not available'}). Run manually: cd ${deployDir} && docker compose up -d`);
+        // Fall through to prepared state
+      }
+
       this.deployments.set(deployId, {
         dir: deployDir,
         status: 'prepared',
         passportId,
         createdAt: Date.now(),
       });
-
-      logger.info(`[Deploy] Docker image deployment prepared: ${deployDir}`);
-      logger.info(`[Deploy]   Image: ${input.image}`);
-      logger.info(`[Deploy]   To start: cd ${deployDir} && docker compose up -d`);
 
       return {
         success: true,
