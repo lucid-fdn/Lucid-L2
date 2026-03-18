@@ -58,11 +58,9 @@ The internet has two layers: **protocols** (TCP/IP, DNS, HTTP) and **edge infras
 
 **Lucid Layer** is the open-source engine — the protocol specification and reference implementation. It defines how AI assets get identity, how agents store memory, how compute is matched, how payments flow, and how every action is cryptographically verified. It's designed to run independently, on any infrastructure, without depending on any centralized service.
 
-**Lucid Cloud** is the fully managed acceleration layer for Lucid Layer — the Cloudflare of AI. Just as Cloudflare doesn't replace HTTP but makes it faster, cached, secured, and globally distributed, Lucid Cloud takes everything the protocol does and runs it at production scale: accelerated inference routing (TrustGate), edge tool dispatch (MCPGate), managed deployment orchestration, fleet-wide observability, real-time reputation scoring, automated billing and settlement, and enterprise-grade security. It's the entire Lucid Layer protocol, fully managed, globally performant, with zero operational overhead.
+**Lucid Cloud** is the fully managed acceleration layer for Lucid Layer — the Cloudflare of AI. Just as Cloudflare doesn't replace HTTP but makes it faster, cached, secured, and globally distributed, Lucid Cloud takes everything the protocol does and runs it at production scale: accelerated inference routing (TrustGate), edge tool dispatch (MCPGate), managed deployment orchestration, fleet-wide observability, automated billing, and enterprise-grade security. Inside Lucid Cloud, the **Lucid Oracle** generates real-time intelligence feeds from live agent traffic — Model Intelligence, Tool Health, Agent Reputation, Capability Index, and Safety Signals — data that only exists because of the network. These feeds flow back into the protocol, enriching on-chain reputation and making every agent in the ecosystem smarter. The more agents use the network, the better the intelligence becomes for everyone.
 
-**Lucid Oracle** is the intelligence layer — real-time feeds derived from live agent traffic flowing through Lucid Cloud: Model Intelligence, Tool Health, Agent Reputation, Capability Index, and Safety Signals. Data that only exists because of the network.
-
-Together, they form the **Internet of AI**: an open protocol anyone can build on, managed infrastructure that makes it production-ready, and live intelligence feeds that make agents smarter.
+Together, they form the **Internet of AI**: an open protocol anyone can build on, plus managed infrastructure that accelerates it and generates intelligence that feeds back into the protocol.
 
 ### Progressive Decentralization
 
