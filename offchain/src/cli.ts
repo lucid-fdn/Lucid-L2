@@ -290,6 +290,10 @@ program
           name: options.name ?? options.image.split('/').pop()?.split(':')[0] ?? 'agent',
           port: parseInt(options.port, 10),
           verification: options.verification as 'full' | 'minimal',
+          env_vars: {
+            PROVIDER_URL: process.env.PROVIDER_URL || '',
+            PROVIDER_API_KEY: process.env.PROVIDER_API_KEY || '',
+          },
         });
       } else if (options.runtime === 'base') {
         // Path B: Base Runtime
