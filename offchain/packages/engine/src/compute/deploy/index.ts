@@ -12,6 +12,8 @@ export {
   RuntimeArtifact,
   LogOptions,
 } from './IDeployer';
+export type { ImageDeployInput } from './types';
+export { isImageDeploy } from './types';
 import { logger } from '../../shared/lib/logger';
 
 type DeployerTarget = 'docker' | 'railway' | 'akash' | 'phala' | 'ionet' | 'nosana';

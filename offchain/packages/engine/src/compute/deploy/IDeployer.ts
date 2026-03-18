@@ -2,6 +2,8 @@
 // Deployer interface — handles deployment of generated agent artifacts to infrastructure targets.
 // Each deployer targets one platform (Railway, Docker, Akash, Phala, io.net, etc.).
 
+import type { ImageDeployInput } from './types';
+
 /**
  * Deployment lifecycle status
  */
@@ -105,8 +107,8 @@ export interface IDeployer {
   /** Human-readable description */
   readonly description: string;
 
-  /** Deploy an agent artifact to this target */
-  deploy(artifact: RuntimeArtifact, config: DeploymentConfig, passportId: string): Promise<DeploymentResult>;
+  /** Deploy an agent artifact or pre-built image to this target */
+  deploy(input: RuntimeArtifact | ImageDeployInput, config: DeploymentConfig, passportId: string): Promise<DeploymentResult>;
 
   /** Get deployment status */
   status(deploymentId: string): Promise<DeploymentStatus>;
