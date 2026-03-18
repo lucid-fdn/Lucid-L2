@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-14
 **Status:** Design
-**Author:** Kevin Wayne + Claude
+**Author:** Kevin Wayne
 **Depends on:** IDepinStorage (existing), 4-Layer Architecture decision
 
 ## Core Principle

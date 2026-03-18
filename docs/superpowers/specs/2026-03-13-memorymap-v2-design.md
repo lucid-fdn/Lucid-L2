@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-13
 **Status:** Design
-**Author:** Kevin Wayne + Claude
+**Author:** Kevin Wayne
 **Depends on:** MemoryMap v1 (merged to master, 20 tasks, 41 files)
 
 ## Context

@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-16
 **Status:** Design
-**Author:** Kevin Wayne + Claude
+**Author:** Kevin Wayne
 **Depends on:** Phase 1 (DeploymentStore, status machine), Phase 2 (Reconciler, LeaseManager, Webhooks)
 
 ## Core Principle

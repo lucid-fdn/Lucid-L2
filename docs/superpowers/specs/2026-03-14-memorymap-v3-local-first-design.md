@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-14
 **Status:** Design
-**Author:** Kevin Wayne + Claude
+**Author:** Kevin Wayne
 **Depends on:** MemoryMap v2 (merged to master, 16 tasks, 31 files, 180 tests)
 
 ## Core Principle

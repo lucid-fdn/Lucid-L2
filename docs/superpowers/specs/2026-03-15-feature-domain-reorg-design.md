@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-15
 **Status:** Design
-**Author:** Kevin Wayne + Claude
+**Author:** Kevin Wayne
 
 ## Core Principle
 

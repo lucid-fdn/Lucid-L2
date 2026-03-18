@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-16
 **Status:** Design
-**Author:** Kevin Wayne + Claude
+**Author:** Kevin Wayne
 **Depends on:** Existing agentDeploymentService, 6 deployers, 7 runtime adapters
 
 ## Core Principle
