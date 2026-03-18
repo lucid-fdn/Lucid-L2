@@ -2,13 +2,13 @@
 // Orchestration service for image-based agent launching (Path A + Path B).
 
 import crypto from 'crypto';
-import { logger } from '../shared/lib/logger';
-import { getDeployer } from '../compute/deploy';
+import { logger } from '../../shared/lib/logger';
+import { getDeployer } from '../deploy';
 import { getDeploymentStore } from '../deployment/control-plane';
 import { resolvePassport } from './passport-resolution';
 import { buildLucidEnvVars, buildBaseRuntimeEnvVars } from './env-builder';
 import { validateLaunchImageInput, validateBaseRuntimeInput } from './validators';
-import type { ImageDeployInput } from '../compute/deploy/types';
+import type { ImageDeployInput } from '../deploy/types';
 import type { LaunchImageInput, LaunchBaseRuntimeInput, LaunchResult } from './types';
 import { BASE_RUNTIME_IMAGE, DEFAULT_RUNTIME_VERSION, DEFAULT_PORT } from './types';
 

@@ -370,48 +370,37 @@ offchain/
   package.json                        # npm workspaces: ["packages/*"]
   tsconfig.base.json                  # Shared compiler options
   packages/
-    engine/src/                       # @lucid-l2/engine — truth library
-      identity/                       # Passport, NFT, wallet, TBA, bridge, shares, registries
-        passport/                     # passportManager, passportService, passportSyncService
-        nft/                          # INFTProvider -> Token2022, MetaplexCore, EVM, Mock
-        wallet/                       # IAgentWalletProvider -> Crossmint, ERC6551, Solana, Mock
-        shares/                       # ITokenLauncher -> DirectMint, Genesis, Mock
-        tba/                          # ERC-6551 TBA client + ABIs
-        registries/                   # ERC-8004 Identity/Validation/Reputation clients + ABIs
-        erc7579, paymaster, bridge
-      memory/                         # 6 memory types, vector search, compaction, archive, projection
-      epoch/                          # Epoch lifecycle, anchoring, MMR
-        services/                     # epochService, anchoringService, mmrService
-      receipt/                        # Receipt creation, signing, verification
-      payment/                        # x402, pricing, splits, escrow, facilitators, airdrop
-        facilitators/                 # Direct, Coinbase, PayAI
-        services/                     # payoutService, pricingService, revenueService, splitResolver
-        escrow/                       # escrowService, disputeService
-        stores/                       # paymentGateService, spentProofsStore
-        airdrop/                      # revenueAirdrop
-      launch/                         # Product-level agent activation (lucid launch)
-        types.ts                      # LaunchImageInput, LaunchBaseRuntimeInput, LaunchResult
-        service.ts                    # launchImage() + launchBaseRuntime() orchestration
-        passport-resolution.ts        # resolvePassport() — create or reuse identity
-        env-builder.ts                # buildLucidEnvVars() + buildBaseRuntimeEnvVars()
-        validators.ts                 # Input validation
-        index.ts                      # Barrel exports
-      compute/                        # Deploy infrastructure + agent descriptors
+    engine/src/                       # @lucid-l2/engine — 7 feature domains
+      identity/                       # Who you are — passports, NFT, wallet, shares, TBA, bridge
+      compute/                        # Where you run — deployers, control plane, launch, adapters
         deploy/                       # IDeployer -> Docker, Railway, Akash, Phala, io.net, Nosana
           types.ts                    # ImageDeployInput + isImageDeploy() guard
+        deployment/                   # Control plane — state machine, reconciler, lease, webhooks
+          control-plane/              # IDeploymentStore, types, postgres/in-memory stores
+          reconciler/                 # Drift detection, stuck repair, provider sync
+          lease-manager/              # io.net lease extension
+          webhooks/                   # Provider webhook normalizers (5 providers)
+          rollout/                    # Blue-green, promote, rollback
+          secrets/                    # ISecretsResolver (env, mock)
+          boot.ts                     # startDeploymentControlPlane()
+        launch/                       # Product-level agent activation (lucid launch)
+          service.ts                  # launchImage() + launchBaseRuntime()
+          passport-resolution.ts      # resolvePassport()
+          env-builder.ts              # buildLucidEnvVars()
+          validators.ts               # Input validation
         runtime/                      # IRuntimeAdapter interface + factory (adapters @deprecated)
         agent/                        # agentDeploymentService, agentDescriptor, agentRevenueService
           a2a/                        # A2A protocol client/server/agentCard
-      deployment/                     # Deployment control plane (state machine)
-        control-plane/                # IDeploymentStore, types, postgres/in-memory stores
-        reconciler/                   # Drift detection, stuck repair, provider sync
-        lease-manager/                # io.net lease extension
-        webhooks/                     # Provider webhook normalizers (5 providers)
-        rollout/                      # Blue-green, promote, rollback
-        secrets/                      # ISecretsResolver (env, mock)
-        boot.ts                       # startDeploymentControlPlane()
-      anchoring/                      # Unified DePIN interface — dispatcher, registry, verifier
-      reputation/                     # Provider + syncer interfaces, on-chain + off-chain
+      memory/                         # What you remember — 6 types, vector search, compaction
+      receipt/                        # What you can prove — creation, signing, verification
+      anchoring/                      # When + where it's permanent — DePIN dispatch, epoch lifecycle
+        epoch/                        # Epoch lifecycle, MMR, on-chain anchoring
+          services/                   # epochService, anchoringService, mmrService
+        dispatcher.ts                 # AnchorDispatcher — upload to DePIN
+        registry.ts                   # IAnchorRegistry — CID tracking
+        verifier.ts                   # CID verification
+      payment/                        # How you get paid — x402, splits, escrow, airdrop
+      reputation/                     # How trusted you are — on-chain + off-chain + Oracle
       shared/                         # Cross-cutting infrastructure
         crypto/                       # hash, signing, canonicalJson, mmr, merkleTree, schemaValidator
         db/                           # pool.ts (PostgreSQL singleton)

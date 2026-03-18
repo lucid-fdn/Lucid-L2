@@ -5,7 +5,7 @@ import type { IDeploymentStore } from '../control-plane/store';
 import type { Deployment } from '../control-plane/types';
 import type { LeaseConfig } from './policies';
 import { getProviderCapabilities } from '../reconciler/provider-sync';
-import { getDeployer } from '../../compute/deploy';
+import { getDeployer } from '../../deploy';
 
 export class LeaseManagerService {
   constructor(

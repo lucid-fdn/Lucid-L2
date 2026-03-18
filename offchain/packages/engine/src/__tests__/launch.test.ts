@@ -82,8 +82,8 @@ jest.mock('../compute/deploy', () => ({
 // Imports (after mocks)
 // ---------------------------------------------------------------------------
 
-import { launchImage, launchBaseRuntime } from '../launch';
-import { resetDeploymentStore } from '../deployment/control-plane';
+import { launchImage, launchBaseRuntime } from '../compute/launch';
+import { resetDeploymentStore } from '../compute/deployment/control-plane';
 
 // ---------------------------------------------------------------------------
 // Constants

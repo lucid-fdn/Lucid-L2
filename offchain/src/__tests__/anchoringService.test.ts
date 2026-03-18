@@ -22,7 +22,7 @@ import {
   resetEpochStore,
   getAllEpochs,
   Epoch,
-} from '../../packages/engine/src/epoch/services/epochService';
+} from '../../packages/engine/src/anchoring/epoch/services/epochService';
 
 import {
   commitEpochRoot,
@@ -35,7 +35,7 @@ import {
   resetAnchoringState,
   deriveEpochRecordPDA,
   buildCommitEpochInstruction,
-} from '../../packages/engine/src/epoch/services/anchoringService';
+} from '../../packages/engine/src/anchoring/epoch/services/anchoringService';
 
 import {
   createInferenceReceipt,

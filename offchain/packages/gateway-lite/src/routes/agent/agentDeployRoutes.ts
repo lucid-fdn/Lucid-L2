@@ -218,7 +218,7 @@ agentDeployRouter.post('/v1/agents/:passportId/terminate', verifyAdminAuth, asyn
  */
 agentDeployRouter.get('/v1/agents/:passportId/events', async (req, res) => {
   try {
-    const { getDeploymentStore } = await import('../../../../engine/src/deployment/control-plane');
+    const { getDeploymentStore } = await import('../../../../engine/src/compute/deployment/control-plane');
     const store = getDeploymentStore();
     const deployment = await store.getActiveByAgent(req.params.passportId);
     if (!deployment) return res.status(404).json({ success: false, error: 'No active deployment found' });
@@ -237,7 +237,7 @@ agentDeployRouter.get('/v1/agents/:passportId/events', async (req, res) => {
 
 // Lazy import for RolloutManager to avoid circular deps
 function getRollout() {
-  const { getRolloutManager } = require('../../../../engine/src/deployment/rollout');
+  const { getRolloutManager } = require('../../../../engine/src/compute/deployment/rollout');
   return getRolloutManager();
 }
 

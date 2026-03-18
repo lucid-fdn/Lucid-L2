@@ -13,7 +13,7 @@
  */
 
 import { createInferenceReceipt } from '../../receipt/receiptService'
-import { addReceiptToEpoch } from '../../epoch/services/epochService'
+import { addReceiptToEpoch } from '../../anchoring/epoch/services/epochService'
 
 // ---------------------------------------------------------------------------
 // Types

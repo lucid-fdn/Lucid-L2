@@ -3,7 +3,7 @@
 
 import type { Deployment, ActualState, HealthStatus } from '../control-plane/types';
 import type { IDeploymentStore } from '../control-plane/store';
-import { getDeployer } from '../../compute/deploy';
+import { getDeployer } from '../../deploy';
 
 /* ------------------------------------------------------------------ */
 /*  Provider Capabilities                                              */

@@ -27,9 +27,9 @@ import { getDeployer, listDeployerTargets } from '../deploy';
 import { getAgentWalletProvider } from '../../identity/wallet';
 import { generateAgentCard } from './a2a/agentCard';
 import { logger } from '../../shared/lib/logger';
-import { getDeploymentStore } from '../../deployment/control-plane';
-import type { IDeploymentStore } from '../../deployment/control-plane/store';
-import type { Deployment, ActualState } from '../../deployment/control-plane/types';
+import { getDeploymentStore } from '../deployment/control-plane';
+import type { IDeploymentStore } from '../deployment/control-plane/store';
+import type { Deployment, ActualState } from '../deployment/control-plane/types';
 // WIP: marketplace moved to _wip/ — needs DB persistence before ship
 // import { getMarketplaceService } from './marketplace';
 

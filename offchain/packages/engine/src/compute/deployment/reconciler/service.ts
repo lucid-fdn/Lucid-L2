@@ -7,7 +7,7 @@ import { canTransition } from '../control-plane/state-machine';
 import { syncProviderState, mapProviderStatus, getProviderCapabilities } from './provider-sync';
 import type { ReconcilerConfig, SweepResult } from './policies';
 import type { LeaseManagerService } from '../lease-manager/service';
-import { getDeployer } from '../../compute/deploy';
+import { getDeployer } from '../../deploy';
 
 export class ReconcilerService {
   private interval: NodeJS.Timeout | null = null;

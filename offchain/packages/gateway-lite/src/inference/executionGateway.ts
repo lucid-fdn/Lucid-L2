@@ -5,7 +5,7 @@ import { v4 as uuid } from 'uuid';
 import { getPassportManager } from '../../../engine/src/identity/passport/passportManager';
 import { matchComputeForModel, MatchResult } from '../compute/matchingEngine';
 import { createInferenceReceipt, InferenceReceiptInput } from '../../../engine/src/receipt/receiptService';
-import { addReceiptToEpoch } from '../../../engine/src/epoch/services/epochService';
+import { addReceiptToEpoch } from '../../../engine/src/anchoring/epoch/services/epochService';
 import { getComputeRegistry } from '../compute/computeRegistry';
 import {
   executeInference,

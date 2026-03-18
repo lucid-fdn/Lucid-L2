@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { createInferenceReceipt, getInferenceReceipt, getInferenceReceiptAsync, verifyInferenceReceiptHash, verifyInferenceReceipt, getInferenceReceiptProof, getInferenceReceiptProofAsync, getMmrRoot, getMmrLeafCount, getSignerPublicKey, listInferenceReceipts, listComputeReceipts, getComputeReceipt, verifyComputeReceipt } from '../../../../engine/src/receipt/receiptService';
-import { getAllEpochs, addReceiptToEpoch } from '../../../../engine/src/epoch/services/epochService';
+import { getAllEpochs, addReceiptToEpoch } from '../../../../engine/src/anchoring/epoch/services/epochService';
 import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export const receiptRouter = Router();

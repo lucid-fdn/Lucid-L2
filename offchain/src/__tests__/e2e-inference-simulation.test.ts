@@ -76,7 +76,7 @@ jest.mock('../../packages/engine/src/receipt/receiptService', () => ({
 }));
 
 // Mock other services used by lucidLayerRoutes
-jest.mock('../../packages/engine/src/epoch/services/epochService', () => ({
+jest.mock('../../packages/engine/src/anchoring/epoch/services/epochService', () => ({
   createEpoch: jest.fn(),
   getCurrentEpoch: jest.fn(() => ({ epoch_id: 'e1', mmr_root: '', leaf_count: 0, created_at: Date.now() })),
   getEpoch: jest.fn(),
@@ -87,7 +87,7 @@ jest.mock('../../packages/engine/src/epoch/services/epochService', () => ({
   getAllEpochs: jest.fn(() => []),
 }));
 
-jest.mock('../../packages/engine/src/epoch/services/anchoringService', () => ({
+jest.mock('../../packages/engine/src/anchoring/epoch/services/anchoringService', () => ({
   commitEpochRoot: jest.fn(),
   commitEpochRootsBatch: jest.fn(),
   verifyEpochAnchor: jest.fn(),

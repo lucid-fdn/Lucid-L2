@@ -1,5 +1,5 @@
-import { getPassportManager } from '../identity/passport/passportManager';
-import { logger } from '../shared/lib/logger';
+import { getPassportManager } from '../../identity/passport/passportManager';
+import { logger } from '../../shared/lib/logger';
 
 export async function resolvePassport(opts: {
   passport_id?: string;

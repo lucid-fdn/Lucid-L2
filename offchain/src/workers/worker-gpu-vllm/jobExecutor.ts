@@ -21,7 +21,7 @@ import { QuoteService } from './quoteService';
 import { WorkerSigningService } from './signingService';
 import { getRuntimeHash, getGpuFingerprint, validatePinnedRevision } from './runtimeUtils';
 import { canonicalSha256Hex } from '../../../packages/engine/src/shared/crypto/hash';
-import { addReceiptToEpoch } from '../../../packages/engine/src/epoch/services/epochService';
+import { addReceiptToEpoch } from '../../../packages/engine/src/anchoring/epoch/services/epochService';
 import type {
   JobRequest,
   JobResult,

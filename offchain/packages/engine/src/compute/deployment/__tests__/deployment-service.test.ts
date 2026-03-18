@@ -20,13 +20,13 @@ import { InMemoryDeploymentStore } from '../control-plane/in-memory-store';
 // ---------------------------------------------------------------------------
 
 // Mock schemaValidator
-jest.mock('../../shared/crypto/schemaValidator', () => ({
+jest.mock('../../../shared/crypto/schemaValidator', () => ({
   validateWithSchema: jest.fn(() => ({ ok: true, value: {} })),
 }));
 
 // Mock passportManager
 let passportCallCount = 0;
-jest.mock('../../identity/passport/passportManager', () => ({
+jest.mock('../../../identity/passport/passportManager', () => ({
   getPassportManager: jest.fn(() => ({
     createPassport: jest.fn().mockImplementation(() => {
       passportCallCount++;
@@ -39,7 +39,7 @@ jest.mock('../../identity/passport/passportManager', () => ({
 }));
 
 // Mock runtime adapters
-jest.mock('../../compute/runtime', () => ({
+jest.mock('../../runtime', () => ({
   getRuntimeAdapter: jest.fn(),
   selectBestAdapter: jest.fn(() => ({
     name: 'vercel-ai',
@@ -79,13 +79,13 @@ const mockDeployer = {
   scale: jest.fn().mockResolvedValue(undefined),
   isHealthy: jest.fn().mockResolvedValue(true),
 };
-jest.mock('../../compute/deploy', () => ({
+jest.mock('../../deploy', () => ({
   getDeployer: jest.fn(() => mockDeployer),
   listDeployerTargets: jest.fn(() => ['docker', 'railway']),
 }));
 
 // Mock wallet
-jest.mock('../../identity/wallet', () => ({
+jest.mock('../../../identity/wallet', () => ({
   getAgentWalletProvider: jest.fn(() => ({
     providerName: 'mock',
     chain: 'mock',
@@ -101,7 +101,7 @@ jest.mock('../../identity/wallet', () => ({
 }));
 
 // Mock A2A
-jest.mock('../../compute/agent/a2a/agentCard', () => ({
+jest.mock('../../agent/a2a/agentCard', () => ({
   generateAgentCard: jest.fn(() => ({
     name: 'test-agent',
     capabilities: ['research'],
@@ -123,9 +123,9 @@ jest.mock('../control-plane', () => {
 import {
   AgentDeploymentService,
   resetAgentDeploymentService,
-} from '../../compute/agent/agentDeploymentService';
-import { DeployAgentInput } from '../../compute/agent/agentDeploymentService';
-import { AgentDescriptor } from '../../compute/agent/agentDescriptor';
+} from '../../agent/agentDeploymentService';
+import { DeployAgentInput } from '../../agent/agentDeploymentService';
+import { AgentDescriptor } from '../../agent/agentDescriptor';
 
 // ---------------------------------------------------------------------------
 // Fixtures

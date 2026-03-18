@@ -1,7 +1,7 @@
 // offchain/packages/engine/src/deployment/control-plane/postgres-store.ts
 // PostgreSQL implementation of IDeploymentStore — production store
 
-import { pool } from '../../shared/db/pool';
+import { pool } from '../../../shared/db/pool';
 import type { IDeploymentStore } from './store';
 import { assertValidTransition } from './state-machine';
 import type {

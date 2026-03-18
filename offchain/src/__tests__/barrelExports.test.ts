@@ -193,9 +193,9 @@ describe('Barrel Exports — services/receipt/index.ts', () => {
 
 describe('Barrel Exports — epoch module (previously in receipt)', () => {
   it('should export epoch/anchoring/MMR symbols from epoch module', () => {
-    const epoch = require('../../packages/engine/src/epoch/services/epochService');
-    const anchoring = require('../../packages/engine/src/epoch/services/anchoringService');
-    const mmr = require('../../packages/engine/src/epoch/services/mmrService');
+    const epoch = require('../../packages/engine/src/anchoring/epoch/services/epochService');
+    const anchoring = require('../../packages/engine/src/anchoring/epoch/services/anchoringService');
+    const mmr = require('../../packages/engine/src/anchoring/epoch/services/mmrService');
 
     // Epoch
     expect(epoch.createEpoch).toBeDefined();

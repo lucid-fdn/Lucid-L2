@@ -75,7 +75,7 @@ const depinMock = createDepinMock();
 // proxy removed
 jest.mock('../../packages/engine/src/shared/depin', () => depinMock);
 
-import { MMRService, getMMRService, MMRCommitResult, AgentEpochData } from '../../packages/engine/src/epoch/services/mmrService';
+import { MMRService, getMMRService, MMRCommitResult, AgentEpochData } from '../../packages/engine/src/anchoring/epoch/services/mmrService';
 
 // =============================================================================
 // TESTS

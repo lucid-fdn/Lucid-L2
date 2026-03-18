@@ -7,11 +7,11 @@ import { CreateDeploymentInput, Deployment } from '../control-plane/types';
 import { LeaseConfig } from '../lease-manager/policies';
 
 // Mock the deploy module
-jest.mock('../../compute/deploy', () => ({
+jest.mock('../../deploy', () => ({
   getDeployer: jest.fn(),
 }));
 
-import { getDeployer } from '../../compute/deploy';
+import { getDeployer } from '../../deploy';
 const mockGetDeployer = getDeployer as jest.MockedFunction<typeof getDeployer>;
 
 function makeInput(overrides?: Partial<CreateDeploymentInput>): CreateDeploymentInput {

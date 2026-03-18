@@ -1,4 +1,4 @@
-import type { DeploymentTargetType } from '../compute/agent/agentDescriptor';
+import type { DeploymentTargetType } from '../agent/agentDescriptor';
 
 export interface LaunchImageInput {
   image: string;

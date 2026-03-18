@@ -11,7 +11,7 @@ import {
   enableMockMode,
   disableMockMode,
   resetAnchoringState,
-} from '../../packages/engine/src/epoch/services/anchoringService';
+} from '../../packages/engine/src/anchoring/epoch/services/anchoringService';
 
 import {
   createEpoch,
@@ -19,7 +19,7 @@ import {
   addReceiptToEpoch,
   resetEpochStore,
   getEpoch,
-} from '../../packages/engine/src/epoch/services/epochService';
+} from '../../packages/engine/src/anchoring/epoch/services/epochService';
 
 import {
   createInferenceReceipt,

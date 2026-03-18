@@ -58,14 +58,14 @@ export type { ComputeReceiptInput } from './shared/types/fluidCompute';
 export {
   createEpoch, getAllEpochs, getEpoch, finalizeEpoch, getCurrentEpoch,
   addReceiptToEpoch, resetEpochStore, prepareEpochForFinalization, failEpoch,
-} from './epoch/services/epochService';
-export type { Epoch, EpochStatus } from './epoch/services/epochService';
+} from './anchoring/epoch/services/epochService';
+export type { Epoch, EpochStatus } from './anchoring/epoch/services/epochService';
 export {
   setAnchoringConfig, setAuthorityKeypair, commitEpochRoot, commitEpochRootsBatch,
-} from './epoch/services/anchoringService';
-export type { AnchoringConfig, AnchorResult } from './epoch/services/anchoringService';
-export { getMMRService } from './epoch/services/mmrService';
-export type { AgentEpochData } from './epoch/services/mmrService';
+} from './anchoring/epoch/services/anchoringService';
+export type { AnchoringConfig, AnchorResult } from './anchoring/epoch/services/anchoringService';
+export { getMMRService } from './anchoring/epoch/services/mmrService';
+export type { AgentEpochData } from './anchoring/epoch/services/mmrService';
 
 // ─── Passport ───────────────────────────────────────────────────────────────
 export { getPassportManager, resetPassportManager, PassportManager } from './identity/passport/passportManager';

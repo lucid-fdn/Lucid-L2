@@ -16,8 +16,8 @@ import {
 } from '../compute/agent/agentDeploymentService';
 import type { DeployAgentInput } from '../compute/agent/agentDeploymentService';
 import type { AgentDescriptor } from '../compute/agent/agentDescriptor';
-import { InMemoryDeploymentStore } from '../deployment/control-plane/in-memory-store';
-import { resetDeploymentStore } from '../deployment/control-plane';
+import { InMemoryDeploymentStore } from '../compute/deployment/control-plane/in-memory-store';
+import { resetDeploymentStore } from '../compute/deployment/control-plane';
 
 // ---------------------------------------------------------------------------
 // Mock external dependencies
@@ -61,10 +61,10 @@ jest.mock('../compute/agent/a2a/agentCard', () => ({
 
 // Mock deployment control plane — use InMemoryDeploymentStore for tests
 let testStore: InMemoryDeploymentStore;
-jest.mock('../deployment/control-plane', () => {
-  const actual = jest.requireActual('../deployment/control-plane/in-memory-store');
+jest.mock('../compute/deployment/control-plane', () => {
+  const actual = jest.requireActual('../compute/deployment/control-plane/in-memory-store');
   return {
-    ...jest.requireActual('../deployment/control-plane'),
+    ...jest.requireActual('../compute/deployment/control-plane'),
     getDeploymentStore: () => {
       // testStore is set in beforeEach
       return testStore;

@@ -31,7 +31,7 @@ import {
   getEpochStats,
   setEpochConfig,
   resetEpochStore,
-} from '../../packages/engine/src/epoch/services/epochService';
+} from '../../packages/engine/src/anchoring/epoch/services/epochService';
 import {
   enableMockMode,
   disableMockMode,
@@ -39,7 +39,7 @@ import {
   verifyEpochAnchor,
   resetAnchoringState,
   checkAnchoringHealth,
-} from '../../packages/engine/src/epoch/services/anchoringService';
+} from '../../packages/engine/src/anchoring/epoch/services/anchoringService';
 import type {
   OfferQuote,
   JobRequest,

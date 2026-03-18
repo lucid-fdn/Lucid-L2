@@ -268,7 +268,7 @@ program
   .option('--verification <mode>', 'Verification mode: full or minimal', 'full')
   .action(async (options) => {
     try {
-      const { launchImage, launchBaseRuntime } = await import('../packages/engine/src/launch');
+      const { launchImage, launchBaseRuntime } = await import('../packages/engine/src/compute/launch');
 
       let result;
 
