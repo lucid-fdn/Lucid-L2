@@ -4,3 +4,5 @@ export type { LaunchSpec, LaunchSpecMetadata, SourceType, SourceBuildMode, Launc
 export { resolvePassport } from './passport-resolution';
 export { buildLucidEnvVars, buildBaseRuntimeEnvVars } from './env-builder';
 export { validateLaunchImageInput, validateBaseRuntimeInput } from './validators';
+export { checkProviderCompat } from './provider-compat';
+export type { ProviderCompatResult } from './provider-compat';
