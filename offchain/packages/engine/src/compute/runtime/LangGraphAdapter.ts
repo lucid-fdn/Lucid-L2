@@ -1,3 +1,4 @@
+/** @deprecated Use `lucid launch --image` or `--runtime base` instead. This adapter will move to examples/ in a future release. */
 // offchain/packages/engine/src/runtime/LangGraphAdapter.ts
 // LangGraph adapter — generates Python StateGraph code for LangChain/LangGraph
 

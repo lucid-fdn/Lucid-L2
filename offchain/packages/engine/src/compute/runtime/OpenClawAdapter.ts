@@ -1,3 +1,4 @@
+/** @deprecated Use `lucid launch --image` or `--runtime base` instead. This adapter will move to examples/ in a future release. */
 // offchain/packages/engine/src/runtime/OpenClawAdapter.ts
 // OpenClaw adapter — generates SKILL.md directory structure
 

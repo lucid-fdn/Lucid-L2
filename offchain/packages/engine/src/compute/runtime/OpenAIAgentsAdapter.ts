@@ -1,3 +1,4 @@
+/** @deprecated Use `lucid launch --image` or `--runtime base` instead. This adapter will move to examples/ in a future release. */
 // offchain/packages/engine/src/runtime/OpenAIAgentsAdapter.ts
 // OpenAI Agents SDK adapter — generates Python agent with handoffs + guardrails
 

@@ -1,3 +1,4 @@
+/** @deprecated Use `lucid launch --image` or `--runtime base` instead. This adapter will move to examples/ in a future release. */
 // offchain/packages/engine/src/runtime/VercelAIAdapter.ts
 // Vercel AI SDK adapter — generates standalone Node.js agent server
 

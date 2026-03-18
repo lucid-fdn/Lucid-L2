@@ -1,3 +1,4 @@
+/** @deprecated Use `lucid launch --image` or `--runtime base` instead. This adapter will move to examples/ in a future release. */
 // offchain/packages/engine/src/runtime/GoogleADKAdapter.ts
 // Google ADK adapter — generates Python agent using Google's Agent Development Kit
 

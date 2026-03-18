@@ -16,26 +16,26 @@ function loadAdapters(): Map<string, IRuntimeAdapter> {
   if (adapterRegistry) return adapterRegistry;
   adapterRegistry = new Map();
 
-  const { VercelAIAdapter } = require('./VercelAIAdapter');
-  const { OpenClawAdapter } = require('./OpenClawAdapter');
-  const { OpenAIAgentsAdapter } = require('./OpenAIAgentsAdapter');
-  const { LangGraphAdapter } = require('./LangGraphAdapter');
-  const { CrewAIAdapter } = require('./CrewAIAdapter');
-  const { GoogleADKAdapter } = require('./GoogleADKAdapter');
-  const { DockerAdapter } = require('./DockerAdapter');
-
-  const instances: IRuntimeAdapter[] = [
-    new VercelAIAdapter(),
-    new OpenClawAdapter(),
-    new OpenAIAgentsAdapter(),
-    new LangGraphAdapter(),
-    new CrewAIAdapter(),
-    new GoogleADKAdapter(),
-    new DockerAdapter(),
+  const adapterModules: Array<{ module: string; exportName: string }> = [
+    { module: './VercelAIAdapter', exportName: 'VercelAIAdapter' },
+    { module: './OpenClawAdapter', exportName: 'OpenClawAdapter' },
+    { module: './OpenAIAgentsAdapter', exportName: 'OpenAIAgentsAdapter' },
+    { module: './LangGraphAdapter', exportName: 'LangGraphAdapter' },
+    { module: './CrewAIAdapter', exportName: 'CrewAIAdapter' },
+    { module: './GoogleADKAdapter', exportName: 'GoogleADKAdapter' },
+    { module: './DockerAdapter', exportName: 'DockerAdapter' },
   ];
 
-  for (const adapter of instances) {
-    adapterRegistry.set(adapter.name, adapter);
+  for (const { module, exportName } of adapterModules) {
+    try {
+      const mod = require(module);
+      const AdapterClass = mod[exportName];
+      const instance: IRuntimeAdapter = new AdapterClass();
+      adapterRegistry.set(instance.name, instance);
+    } catch {
+      // Adapter not available (deprecated, moved to examples/)
+      logger.debug(`[Runtime] Adapter ${exportName} not available — skipping`);
+    }
   }
 
   logger.info(`[Runtime] Loaded ${adapterRegistry.size} adapters: ${Array.from(adapterRegistry.keys()).join(', ')}`);

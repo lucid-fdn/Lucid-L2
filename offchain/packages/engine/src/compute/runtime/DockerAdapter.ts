@@ -1,3 +1,4 @@
+/** @deprecated Use `lucid launch --image` or `--runtime base` instead. This adapter will move to examples/ in a future release. */
 // offchain/packages/engine/src/runtime/DockerAdapter.ts
 // Docker adapter — universal fallback, minimal Node.js agent server
 
