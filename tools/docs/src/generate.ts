@@ -69,7 +69,7 @@ async function run(): Promise<void> {
   program
     .name('docs:generate')
     .description('Generate AI-enriched architecture docs for a Lucid L2 domain module')
-    .requiredOption('--domain <name>', 'Domain to document (must be in DOMAIN_ALLOWLIST)')
+    .option('--domain <name>', 'Domain to document (omit for all domains)')
     .option('--force', 'Reserved for Phase 2: force re-generation even when hashes are unchanged')
     .option('--debug', 'Dump DomainSnapshot JSON to stdout and exit (no AI, no writes)')
     .option('--dry-run', 'Print docs to stdout; skip file writes and cache updates')
@@ -82,22 +82,25 @@ async function run(): Promise<void> {
     dryRun: boolean | undefined;
   }>();
 
-  const domainArg = opts.domain;
+  const domainArg = opts.domain as string | undefined;
   const isDebug = Boolean(opts.debug);
   const isDryRun = Boolean(opts.dryRun);
 
   // -------------------------------------------------------------------------
-  // Step 1: Validate --domain against DOMAIN_ALLOWLIST
+  // Step 1: Validate --domain against DOMAIN_ALLOWLIST (or use all domains)
   // -------------------------------------------------------------------------
-  if (!(DOMAIN_ALLOWLIST as readonly string[]).includes(domainArg)) {
-    console.error(
-      `Error: unknown domain "${domainArg}". Allowed values: ${DOMAIN_ALLOWLIST.join(', ')}`,
-    );
-    process.exit(1);
+  let domains: DomainName[];
+  if (domainArg) {
+    if (!(DOMAIN_ALLOWLIST as readonly string[]).includes(domainArg)) {
+      console.error(
+        `Error: unknown domain "${domainArg}". Allowed values: ${DOMAIN_ALLOWLIST.join(', ')}`,
+      );
+      process.exit(1);
+    }
+    domains = [domainArg as DomainName];
+  } else {
+    domains = [...DOMAIN_ALLOWLIST];
   }
-
-  const domain = domainArg as DomainName;
-  const domains: DomainName[] = [domain];
 
   // -------------------------------------------------------------------------
   // Step 2: Extract targeted domain(s), skip missing dirs with a warning
