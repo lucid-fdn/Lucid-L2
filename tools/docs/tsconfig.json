@@ -1,0 +1,10 @@
+{
+  "extends": "../../offchain/tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "./dist",
+    "declaration": true,
+    "strictNullChecks": true
+  },
+  "include": ["src/**/*.ts", "__tests__/**/*.ts"]
+}
