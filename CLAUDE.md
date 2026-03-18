@@ -14,7 +14,7 @@ anchor deploy --provider.cluster devnet
 
 # Tests
 cd tests && npm test                        # Mocha on-chain (6 programs)
-cd offchain && npm test                     # Jest API (103 suites, 1663 tests)
+cd offchain && npm test                     # Jest API (102 suites, 1585 tests)
 ```
 
 ## Architecture
@@ -47,6 +47,14 @@ Client → /v1/chat/completions → Passport matching → LLM execution
 - `/v1/models` — Model listing (`?available=true|false` tri-state filter)
 - `/v1/match` — Policy-based compute matching
 - `/v1/compute/nodes/heartbeat` — Compute heartbeat (POST, 30s TTL)
+
+**Agent Activation:**
+- `POST /v1/agents/launch` — Launch agent (BYOI or base runtime)
+- `POST /v1/agents/:passportId/deploy/blue-green` — Blue-green deployment
+- `POST /v1/agents/:passportId/promote` — Promote blue to primary
+- `POST /v1/agents/:passportId/rollback` — Rollback to previous
+- `GET /v1/agents/:passportId/events` — Deployment event history
+- `POST /v1/webhooks/:provider` — Provider webhook receiver
 
 **Receipt & Epoch:**
 - `/v1/receipts` — Create, verify, prove cryptographic receipts
@@ -183,13 +191,13 @@ Three ways to activate an agent in the Lucid verified network. No code generatio
 ```bash
 lucid launch --image ghcr.io/myorg/my-agent:latest --target railway --owner 0x...
 ```
-Lucid deploys your Docker image to the target provider. Injects `LUCID_API_URL`, `LUCID_PASSPORT_ID`, `LUCID_API_KEY`, `TRUSTGATE_URL` as env vars. Your agent calls the Lucid API via `@lucid/sdk` for receipts, memory, payment. Supports `--verification full|minimal` (default: full).
+Lucid deploys your Docker image to the target provider. Injects `LUCID_API_URL`, `LUCID_PASSPORT_ID`, `LUCID_API_KEY`, `TRUSTGATE_URL` as env vars. Your agent calls the Lucid API via `@lucid-fdn/sdk` for receipts, memory, payment. Supports `--verification full|minimal` (default: full).
 
-**Path B: Base Runtime (no-code, Trojan horse)**
+**Path B: Base Runtime (no-code)**
 ```bash
 lucid launch --runtime base --model gpt-4o --prompt "You are a helpful agent" --target docker
 ```
-Deploys pre-built `ghcr.io/lucid-fdn/agent-runtime:v{pinned}` image. TrustGate hardwired (non-optional), receipts automatic, memory lanes automatic, payment hooks automatic. Configured via env vars (`LUCID_MODEL`, `LUCID_PROMPT`, `LUCID_TOOLS`). Always full verification.
+Deploys pre-built `ghcr.io/lucid-fdn/agent-runtime:v1.0.0` image (source: `packages/agent-runtime/`). Inference via `PROVIDER_URL` (any OpenAI-compatible endpoint). Receipts via `LUCID_API_URL` (decoupled from inference). Configured via env vars (`LUCID_MODEL`, `LUCID_PROMPT`, `LUCID_TOOLS`). Always full verification.
 
 **Path C: External Registration (self-hosted, already operational)**
 ```bash
@@ -198,10 +206,10 @@ PATCH /v1/passports/:id/endpoints { invoke_url: "https://my-agent.com/run" }
 ```
 No deployment. Just identity + reputation for an already-running agent.
 
-**6 Deployers** (`engine/src/compute/deploy/`):
+**6 Deployers** (`engine/src/compute/providers/`):
 | Deployer | API | What it does |
 |----------|-----|-------------|
-| Docker | Local | Writes docker-compose.yml, runs `docker compose up` |
+| Docker | Local | Writes docker-compose.yml, auto-starts containers when Docker available |
 | Railway | GraphQL API | Creates service, sets env vars, generates domain, polls status |
 | Akash | REST API | Generates SDL v2.0, auto-accepts bids, sends manifest |
 | Phala | REST API | Two-phase CVM provisioning, encrypted env vars, TEE |
@@ -210,7 +218,7 @@ No deployment. Just identity + reputation for an already-running agent.
 
 All deployers accept either a Docker image reference or a RuntimeArtifact.
 
-**SDK** (`@lucid/sdk`): Auto-generated from `openapi.yaml` via Speakeasy. Covers passports, receipts, memory, launch, anchoring, reputation, epochs. TypeScript + Python.
+**Launch route:** `POST /v1/agents/launch` — unified entry point for Path A (BYOI) and Path B (base runtime).
 
 **CLI commands:**
 ```bash
@@ -224,31 +232,41 @@ lucid targets                                       # List available providers
 lucid update <passportId>                           # Explicit runtime version update
 ```
 
+### Base Runtime (`packages/agent-runtime/`)
+
+Pre-built Docker image (`@lucid-fdn/agent-runtime`) for Path B agents. Minimal Express server that:
+- Accepts OpenAI-compatible chat requests on port 3100
+- Routes inference to any provider via `PROVIDER_URL` (TrustGate, Ollama, LiteLLM, vLLM, OpenAI)
+- Creates receipts automatically via `LUCID_API_URL` (fire-and-forget, decoupled from inference)
+- Configured entirely via env vars: `LUCID_MODEL`, `LUCID_PROMPT`, `LUCID_TOOLS`, `LUCID_PASSPORT_ID`
+
+Build: `docker build -t ghcr.io/lucid-fdn/agent-runtime:v1.0.0 .` from `packages/agent-runtime/`.
+
 ### Deployment Control Plane
 Durable deployment state in Supabase (`deployments` + `deployment_events` tables).
 Status machine: `pending -> deploying -> running -> stopped -> terminated` (+ `failed` path).
 Desired state vs actual state. Provider status tracked separately (`provider_status` column).
 Optimistic locking via `version` column. Deployment revision via `revision` column.
-`deployment_slot` supports blue/green in Phase 3 (default: 'primary').
+`deployment_slot` supports blue/green (default: 'primary').
 Events: append-only audit log (`created`, `succeeded`, `failed`, `terminated`, `health_changed`, etc.).
 `IDeploymentStore` interface with Postgres (production) + InMemory (tests) implementations.
 Route: `GET /v1/agents/:passportId/events` — deployment event history.
 Env: `DEPLOYMENT_STORE=postgres|memory` (default: postgres).
-Files: `engine/src/deployment/control-plane/` (types, state-machine, store, postgres-store, in-memory-store).
-Phase 2: Reconciler (polling every 60s, drift detection, stuck repair), LeaseManager (io.net extension),
+Files: `engine/src/compute/control-plane/store/` (types, state-machine, store, postgres-store, in-memory-store).
+Reconciler (polling every 60s, drift detection, stuck repair), LeaseManager (io.net extension),
 WebhookHandler (`POST /v1/webhooks/:provider`). Provider status mapped through `mapProviderStatus()`.
 Provider capabilities: `supportsStop/Resume/Extend/Status/Scale/Logs` per provider.
 Drift repair rules: running+stopped->redeploy, terminated+running->terminate, failed+terminated->terminated.
 Stuck repair: check provider, transition to running/failed, retry with backoff.
-Files: `engine/src/deployment/reconciler/` (service, policies, provider-sync),
-`engine/src/deployment/lease-manager/` (service, policies),
-`engine/src/deployment/webhooks/` (handler, types, normalizers for railway/akash/phala/ionet/nosana),
-`engine/src/deployment/boot.ts` (start/stop control plane).
+Files: `engine/src/compute/control-plane/reconciler/` (service, policies, provider-sync),
+`engine/src/compute/control-plane/lease-manager/` (service, policies),
+`engine/src/compute/control-plane/webhooks/` (handler, types, normalizers for railway/akash/phala/ionet/nosana),
+`engine/src/compute/control-plane/boot.ts` (start/stop control plane).
 Env: `DEPLOYMENT_CONTROL_PLANE=false` (disable), `RECONCILER_POLL_MS`, `RECONCILER_STUCK_TIMEOUT_MS`,
 `RECONCILER_STALENESS_MS`, `RECONCILER_LEASE_WARNING_MS`, `RECONCILER_MAX_RETRIES`, `LEASE_EXTENSION_HOURS`.
-Phase 3: Blue-green rollout, rollback, secrets abstraction.
-RolloutManager (`engine/src/deployment/rollout/`) owns blue-green + rollback + promotion. Separate from Reconciler.
-Secrets: `ISecretsResolver` interface (`engine/src/deployment/secrets/`) — resolve at deploy time, never stored.
+Blue-green rollout, rollback, secrets abstraction:
+RolloutManager (`engine/src/compute/control-plane/rollout/`) owns blue-green + rollback + promotion. Separate from Reconciler.
+Secrets: `ISecretsResolver` interface (`engine/src/compute/control-plane/secrets/`) — resolve at deploy time, never stored.
 Implementations: `EnvSecretsResolver` (process.env), `MockSecretsResolver` (tests). Factory: `getSecretsResolver()`.
 Store extensions: `promoteBlue()` (atomic blue->primary swap), `getBySlot()` (slot-based lookup).
 Routes: `POST .../deploy/blue-green`, `POST .../promote`, `POST .../rollback`, `GET .../blue`, `POST .../blue/cancel`.
@@ -361,30 +379,31 @@ Env: `MEMORY_ENABLED`, `MEMORY_STORE` (postgres|memory), `MEMORY_EXTRACTION_ENAB
 
 New env vars: `MEMORY_STORE` (sqlite|postgres|memory), `MEMORY_DB_PATH`, `MEMORY_EMBEDDING_PROVIDER` (openai|mock|none), `MEMORY_PROJECTION_ENABLED`
 
-## Offchain Codebase Structure (monorepo, feature-domain reorg 2026-03-15)
+## Offchain Codebase Structure (monorepo, restructured 2026-03-18)
 
-Two-package monorepo: `@lucid-l2/engine` (truth library, no HTTP) + `@lucid-l2/gateway-lite` (thin Express server). Dependency direction: gateway-lite -> engine (OK), engine -> gateway-lite (FORBIDDEN, ESLint-enforced). Transitional barrel re-exports at old locations ensure backward compatibility during migration.
+Multi-package monorepo: `@lucid-l2/engine` (truth library, no HTTP) + `@lucid-l2/gateway-lite` (thin Express server) + `@lucid-fdn/agent-runtime` (base runtime Docker image). Dependency direction: gateway-lite -> engine (OK), engine -> gateway-lite (FORBIDDEN, ESLint-enforced). Transitional barrel re-exports at old locations ensure backward compatibility during migration.
+
+**Engine: 7 domain lifecycle** — identity, compute, memory, receipt, anchoring, payment, reputation + shared.
 
 ```
 offchain/
   package.json                        # npm workspaces: ["packages/*"]
   tsconfig.base.json                  # Shared compiler options
   packages/
-    engine/src/                       # @lucid-l2/engine — 7 feature domains
+    engine/src/                       # @lucid-l2/engine — 7 feature domains + shared
       identity/                       # Who you are — passports, NFT, wallet, shares, TBA, bridge
-      compute/                        # Where you run — 2 folders (industry standard)
+      compute/                        # Where you run — providers + control-plane
         providers/                    # 6 deployer adapters (Docker, Railway, Akash, Phala, io.net, Nosana)
-        control-plane/                # State + orchestration + descriptors
+        control-plane/                # State + orchestration
           store/                      # IDeploymentStore, types, postgres/in-memory, state-machine
           reconciler/                 # Drift detection, stuck repair, provider sync
-          lease-manager/              # io.net lease extension
+          launch/                     # launchImage() + launchBaseRuntime()
+          agent/                      # agentDeploymentService, descriptors, revenue, A2A
           webhooks/                   # Provider webhook normalizers (5 providers)
           rollout/                    # Blue-green, promote, rollback
           secrets/                    # ISecretsResolver (env, mock)
-          launch/                     # launchImage() + launchBaseRuntime()
-          agent/                      # agentDeploymentService, descriptors, revenue, A2A
+          lease-manager/              # io.net lease extension
           boot.ts                     # startDeploymentControlPlane()
-        runtime/                      # IRuntimeAdapter interface (adapters @deprecated)
       memory/                         # What you remember — 6 types, vector search, compaction
       receipt/                        # What you can prove — creation, signing, verification
       anchoring/                      # When + where it's permanent — DePIN dispatch, epoch lifecycle
@@ -412,15 +431,31 @@ offchain/
       inference/                      # executionGateway, computeClient, contentService
       agent/                          # agentOrchestrator, agentPlanner, executorRouter
       reputation/                     # IReputationAlgorithm, algorithms/, aggregator
-      routes/                         # 27 route files (receipt, epoch, matching, passport, etc.)
+      routes/                         # 44 route files across 6 folders
+        core/                         # anchorRoutes, epochRoutes, inferenceRoutes, memoryRoutes, passportRoutes, etc.
+        agent/                        # launchRoutes, agentDeployRoutes, webhookRoutes, agentWalletRoutes, etc.
+        chain/                        # crossChainRoutes, escrowRoutes, reputationMarketplaceRoutes, tbaRoutes, etc.
+        system/                       # healthRoutes, walletRoutes
+        contrib/                      # hyperliquidRoutes, oauthRoutes, rewardRoutes
+        api/                          # agentOrchestratorRoutes, flowspecRoutes, n8nFlowRoutes, etc.
       middleware/                     # adminAuth, hmacAuth, privyAuth, x402
       providers/                      # llm, mock, openai, router
       protocols/                      # BaseProtocolAdapter, ProtocolRegistry, adapters/
       integrations/                   # hf, n8n, oauth, mcp, zkml, flowspec, hyperliquid
       services/                       # rewardService, sessionSignerService
       lib/                            # auth, observability
+    agent-runtime/                    # @lucid-fdn/agent-runtime — base runtime Docker image
+      server.ts                       # Express server (port 3100), inference + auto-receipts
+      Dockerfile                      # ghcr.io/lucid-fdn/agent-runtime:v1.0.0
+      package.json                    # Deps: ai-sdk, express, zod
   src/                                # Re-export proxies (backward compat, will be removed)
 ```
+
+**Removed directories** (merged into domain structure):
+- `engine/src/chain/` — was proxy to `shared/chains/`, deleted
+- `engine/src/utils/` — merged into `shared/`
+- `engine/src/epoch/` — moved into `anchoring/epoch/`
+- `engine/src/deploy/`, `engine/src/deployment/` — consolidated into `compute/`
 
 ## Key Files
 ```
@@ -429,8 +464,9 @@ programs/lucid-passports/       # Anchor program: passport registry + payment ga
 programs/gas-utils/             # Anchor program: token burn/split
 schemas/                        # JSON schemas (ModelMeta, ComputeMeta, ToolMeta, AgentMeta, etc.)
 infrastructure/migrations/      # Supabase SQL migrations
-sdk/                            # Auto-generated TypeScript + Python SDKs
+sdk/typescript/                 # @lucid-fdn/sdk — TypeScript SDK (29 services, 123 models)
 agent-services/                 # CrewAI + LangGraph microservices
+openapi.yaml                    # 175 paths — source of truth for SDK generation
 ```
 
 ## Database
@@ -452,32 +488,29 @@ Supabase (eu-north-1, project `kwihlcnapmkaivijyiif`):
 
 **Decentralization principle:** Lucid Core is the control plane — not the execution authority. It stores desired state, observes actual state, and coordinates transitions. It does NOT execute workloads. Agents run outside Lucid on decentralized providers (Akash, Phala, io.net, Nosana). Agent memory is local-first (SQLite, agent-owned). Agent identity is on-chain (passport). Lucid coordinates agents — it does not own them.
 
-### SDK (`@lucid-l2/sdk` + `raijin-labs-lucid-ai`)
+### SDK (`@lucid-fdn/sdk`)
 
-**Internal SDK** (`offchain/packages/sdk/`):
-- `lucid.passport.*` — Passport CRUD
-- `lucid.receipt.*` — Receipt operations
-- `lucid.epoch.*` — Epoch management
-- `lucid.memory.*` — Memory v3 (addEpisodic, addSemantic, addProcedural, addEntity, addTrustWeighted, addTemporal, recall, compact, exportMemoryFile, health)
-- `lucid.anchor.*` — Anchor registry (list, get, lineage, verify, getByCID)
-- `lucid.deploy.*` — Agent deployment
-- `lucid.chain.*` — Multi-chain adapters
-
-**Auto-generated SDK** (`raijin-labs-lucid-ai`):
-- Generated by Speakeasy from `openapi.yaml`
-- Custom entry point `src/ai.ts`: Vercel AI SDK provider (`createLucidProvider()`)
-- Build: `cd sdk/raijin-labs-lucid-ai-typescript && npm run build`
+**TypeScript SDK** (`sdk/typescript/`):
+- Package: `@lucid-fdn/sdk` v0.5.0
+- 29 services: Passports, Receipts, Epochs, Memory, Anchoring, AgentLaunch, AgentDeploy, AgentWallet, AgentRevenue, Reputation, Compute, Match, Payments, Payouts, Shares, Escrow, Disputes, A2A, CrossChain, TBA, Paymaster, Modules, ZkML, Identity, Health, Run, AgentMirror, Webhooks, Agents
+- 123 model types
+- `LucidSDK` — low-level client wrapping all 29 services
+- `LucidAgent` — high-level wrapper with auto-receipts + retry queue for AI agents
+  - Inference via any OpenAI-compatible endpoint
+  - Automatic receipt creation on every call (fire-and-forget)
+  - Failed receipts queued in-memory, retried with exponential backoff (max 5 attempts)
+  - `agent.run({ model, prompt })` — single call does inference + receipt + identity
 
 ## Cross-Dependencies
 - `@lucid-fdn/passport` npm package (shared with lucid-plateform-core)
 - Calls **TrustGate** (`TRUSTGATE_URL`) for model catalog validation
 - Uses **n8n** for workflow execution, **CrewAI/LangGraph** for agent planning
-- `raijin-labs-lucid-ai` SDK auto-generated from `openapi.yaml`
+- `@lucid-fdn/sdk` generated from `openapi.yaml`
 - Receipt events consumed by **lucid-plateform-core** for billing
 - `better-sqlite3` + `sqlite-vec` (optional deps for `MEMORY_STORE=sqlite`)
 
 ## Testing
-- **103 test suites, 1683 tests** (offchain)
+- **102 test suites, 1585 tests** (offchain)
 - On-chain: `anchor test` (Mocha, 6 programs)
 - Type check: `cd offchain && npm run type-check`
 - E2E: start server (`npm start`) + curl endpoints
