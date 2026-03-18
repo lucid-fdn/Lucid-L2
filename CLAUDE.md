@@ -173,21 +173,23 @@ All 7 producers use `getAnchorDispatcher().dispatch()`:
 
 **Env:** `DEPIN_PERMANENT_PROVIDER`, `DEPIN_EVOLVING_PROVIDER` (default: `mock`). `DEPIN_UPLOAD_ENABLED=false` (kill switch). `ANCHOR_REGISTRY_STORE=postgres|memory`.
 
-### Agent Deployment (3 Paths)
+### Agent Activation (3 Paths)
 
-Three ways to deploy an agent — no code generation. Lucid deploys containers, not templates.
+Three ways to activate an agent in the Lucid verified network. No code generation. Deployment is the entry point — verification is the product.
+
+**Strategic principle:** All inference routes through TrustGate by default. Every call produces a cryptographic receipt. Receipts are unavoidable, not opt-in.
 
 **Path A: Bring Your Own Image (developers)**
 ```bash
-lucid deploy --image ghcr.io/myorg/my-agent:latest --target railway --owner 0x...
+lucid launch --image ghcr.io/myorg/my-agent:latest --target railway --owner 0x...
 ```
-Lucid deploys your Docker image to the target provider. Injects `LUCID_API_URL`, `LUCID_PASSPORT_ID`, `LUCID_API_KEY` as env vars. Your agent calls the Lucid API via `@lucid/sdk` for receipts, memory, payment.
+Lucid deploys your Docker image to the target provider. Injects `LUCID_API_URL`, `LUCID_PASSPORT_ID`, `LUCID_API_KEY`, `TRUSTGATE_URL` as env vars. Your agent calls the Lucid API via `@lucid/sdk` for receipts, memory, payment. Supports `--verification full|minimal` (default: full).
 
-**Path B: Base Runtime (no-code)**
+**Path B: Base Runtime (no-code, Trojan horse)**
 ```bash
-lucid deploy --runtime base --model gpt-4o --prompt "You are a helpful agent" --target docker
+lucid launch --runtime base --model gpt-4o --prompt "You are a helpful agent" --target docker
 ```
-Deploys pre-built `ghcr.io/lucid-fdn/agent-runtime:latest` image. Configured via env vars (`LUCID_MODEL`, `LUCID_PROMPT`, `LUCID_TOOLS`). SDK pre-integrated — receipts flow automatically.
+Deploys pre-built `ghcr.io/lucid-fdn/agent-runtime:v{pinned}` image. TrustGate hardwired (non-optional), receipts automatic, memory lanes automatic, payment hooks automatic. Configured via env vars (`LUCID_MODEL`, `LUCID_PROMPT`, `LUCID_TOOLS`). Always full verification.
 
 **Path C: External Registration (self-hosted, already operational)**
 ```bash
@@ -208,17 +210,18 @@ No deployment. Just identity + reputation for an already-running agent.
 
 All deployers accept either a Docker image reference or a RuntimeArtifact.
 
-**SDK** (`@lucid/sdk`): Auto-generated from `openapi.yaml` via Speakeasy. Covers passports, receipts, memory, deploy, anchoring, reputation, epochs. TypeScript + Python.
+**SDK** (`@lucid/sdk`): Auto-generated from `openapi.yaml` via Speakeasy. Covers passports, receipts, memory, launch, anchoring, reputation, epochs. TypeScript + Python.
 
 **CLI commands:**
 ```bash
-lucid deploy --image <image> --target <target>    # Path A
-lucid deploy --runtime base --model <m> --prompt  # Path B
-lucid deploy:status <passportId>
-lucid deploy:logs <passportId> [--tail 100]
-lucid deploy:list [--status running] [--target docker]
-lucid deploy:terminate <passportId>
-lucid deploy:targets                               # List available providers
+lucid launch --image <image> --target <target>     # Path A
+lucid launch --runtime base --model <m> --prompt   # Path B
+lucid status <passportId>
+lucid logs <passportId> [--tail 100]
+lucid list [--status running] [--target docker]
+lucid terminate <passportId>
+lucid targets                                       # List available providers
+lucid update <passportId>                           # Explicit runtime version update
 ```
 
 ### Deployment Control Plane

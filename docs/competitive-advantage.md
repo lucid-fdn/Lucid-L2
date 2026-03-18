@@ -4,6 +4,25 @@
 
 ---
 
+## The Strategic Insight
+
+Lucid moved from **agent framework** → **universal AI execution + verification layer**.
+
+This is the same move:
+- **Stripe** made vs payment SDKs (protocol, not tool)
+- **Cloudflare** made vs CDNs (intelligent edge, not just cache)
+- **AWS** made vs servers (platform, not hardware)
+
+**Deployment is NOT the moat.** Railway, Fly.io, Coolify all deploy containers. Lucid's moat is:
+- Receipts (cryptographic proof of execution)
+- Reputation (from real traffic data, not user ratings)
+- Routing intelligence (TrustGate traffic → Oracle → better matching)
+- Identity-payment graph (passports + x402 + share tokens)
+
+Deployment exists as the **entry point** into the verification network. The product is verified AI execution.
+
+---
+
 ## The Market Today
 
 Every competitor solves ONE piece:
@@ -77,7 +96,7 @@ Deploy to 6 decentralized compute providers from one CLI:
 | io.net | GPU aggregation | Yes | - |
 | Nosana | GPU marketplace | Yes | - |
 
-One command: `lucid deploy --image my-agent --target akash`
+One command: `lucid launch --image my-agent --target akash`
 
 **Nobody else deploys to multiple DePIN providers.** Phala deploys to Phala. Akash deploys to Akash. Lucid deploys to all of them.
 
@@ -119,13 +138,17 @@ Integration: install `@lucid/sdk`, add 2 lines. Your agent gets the full stack.
 ## The Network Effect
 
 ```
-More agents use @lucid/sdk
-  → More receipts flowing
-    → Better reputation data (Oracle)
-      → More trust in the network
-        → More agents join
-          → Lucid Cloud revenue grows
+Agents use @lucid/sdk or base runtime
+  → All inference routes through TrustGate (hardwired, not optional)
+    → Every call produces a cryptographic receipt (unavoidable)
+      → Receipts feed into reputation oracle (Lucid Cloud)
+        → Better reputation data → better routing intelligence
+          → More agents join because Lucid-verified agents are more trusted
+            → Network effect compounds
+              → Lucid Cloud revenue grows from traffic data
 ```
+
+**Deployment is the entry point. Verification is the product. Traffic data is the moat.**
 
 The SDK is open source (free). The Oracle is proprietary (Lucid Cloud monetization). This is the Cloudflare model applied to AI:
 - **Lucid Layer** (open protocol) = TCP/IP for AI agents
@@ -165,19 +188,20 @@ const lucid = new Lucid({ apiKey: 'lk_...' })
 # → Persists memory
 # → Tracks for reputation
 
-# Deploy to DePIN:
-lucid deploy --image ghcr.io/myorg/my-agent:latest --target railway
+# Launch to DePIN:
+lucid launch --image ghcr.io/myorg/my-agent:latest --target railway
 ```
 
 ### Path B: No-code user
 ```bash
-lucid deploy \
+lucid launch \
   --runtime base \
   --model gpt-4o \
   --prompt "You are a code review specialist" \
   --tools web-search,github \
   --target docker
 # → Running agent in 10 seconds with full Lucid stack
+# → TrustGate hardwired, receipts automatic, memory automatic
 ```
 
 ### Path C: Already running agent

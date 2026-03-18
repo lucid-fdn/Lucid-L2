@@ -1,8 +1,18 @@
 # Agent Launcher Redesign — SDK-First, Image-Based Deployment
 
 **Date:** 2026-03-18
-**Status:** Draft
-**Goal:** Replace code-generation agent launcher with three industry-standard paths: SDK wrapper, bring-your-own-image deployment, and pre-built base runtime. Position Lucid 300% ahead of competition.
+**Status:** Draft (architect-reviewed)
+**Goal:** Replace code-generation agent launcher with three industry-standard paths: SDK wrapper, bring-your-own-image deployment, and pre-built base runtime. Position Lucid as the unavoidable verification layer for AI execution — not just a deploy tool.
+
+---
+
+## Strategic Principle
+
+> **Deployment is an entry point, not the product.**
+>
+> Lucid's moat is receipts, reputation, routing intelligence, and the identity-payment graph.
+> Deployment exists to funnel agents into the verification network.
+> Every design decision must enforce: if you use Lucid, you automatically produce receipts.
 
 ---
 
@@ -21,15 +31,17 @@ Meanwhile, the Speakeasy-generated SDK (`raijin-labs-lucid-ai`) and 171-endpoint
 
 ## Design
 
-### Three Deployment Paths
+### Three Activation Paths
+
+**Naming: `lucid launch` not `lucid deploy`** — we are activating agents in a verified network, not deploying containers.
 
 ```
 Path A: SDK Wrapper (developers with existing agents)
   npm install @lucid/sdk → add 2 lines → receipts + memory + identity flow
-  lucid deploy --image ghcr.io/myorg/my-agent:latest --target railway
+  lucid launch --image ghcr.io/myorg/my-agent:latest --target railway
 
 Path B: Base Runtime (no-code users)
-  lucid deploy --runtime base --model gpt-4o --prompt "..." --target docker
+  lucid launch --runtime base --model gpt-4o --prompt "..." --target docker
   → Pre-built image configured via env vars. No code generation.
 
 Path C: External Registration (already running agents)
@@ -61,6 +73,12 @@ Path C: External Registration (already running agents)
           │                      │                      │
           ▼                      ▼                      ▼
   ┌──────────────────────────────────────────────────────────┐
+  │            TrustGate (mandatory LLM routing)             │
+  │     All inference → receipts → MMR → on-chain            │
+  └──────────────────────────────────────────────────────────┘
+          │
+          ▼
+  ┌──────────────────────────────────────────────────────────┐
   │              Deployers (unchanged — real APIs)            │
   │  Docker │ Railway │ Akash │ Phala │ io.net │ Nosana      │
   └──────────────────────────────────────────────────────────┘
@@ -71,6 +89,97 @@ Path C: External Registration (already running agents)
   │  IDeploymentStore │ Reconciler │ LeaseManager │ Webhooks │
   └──────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Critical Design Rules (from architect review)
+
+### Rule 1: TrustGate Routing is Default and Hardwired
+
+All LLM calls MUST route through TrustGate by default. If agents bypass TrustGate:
+- No receipts
+- No traffic data
+- No reputation
+- No moat
+
+**In base runtime:**
+```typescript
+const model = createOpenAI({
+  baseURL: process.env.TRUSTGATE_URL,  // always TrustGate, never direct provider
+  apiKey: process.env.TRUSTGATE_API_KEY,
+});
+// Direct provider calls blocked unless LUCID_ALLOW_DIRECT_PROVIDER=true
+```
+
+**In SDK:**
+```typescript
+const lucid = new Lucid({ apiKey: 'lk_...' })
+// lucid.run() always routes through TrustGate
+// lucid.run({ directProvider: true }) only if explicitly opted out
+```
+
+### Rule 2: SDK Makes Receipts Unavoidable
+
+If you use Lucid, you automatically produce receipts. No extra work.
+
+```typescript
+const lucid = new Lucid({ apiKey: 'lk_...' })
+const result = await lucid.run({
+  model: "gpt-4o",
+  input: "Review this code..."
+})
+// Behind the scenes (automatic, zero config):
+// 1. Routed through TrustGate
+// 2. Receipt created (SHA-256 + Ed25519)
+// 3. MMR append
+// 4. Memory optionally stored
+// 5. Identity attached to receipt
+```
+
+Receipt creation is not opt-in. It's the default. `LUCID_RECEIPTS_ENABLED=false` exists as kill switch but is NOT documented in quickstart.
+
+### Rule 3: BYOI Verification Modes
+
+Not all BYOI users will integrate the SDK. Support graduated verification:
+
+```bash
+lucid launch --image my-agent --target railway --verification full    # default
+lucid launch --image my-agent --target railway --verification minimal
+```
+
+| Mode | What's verified | How |
+|---|---|---|
+| `full` | Receipts + memory + payments | Agent integrates `@lucid/sdk`, calls TrustGate |
+| `minimal` | Health + metadata + existence | Lucid pings health endpoint, tracks uptime. No receipts. |
+
+`full` is the default. `minimal` is the onboarding ramp — gets agents into the network with basic reputation, incentivizes SDK integration for full reputation scores.
+
+### Rule 4: Base Runtime is the Trojan Horse
+
+The base runtime is not just convenience — it's the distribution engine for the entire ecosystem. It must be:
+- Insanely easy (one command)
+- Opinionated toward Lucid flows (TrustGate hardwired, receipts automatic)
+- Feature-rich out of the box
+
+**Built-in behaviors (all automatic, zero config):**
+- Auto receipts on every inference call
+- Auto memory lanes (episodic per session, semantic extracted)
+- Auto payment hooks (x402 if pricing configured on passport)
+- Auto tool gateway integration (MCPGate)
+- Auto identity propagation (passport ID in every response header)
+- Auto health reporting to deployment control plane
+
+### Rule 5: Version Pinning Tied to Reputation
+
+Reputation scores are tied to:
+- Agent passport ID
+- Runtime version (base runtime tag)
+- Config hash (model + prompt + tools)
+
+This enables:
+- "v2 of this agent performs worse than v1"
+- "This runtime version has stability issues"
+- Reputation continuity across redeploys (same config = same reputation lineage)
 
 ---
 
@@ -100,8 +209,8 @@ Other (2):
 - `DELETE /v1/a2a/{passportId}/tasks/{taskId}` — A2A task cleanup
 - `POST /v1/webhooks/{provider}` — provider webhooks
 
-**Add new deploy-by-image endpoint:**
-- `POST /v1/agents/deploy` — accepts `{ image, target, owner, config }` instead of requiring generated code
+**Add new launch-by-image endpoint:**
+- `POST /v1/agents/launch` — accepts `{ image, target, owner, verification, config }` instead of requiring generated code
 
 Then: `speakeasy generate` → updated SDK.
 
@@ -129,6 +238,7 @@ interface ImageDeployInput {
     username: string;
     password: string;      // or token
   };
+  verification: 'full' | 'minimal';  // verification mode
 }
 
 // Extended deployer interface
@@ -156,9 +266,9 @@ deploy(input: RuntimeArtifact | ImageDeployInput, config: DeploymentConfig, pass
 - `files` in `DeployAgentResult` — return empty `{}` for image-based deploys.
 - `DeployAgentInput.descriptor` — still required for base runtime (provides model, prompt, tools). For BYOI, make optional.
 
-**New method: `deployImage()`** (separate from existing `deployAgent()`):
+**New method: `launchImage()`** (separate from existing `deployAgent()`):
 ```typescript
-interface DeployImageInput {
+interface LaunchImageInput {
   image: string;                    // Docker image ref
   target: DeploymentTargetType;     // docker, railway, akash, etc.
   owner: string;                    // wallet address
@@ -166,11 +276,12 @@ interface DeployImageInput {
   passport_id?: string;             // use existing passport, or create new
   port?: number;                    // container port (default 3100)
   env_vars?: Record<string, string>; // additional env vars
+  verification?: 'full' | 'minimal'; // default: full
   registry_auth?: { username: string; password: string };
 }
 ```
 
-**Flow for `deployImage()` (BYOI):**
+**Flow for `launchImage()` (BYOI):**
 ```
 1. Validate input (image URL, target, owner)
 2. Create agent passport if not provided (type: agent, target: self_hosted or target)
@@ -178,63 +289,88 @@ interface DeployImageInput {
 4. Create deployment record (pending, runtime_adapter='user-image')
 5. Build ImageDeployInput with Lucid env vars injected:
    - LUCID_API_URL, LUCID_PASSPORT_ID, LUCID_API_KEY
+   - TRUSTGATE_URL (for SDK-integrated agents)
+   - LUCID_VERIFICATION_MODE=full|minimal
    - Plus user's additional env_vars
 6. Call deployer.deploy(imageInput)
 7. Transition to running/failed
+8. If verification=full: schedule health + receipt verification check after 5 min
 ```
 
-**Flow for `deployBaseRuntime()` (no-code):**
+**Flow for `launchBaseRuntime()` (no-code):**
 ```
 1. Validate input (model, prompt, tools)
 2. Create agent passport
 3. Create deployment record (pending, runtime_adapter='base-runtime')
-4. Build ImageDeployInput:
-   - image = ghcr.io/lucid-fdn/agent-runtime:latest (or pinned version)
-   - env vars: LUCID_MODEL, LUCID_PROMPT, LUCID_TOOLS, LUCID_API_URL, etc.
-5. Call deployer.deploy(imageInput)
-6. Transition to running/failed
+4. Compute config_hash = SHA-256(model + prompt + tools) for reputation lineage
+5. Build ImageDeployInput:
+   - image = ghcr.io/lucid-fdn/agent-runtime:v{pinned} (version from CLI)
+   - env vars: LUCID_MODEL, LUCID_PROMPT, LUCID_TOOLS
+   - env vars: LUCID_API_URL, LUCID_PASSPORT_ID, LUCID_API_KEY
+   - env vars: TRUSTGATE_URL (hardwired, non-optional)
+   - LUCID_VERIFICATION_MODE=full (always full for base runtime)
+6. Call deployer.deploy(imageInput)
+7. Transition to running/failed
 ```
 
 **Existing `deployAgent()` stays** (backward compat) but is deprecated. New CLI flags route to the new methods.
 
 ### 4. CLI Update
 
-```bash
-# Path A: Deploy your own image
-lucid deploy --image ghcr.io/myorg/my-agent:latest \
-  --target railway \
-  --owner 0x1234...
+**Rename `deploy` → `launch`** (activating agents in a verified network, not deploying containers):
 
-# Path B: No-code with base runtime
-lucid deploy --runtime base \
+```bash
+# Path A: Launch your own image
+lucid launch --image ghcr.io/myorg/my-agent:latest \
+  --target railway \
+  --owner 0x1234... \
+  --verification full       # default
+
+# Path A with minimal verification (onboarding ramp)
+lucid launch --image ghcr.io/myorg/my-agent:latest \
+  --target docker \
+  --verification minimal
+
+# Path B: No-code with base runtime (always full verification)
+lucid launch --runtime base \
   --model gpt-4o \
-  --prompt "You are a helpful code review agent" \
+  --prompt "You are a code review specialist" \
   --tools web-search,code-exec \
   --target docker
 
-# Existing commands (unchanged)
-lucid deploy:status <passportId>
-lucid deploy:logs <passportId>
-lucid deploy:list
-lucid deploy:terminate <passportId>
-lucid deploy:targets
+# Status/management commands
+lucid status <passportId>
+lucid logs <passportId> [--tail 100]
+lucid list [--status running] [--target docker]
+lucid terminate <passportId>
+lucid targets                               # List available providers
+lucid update <passportId>                   # Explicit runtime version update
 ```
 
-### 5. Base Runtime Image
+**`deploy` kept as alias** for backward compat but docs use `launch`.
+
+### 5. Base Runtime Image (The Trojan Horse)
 
 **One pre-built, maintained, versioned Docker image:**
 
-`ghcr.io/lucid-fdn/agent-runtime:latest`
+`ghcr.io/lucid-fdn/agent-runtime:v1.0.0`
 
 **What's inside:**
 - Node.js 20 slim
 - Express server with standard endpoints:
-  - `GET /health` — health check
-  - `POST /run` — single inference
-  - `POST /v1/chat/completions` — OpenAI-compatible
+  - `GET /health` — health check (reports to deployment control plane)
+  - `POST /run` — single inference (receipt auto-created)
+  - `POST /v1/chat/completions` — OpenAI-compatible (receipt auto-created)
   - `GET /.well-known/agent.json` — A2A discovery (if enabled)
-- AI SDK v6 for LLM orchestration (routes through TrustGate)
-- `@lucid/sdk` pre-integrated (receipts auto-emit, memory auto-persist)
+- AI SDK v6 for LLM orchestration
+- **TrustGate routing hardwired** — all LLM calls go through TrustGate, direct provider calls blocked by default
+- `@lucid/sdk` pre-integrated with automatic behaviors:
+  - Auto receipts on every inference (SHA-256 + Ed25519 + MMR append)
+  - Auto memory lanes (episodic per session, semantic extraction)
+  - Auto payment hooks (x402 if pricing configured on passport)
+  - Auto tool gateway integration (MCPGate for registered tools)
+  - Auto identity propagation (X-Lucid-Passport-Id header on every response)
+  - Auto health reporting to deployment control plane
 - MCP tool bridge (calls MCPGate for registered tools)
 
 **Configured entirely via env vars:**
@@ -244,16 +380,22 @@ lucid deploy:targets
 - `LUCID_API_URL` — Lucid API endpoint
 - `LUCID_PASSPORT_ID` — auto-injected by deployer
 - `LUCID_API_KEY` — auto-injected by deployer
-- `TRUSTGATE_URL` — LLM gateway
+- `TRUSTGATE_URL` — LLM gateway (hardwired, not optional)
+- `TRUSTGATE_API_KEY` — auto-injected by deployer
 - `MCPGATE_URL` — tool gateway
 - `PORT` — server port (default 3100)
+- `LUCID_ALLOW_DIRECT_PROVIDER` — escape hatch, default `false`, not documented in quickstart
+- `LUCID_MEMORY_ENABLED` — default `true`
+- `LUCID_MEMORY_LANES` — default `episodic,semantic`
 
-**Versioning:** Semantic versioning. Tags: `latest`, `v1`, `v1.2.3`.
-- CLI deploys with pinned version by default (e.g., `ghcr.io/lucid-fdn/agent-runtime:v1.2.3`).
+**Versioning:** Semantic versioning. Tags: `latest`, `v1`, `v1.0.0`.
+- CLI launches with pinned version by default (e.g., `ghcr.io/lucid-fdn/agent-runtime:v1.0.0`).
 - The version is stored in `descriptor_snapshot` in the deployment record.
-- `lucid deploy:update <passportId>` explicitly pulls newer version (opt-in, not automatic).
+- `lucid update <passportId>` explicitly pulls newer version (opt-in, not automatic).
 - No auto-update via reconciler — runtime image changes are explicit and intentional.
 - `--runtime base:latest` available for users who want latest (at their own risk).
+
+**Reputation lineage:** `config_hash = SHA-256(model + prompt + tools + runtime_version)` stored in deployment record. Same config = same reputation lineage across redeploys. Version changes start new lineage branch.
 
 ### 6. Code to Move to examples/
 
@@ -286,52 +428,20 @@ Each becomes a documented example: "How to build a Lucid agent with [framework]"
 
 ---
 
-## Competitive Advantage (300% Ahead)
+## The Flywheel
 
-### What We Have That Nobody Else Does
-
-| Capability | AgentOps | Dify | Phala | OpenClaw | Mastra | **Lucid** |
-|---|---|---|---|---|---|---|
-| Multi-provider DePIN deploy | - | - | Phala only | Local only | Vercel | **6 providers** |
-| Cryptographic receipts | - | - | TEE attestation | - | - | **Every call → MMR → on-chain** |
-| Portable agent memory | - | DB-locked | - | Local files | - | **Local-first + DePIN + portable** |
-| Built-in payment rails | - | - | - | - | - | **x402 + splits + share tokens** |
-| Reputation from real traffic | - | - | - | - | - | **Oracle → on-chain** |
-| On-chain identity | - | - | - | - | - | **Passports on Solana + EVM** |
-| Framework agnostic SDK | CrewAI/LC | Dify only | Any container | OC only | TS only | **Any framework, any language** |
-| Verifiable execution proofs | - | - | TEE only | - | - | **Cryptographic, cross-chain** |
-
-### The Moat
-
-1. **Network effect**: Every agent using `@lucid/sdk` feeds receipts into the system → reputation oracle improves → more agents join
-2. **Traffic data**: Real usage data is proprietary (Lucid Cloud / Oracle). Nobody else has proof-backed reputation from actual inference traffic.
-3. **Protocol layer**: Lucid is TCP/IP for AI — identity + verification + routing. Not locked to one runtime or one cloud.
-4. **Progressive decentralization**: Identity on-chain today. Memory agent-owned today. Matching and settlement moving on-chain. Full autonomy path.
-
-### Developer Experience Comparison
-
-```bash
-# AgentOps (monitoring only)
-import agentops; agentops.init()
-# → dashboards, cost tracking. No identity, no receipts, no payment.
-
-# Dify (locked to Dify runtime)
-docker compose up  # Dify platform
-# → visual builder, but locked to Dify. No DePIN. No verification.
-
-# Phala (raw compute, no agent awareness)
-phala deploy --image my-agent
-# → runs in TEE. No receipts, no memory, no payment rails.
-
-# Lucid (full stack)
-npm install @lucid/sdk
-# Add 2 lines to your agent
-lucid deploy --image my-agent --target akash
-# → identity + receipts + memory + payment + reputation + DePIN deploy
-# → verifiable execution proofs anchored on Solana + EVM
-# → portable memory backed by Arweave/Lighthouse
-# → revenue splits + share tokens + x402 payment gates
 ```
+Agents use @lucid/sdk or base runtime
+  → All inference routes through TrustGate (hardwired)
+    → Every call produces a cryptographic receipt (unavoidable)
+      → Receipts feed into reputation oracle (Lucid Cloud)
+        → Better reputation data → better routing intelligence
+          → More agents join because Lucid-verified agents are more trusted
+            → Network effect compounds
+              → Lucid Cloud revenue grows from traffic data
+```
+
+**Deployment is the entry point. Verification is the product. Traffic data is the moat.**
 
 ---
 
@@ -339,20 +449,23 @@ lucid deploy --image my-agent --target akash
 
 ### Phase 1: OpenAPI + SDK (1-2 days)
 - Add 14 missing endpoints to openapi.yaml
-- Add `POST /v1/agents/deploy` (image-based)
+- Add `POST /v1/agents/launch` (image-based)
 - Regenerate SDK with Speakeasy
 - Update SDK examples
 
 ### Phase 2: Deployer Refactor (2-3 days)
-- Add ImageDeployInput type
-- Update 6 deployers to accept image refs
-- Refactor agentDeploymentService (remove code-gen steps)
-- Update CLI with `--image` and `--runtime` flags
+- Add ImageDeployInput type with verification mode
+- Fix DockerDeployer (full image-ref implementation)
+- Fix AkashDeployer (check user image before imageBuilder)
+- Fix io.net/Nosana entrypoint override
+- Refactor agentDeploymentService (add launchImage + launchBaseRuntime)
+- Update CLI: `lucid launch` + `--image` + `--runtime` + `--verification`
 - Move code-gen adapters to examples/
 
 ### Phase 3: Base Runtime Image (2-3 days)
 - Build `lucid-agent-runtime` Docker image
 - Express server + AI SDK + Lucid SDK pre-integrated
+- TrustGate hardwired, receipts automatic, memory lanes automatic
 - Env-var configuration
 - Health check, /run, /chat/completions endpoints
 - Push to GHCR
@@ -360,19 +473,25 @@ lucid deploy --image my-agent --target akash
 
 ### Phase 4: Documentation + Polish (1 day)
 - Update CLAUDE.md
-- Competitive advantage doc
+- Competitive advantage doc (done)
 - SDK quickstart guide
 - Migration guide (old code-gen → new image-based)
+- Rename deploy → launch across docs
 
 ---
 
 ## Test Plan
 
-- [ ] `lucid deploy --image nginx:latest --target docker` → container runs, health check passes
-- [ ] `lucid deploy --runtime base --model test --prompt "hello" --target docker` → base runtime starts
-- [ ] `lucid deploy --image my-agent --target railway` → Railway service created, URL returned
-- [ ] SDK: `lucid.agents.deploy({ image: "...", target: "akash" })` → works via Speakeasy SDK
+- [ ] `lucid launch --image nginx:latest --target docker` → container runs, health check passes
+- [ ] `lucid launch --image nginx:latest --target docker --verification minimal` → minimal mode works
+- [ ] `lucid launch --runtime base --model test --prompt "hello" --target docker` → base runtime starts
+- [ ] `lucid launch --image my-agent --target railway` → Railway service created, URL returned
+- [ ] SDK: `lucid.agents.launch({ image: "...", target: "akash" })` → works via Speakeasy SDK
 - [ ] Existing tests still pass (deployers, control plane, state machine)
 - [ ] Path C still works (self-hosted passport + endpoints)
-- [ ] Base runtime: POST /run → receipt created → MMR updated
-- [ ] Base runtime: memory persists across requests
+- [ ] Base runtime: POST /run → TrustGate called → receipt created → MMR updated
+- [ ] Base runtime: memory persists across requests (episodic lane)
+- [ ] Base runtime: LUCID_ALLOW_DIRECT_PROVIDER=false blocks direct LLM calls
+- [ ] Base runtime: X-Lucid-Passport-Id header present on all responses
+- [ ] Verification mode: full agent checked for receipt emission after 5 min
+- [ ] Reputation: config_hash stored in deployment, same config = same lineage
