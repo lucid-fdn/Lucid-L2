@@ -337,8 +337,9 @@ deployment:
     if (isImageDeploy(input)) {
       return input.image;
     }
-    // existing code-gen path
+    // existing code-gen path (moved to examples/adapters/ — dynamic import will fail gracefully)
     try {
+      // @ts-expect-error — imageBuilder moved to examples/adapters/ (Phase B)
       const { getImageBuilder } = await import('./imageBuilder');
       const builder = getImageBuilder();
       const image = await builder.build(input, passportId);

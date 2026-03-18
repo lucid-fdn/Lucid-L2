@@ -120,8 +120,17 @@ program
   .option('--share-supply <supply>', 'Share token total supply', '1000000')
   .action(async (options) => {
     try {
+      console.warn('Warning: "lucid deploy" uses the deprecated code-gen path. Use "lucid launch" instead.');
+      let buildAgentDescriptor: any;
+      try {
+        // @ts-expect-error — descriptorBuilder moved to examples/adapters/ (Phase B)
+        const mod = await import('../packages/engine/src/compute/control-plane/agent/descriptorBuilder');
+        buildAgentDescriptor = mod.buildAgentDescriptor;
+      } catch {
+        console.error('Error: Code-gen adapters have been moved to examples/. Use "lucid launch --image" or "lucid launch --runtime base" instead.');
+        process.exit(1);
+      }
       const { getAgentDeploymentService } = await import('../packages/engine/src/compute/control-plane/agent/agentDeploymentService');
-      const { buildAgentDescriptor } = await import('../packages/engine/src/compute/control-plane/agent/descriptorBuilder');
       const service = getAgentDeploymentService();
 
       const descriptor = buildAgentDescriptor(options);

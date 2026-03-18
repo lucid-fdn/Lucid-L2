@@ -38,7 +38,11 @@ function loadAdapters(): Map<string, IRuntimeAdapter> {
     }
   }
 
-  logger.info(`[Runtime] Loaded ${adapterRegistry.size} adapters: ${Array.from(adapterRegistry.keys()).join(', ')}`);
+  if (adapterRegistry.size === 0) {
+    logger.warn('[Runtime] No code-gen adapters loaded — adapters moved to examples/. Use lucid launch --image or --runtime base instead.');
+  } else {
+    logger.info(`[Runtime] Loaded ${adapterRegistry.size} adapters: ${Array.from(adapterRegistry.keys()).join(', ')}`);
+  }
   return adapterRegistry;
 }
 
@@ -64,10 +68,16 @@ export function getAllRuntimeAdapters(): IRuntimeAdapter[] {
 
 /**
  * Find the best adapter for a given descriptor.
+ * Returns null if no code-gen adapters are loaded (expected after Phase B migration).
  * Priority: vercel-ai > openclaw > openai-agents > langgraph > crewai > google-adk > docker
  */
-export function selectBestAdapter(descriptor: any, preferred?: string): IRuntimeAdapter {
+export function selectBestAdapter(descriptor: any, preferred?: string): IRuntimeAdapter | null {
   const all = loadAdapters();
+
+  if (all.size === 0) {
+    logger.warn('[Runtime] No runtime adapters available. Use lucid launch --image or --runtime base instead.');
+    return null;
+  }
 
   // If preferred adapter specified and it can handle, use it
   if (preferred) {
@@ -82,8 +92,8 @@ export function selectBestAdapter(descriptor: any, preferred?: string): IRuntime
     if (adapter && adapter.canHandle(descriptor)) return adapter;
   }
 
-  // Docker always works as fallback
-  return all.get('docker')!;
+  // No adapter matched
+  return all.get('docker') ?? null;
 }
 
 /**

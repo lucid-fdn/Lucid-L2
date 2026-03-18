@@ -166,6 +166,14 @@ export class AgentDeploymentService {
         ? getRuntimeAdapter(input.preferred_adapter)
         : selectBestAdapter(input.descriptor);
 
+      if (!adapter) {
+        return {
+          success: false,
+          passport_id: passportId,
+          error: 'No runtime adapters available. Use lucid launch --image or --runtime base instead.',
+        };
+      }
+
       logger.info(`[AgentDeploy]   Using adapter: ${adapter.name} (${adapter.language})`);
       artifact = await adapter.generate(input.descriptor, passportId);
       logger.info(`[AgentDeploy] Generated ${artifact.files.size} files (entrypoint: ${artifact.entrypoint})`);
@@ -606,6 +614,10 @@ export class AgentDeploymentService {
     const adapter = input.preferred_adapter
       ? getRuntimeAdapter(input.preferred_adapter)
       : selectBestAdapter(input.descriptor);
+
+    if (!adapter) {
+      throw new Error('No runtime adapters available. Use lucid launch --image or --runtime base instead.');
+    }
 
     const artifact = await adapter.generate(input.descriptor, `preview_${Date.now()}`);
     const filesObj: Record<string, string> = {};
