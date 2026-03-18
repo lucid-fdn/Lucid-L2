@@ -372,25 +372,19 @@ offchain/
   packages/
     engine/src/                       # @lucid-l2/engine — 7 feature domains
       identity/                       # Who you are — passports, NFT, wallet, shares, TBA, bridge
-      compute/                        # Where you run — deployers, control plane, launch, adapters
-        deploy/                       # IDeployer -> Docker, Railway, Akash, Phala, io.net, Nosana
-          types.ts                    # ImageDeployInput + isImageDeploy() guard
-        deployment/                   # Control plane — state machine, reconciler, lease, webhooks
-          control-plane/              # IDeploymentStore, types, postgres/in-memory stores
+      compute/                        # Where you run — 2 folders (industry standard)
+        providers/                    # 6 deployer adapters (Docker, Railway, Akash, Phala, io.net, Nosana)
+        control-plane/                # State + orchestration + descriptors
+          store/                      # IDeploymentStore, types, postgres/in-memory, state-machine
           reconciler/                 # Drift detection, stuck repair, provider sync
           lease-manager/              # io.net lease extension
           webhooks/                   # Provider webhook normalizers (5 providers)
           rollout/                    # Blue-green, promote, rollback
           secrets/                    # ISecretsResolver (env, mock)
+          launch/                     # launchImage() + launchBaseRuntime()
+          agent/                      # agentDeploymentService, descriptors, revenue, A2A
           boot.ts                     # startDeploymentControlPlane()
-        launch/                       # Product-level agent activation (lucid launch)
-          service.ts                  # launchImage() + launchBaseRuntime()
-          passport-resolution.ts      # resolvePassport()
-          env-builder.ts              # buildLucidEnvVars()
-          validators.ts               # Input validation
-        runtime/                      # IRuntimeAdapter interface + factory (adapters @deprecated)
-        agent/                        # agentDeploymentService, agentDescriptor, agentRevenueService
-          a2a/                        # A2A protocol client/server/agentCard
+        runtime/                      # IRuntimeAdapter interface (adapters @deprecated)
       memory/                         # What you remember — 6 types, vector search, compaction
       receipt/                        # What you can prove — creation, signing, verification
       anchoring/                      # When + where it's permanent — DePIN dispatch, epoch lifecycle

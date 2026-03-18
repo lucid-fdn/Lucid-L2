@@ -95,11 +95,9 @@ Plus `shared/` for cross-cutting infrastructure (crypto, DB, config, chain adapt
 ```
 engine/src/
   identity/       ← passports, NFT, wallet, shares
-  compute/        ← deployers, control plane, launch, runtime
-    deploy/       ← 6 provider adapters (IDeployer)
-    deployment/   ← state machine, reconciler, webhooks
-    launch/       ← launchImage(), launchBaseRuntime()
-    agent/        ← descriptors, revenue service, A2A
+  compute/        ← where agents run (2 folders, industry standard)
+    providers/    ← 6 deployer adapters (Docker, Railway, Akash, Phala, io.net, Nosana)
+    control-plane/ ← state machine, reconciler, launch, descriptors, webhooks
   memory/         ← 6 types, vector search, compaction
   receipt/        ← creation, signing, verification
   anchoring/      ← DePIN dispatch + epoch lifecycle
