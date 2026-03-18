@@ -35,4 +35,28 @@ jobs:
         env:
           NODE_ENV: test
 
+  docs-check:
+    name: Docs Freshness Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
 
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tools/docs/package-lock.json
+
+      - name: Install docs pipeline deps
+        working-directory: tools/docs
+        run: npm ci
+
+      - name: Run docs:check
+        working-directory: tools/docs
+        run: npx tsx src/check.ts
+
+      - name: Run docs pipeline tests
+        working-directory: tools/docs
+        run: npx jest --no-coverage --ci --forceExit
