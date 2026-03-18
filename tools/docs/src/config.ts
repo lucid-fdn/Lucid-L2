@@ -5,6 +5,8 @@ export const ENGINE_SRC = path.join(REPO_ROOT, 'offchain', 'packages', 'engine',
 export const DOCS_MODULES_DIR = path.join(REPO_ROOT, 'docs', 'modules');
 export const CACHE_DIR = path.join(__dirname, '..', 'cache');
 export const CACHE_FILE = path.join(CACHE_DIR, 'hashes.json');
+export const DOCS_REFERENCE_DIR = path.join(REPO_ROOT, 'docs', 'reference');
+export const CLAUDE_MD_PATH = path.join(REPO_ROOT, 'CLAUDE.md');
 
 export const DOMAIN_ALLOWLIST = [
   'identity',
