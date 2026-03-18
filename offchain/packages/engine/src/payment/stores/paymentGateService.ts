@@ -6,7 +6,7 @@ import { AnchorProvider, Program, Wallet, setProvider, Idl } from '@coral-xyz/an
 import * as fs from 'fs';
 import path from 'path';
 import { PATHS } from '../../shared/config/paths';
-import { getSolanaKeypair } from '../../chain/solana/keypair';
+import { getSolanaKeypair } from '../../shared/chains/solana/keypair';
 import { logger } from '../../shared/lib/logger';
 
 const PASSPORT_PROGRAM_ID = process.env.PASSPORT_PROGRAM_ID || 'FhoemNdqwPMt8nmX4HT3WpSqUuqeAUXRb7WchAehmSaL';

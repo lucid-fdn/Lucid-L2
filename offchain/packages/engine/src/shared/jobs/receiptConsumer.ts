@@ -13,7 +13,7 @@
  */
 
 import { createInferenceReceipt } from '../../receipt/receiptService'
-import { addReceiptToEpoch } from '../../epoch/services/epochService'
+import { addReceiptToEpoch } from '../../anchoring/epoch/services/epochService'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -179,7 +179,7 @@ async function pollOnce(): Promise<number> {
         // Wire agent receipts to revenue pipeline
         if (row.agent_passport_id) {
           try {
-            const { processAgentRevenue } = await import('../../compute/agent/agentRevenueService')
+            const { processAgentRevenue } = await import('../../compute/control-plane/agent/agentRevenueService')
             await processAgentRevenue({
               agent_passport_id: row.agent_passport_id,
               run_id: receipt.run_id,

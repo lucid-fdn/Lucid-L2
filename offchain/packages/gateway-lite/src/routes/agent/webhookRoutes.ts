@@ -12,8 +12,8 @@ export const webhookRouter = Router();
  */
 webhookRouter.post('/v1/webhooks/:provider', async (req, res) => {
   try {
-    const { WebhookHandler } = await import('../../../../engine/src/deployment/webhooks/handler');
-    const { getDeploymentStore } = await import('../../../../engine/src/deployment/control-plane');
+    const { WebhookHandler } = await import('../../../../engine/src/compute/control-plane/webhooks/handler');
+    const { getDeploymentStore } = await import('../../../../engine/src/compute/control-plane/store');
     const handler = new WebhookHandler(getDeploymentStore());
     const result = await handler.handle(
       req.params.provider,

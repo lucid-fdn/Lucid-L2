@@ -9,14 +9,14 @@ import type { Passport } from '../../engine/src/identity/stores/passportStore';
 import { initReceiptConsumer, startReceiptConsumer, stopReceiptConsumer } from '../../engine/src/shared/jobs/receiptConsumer';
 import pool from '../../engine/src/shared/db/pool';
 import { initReceiptMMR } from '../../engine/src/shared/crypto/receiptMMR';
-import { setAnchoringConfig, setAuthorityKeypair, commitEpochRoot } from '../../engine/src/epoch/services/anchoringService';
+import { setAnchoringConfig, setAuthorityKeypair, commitEpochRoot } from '../../engine/src/anchoring/epoch/services/anchoringService';
 import { startAnchoringJob, setAnchoringJobConfig } from '../../engine/src/shared/jobs/anchoringJob';
-import { setAnchorCallback, startAutoFinalization } from '../../engine/src/epoch/services/epochService';
-import { getKeypair } from '../../engine/src/chain/solana/client';
-import { blockchainAdapterFactory } from '../../engine/src/chain/blockchain/BlockchainAdapterFactory';
-import { EVMAdapter } from '../../engine/src/chain/blockchain/evm/EVMAdapter';
-import { SolanaAdapter } from '../../engine/src/chain/blockchain/solana/SolanaAdapter';
-import { CHAIN_CONFIGS, getEVMChains, getSolanaChains } from '../../engine/src/chain/blockchain/chains';
+import { setAnchorCallback, startAutoFinalization } from '../../engine/src/anchoring/epoch/services/epochService';
+import { getKeypair } from '../../engine/src/shared/chains/solana/client';
+import { blockchainAdapterFactory } from '../../engine/src/shared/chains/factory';
+import { EVMAdapter } from '../../engine/src/shared/chains/evm/adapter';
+import { SolanaAdapter } from '../../engine/src/shared/chains/solana/adapter';
+import { CHAIN_CONFIGS, getEVMChains, getSolanaChains } from '../../engine/src/shared/chains/configs';
 import { setX402Config } from './middleware/x402';
 import { getReputationAggregator } from './reputation/reputationAggregator';
 import { reputationAlgorithmRegistry } from './reputation';
@@ -113,7 +113,7 @@ export function initializeBackgroundServices(app: Express): void {
       console.warn('Receipt MMR restore failed (starting fresh):', err instanceof Error ? err.message : err);
     }
     try {
-      const { loadEpochsFromDb } = await import('../../engine/src/epoch/services/epochService');
+      const { loadEpochsFromDb } = await import('../../engine/src/anchoring/epoch/services/epochService');
       const loaded = await loadEpochsFromDb();
       if (loaded > 0) {
         console.log(`Epoch state: restored ${loaded} active epoch(s) from DB`);
@@ -163,7 +163,7 @@ export function initializeBackgroundServices(app: Express): void {
   // Start Deployment Control Plane (Reconciler + LeaseManager)
   if (process.env.DEPLOYMENT_CONTROL_PLANE !== 'false') {
     try {
-      const { startDeploymentControlPlane } = require('../../engine/src/deployment/boot');
+      const { startDeploymentControlPlane } = require('../../engine/src/compute/control-plane/boot');
       startDeploymentControlPlane();
     } catch (err) {
       console.warn('[deployment] Failed to start control plane:', err instanceof Error ? err.message : err);
@@ -370,7 +370,7 @@ export function registerShutdownHandlers(): void {
     console.log(`${signal} received — shutting down`);
     stopReceiptConsumer();
     stopAgentMirrorConsumer();
-    try { const { stopDeploymentControlPlane } = require('../../engine/src/deployment/boot'); stopDeploymentControlPlane(); } catch { /* best-effort */ }
+    try { const { stopDeploymentControlPlane } = require('../../engine/src/compute/control-plane/boot'); stopDeploymentControlPlane(); } catch { /* best-effort */ }
     try { const { stopMemorySystem } = require('../../engine/src/memory/boot'); stopMemorySystem(); } catch { /* best-effort */ }
     // Final MMR checkpoint before exit (best-effort)
     try {

@@ -146,8 +146,14 @@ tags:
     description: EVM multi-chain operations — chain status, ERC-8004 registration, cross-chain reputation and payouts
   - name: AgentMirror
     description: Read-only agent proof endpoints — receipts, epochs, and MMR proofs (admin auth required)
+  - name: Memory
+    description: Agent memory — episodic, semantic, procedural, entity, trust-weighted, temporal types with hash-chain provenance
   - name: Anchoring
     description: DePIN anchoring control plane — query, verify, and trace artifact anchor records
+  - name: AgentLaunch
+    description: Agent activation — launch via image or base runtime, blue-green rollout, promotion, and rollback
+  - name: Webhooks
+    description: Deployment webhook receivers — normalizes provider-specific callbacks into deployment events
 
 paths:
   # ===========================================================================
@@ -2275,6 +2281,209 @@ paths:
                       valid: { type: boolean }
                       chain_length: { type: integer }
                       broken_links: { type: array, items: { type: string } }
+
+  /v1/memory/entries/{id}:
+    get:
+      tags: [Memory]
+      operationId: lucid_get_memory_entry
+      summary: Read a single memory entry
+      description: Retrieve a single memory entry by its unique identifier.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+          description: Memory entry identifier
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entry:
+                    type: object
+                    additionalProperties: true
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/memory/entries:
+    get:
+      tags: [Memory]
+      operationId: lucid_list_memory_entries
+      summary: List memory entries with filters
+      description: |
+        List memory entries for an agent, optionally filtered by type and namespace.
+        Supports pagination via page and per_page query parameters.
+      parameters:
+        - name: agent_passport_id
+          in: query
+          schema: { type: string }
+          description: Agent passport identifier to filter entries
+        - name: type
+          in: query
+          schema: { type: string }
+          description: Memory type filter (episodic, semantic, procedural, entity, trust_weighted, temporal)
+        - name: namespace
+          in: query
+          schema: { type: string }
+          description: Namespace filter
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+          description: Page number for pagination
+        - name: per_page
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+          description: Number of results per page
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  entries:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+                  pagination:
+                    type: object
+                    properties:
+                      page: { type: integer }
+                      per_page: { type: integer }
+                      total: { type: integer }
+                      total_pages: { type: integer }
+
+  /v1/memory/sessions/{id}/close:
+    post:
+      tags: [Memory]
+      operationId: lucid_close_memory_session
+      summary: Close a memory session
+      description: Close an active memory session, preventing further writes.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+          description: Session identifier to close
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+
+  /v1/memory/sessions/{id}/context:
+    get:
+      tags: [Memory]
+      operationId: lucid_get_memory_session_context
+      summary: Get session context
+      description: |
+        Retrieve the full context for a memory session, including recent turns,
+        extracted facts, and relevant procedural rules.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+          description: Session identifier
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  context:
+                    type: object
+                    additionalProperties: true
+
+  /v1/memory/provenance/{agent_id}/{namespace}:
+    get:
+      tags: [Memory]
+      operationId: lucid_get_memory_provenance_chain
+      summary: Get provenance chain
+      description: |
+        Return the full hash-chain provenance for a given agent and namespace,
+        ordered from oldest to newest.
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema: { type: string }
+          description: Agent passport identifier
+        - name: namespace
+          in: path
+          required: true
+          schema: { type: string }
+          description: Memory namespace
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  chain:
+                    type: array
+                    items: { type: object, additionalProperties: true }
+
+  /v1/memory/provenance/entry/{id}:
+    get:
+      tags: [Memory]
+      operationId: lucid_get_memory_entry_provenance
+      summary: Single entry provenance
+      description: Retrieve the provenance record for a single memory entry.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+          description: Memory entry identifier
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  provenance:
+                    type: object
+                    additionalProperties: true
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1/memory/stats/{agent_id}:
+    get:
+      tags: [Memory]
+      operationId: lucid_get_memory_stats
+      summary: Memory diagnostics
+      description: |
+        Return memory statistics and diagnostics for a specific agent, including
+        entry counts by type, storage usage, and hash chain integrity status.
+      parameters:
+        - name: agent_id
+          in: path
+          required: true
+          schema: { type: string }
+          description: Agent passport identifier
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stats:
+                    type: object
+                    additionalProperties: true
 
   # ===========================================================================
   # Anchoring
@@ -4996,6 +5205,311 @@ paths:
         '500': { $ref: '#/components/responses/InternalServerError' }
 
   # ===========================================================================
+  # Agent Launch
+  # ===========================================================================
+  /v1/agents/launch:
+    post:
+      tags: [AgentLaunch]
+      operationId: lucid_launch_agent
+      x-speakeasy-group: agents.launch
+      summary: Launch an agent in the Lucid verified network
+      description: |
+        Launch an agent via one of two modes:
+        - **image**: Deploy a pre-built Docker image (Path A — Bring Your Own Image).
+        - **base-runtime**: Deploy a pre-configured base runtime with model, prompt, and optional tools (Path B — No-Code).
+
+        Both modes create a passport, deploy to the target provider, and inject Lucid env vars.
+        Returns the passport_id, deployment_id, and deployment URL.
+      security:
+        - BearerAuth: []
+      x-speakeasy-mcp:
+        name: lucid_launch_agent
+        description: Launch an agent via image or base-runtime mode.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/LaunchImageRequest'
+                - $ref: '#/components/schemas/LaunchBaseRuntimeRequest'
+              discriminator:
+                propertyName: mode
+                mapping:
+                  image: '#/components/schemas/LaunchImageRequest'
+                  base-runtime: '#/components/schemas/LaunchBaseRuntimeRequest'
+            examples:
+              image_mode:
+                summary: Launch with a Docker image
+                value:
+                  mode: "image"
+                  image: "ghcr.io/myorg/my-agent:latest"
+                  target: "railway"
+                  owner: "7xK9mQ2vNbPfYkRd3JhEzV1LnWqA8tUcGp4SyDfH5Bo"
+                  name: "my-trading-agent"
+              base_runtime_mode:
+                summary: Launch with base runtime
+                value:
+                  mode: "base-runtime"
+                  model: "gpt-4o"
+                  prompt: "You are a helpful trading assistant"
+                  target: "docker"
+                  owner: "7xK9mQ2vNbPfYkRd3JhEzV1LnWqA8tUcGp4SyDfH5Bo"
+                  name: "trading-assistant"
+      responses:
+        '201':
+          description: Agent launched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LaunchResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  # ===========================================================================
+  # Blue-Green Deployment
+  # ===========================================================================
+  /v1/agents/{passportId}/deploy/blue-green:
+    post:
+      tags: [AgentLaunch]
+      operationId: lucid_deploy_blue_green
+      x-speakeasy-group: agents.launch
+      summary: Initiate blue-green deployment
+      description: |
+        Start a blue-green rollout for an agent. Deploys a new version into the
+        blue slot while the current primary continues serving traffic. Use promote
+        or rollback to finalize.
+      security:
+        - BearerAuth: []
+      x-speakeasy-mcp:
+        name: lucid_deploy_blue_green
+        description: Initiate a blue-green deployment for an agent.
+      parameters:
+        - name: passportId
+          in: path
+          required: true
+          schema: { type: string }
+          description: Agent passport identifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [image]
+              properties:
+                image: { type: string, description: Docker image reference for the blue deployment }
+                target: { type: string, description: Deploy target override (docker, railway, akash, phala, ionet, nosana) }
+                env_vars: { type: object, additionalProperties: { type: string }, description: Environment variable overrides }
+                health_gate_ms: { type: integer, description: Health check wait time in milliseconds before promotion eligibility }
+      responses:
+        '201':
+          description: Blue deployment created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, deployment_id, slot]
+                properties:
+                  success: { type: boolean }
+                  deployment_id: { type: string }
+                  slot: { type: string, enum: [blue] }
+                  status: { type: string }
+                  url: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/agents/{passportId}/promote:
+    post:
+      tags: [AgentLaunch]
+      operationId: lucid_promote_blue
+      x-speakeasy-group: agents.launch
+      summary: Promote blue to primary
+      description: |
+        Promote the blue deployment to primary. The current primary is terminated
+        and the blue slot becomes the new primary. Fails if no healthy blue
+        deployment exists.
+      security:
+        - BearerAuth: []
+      x-speakeasy-mcp:
+        name: lucid_promote_blue
+        description: Promote the blue deployment to primary.
+      parameters:
+        - name: passportId
+          in: path
+          required: true
+          schema: { type: string }
+          description: Agent passport identifier
+      responses:
+        '200':
+          description: Blue promoted to primary
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, message]
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  deployment_id: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/agents/{passportId}/rollback:
+    post:
+      tags: [AgentLaunch]
+      operationId: lucid_rollback_deployment
+      x-speakeasy-group: agents.launch
+      summary: Rollback to previous deployment
+      description: |
+        Rollback to the previous primary deployment. Terminates the current
+        primary and restores the prior version. Fails if no rollback target exists.
+      security:
+        - BearerAuth: []
+      x-speakeasy-mcp:
+        name: lucid_rollback_deployment
+        description: Rollback to the previous deployment.
+      parameters:
+        - name: passportId
+          in: path
+          required: true
+          schema: { type: string }
+          description: Agent passport identifier
+      responses:
+        '200':
+          description: Rolled back
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, message]
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+                  deployment_id: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/agents/{passportId}/blue:
+    get:
+      tags: [AgentLaunch]
+      operationId: lucid_get_blue_deployment
+      x-speakeasy-group: agents.launch
+      summary: Get blue deployment status
+      description: |
+        Retrieve the current blue-slot deployment status for an agent, including
+        health state, URL, and promotion eligibility.
+      x-speakeasy-mcp:
+        name: lucid_get_blue_deployment
+        description: Get the blue deployment status for an agent.
+      parameters:
+        - name: passportId
+          in: path
+          required: true
+          schema: { type: string }
+          description: Agent passport identifier
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  deployment:
+                    type: object
+                    properties:
+                      deployment_id: { type: string }
+                      slot: { type: string, enum: [blue] }
+                      status: { type: string }
+                      url: { type: string }
+                      healthy: { type: boolean }
+                      created_at: { type: string, format: date-time }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/agents/{passportId}/blue/cancel:
+    post:
+      tags: [AgentLaunch]
+      operationId: lucid_cancel_blue_deployment
+      x-speakeasy-group: agents.launch
+      summary: Cancel blue deployment
+      description: |
+        Cancel and terminate the blue-slot deployment without affecting the
+        current primary. Useful when the blue deployment fails health checks
+        or is no longer needed.
+      security:
+        - BearerAuth: []
+      x-speakeasy-mcp:
+        name: lucid_cancel_blue_deployment
+        description: Cancel the blue deployment without affecting primary.
+      parameters:
+        - name: passportId
+          in: path
+          required: true
+          schema: { type: string }
+          description: Agent passport identifier
+      responses:
+        '200':
+          description: Blue deployment canceled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, message]
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  # ===========================================================================
+  # Webhooks
+  # ===========================================================================
+  /v1/webhooks/{provider}:
+    post:
+      tags: [Webhooks]
+      operationId: lucid_receive_deployment_webhook
+      summary: Receive deployment webhook
+      description: |
+        Receive and normalize provider-specific deployment webhooks (Railway, Akash,
+        Phala, io.net, Nosana). The provider path parameter selects the appropriate
+        normalizer. Webhook payloads are converted into deployment events.
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [railway, akash, phala, ionet, nosana]
+          description: Deployment provider name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              description: Provider-specific webhook payload
+      responses:
+        '200':
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success]
+                properties:
+                  success: { type: boolean }
+                  event_id: { type: string }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  # ===========================================================================
   # Agent Wallet
   # ===========================================================================
   /v1/agents/{agentId}/wallet/balance:
@@ -5386,16 +5900,17 @@ paths:
         '500': { $ref: '#/components/responses/InternalServerError' }
     delete:
       tags: [A2A]
-      operationId: lucid_cancel_a2a_task
-      summary: Cancel an A2A task
+      operationId: lucid_delete_a2a_task
+      summary: Delete an A2A task
       description: |
-        Admin-only. Cancels a task that is still in progress.
-        Returns 409 if the task is already completed, failed, or canceled.
+        Admin-only. Deletes a task record. If the task is still in progress it is
+        canceled first, then the record is removed. Returns 404 if the task does
+        not exist.
       security:
         - BearerAuth: []
       x-speakeasy-mcp:
-        name: lucid_cancel_a2a_task
-        description: Cancel an in-progress A2A task.
+        name: lucid_delete_a2a_task
+        description: Delete an A2A task by ID (cancels if still in progress).
       parameters:
         - in: path
           name: passportId
@@ -5404,26 +5919,20 @@ paths:
           schema: { type: string }
         - in: path
           name: taskId
-          description: A2A task identifier to cancel (UUID)
+          description: A2A task identifier to delete (UUID)
           required: true
           schema: { type: string }
       responses:
         '200':
-          description: Task canceled
+          description: Task deleted
           content:
             application/json:
               schema:
                 type: object
-                required: [success, task]
+                required: [success]
                 properties:
                   success: { type: boolean }
-                  task: { $ref: '#/components/schemas/A2ATask' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409':
-          description: Conflict (task already in terminal state)
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErrorResponse' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
   /v1/a2a/{passportId}/tasks:
@@ -7975,6 +8484,106 @@ components:
           type: array
           items: { type: string }
         list_on_marketplace: { type: boolean }
+
+    # =========================================================================
+    # Agent Launch
+    # =========================================================================
+    LaunchImageRequest:
+      type: object
+      required: [mode, image, target, owner, name]
+      properties:
+        mode:
+          type: string
+          enum: [image]
+          description: Launch mode — bring your own Docker image
+        image:
+          type: string
+          description: Docker image reference (e.g. ghcr.io/myorg/my-agent:latest)
+        target:
+          type: string
+          enum: [docker, railway, akash, phala, ionet, nosana]
+          description: Deployment target provider
+        owner:
+          type: string
+          description: Owner wallet address (Solana base58 or EVM 0x)
+        name:
+          type: string
+          description: Human-readable agent name
+        port:
+          type: integer
+          description: Container port to expose (default 8080)
+        verification:
+          type: string
+          enum: [full, minimal]
+          default: full
+          description: Verification mode (full includes receipts + memory + payment hooks)
+        env_vars:
+          type: object
+          additionalProperties: { type: string }
+          description: Additional environment variables injected into the container
+        registry_auth:
+          type: object
+          properties:
+            username: { type: string }
+            password: { type: string }
+          description: Private registry credentials (never stored, used at deploy time only)
+
+    LaunchBaseRuntimeRequest:
+      type: object
+      required: [mode, model, prompt, target, owner, name]
+      properties:
+        mode:
+          type: string
+          enum: [base-runtime]
+          description: Launch mode — pre-built base runtime
+        model:
+          type: string
+          description: Model identifier (e.g. gpt-4o, claude-3-opus)
+        prompt:
+          type: string
+          description: System prompt for the agent
+        target:
+          type: string
+          enum: [docker, railway, akash, phala, ionet, nosana]
+          description: Deployment target provider
+        owner:
+          type: string
+          description: Owner wallet address (Solana base58 or EVM 0x)
+        name:
+          type: string
+          description: Human-readable agent name
+        tools:
+          type: array
+          items: { type: string }
+          description: Optional tool identifiers to enable
+
+    LaunchResponse:
+      type: object
+      required: [success, reputation_eligible]
+      properties:
+        success: { type: boolean }
+        passport_id:
+          type: string
+          description: Created passport identifier
+        deployment_id:
+          type: string
+          description: Deployment record identifier
+        deployment_url:
+          type: string
+          description: Public URL of the deployed agent
+        verification_mode:
+          type: string
+          enum: [full, minimal]
+          description: Active verification mode
+        reputation_eligible:
+          type: boolean
+          description: Whether the agent is eligible for on-chain reputation scoring
+        config_hash:
+          type: string
+          description: SHA-256 hash of the launch configuration (for audit)
+        error:
+          type: string
+          description: Error message (present only when success is false)
 
     # =========================================================================
     # Agent Wallet

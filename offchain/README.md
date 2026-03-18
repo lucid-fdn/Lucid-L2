@@ -78,20 +78,34 @@ local-packages/
 
 ## Engine Domains
 
-The engine is organized by feature domain. Each domain is self-contained with its own types, interfaces, implementations, and tests.
+The engine is organized by **7 feature domains**, each mapping to a stage in the autonomous AI agent lifecycle.
 
-| Domain | Path | What it owns |
-|--------|------|-------------|
-| **Identity** | `engine/src/identity/` | Passports, wallets, NFT (Token2022, Metaplex, EVM), shares, TBA, CAIP-10 bridge |
-| **Memory** | `engine/src/memory/` | 6 memory types, 3 store backends (SQLite, Postgres, InMemory), semantic recall, compaction, snapshots |
-| **Epoch** | `engine/src/epoch/` | Epoch lifecycle, MMR service, anchoring service |
-| **Receipt** | `engine/src/receipt/` | Receipt creation, Ed25519 signing, verification, MMR proofs |
-| **Payment** | `engine/src/payment/` | x402 protocol, pricing, revenue splits, escrow, facilitators, airdrop |
-| **Compute** | `engine/src/compute/` | 6 deployers, 7 runtime adapters, agent deployment service, image builder |
-| **Deployment** | `engine/src/deployment/` | Control plane (store, state machine, reconciler, lease manager, webhooks, rollout, secrets) |
-| **Anchoring** | `engine/src/anchoring/` | Unified DePIN dispatcher, anchor registry, CID verifier (7 artifact types) |
-| **Reputation** | `engine/src/reputation/` | On-chain + off-chain reputation, ERC-8004 sync, scoring algorithms |
-| **Shared** | `engine/src/shared/` | Crypto (hash, signing, MMR, canonical JSON), DB pool, config, chains (Solana + EVM adapters), DePIN storage, background jobs |
+| Domain | Lifecycle Stage | What it owns |
+|--------|----------------|-------------|
+| **Identity** | Who you are | Passports, wallets, NFT (Token2022, Metaplex, EVM), shares, TBA, CAIP-10 bridge |
+| **Compute** | Where you run | 6 deployers (Docker, Railway, Akash, Phala, io.net, Nosana), launch service, deployment control plane, reconciler |
+| **Memory** | What you remember | 6 memory types, 3 store backends (SQLite, Postgres, InMemory), semantic recall, compaction, DePIN snapshots |
+| **Receipt** | What you can prove | Receipt creation, Ed25519 signing, verification, MMR proofs |
+| **Anchoring** | When and where it's permanent | Epoch lifecycle, MMR, DePIN dispatcher, anchor registry, CID verifier |
+| **Payment** | How you get paid | x402 protocol, pricing, revenue splits, escrow, facilitators, share token airdrop |
+| **Reputation** | How trusted you are | On-chain + off-chain reputation, ERC-8004 sync, scoring algorithms |
+
+Plus `shared/` for cross-cutting infrastructure (crypto, DB, config, chain adapters, DePIN storage, background jobs).
+
+```
+engine/src/
+  identity/       ← passports, NFT, wallet, shares
+  compute/        ← where agents run (2 folders, industry standard)
+    providers/    ← 6 deployer adapters (Docker, Railway, Akash, Phala, io.net, Nosana)
+    control-plane/ ← state machine, reconciler, launch, descriptors, webhooks
+  memory/         ← 6 types, vector search, compaction
+  receipt/        ← creation, signing, verification
+  anchoring/      ← DePIN dispatch + epoch lifecycle
+    epoch/        ← epochService, anchoringService, mmrService
+  payment/        ← x402, splits, escrow, airdrop
+  reputation/     ← on-chain + off-chain + Oracle
+  shared/         ← crypto, DB, config, chains, DePIN, jobs
+```
 
 ---
 

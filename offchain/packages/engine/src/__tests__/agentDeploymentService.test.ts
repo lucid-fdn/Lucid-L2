@@ -13,11 +13,11 @@
 import {
   AgentDeploymentService,
   resetAgentDeploymentService,
-} from '../compute/agent/agentDeploymentService';
-import type { DeployAgentInput } from '../compute/agent/agentDeploymentService';
-import type { AgentDescriptor } from '../compute/agent/agentDescriptor';
-import { InMemoryDeploymentStore } from '../deployment/control-plane/in-memory-store';
-import { resetDeploymentStore } from '../deployment/control-plane';
+} from '../compute/control-plane/agent/agentDeploymentService';
+import type { DeployAgentInput } from '../compute/control-plane/agent/agentDeploymentService';
+import type { AgentDescriptor } from '../compute/control-plane/agent/agentDescriptor';
+import { InMemoryDeploymentStore } from '../compute/control-plane/store/in-memory-store';
+import { resetDeploymentStore } from '../compute/control-plane/store';
 
 // ---------------------------------------------------------------------------
 // Mock external dependencies
@@ -33,15 +33,11 @@ jest.mock('../identity/passport/passportManager', () => ({
   getPassportManager: jest.fn(),
 }));
 
-// Mock runtime adapters
-jest.mock('../compute/runtime', () => ({
+// Mock deployers + runtime adapters (merged into providers)
+jest.mock('../compute/providers', () => ({
   getRuntimeAdapter: jest.fn(),
   selectBestAdapter: jest.fn(),
   listAdapterNames: jest.fn(() => ['vercel-ai', 'openclaw', 'docker']),
-}));
-
-// Mock deployers
-jest.mock('../compute/deploy', () => ({
   getDeployer: jest.fn(),
   listDeployerTargets: jest.fn(() => ['docker', 'railway']),
 }));
@@ -52,7 +48,7 @@ jest.mock('../identity/wallet', () => ({
 }));
 
 // Mock A2A
-jest.mock('../compute/agent/a2a/agentCard', () => ({
+jest.mock('../compute/control-plane/agent/a2a/agentCard', () => ({
   generateAgentCard: jest.fn(() => ({
     name: 'test-agent',
     capabilities: ['research'],
@@ -61,10 +57,10 @@ jest.mock('../compute/agent/a2a/agentCard', () => ({
 
 // Mock deployment control plane — use InMemoryDeploymentStore for tests
 let testStore: InMemoryDeploymentStore;
-jest.mock('../deployment/control-plane', () => {
-  const actual = jest.requireActual('../deployment/control-plane/in-memory-store');
+jest.mock('../compute/control-plane/store', () => {
+  const actual = jest.requireActual('../compute/control-plane/store/in-memory-store');
   return {
-    ...jest.requireActual('../deployment/control-plane'),
+    ...jest.requireActual('../compute/control-plane/store'),
     getDeploymentStore: () => {
       // testStore is set in beforeEach
       return testStore;
@@ -77,10 +73,9 @@ jest.mock('../deployment/control-plane', () => {
 // Import mocked modules
 import { validateWithSchema } from '../shared/crypto/schemaValidator';
 import { getPassportManager } from '../identity/passport/passportManager';
-import { getRuntimeAdapter, selectBestAdapter, listAdapterNames } from '../compute/runtime';
-import { getDeployer, listDeployerTargets } from '../compute/deploy';
+import { getRuntimeAdapter, selectBestAdapter, listAdapterNames, getDeployer, listDeployerTargets } from '../compute/providers';
 import { getAgentWalletProvider } from '../identity/wallet';
-import { generateAgentCard } from '../compute/agent/a2a/agentCard';
+import { generateAgentCard } from '../compute/control-plane/agent/a2a/agentCard';
 // Marketplace moved to _wip/
 // import { getMarketplaceService } from '../agent/marketplace';
 

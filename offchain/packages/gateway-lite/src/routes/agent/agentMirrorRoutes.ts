@@ -12,7 +12,7 @@
 
 import { Router, Request, Response } from 'express'
 import { verifyAdminAuth } from '../../middleware/adminAuth'
-import { getCurrentEpoch } from '../../../../engine/src/epoch/services/epochService'
+import { getCurrentEpoch } from '../../../../engine/src/anchoring/epoch/services/epochService'
 import pool from '../../../../engine/src/shared/db/pool'
 import { logger } from '../../../../engine/src/shared/lib/logger';
 

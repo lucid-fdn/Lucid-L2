@@ -4,7 +4,7 @@ import {
   DEFAULT_AGENT_CONFIG,
   DEFAULT_DEPLOYMENT_CONFIG,
   DEFAULT_COMPLIANCE,
-} from '../compute/agent/agentDescriptor';
+} from '../compute/control-plane/agent/agentDescriptor';
 
 describe('AgentDescriptor Schema Validation', () => {
   const validDescriptor: AgentDescriptor = {

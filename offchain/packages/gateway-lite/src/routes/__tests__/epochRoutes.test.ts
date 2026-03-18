@@ -13,7 +13,7 @@ const mockGetEpochsReadyForFinalization = jest.fn();
 const mockGetEpochStats = jest.fn();
 const mockRetryEpoch = jest.fn();
 
-jest.mock('../../../../engine/src/epoch/services/epochService', () => ({
+jest.mock('../../../../engine/src/anchoring/epoch/services/epochService', () => ({
   createEpoch: mockCreateEpoch,
   getCurrentEpoch: mockGetCurrentEpoch,
   getEpoch: mockGetEpoch,
@@ -30,7 +30,7 @@ const mockVerifyEpochAnchor = jest.fn();
 const mockGetAnchorTransaction = jest.fn();
 const mockCheckAnchoringHealth = jest.fn();
 
-jest.mock('../../../../engine/src/epoch/services/anchoringService', () => ({
+jest.mock('../../../../engine/src/anchoring/epoch/services/anchoringService', () => ({
   commitEpochRoot: mockCommitEpochRoot,
   commitEpochRootsBatch: mockCommitEpochRootsBatch,
   verifyEpochAnchor: mockVerifyEpochAnchor,

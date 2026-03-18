@@ -15,19 +15,21 @@
 import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
-import { DockerDeployer } from '../compute/deploy/DockerDeployer';
-import { RailwayDeployer } from '../compute/deploy/RailwayDeployer';
-import { AkashDeployer } from '../compute/deploy/AkashDeployer';
-import { PhalaDeployer } from '../compute/deploy/PhalaDeployer';
-import { IoNetDeployer } from '../compute/deploy/IoNetDeployer';
-import { NosanaDeployer } from '../compute/deploy/NosanaDeployer';
+import { DockerDeployer } from '../compute/providers/DockerDeployer';
+import { RailwayDeployer } from '../compute/providers/RailwayDeployer';
+import { AkashDeployer } from '../compute/providers/AkashDeployer';
+import { PhalaDeployer } from '../compute/providers/PhalaDeployer';
+import { IoNetDeployer } from '../compute/providers/IoNetDeployer';
+import { NosanaDeployer } from '../compute/providers/NosanaDeployer';
 import {
   getDeployer,
   getAllDeployers,
   listDeployerTargets,
   resetDeployers,
-} from '../compute/deploy';
-import type { RuntimeArtifact, DeploymentConfig } from '../compute/deploy/IDeployer';
+} from '../compute/providers';
+import type { RuntimeArtifact, DeploymentConfig } from '../compute/providers/IDeployer';
+import { isImageDeploy } from '../compute/providers/types';
+import type { ImageDeployInput } from '../compute/providers/types';
 
 // ---------------------------------------------------------------------------
 // Shared test fixtures
@@ -1014,5 +1016,45 @@ describe('Deployer Factory', () => {
       expect(targets).toContain('ionet');
       expect(targets).toContain('nosana');
     });
+  });
+});
+
+// ===========================================================================
+// Image-based deployment
+// ===========================================================================
+
+describe('Image-based deployment', () => {
+  const imageInput: ImageDeployInput = {
+    image: 'ghcr.io/test/my-agent:v1',
+    env_vars: { LUCID_API_URL: 'http://localhost:3001', LUCID_PASSPORT_ID: 'test_passport' },
+    port: 8080,
+    verification: 'full',
+  };
+
+  test('DockerDeployer deploys image ref with prepared status', async () => {
+    const deployer = getDeployer('docker');
+    const result = await deployer.deploy(imageInput, { target: { type: 'docker' }, restart_policy: 'on-failure' } as any, 'test_passport');
+    expect(result.success).toBe(true);
+    expect(result.url).toContain('8080');
+    expect(result.metadata?.status).toBe('prepared');
+    expect(result.metadata?.requires_manual_start).toBe(true);
+  });
+
+  test('isImageDeploy correctly identifies image vs artifact', () => {
+    expect(isImageDeploy(imageInput)).toBe(true);
+    expect(isImageDeploy({ files: new Map(), entrypoint: 'x', adapter: 'y', dependencies: {}, env_vars: {} })).toBe(false);
+    expect(isImageDeploy(null)).toBe(false);
+    expect(isImageDeploy('string')).toBe(false);
+  });
+
+  test('DockerDeployer image deploy generates compose with image: not build:', async () => {
+    const deployer = getDeployer('docker');
+    const result = await deployer.deploy(imageInput, { target: { type: 'docker' }, restart_policy: 'on-failure' } as any, 'test_compose');
+    // Read the generated docker-compose.yml
+    const dir = (result.metadata as any).dir;
+    const compose = fs.readFileSync(path.join(dir, 'docker-compose.yml'), 'utf-8');
+    expect(compose).toContain('image: ghcr.io/test/my-agent:v1');
+    expect(compose).not.toContain('build:');
+    expect(compose).toContain('8080:8080');
   });
 });

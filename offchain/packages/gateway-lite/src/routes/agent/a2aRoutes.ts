@@ -7,14 +7,14 @@ import { logger } from '../../../../engine/src/shared/lib/logger';
 
 // Lazy imports to avoid circular deps
 function getDeploymentService() {
-  const { getAgentDeploymentService } = require('../../../engine/src/compute/agent/agentDeploymentService');
+  const { getAgentDeploymentService } = require('../../../engine/src/compute/control-plane/agent/agentDeploymentService');
   return getAgentDeploymentService();
 }
 
 function getA2AModules() {
-  const agentCard = require('../../../engine/src/compute/agent/a2a/agentCard');
-  const a2aServer = require('../../../engine/src/compute/agent/a2a/a2aServer');
-  const a2aClient = require('../../../engine/src/compute/agent/a2a/a2aClient');
+  const agentCard = require('../../../engine/src/compute/control-plane/agent/a2a/agentCard');
+  const a2aServer = require('../../../engine/src/compute/control-plane/agent/a2a/a2aServer');
+  const a2aClient = require('../../../engine/src/compute/control-plane/agent/a2a/a2aClient');
   return { agentCard, a2aServer, a2aClient };
 }
 

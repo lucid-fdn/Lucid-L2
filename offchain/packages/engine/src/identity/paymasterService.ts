@@ -89,7 +89,7 @@ export class PaymasterService {
     chainId: string,
     userOp: UserOperation,
   ): Promise<GasEstimate> {
-    const { CHAIN_CONFIGS } = await import('../chain/blockchain/chains');
+    const { CHAIN_CONFIGS } = await import('../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config) throw new Error(`Unknown chain: ${chainId}`);
@@ -123,7 +123,7 @@ export class PaymasterService {
     chainId: string,
     userOp: UserOperation,
   ): Promise<{ paymasterAndData: string; estimatedLucidCost: string }> {
-    const { CHAIN_CONFIGS } = await import('../chain/blockchain/chains');
+    const { CHAIN_CONFIGS } = await import('../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config) throw new Error(`Unknown chain: ${chainId}`);
@@ -144,7 +144,7 @@ export class PaymasterService {
    * Get the current exchange rate from the paymaster contract.
    */
   async getExchangeRate(chainId: string): Promise<string> {
-    const { CHAIN_CONFIGS } = await import('../chain/blockchain/chains');
+    const { CHAIN_CONFIGS } = await import('../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config?.paymaster) throw new Error(`No paymaster on chain: ${chainId}`);
@@ -157,7 +157,7 @@ export class PaymasterService {
    * Get the paymaster's ETH balance in EntryPoint.
    */
   async getPaymasterBalance(chainId: string): Promise<string> {
-    const { CHAIN_CONFIGS } = await import('../chain/blockchain/chains');
+    const { CHAIN_CONFIGS } = await import('../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config?.paymaster) throw new Error(`No paymaster on chain: ${chainId}`);

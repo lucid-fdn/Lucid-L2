@@ -656,7 +656,7 @@ export class SolanaAdapter implements IBlockchainAdapter {
           buildCommitEpochV2Instruction,
           buildInitEpochV2Instruction,
           deriveEpochRecordV2PDA,
-        } = await import('../../../epoch/services/anchoringService');
+        } = await import('../../../anchoring/epoch/services/anchoringService');
 
         const rootBuffer = Buffer.from(root, 'hex');
         const timestamp = Math.floor(Date.now() / 1000);
@@ -713,7 +713,7 @@ export class SolanaAdapter implements IBlockchainAdapter {
           buildCommitEpochsInstruction,
           buildInitEpochsInstruction,
           deriveEpochBatchRecordPDA,
-        } = await import('../../../epoch/services/anchoringService');
+        } = await import('../../../anchoring/epoch/services/anchoringService');
 
         const rootBuffers = epochs.map(e => Buffer.from(e.root, 'hex'));
 
@@ -757,7 +757,7 @@ export class SolanaAdapter implements IBlockchainAdapter {
         expectedRoot: string,
       ): Promise<boolean> {
         // Lazy import to avoid circular dependencies
-        const { deriveEpochRecordV2PDA } = await import('../../../epoch/services/anchoringService');
+        const { deriveEpochRecordV2PDA } = await import('../../../anchoring/epoch/services/anchoringService');
 
         try {
           const [epochRecordPDA] = deriveEpochRecordV2PDA(keypair.publicKey);

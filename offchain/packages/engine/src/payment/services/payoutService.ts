@@ -369,8 +369,8 @@ export async function executePayoutSplit(
   chainId: string,
 ): Promise<PayoutExecution> {
   // Lazy imports to avoid circular dependencies
-  const { blockchainAdapterFactory } = await import('../../chain/blockchain/BlockchainAdapterFactory');
-  const { CHAIN_CONFIGS } = await import('../../chain/blockchain/chains');
+  const { blockchainAdapterFactory } = await import('../../shared/chains/factory');
+  const { CHAIN_CONFIGS } = await import('../../shared/chains/configs');
 
   // Check if already executed
   const existing = await getPayoutExecution(runId, chainId);

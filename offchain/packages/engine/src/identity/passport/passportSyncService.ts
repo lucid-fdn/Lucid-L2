@@ -7,7 +7,7 @@ import * as fs from 'fs';
 import path from 'path';
 import { createHash } from 'crypto';
 import { PATHS } from '../../shared/config/paths';
-import { getSolanaKeypair } from '../../chain/solana/keypair';
+import { getSolanaKeypair } from '../../shared/chains/solana/keypair';
 
 import { Passport, PassportType } from '../stores/passportStore';
 import { OnChainSyncHandler } from './passportManager';

@@ -5,7 +5,7 @@ import { Connection, Keypair, PublicKey } from '@solana/web3.js';
 import { INFTProvider, MintResult, NFTMetadata } from './INFTProvider';
 import { ChainFeatureUnavailable } from '../../errors';
 import { SolanaPassportClient } from './solana/solana-token2022';
-import { getSolanaKeypair } from '../../chain/solana/keypair';
+import { getSolanaKeypair } from '../../shared/chains/solana/keypair';
 import { getChainConfig } from '../../shared/chains/configs';
 import { logger } from '../../shared/lib/logger';
 

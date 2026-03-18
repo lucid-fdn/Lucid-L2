@@ -6,7 +6,7 @@ import { verifyAdminAuth } from '../../middleware/adminAuth';
 import { logger } from '../../../../engine/src/shared/lib/logger';
 
 function getRevenueService() {
-  const mod = require('../../../engine/src/compute/agent/agentRevenueService');
+  const mod = require('../../../engine/src/compute/control-plane/agent/agentRevenueService');
   return mod;
 }
 

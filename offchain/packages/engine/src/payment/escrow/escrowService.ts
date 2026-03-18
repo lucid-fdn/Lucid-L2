@@ -155,8 +155,8 @@ export class EscrowService {
     chainId: string,
     params: EscrowParams,
   ): Promise<{ escrowId: string; txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../../shared/chains/factory');
+    const { CHAIN_CONFIGS } = await import('../../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config) throw new Error(`Unknown chain: ${chainId}`);
@@ -210,8 +210,8 @@ export class EscrowService {
     signature: string,
     signerPubkey: string,
   ): Promise<{ txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../../shared/chains/factory');
+    const { CHAIN_CONFIGS } = await import('../../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config?.escrowContract) throw new Error(`No escrow contract on chain: ${chainId}`);
@@ -244,8 +244,8 @@ export class EscrowService {
     chainId: string,
     escrowId: string,
   ): Promise<{ txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../../shared/chains/factory');
+    const { CHAIN_CONFIGS } = await import('../../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config?.escrowContract) throw new Error(`No escrow contract on chain: ${chainId}`);
@@ -279,8 +279,8 @@ export class EscrowService {
     escrowId: string,
     reason: string,
   ): Promise<{ txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../../shared/chains/factory');
+    const { CHAIN_CONFIGS } = await import('../../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config?.escrowContract) throw new Error(`No escrow contract on chain: ${chainId}`);

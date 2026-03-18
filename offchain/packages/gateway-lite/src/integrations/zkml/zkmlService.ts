@@ -228,8 +228,8 @@ export class ZkMLService {
     proof: ZkMLProof,
     receiptHash: string,
   ): Promise<{ valid: boolean; txHash?: string }> {
-    const { blockchainAdapterFactory } = await import('../../../../engine/src/chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../../../../engine/src/chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../../../../engine/src/shared/chains/factory');
+    const { CHAIN_CONFIGS } = await import('../../../../engine/src/shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config) throw new Error(`Unknown chain: ${chainId}`);
@@ -257,8 +257,8 @@ export class ZkMLService {
     modelHash: string,
     verifyingKey: VerifyingKeyData,
   ): Promise<{ txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../../../../engine/src/chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../../../../engine/src/chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../../../../engine/src/shared/chains/factory');
+    const { CHAIN_CONFIGS } = await import('../../../../engine/src/shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config) throw new Error(`Unknown chain: ${chainId}`);

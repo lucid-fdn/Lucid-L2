@@ -3,7 +3,7 @@
 
 import { Connection, PublicKey, Keypair, Transaction, SystemProgram } from '@solana/web3.js';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
-import { getSolanaKeypair } from '../../chain/solana/keypair';
+import { getSolanaKeypair } from '../../shared/chains/solana/keypair';
 import { getChainConfig } from '../../shared/chains/configs';
 import { logger } from '../../shared/lib/logger';
 

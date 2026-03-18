@@ -43,6 +43,7 @@ import { paymasterRouter } from './routes/chain/paymasterRoutes';
 import { erc7579Router } from './routes/chain/erc7579Routes';
 import { zkmlRouter } from './routes/chain/zkmlRoutes';
 import { agentDeployRouter } from './routes/agent/agentDeployRoutes';
+import { launchRouter } from './routes/agent/launchRoutes';
 import { a2aRouter } from './routes/agent/a2aRoutes';
 import { agentWalletRouter } from './routes/agent/agentWalletRoutes';
 import { agentRevenueRouter } from './routes/agent/agentRevenueRoutes';
@@ -106,6 +107,7 @@ if (process.env.PREVIEW_ROUTES_ENABLED === 'true') {
 
 // Mount Agent Deployment pipeline routes
 app.use('/', agentDeployRouter);
+app.use('/', launchRouter);
 app.use('/', a2aRouter);
 app.use('/', agentWalletRouter);
 app.use('/', agentRevenueRouter);

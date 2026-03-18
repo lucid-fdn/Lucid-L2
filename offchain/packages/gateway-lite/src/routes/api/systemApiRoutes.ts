@@ -1,5 +1,5 @@
 import express from 'express';
-import { getMMRService } from '../../../../engine/src/epoch/services/mmrService';
+import { getMMRService } from '../../../../engine/src/anchoring/epoch/services/mmrService';
 import { logger } from '../../../../engine/src/shared/lib/logger';
 
 export const systemApiRouter = express.Router();
@@ -18,7 +18,7 @@ async function handleSystemStatus(req: express.Request, res: express.Response) {
     let blockchainConnected = false;
     let blockchainError = null;
     try {
-      const { getConnection } = await import('../../../../engine/src/chain/solana/client');
+      const { getConnection } = await import('../../../../engine/src/shared/chains/solana/client');
       const connection = getConnection();
       const slot = await connection.getSlot();
       blockchainConnected = slot > 0;

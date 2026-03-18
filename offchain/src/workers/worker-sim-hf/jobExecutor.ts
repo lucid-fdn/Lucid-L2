@@ -17,7 +17,7 @@ import {
   createComputeReceiptFromJob,
   ComputeReceipt,
 } from '../../../packages/engine/src/receipt/receiptService';
-import { addReceiptToEpoch } from '../../../packages/engine/src/epoch/services/epochService';
+import { addReceiptToEpoch } from '../../../packages/engine/src/anchoring/epoch/services/epochService';
 import type {
   JobRequest,
   JobResult,

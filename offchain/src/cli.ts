@@ -120,8 +120,17 @@ program
   .option('--share-supply <supply>', 'Share token total supply', '1000000')
   .action(async (options) => {
     try {
-      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/agent/agentDeploymentService');
-      const { buildAgentDescriptor } = await import('../packages/engine/src/compute/agent/descriptorBuilder');
+      console.warn('Warning: "lucid deploy" uses the deprecated code-gen path. Use "lucid launch" instead.');
+      let buildAgentDescriptor: any;
+      try {
+        // @ts-expect-error — descriptorBuilder moved to examples/adapters/ (Phase B)
+        const mod = await import('../packages/engine/src/compute/control-plane/agent/descriptorBuilder');
+        buildAgentDescriptor = mod.buildAgentDescriptor;
+      } catch {
+        console.error('Error: Code-gen adapters have been moved to examples/. Use "lucid launch --image" or "lucid launch --runtime base" instead.');
+        process.exit(1);
+      }
+      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/control-plane/agent/agentDeploymentService');
       const service = getAgentDeploymentService();
 
       const descriptor = buildAgentDescriptor(options);
@@ -158,7 +167,7 @@ program
   .description('Get deployment status for an agent')
   .action(async (passportId: string) => {
     try {
-      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/agent/agentDeploymentService');
+      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/control-plane/agent/agentDeploymentService');
       const service = getAgentDeploymentService();
       const status = await service.getAgentStatus(passportId);
       if (status) {
@@ -179,7 +188,7 @@ program
   .option('--tail <lines>', 'Number of log lines', '100')
   .action(async (passportId: string, options: any) => {
     try {
-      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/agent/agentDeploymentService');
+      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/control-plane/agent/agentDeploymentService');
       const service = getAgentDeploymentService();
       const logs = await service.getAgentLogs(passportId, parseInt(options.tail));
       console.log(logs);
@@ -196,7 +205,7 @@ program
   .option('--target <target>', 'Filter by target')
   .action(async (options: any) => {
     try {
-      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/agent/agentDeploymentService');
+      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/control-plane/agent/agentDeploymentService');
       const service = getAgentDeploymentService();
       const deployments = await service.listDeployments({
         status: options.status,
@@ -220,7 +229,7 @@ program
   .description('Terminate an agent deployment')
   .action(async (passportId: string) => {
     try {
-      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/agent/agentDeploymentService');
+      const { getAgentDeploymentService } = await import('../packages/engine/src/compute/control-plane/agent/agentDeploymentService');
       const service = getAgentDeploymentService();
       const result = await service.terminateAgent(passportId);
       if (result.success) {
@@ -240,7 +249,7 @@ program
   .description('List available deployment targets')
   .action(async () => {
     try {
-      const { listDeployerTargets } = await import('../packages/engine/src/compute/deploy');
+      const { listDeployerTargets } = await import('../packages/engine/src/compute/providers');
       const targets = listDeployerTargets();
       console.log('Available deployment targets:');
       for (const t of targets) {
@@ -248,6 +257,77 @@ program
       }
     } catch (err: any) {
       console.error('Error:', err.message || err);
+      process.exit(1);
+    }
+  });
+
+// Launch Commands
+program
+  .command('launch')
+  .description('Launch an agent via image (Path A) or base runtime (Path B)')
+  .option('--image <image>', 'Docker image to deploy (BYOI path)')
+  .option('--runtime <runtime>', 'Pre-built runtime (e.g., "base")')
+  .option('-m, --model <model>', 'Model for base runtime')
+  .option('-p, --prompt <prompt>', 'System prompt for base runtime')
+  .option('--tools <tools>', 'Comma-separated tool passport IDs')
+  .option('-t, --target <target>', 'Deployment target', 'docker')
+  .option('-o, --owner <owner>', 'Owner wallet address')
+  .option('-n, --name <name>', 'Agent name')
+  .option('--port <port>', 'Container port', '3100')
+  .option('--verification <mode>', 'Verification mode: full or minimal', 'full')
+  .action(async (options) => {
+    try {
+      const { launchImage, launchBaseRuntime } = await import('../packages/engine/src/compute/control-plane/launch');
+
+      let result;
+
+      if (options.image) {
+        // Path A: Bring Your Own Image
+        result = await launchImage({
+          image: options.image,
+          target: options.target,
+          owner: options.owner ?? 'local',
+          name: options.name ?? options.image.split('/').pop()?.split(':')[0] ?? 'agent',
+          port: parseInt(options.port, 10),
+          verification: options.verification as 'full' | 'minimal',
+          env_vars: {
+            PROVIDER_URL: process.env.PROVIDER_URL || '',
+            PROVIDER_API_KEY: process.env.PROVIDER_API_KEY || '',
+          },
+        });
+      } else if (options.runtime === 'base') {
+        // Path B: Base Runtime
+        if (!options.model || !options.prompt) {
+          console.error('Error: --runtime base requires --model and --prompt');
+          process.exit(1);
+        }
+        const tools = options.tools ? options.tools.split(',').map((t: string) => t.trim()) : undefined;
+        result = await launchBaseRuntime({
+          model: options.model,
+          prompt: options.prompt,
+          target: options.target,
+          owner: options.owner ?? 'local',
+          name: options.name ?? `base-${options.model}`,
+          tools,
+        });
+      } else {
+        console.error('Error: provide --image <image> (Path A) or --runtime base (Path B)');
+        process.exit(1);
+      }
+
+      if (result.success) {
+        console.log('\nAgent launched:');
+        console.log(`  Passport: ${result.passport_id}`);
+        console.log(`  Deployment: ${result.deployment_id}`);
+        console.log(`  URL: ${result.deployment_url || 'pending'}`);
+        console.log(`  Verification: ${result.verification_mode ?? options.verification}`);
+        console.log(`  Reputation eligible: ${result.reputation_eligible}`);
+      } else {
+        console.error(`\nLaunch failed: ${result.error}`);
+        process.exit(1);
+      }
+    } catch (err: any) {
+      console.error('Launch error:', err.message || err);
       process.exit(1);
     }
   });

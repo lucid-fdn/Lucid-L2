@@ -163,8 +163,8 @@ export class ERC7579Service {
     moduleAddress: string,
     initData?: string,
   ): Promise<{ txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../shared/chains/factory');
+    const { CHAIN_CONFIGS } = await import('../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config) throw new Error(`Unknown chain: ${chainId}`);
@@ -199,8 +199,8 @@ export class ERC7579Service {
     moduleType: ModuleType,
     moduleAddress: string,
   ): Promise<{ txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../shared/chains/factory');
+    const { CHAIN_CONFIGS } = await import('../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config) throw new Error(`Unknown chain: ${chainId}`);
@@ -232,8 +232,8 @@ export class ERC7579Service {
     accountAddress: string,
     policyHashes: string[],
   ): Promise<{ txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../shared/chains/factory');
+    const { CHAIN_CONFIGS } = await import('../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config) throw new Error(`Unknown chain: ${chainId}`);
@@ -259,8 +259,8 @@ export class ERC7579Service {
     recipients: string[],
     basisPoints: number[],
   ): Promise<{ txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../shared/chains/factory');
+    const { CHAIN_CONFIGS } = await import('../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config) throw new Error(`Unknown chain: ${chainId}`);
@@ -291,8 +291,8 @@ export class ERC7579Service {
     accountAddress: string,
     receiptData: ReceiptData,
   ): Promise<{ txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../shared/chains/factory');
+    const { CHAIN_CONFIGS } = await import('../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config) throw new Error(`Unknown chain: ${chainId}`);

@@ -1,4 +1,4 @@
-import { withRetry, withTimeout, withRetryAndTimeout } from '../utils/retry';
+import { withRetry, withTimeout, withRetryAndTimeout } from '../shared/retry';
 import { NetworkError, TimeoutError, RateLimitError } from '../errors';
 
 describe('withRetry', () => {

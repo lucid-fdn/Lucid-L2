@@ -5,10 +5,10 @@
  * Each passport NFT can have a TBA that receives payouts and signs transactions.
  */
 
-import { blockchainAdapterFactory } from '../chain/blockchain/BlockchainAdapterFactory';
-import { CHAIN_CONFIGS } from '../chain/blockchain/chains';
+import { blockchainAdapterFactory } from '../shared/chains/factory';
+import { CHAIN_CONFIGS } from '../shared/chains/configs';
 import { ERC6551RegistryClient, ERC6551_REGISTRY_ADDRESS } from './tba/evm-registry-client';
-import { EVMAdapter } from '../chain/blockchain/evm/EVMAdapter';
+import { EVMAdapter } from '../shared/chains/evm/adapter';
 
 export interface TBAInfo {
   address: string;
