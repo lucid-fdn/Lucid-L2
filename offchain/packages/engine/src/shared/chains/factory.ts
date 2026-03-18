@@ -7,7 +7,7 @@
 
 import type { IBlockchainAdapter } from './adapter-interface';
 import type { ChainConfig, ChainType } from './types';
-import { CircuitBreaker } from '../../utils/circuitBreaker';
+import { CircuitBreaker } from '../circuitBreaker';
 import { logger } from '../lib/logger';
 
 interface RegisteredAdapter {

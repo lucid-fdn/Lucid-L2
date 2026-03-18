@@ -34,8 +34,8 @@ const solanaGasMock = {
 };
 
 // Mock both proxy paths and engine paths (engine code uses different import paths)
-jest.mock('../../packages/engine/src/chain/solana/client', () => solanaClientMock);
-jest.mock('../../packages/engine/src/chain/solana/gas', () => solanaGasMock);
+jest.mock('../../packages/engine/src/shared/chains/solana/client', () => solanaClientMock);
+jest.mock('../../packages/engine/src/shared/chains/solana/gas', () => solanaGasMock);
 
 // Mock the DePIN storage so AgentMMRRegistry uses in-memory storage
 function createDepinMock() {

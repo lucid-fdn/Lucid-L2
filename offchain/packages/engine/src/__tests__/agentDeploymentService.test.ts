@@ -33,15 +33,11 @@ jest.mock('../identity/passport/passportManager', () => ({
   getPassportManager: jest.fn(),
 }));
 
-// Mock runtime adapters
-jest.mock('../compute/runtime', () => ({
+// Mock deployers + runtime adapters (merged into providers)
+jest.mock('../compute/providers', () => ({
   getRuntimeAdapter: jest.fn(),
   selectBestAdapter: jest.fn(),
   listAdapterNames: jest.fn(() => ['vercel-ai', 'openclaw', 'docker']),
-}));
-
-// Mock deployers
-jest.mock('../compute/providers', () => ({
   getDeployer: jest.fn(),
   listDeployerTargets: jest.fn(() => ['docker', 'railway']),
 }));
@@ -77,8 +73,7 @@ jest.mock('../compute/control-plane/store', () => {
 // Import mocked modules
 import { validateWithSchema } from '../shared/crypto/schemaValidator';
 import { getPassportManager } from '../identity/passport/passportManager';
-import { getRuntimeAdapter, selectBestAdapter, listAdapterNames } from '../compute/runtime';
-import { getDeployer, listDeployerTargets } from '../compute/providers';
+import { getRuntimeAdapter, selectBestAdapter, listAdapterNames, getDeployer, listDeployerTargets } from '../compute/providers';
 import { getAgentWalletProvider } from '../identity/wallet';
 import { generateAgentCard } from '../compute/control-plane/agent/a2a/agentCard';
 // Marketplace moved to _wip/

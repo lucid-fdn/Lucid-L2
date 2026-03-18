@@ -6,7 +6,7 @@
  * - IdentityBridgeService (in-memory storage)
  */
 
-import { SolanaAdapter } from '../../packages/engine/src/chain/blockchain/solana/SolanaAdapter';
+import { SolanaAdapter } from '../../packages/engine/src/shared/chains/solana/adapter';
 import {
   toCaip10,
   fromCaip10,

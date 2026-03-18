@@ -4,7 +4,7 @@
  * Verifies the CLOSED → OPEN → HALF_OPEN → CLOSED lifecycle,
  * failure counting, cooldown, probe behavior, and reset.
  */
-import { CircuitBreaker, CircuitBreakerOpenError } from '../../packages/engine/src/utils/circuitBreaker';
+import { CircuitBreaker, CircuitBreakerOpenError } from '../../packages/engine/src/shared/circuitBreaker';
 
 describe('CircuitBreaker', () => {
   let cb: CircuitBreaker;

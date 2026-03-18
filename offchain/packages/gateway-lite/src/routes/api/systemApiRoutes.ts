@@ -18,7 +18,7 @@ async function handleSystemStatus(req: express.Request, res: express.Response) {
     let blockchainConnected = false;
     let blockchainError = null;
     try {
-      const { getConnection } = await import('../../../../engine/src/chain/solana/client');
+      const { getConnection } = await import('../../../../engine/src/shared/chains/solana/client');
       const connection = getConnection();
       const slot = await connection.getSlot();
       blockchainConnected = slot > 0;

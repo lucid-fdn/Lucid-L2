@@ -38,27 +38,7 @@ jest.mock('../../../identity/passport/passportManager', () => ({
   })),
 }));
 
-// Mock runtime adapters
-jest.mock('../../runtime', () => ({
-  getRuntimeAdapter: jest.fn(),
-  selectBestAdapter: jest.fn(() => ({
-    name: 'vercel-ai',
-    version: '1.0.0',
-    language: 'typescript',
-    canHandle: jest.fn(() => true),
-    generate: jest.fn().mockResolvedValue({
-      adapter: 'vercel-ai',
-      files: new Map([['agent.ts', 'console.log("agent");'], ['Dockerfile', 'FROM node:20-slim']]),
-      entrypoint: 'agent.ts',
-      dependencies: { tsx: '^4.0.0' },
-      env_vars: { PORT: '3100' },
-      dockerfile: 'FROM node:20-slim',
-    }),
-  })),
-  listAdapterNames: jest.fn(() => ['vercel-ai', 'openclaw', 'docker']),
-}));
-
-// Mock deployers
+// Mock deployers + runtime adapters (merged into providers)
 const mockDeployer = {
   target: 'docker',
   description: 'Docker deployer',
@@ -80,6 +60,22 @@ const mockDeployer = {
   isHealthy: jest.fn().mockResolvedValue(true),
 };
 jest.mock('../../providers', () => ({
+  getRuntimeAdapter: jest.fn(),
+  selectBestAdapter: jest.fn(() => ({
+    name: 'vercel-ai',
+    version: '1.0.0',
+    language: 'typescript',
+    canHandle: jest.fn(() => true),
+    generate: jest.fn().mockResolvedValue({
+      adapter: 'vercel-ai',
+      files: new Map([['agent.ts', 'console.log("agent");'], ['Dockerfile', 'FROM node:20-slim']]),
+      entrypoint: 'agent.ts',
+      dependencies: { tsx: '^4.0.0' },
+      env_vars: { PORT: '3100' },
+      dockerfile: 'FROM node:20-slim',
+    }),
+  })),
+  listAdapterNames: jest.fn(() => ['vercel-ai', 'openclaw', 'docker']),
   getDeployer: jest.fn(() => mockDeployer),
   listDeployerTargets: jest.fn(() => ['docker', 'railway']),
 }));

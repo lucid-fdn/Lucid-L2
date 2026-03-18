@@ -149,10 +149,10 @@ export { getTokenLauncher } from './identity/shares';
 export { getPermanentStorage, getEvolvingStorage } from './shared/depin';
 
 // ─── Utils ─────────────────────────────────────────────────────────────────
-export { withRetry, withTimeout, withRetryAndTimeout } from './utils/retry';
-export type { RetryOptions } from './utils/retry';
-export { CircuitBreaker, CircuitBreakerOpenError } from './utils/circuitBreaker';
-export type { CircuitState, CircuitBreakerOptions } from './utils/circuitBreaker';
+export { withRetry, withTimeout, withRetryAndTimeout } from './shared/retry';
+export type { RetryOptions } from './shared/retry';
+export { CircuitBreaker, CircuitBreakerOpenError } from './shared/circuitBreaker';
+export type { CircuitState, CircuitBreakerOptions } from './shared/circuitBreaker';
 
 // ─── Memory ──────────────────────────────────────────────────────────────────
 export * from './memory';

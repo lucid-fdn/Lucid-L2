@@ -1,13 +1,5 @@
-// Provider and runtime exports (primary)
+// Provider and runtime exports (primary — runtime merged into providers)
 export * from './providers';
-export {
-  IRuntimeAdapter,
-  getRuntimeAdapter,
-  getAllRuntimeAdapters,
-  selectBestAdapter,
-  listAdapterNames,
-  resetRuntimeAdapters,
-} from './runtime';
 
 // Agent exports — explicit to avoid conflicts with deploy types
 export { getAgentDeploymentService, resetAgentDeploymentService, AgentDeploymentService } from './control-plane/agent/agentDeploymentService';

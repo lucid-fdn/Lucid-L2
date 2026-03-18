@@ -10,14 +10,14 @@
  */
 
 // Some modules try to init Solana/network on import — mock the heavy deps.
-jest.mock('../../packages/engine/src/chain/solana/client', () => ({
+jest.mock('../../packages/engine/src/shared/chains/solana/client', () => ({
   initSolana: jest.fn(),
   getKeypair: jest.fn(),
   getConnection: jest.fn(),
   resetSolanaCache: jest.fn(),
 }));
 
-jest.mock('../../packages/engine/src/chain/solana/gas', () => ({
+jest.mock('../../packages/engine/src/shared/chains/solana/gas', () => ({
   calculateGasCost: jest.fn(() => ({ iGas: 0, mGas: 0, total: 0 })),
   makeComputeIx: jest.fn(),
   makeBurnIx: jest.fn(),
@@ -404,9 +404,9 @@ describe('Barrel Exports — utils/index.ts', () => {
 // BLOCKCHAIN BARREL
 // =============================================================================
 
-describe('Barrel Exports — blockchain/index.ts', () => {
+describe('Barrel Exports — shared/chains/index.ts', () => {
   it('should export blockchain symbols', () => {
-    const blockchain = require('../../packages/engine/src/chain/blockchain/index');
+    const blockchain = require('../../packages/engine/src/shared/chains/index');
 
     expect(blockchain.BlockchainAdapterFactory).toBeDefined();
     expect(blockchain.blockchainAdapterFactory).toBeDefined();

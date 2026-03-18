@@ -119,8 +119,8 @@ export class DisputeService {
     escrowId: string,
     reason: string,
   ): Promise<{ disputeId: string; txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../../shared/chains/factory');
+    const { CHAIN_CONFIGS } = await import('../../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config) throw new Error(`Unknown chain: ${chainId}`);
@@ -163,8 +163,8 @@ export class DisputeService {
     disputeId: string,
     evidence: EvidenceSubmission,
   ): Promise<{ txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../../shared/chains/factory');
+    const { CHAIN_CONFIGS } = await import('../../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config?.arbitrationContract) throw new Error(`No arbitration contract on chain: ${chainId}`);
@@ -187,8 +187,8 @@ export class DisputeService {
     chainId: string,
     disputeId: string,
   ): Promise<{ txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../../shared/chains/factory');
+    const { CHAIN_CONFIGS } = await import('../../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config?.arbitrationContract) throw new Error(`No arbitration contract on chain: ${chainId}`);
@@ -216,8 +216,8 @@ export class DisputeService {
     chainId: string,
     disputeId: string,
   ): Promise<{ txHash: string }> {
-    const { blockchainAdapterFactory } = await import('../../chain/blockchain/BlockchainAdapterFactory');
-    const { CHAIN_CONFIGS } = await import('../../chain/blockchain/chains');
+    const { blockchainAdapterFactory } = await import('../../shared/chains/factory');
+    const { CHAIN_CONFIGS } = await import('../../shared/chains/configs');
 
     const config = CHAIN_CONFIGS[chainId];
     if (!config?.arbitrationContract) throw new Error(`No arbitration contract on chain: ${chainId}`);

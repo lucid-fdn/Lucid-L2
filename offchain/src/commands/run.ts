@@ -2,9 +2,9 @@
 import { SystemProgram } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { runInference } from '../utils/inference';
-import { initSolana, deriveEpochPDA } from '../../packages/engine/src/chain/solana/client';
+import { initSolana, deriveEpochPDA } from '../../packages/engine/src/shared/chains/solana/client';
 import { loadStore, saveStore, MemoryStore } from '../utils/memoryStore';
-import { makeComputeIx, makeBurnIx, calculateGasCost } from '../../packages/engine/src/chain/solana/gas';
+import { makeComputeIx, makeBurnIx, calculateGasCost } from '../../packages/engine/src/shared/chains/solana/gas';
 import { LUCID_MINT, IGAS_PER_CALL, MGAS_PER_ROOT } from '../../packages/engine/src/shared/config/config';
 
 export async function runSingle(text: string) {

@@ -5,7 +5,7 @@
  * Used by all cloud deployers (Railway, Akash, Phala, io.net, Nosana).
  */
 
-import { withRetryAndTimeout, type RetryOptions } from '../../utils/retry';
+import { withRetryAndTimeout, type RetryOptions } from '../../shared/retry';
 
 /** Default timeout per HTTP request (30s) */
 const DEFAULT_TIMEOUT_MS = 30_000;

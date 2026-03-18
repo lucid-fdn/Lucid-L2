@@ -8,9 +8,9 @@
  */
 
 import { createPublicClient, http, parseAbiItem } from 'viem';
-import { blockchainAdapterFactory } from '../../../engine/src/chain/blockchain/BlockchainAdapterFactory';
-import { CHAIN_CONFIGS, getEVMChains } from '../../../engine/src/chain/blockchain/chains';
-import type { ChainConfig } from '../../../engine/src/chain/blockchain/types';
+import { blockchainAdapterFactory } from '../../../engine/src/shared/chains/factory';
+import { CHAIN_CONFIGS, getEVMChains } from '../../../engine/src/shared/chains/configs';
+import type { ChainConfig } from '../../../engine/src/shared/chains/types';
 import type { ReputationService } from './reputationService';
 import { getIdentityBridgeService } from '../../../engine/src/identity/bridge/identityBridgeService';
 import { fromCaip10, isEvmCaip10 } from '../../../engine/src/identity/bridge/caip10';

@@ -6,7 +6,7 @@
  * - TBA resolution for agents
  */
 
-import { ERC6551RegistryClient, ERC6551_REGISTRY_ADDRESS } from '../../packages/engine/src/chain/blockchain/evm/erc6551/ERC6551RegistryClient';
+import { ERC6551RegistryClient, ERC6551_REGISTRY_ADDRESS } from '../../packages/engine/src/identity/tba/evm-registry-client';
 
 describe('ERC6551RegistryClient', () => {
   it('uses canonical registry address', () => {
@@ -83,7 +83,7 @@ describe('TBAService', () => {
 
 describe('ERC-6551 ABI', () => {
   it('loads ABI correctly', () => {
-    const abi = require('../../packages/engine/src/chain/blockchain/evm/erc6551/abis/ERC6551Registry.json');
+    const abi = require('../../packages/engine/src/identity/tba/abis/ERC6551Registry.json');
     expect(Array.isArray(abi)).toBe(true);
     expect(abi.length).toBeGreaterThan(0);
 

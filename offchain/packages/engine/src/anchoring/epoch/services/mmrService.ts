@@ -2,8 +2,8 @@ import { PublicKey } from '@solana/web3.js';
 import { AgentMMR } from '../../../shared/crypto/mmr';
 import { AgentMMRRegistry } from '../../../shared/crypto/ipfsStorage';
 import { createHash } from 'crypto';
-import { initSolana, getKeypair } from '../../../chain/solana/client';
-import { calculateGasCost } from '../../../chain/solana/gas';
+import { initSolana, getKeypair } from '../../../shared/chains/solana/client';
+import { calculateGasCost } from '../../../shared/chains/solana/gas';
 import { logger } from '../../../shared/lib/logger';
 
 /**

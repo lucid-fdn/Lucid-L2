@@ -95,11 +95,11 @@ jest.mock('../../packages/engine/src/anchoring/epoch/services/anchoringService',
   checkAnchoringHealth: jest.fn(() => ({ healthy: true })),
 }));
 
-jest.mock('../../packages/engine/src/chain/blockchain/BlockchainAdapterFactory', () => ({
+jest.mock('../../packages/engine/src/shared/chains/factory', () => ({
   blockchainAdapterFactory: { getAdapter: jest.fn() },
 }));
 
-jest.mock('../../packages/engine/src/chain/blockchain/chains', () => ({
+jest.mock('../../packages/engine/src/shared/chains/configs', () => ({
   CHAIN_CONFIGS: {},
 }));
 

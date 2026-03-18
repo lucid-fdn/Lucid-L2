@@ -22,8 +22,7 @@ import {
   HealthStatus as AgentHealthStatus,
 } from './agentDescriptor';
 import type { DeploymentResult as DeployerResult } from '../../providers/IDeployer';
-import { getRuntimeAdapter, selectBestAdapter, listAdapterNames } from '../../runtime';
-import { getDeployer, listDeployerTargets } from '../../providers';
+import { getRuntimeAdapter, selectBestAdapter, listAdapterNames, getDeployer, listDeployerTargets } from '../../providers';
 import { getAgentWalletProvider } from '../../../identity/wallet';
 import { generateAgentCard } from './a2a/agentCard';
 import { logger } from '../../../shared/lib/logger';
