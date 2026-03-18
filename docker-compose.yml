@@ -38,5 +38,17 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-lucid}
       NODE_ENV: production
 
+  console:
+    build:
+      context: ./console
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${CONSOLE_PORT:-3000}:3000"
+    environment:
+      - LUCID_API_URL=http://api:3001
+
 volumes:
   pgdata:
