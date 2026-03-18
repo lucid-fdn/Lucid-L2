@@ -428,4 +428,30 @@ program
     }
   });
 
+// Registry Commands
+const registryCmd = program.command('registry').description('Manage Docker image registry');
+
+registryCmd.command('set <url>')
+  .description('Set registry for image push (e.g., ghcr.io/myorg)')
+  .option('--username <username>', 'Registry username')
+  .option('--token <token>', 'Registry token')
+  .action(async (url: string, opts: { username?: string; token?: string }) => {
+    const { setRegistry } = await import('./cli/credentials');
+    setRegistry({ url, username: opts.username, token: opts.token });
+    console.log(`Registry set to ${url}`);
+  });
+
+registryCmd.command('get')
+  .description('Show configured registry')
+  .action(async () => {
+    const { getRegistry } = await import('./cli/credentials');
+    const reg = getRegistry();
+    if (reg) {
+      console.log(`Registry: ${reg.url}`);
+      if (reg.username) console.log(`Username: ${reg.username}`);
+    } else {
+      console.log('No registry configured. Run: lucid registry set ghcr.io/myorg');
+    }
+  });
+
 program.parse(process.argv);

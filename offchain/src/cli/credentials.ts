@@ -19,9 +19,16 @@ export interface ProviderCredential {
   connected_at: string;
 }
 
+export interface RegistryConfig {
+  url: string;
+  username?: string;
+  token?: string;
+}
+
 export interface Credentials {
   lucid?: LucidAuth;
   providers?: Record<string, ProviderCredential>;
+  registry?: RegistryConfig;
 }
 
 export function loadCredentials(): Credentials {
@@ -65,6 +72,16 @@ export function getProviders(): Record<string, ProviderCredential> {
 
 export function getLucidAuth(): LucidAuth | undefined {
   return loadCredentials().lucid;
+}
+
+export function setRegistry(config: RegistryConfig): void {
+  const creds = loadCredentials();
+  creds.registry = config;
+  saveCredentials(creds);
+}
+
+export function getRegistry(): RegistryConfig | undefined {
+  return loadCredentials().registry;
 }
 
 export { LUCID_DIR, CREDS_FILE };
