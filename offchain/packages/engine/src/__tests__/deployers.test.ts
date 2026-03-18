@@ -28,6 +28,8 @@ import {
   resetDeployers,
 } from '../compute/deploy';
 import type { RuntimeArtifact, DeploymentConfig } from '../compute/deploy/IDeployer';
+import { isImageDeploy } from '../compute/deploy/types';
+import type { ImageDeployInput } from '../compute/deploy/types';
 
 // ---------------------------------------------------------------------------
 // Shared test fixtures
@@ -1014,5 +1016,45 @@ describe('Deployer Factory', () => {
       expect(targets).toContain('ionet');
       expect(targets).toContain('nosana');
     });
+  });
+});
+
+// ===========================================================================
+// Image-based deployment
+// ===========================================================================
+
+describe('Image-based deployment', () => {
+  const imageInput: ImageDeployInput = {
+    image: 'ghcr.io/test/my-agent:v1',
+    env_vars: { LUCID_API_URL: 'http://localhost:3001', LUCID_PASSPORT_ID: 'test_passport' },
+    port: 8080,
+    verification: 'full',
+  };
+
+  test('DockerDeployer deploys image ref with prepared status', async () => {
+    const deployer = getDeployer('docker');
+    const result = await deployer.deploy(imageInput, { target: { type: 'docker' }, restart_policy: 'on-failure' } as any, 'test_passport');
+    expect(result.success).toBe(true);
+    expect(result.url).toContain('8080');
+    expect(result.metadata?.status).toBe('prepared');
+    expect(result.metadata?.requires_manual_start).toBe(true);
+  });
+
+  test('isImageDeploy correctly identifies image vs artifact', () => {
+    expect(isImageDeploy(imageInput)).toBe(true);
+    expect(isImageDeploy({ files: new Map(), entrypoint: 'x', adapter: 'y', dependencies: {}, env_vars: {} })).toBe(false);
+    expect(isImageDeploy(null)).toBe(false);
+    expect(isImageDeploy('string')).toBe(false);
+  });
+
+  test('DockerDeployer image deploy generates compose with image: not build:', async () => {
+    const deployer = getDeployer('docker');
+    const result = await deployer.deploy(imageInput, { target: { type: 'docker' }, restart_policy: 'on-failure' } as any, 'test_compose');
+    // Read the generated docker-compose.yml
+    const dir = (result.metadata as any).dir;
+    const compose = fs.readFileSync(path.join(dir, 'docker-compose.yml'), 'utf-8');
+    expect(compose).toContain('image: ghcr.io/test/my-agent:v1');
+    expect(compose).not.toContain('build:');
+    expect(compose).toContain('8080:8080');
   });
 });
