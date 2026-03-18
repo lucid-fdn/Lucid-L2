@@ -1,5 +1,5 @@
 import { generateText, streamText, stepCountIs } from 'ai';
-import { createOpenAI } from '@ai-sdk/openai';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import express from 'express';
 import crypto from 'crypto';
 
@@ -28,9 +28,12 @@ if (!TRUSTGATE_URL) {
   console.warn('[Runtime]   OpenAI:    https://api.openai.com/v1 (direct)');
 }
 
-const provider = createOpenAI({
+// Uses @ai-sdk/openai-compatible — works with ANY OpenAI-compatible endpoint:
+// TrustGate, Ollama, LiteLLM, vLLM, OpenAI direct, etc.
+const provider = createOpenAICompatible({
   baseURL: TRUSTGATE_URL || 'https://api.openai.com/v1',
-  apiKey: TRUSTGATE_API_KEY,
+  apiKey: TRUSTGATE_API_KEY || undefined,
+  name: 'lucid-runtime',
 });
 
 // --- Receipt creation (automatic when TrustGate is configured, fire-and-forget) ---
@@ -86,7 +89,7 @@ app.post('/run', async (req, res) => {
     if (stream) {
       res.setHeader('Content-Type', 'text/event-stream');
       const result = await streamText({
-        model: provider(LUCID_MODEL),
+        model: provider.chatModel(LUCID_MODEL),
         system: LUCID_PROMPT,
         prompt,
         stopWhen: stepCountIs(50),
@@ -101,7 +104,7 @@ app.post('/run', async (req, res) => {
       createReceipt(prompt, fullText, LUCID_MODEL, Date.now() - start);
     } else {
       const result = await generateText({
-        model: provider(LUCID_MODEL),
+        model: provider.chatModel(LUCID_MODEL),
         system: LUCID_PROMPT,
         prompt,
         stopWhen: stepCountIs(50),
@@ -132,7 +135,7 @@ app.post('/v1/chat/completions', async (req, res) => {
     if (isStream) {
       res.setHeader('Content-Type', 'text/event-stream');
       const result = await streamText({
-        model: provider(req.body.model || LUCID_MODEL),
+        model: provider.chatModel(req.body.model || LUCID_MODEL),
         system: LUCID_PROMPT,
         prompt: lastMessage,
         stopWhen: stepCountIs(50),
@@ -152,7 +155,7 @@ app.post('/v1/chat/completions', async (req, res) => {
       createReceipt(lastMessage, fullText, LUCID_MODEL, Date.now() - start);
     } else {
       const result = await generateText({
-        model: provider(req.body.model || LUCID_MODEL),
+        model: provider.chatModel(req.body.model || LUCID_MODEL),
         system: LUCID_PROMPT,
         prompt: lastMessage,
         stopWhen: stepCountIs(50),
