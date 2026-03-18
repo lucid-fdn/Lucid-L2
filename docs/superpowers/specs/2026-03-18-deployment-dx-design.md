@@ -32,6 +32,14 @@ lucid launch --image my-agent:latest
 
 User never thinks about which path. CLI figures it out.
 
+### `lucid login` — Identity vs Cloud Entitlement
+
+`lucid login` authenticates the user to their **Lucid account**. This is identity, not deployment:
+- **All users** get: receipts, passports, identity, reputation, SDK access
+- **Cloud-entitled users** additionally get: managed deployment, `*.lucid.run` domains, billing
+
+Layer-only users can and should `lucid login` for receipts/identity even if they never use Cloud. Login does not imply Cloud.
+
 ### Lucid Layer (Open Source — Self-Hosted)
 
 **User manages their own provider accounts.** Credentials stored locally in `~/.lucid/credentials.json`. Never sent to Lucid servers.
@@ -170,25 +178,84 @@ Lucid Cloud (platform-core)
 - Lucid pays Railway/Akash from fleet accounts
 - Margin = Lucid Cloud revenue
 
+**Cloud value beyond provider abstraction** (what makes it worth paying for):
+- Managed `*.lucid.run` domains (instant, no DNS config)
+- Unified logs across all agents (single dashboard)
+- Receipts always on (auto-configured, no user setup)
+- Smart provider routing (GPU→Akash, default→Railway, future: cost/latency optimization)
+- Deployment history + one-click rollback
+- Policy/security defaults (rate limits, auth)
+- Reputation-aware routing (future: higher-reputation agents get priority)
+- One-click scale/terminate across providers
+- Billing abstraction (one invoice, not 6 provider bills)
+
+**Risk to avoid:** Cloud must not become "just a hidden wrapper around Railway." The operational value listed above is what justifies the managed tier.
+
+**Credential storage roadmap:**
+- v1: `~/.lucid/credentials.json` (chmod 600, file-based)
+- v2: OS keychain (macOS Keychain, Windows Credential Manager, Linux libsecret)
+
 ### CLI Unified Flow
 
+**Explicit mode override:** `--mode layer|cloud` always wins. Auto-detect only when `--mode` is omitted.
+
+**Explicit `--target` is never silently redirected.** If user says `--target railway` and has no local Railway credential, fail clearly — don't send to Cloud.
+
 ```typescript
-// Launch resolution logic
+// Launch resolution logic (deterministic, no magic)
 async function resolveLaunchPath(opts) {
   const creds = loadCredentials();
 
-  // Explicit --target with local credentials → Layer
+  // 1. Explicit --mode always wins
+  if (opts.mode === 'layer') {
+    if (!opts.target) return { path: 'error', message: '--mode layer requires --target' };
+    if (!creds.providers?.[opts.target]) {
+      return { path: 'error', message: `${opts.target} not connected. Run: lucid provider add ${opts.target}` };
+    }
+    return { path: 'layer', provider: opts.target, token: creds.providers[opts.target] };
+  }
+  if (opts.mode === 'cloud') {
+    if (!creds.lucid?.token) return { path: 'error', message: 'Not logged in. Run: lucid login' };
+    return { path: 'cloud', token: creds.lucid.token };
+  }
+
+  // 2. Explicit --target with local credential → Layer (never redirect to Cloud)
   if (opts.target && creds.providers?.[opts.target]) {
     return { path: 'layer', provider: opts.target, token: creds.providers[opts.target] };
   }
 
-  // Lucid Cloud account → Cloud
+  // 3. Explicit --target WITHOUT local credential → fail clearly
+  if (opts.target && !creds.providers?.[opts.target]) {
+    return { path: 'error', message: `${opts.target} not connected locally. Run: lucid provider add ${opts.target}\nOr omit --target to use Lucid Cloud.` };
+  }
+
+  // 4. No --target, Cloud auth exists → Cloud
   if (creds.lucid?.token) {
     return { path: 'cloud', token: creds.lucid.token };
   }
 
-  // Neither → guide user
-  return { path: 'none' };
+  // 5. No --target, no Cloud auth, one local provider → Layer with that provider
+  const localProviders = Object.keys(creds.providers || {});
+  if (localProviders.length === 1) {
+    return { path: 'layer', provider: localProviders[0], token: creds.providers![localProviders[0]] };
+  }
+
+  // 6. Nothing → guide user
+  return { path: 'error', message: 'Not authenticated.\n  lucid login                    # Managed deployment (recommended)\n  lucid provider add railway     # Self-hosted with your own account' };
+}
+```
+
+**Normalized launch result (identical for both paths):**
+
+```typescript
+interface LaunchOutput {
+  passport_id: string;
+  deployment_id: string;
+  url: string;
+  mode: 'layer' | 'cloud';
+  provider: string;          // 'railway' | 'akash' | 'lucid-cloud'
+  receipts: boolean;
+  verification: 'full' | 'minimal';
 }
 ```
 
@@ -211,6 +278,13 @@ $ lucid launch --image my-agent:latest
   ✓ Deploying to Lucid Cloud...
   ✓ Live at https://passport-abc123.lucid.run
   ✓ Receipts: enabled
+```
+
+**Explicit mode override (for CI, debugging, predictability):**
+
+```bash
+lucid launch --image my-agent:latest --mode cloud       # Force Cloud path
+lucid launch --image my-agent:latest --mode layer --target railway  # Force Layer
 ```
 
 **First-time user experience (Layer — self-hosted):**
