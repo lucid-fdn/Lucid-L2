@@ -4,6 +4,8 @@
 // Requires PHALA_CLOUD_API_KEY environment variable.
 
 import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, DeploymentStatus, LogOptions } from './IDeployer';
+import { isImageDeploy } from './types';
+import type { ImageDeployInput } from './types';
 import { resilientFetch } from './resilientFetch';
 import { logger } from '../../shared/lib/logger';
 
@@ -50,7 +52,7 @@ export class PhalaDeployer implements IDeployer {
     this.apiKey = process.env.PHALA_CLOUD_API_KEY || process.env.PHALA_API_KEY || '';
   }
 
-  async deploy(artifact: RuntimeArtifact, config: DeploymentConfig, passportId: string): Promise<DeploymentResult> {
+  async deploy(input: RuntimeArtifact | ImageDeployInput, config: DeploymentConfig, passportId: string): Promise<DeploymentResult> {
     if (!this.apiKey) {
       return {
         success: false,
@@ -62,13 +64,15 @@ export class PhalaDeployer implements IDeployer {
 
     try {
       // Resolve Docker image reference
-      const image = (config.target as any).image_ref
-        || artifact.env_vars.AGENT_IMAGE_REF
-        || `ghcr.io/raijinlabs/lucid-agents/${passportId}:latest`;
+      const image = isImageDeploy(input)
+        ? input.image
+        : ((config.target as any).image_ref
+          || input.env_vars.AGENT_IMAGE_REF
+          || `ghcr.io/raijinlabs/lucid-agents/${passportId}:latest`);
 
       // Merge environment variables
       const envVars: Record<string, string> = {
-        ...artifact.env_vars,
+        ...input.env_vars,
         ...config.env_vars,
         PORT: '3100',
         NODE_ENV: 'production',

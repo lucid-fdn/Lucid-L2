@@ -3,6 +3,8 @@
 // Requires RAILWAY_API_TOKEN and RAILWAY_PROJECT_ID environment variables.
 
 import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, DeploymentStatus, LogOptions } from './IDeployer';
+import { isImageDeploy } from './types';
+import type { ImageDeployInput } from './types';
 import { resilientFetch } from './resilientFetch';
 import { logger } from '../../shared/lib/logger';
 
@@ -37,7 +39,7 @@ export class RailwayDeployer implements IDeployer {
     this.apiToken = process.env.RAILWAY_API_TOKEN || '';
   }
 
-  async deploy(artifact: RuntimeArtifact, config: DeploymentConfig, passportId: string): Promise<DeploymentResult> {
+  async deploy(input: RuntimeArtifact | ImageDeployInput, config: DeploymentConfig, passportId: string): Promise<DeploymentResult> {
     if (!this.apiToken) {
       return {
         success: false,
@@ -59,9 +61,11 @@ export class RailwayDeployer implements IDeployer {
       }
 
       // Resolve Docker image reference
-      const imageRef = (config.target as any).image_ref
-        || artifact.env_vars.AGENT_IMAGE_REF
-        || (config.env_vars?.AGENT_IMAGE_REF);
+      const imageRef = isImageDeploy(input)
+        ? input.image
+        : ((config.target as any).image_ref
+          || input.env_vars.AGENT_IMAGE_REF
+          || (config.env_vars?.AGENT_IMAGE_REF));
       if (!imageRef) {
         return {
           success: false,
@@ -110,7 +114,7 @@ export class RailwayDeployer implements IDeployer {
       }
 
       // Set environment variables on the service
-      const envVars = { ...artifact.env_vars, ...config.env_vars };
+      const envVars = { ...input.env_vars, ...config.env_vars };
       // Remove AGENT_IMAGE_REF from env vars — it was used for the image source, not runtime
       delete envVars.AGENT_IMAGE_REF;
 

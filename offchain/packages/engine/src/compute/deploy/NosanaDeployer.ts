@@ -4,6 +4,8 @@
 // Requires NOSANA_API_KEY environment variable.
 
 import { IDeployer, RuntimeArtifact, DeploymentConfig, DeploymentResult, DeploymentStatus, DeploymentStatusType, LogOptions } from './IDeployer';
+import { isImageDeploy } from './types';
+import type { ImageDeployInput } from './types';
 import { resilientFetch } from './resilientFetch';
 import { logger } from '../../shared/lib/logger';
 
@@ -50,7 +52,7 @@ export class NosanaDeployer implements IDeployer {
     this.baseUrl = process.env.NOSANA_API_URL || 'https://dashboard.k8s.prd.nos.ci/api';
   }
 
-  async deploy(artifact: RuntimeArtifact, config: DeploymentConfig, passportId: string): Promise<DeploymentResult> {
+  async deploy(input: RuntimeArtifact | ImageDeployInput, config: DeploymentConfig, passportId: string): Promise<DeploymentResult> {
     if (!this.apiKey) {
       return {
         success: false,
@@ -61,14 +63,16 @@ export class NosanaDeployer implements IDeployer {
     }
 
     try {
-      // Resolve container image — from config, artifact env, or default
-      const image = (config.target as any).image
-        || artifact.env_vars.AGENT_IMAGE_REF
-        || `ghcr.io/raijinlabs/lucid-agents/${passportId}:latest`;
+      // Resolve container image — from config, input image, or default
+      const image = isImageDeploy(input)
+        ? input.image
+        : ((config.target as any).image
+          || input.env_vars.AGENT_IMAGE_REF
+          || `ghcr.io/raijinlabs/lucid-agents/${passportId}:latest`);
 
-      // Merge environment variables: artifact defaults < config overrides < auto-injected
+      // Merge environment variables: input defaults < config overrides < auto-injected
       const envVars: Record<string, string> = {
-        ...artifact.env_vars,
+        ...input.env_vars,
         ...config.env_vars,
         PORT: '3100',
         NODE_ENV: 'production',
@@ -95,7 +99,9 @@ export class NosanaDeployer implements IDeployer {
             op: 'container/run',
             id: 'agent-service',
             args: {
-              cmd: artifact.entrypoint ? ['node', artifact.entrypoint] : ['node', 'index.js'],
+              cmd: isImageDeploy(input)
+                ? (input.entrypoint || undefined)
+                : (input.entrypoint ? ['node', input.entrypoint] : ['node', 'index.js']),
               env: envEntries,
               ports: [{ port: 3100, protocol: 'tcp' }],
               resources: {
