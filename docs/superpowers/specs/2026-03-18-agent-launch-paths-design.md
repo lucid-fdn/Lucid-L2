@@ -1,8 +1,16 @@
 # Agent Launch Paths — 5 Ways to Deploy
 
 **Date:** 2026-03-18
-**Status:** Draft
+**Status:** Draft (architect-reviewed)
 **Goal:** Define all 5 launch paths for Lucid agents with industry-standard DX, scalable image management, and a marketplace for pre-built agents.
+
+**Architect corrections applied:**
+1. Marketplace (Path E) is a separate product surface, not just another launch path
+2. Path D must not force Lucid-owned GHCR — respect self-hosted autonomy
+3. Marketplace needs trust tiers from day 1 (official / verified / community)
+4. All 5 paths converge into one canonical `LaunchSpec` internally
+5. Provider compatibility matrix must be explicit
+6. Marketplace deployments store full provenance (slug, version, digest, trust tier)
 
 ---
 
@@ -256,31 +264,116 @@ lucid-agents repo (GitHub)
 
 ---
 
-## Image Management Strategy
+## Canonical Internal Model (LaunchSpec)
 
-### Where images live
+All 5 paths converge into one normalized object. Deployers consume this — they don't care where input came from.
 
-| Image type | Registry | Who pushes | Who pulls |
+```typescript
+interface LaunchSpec {
+  source_type: 'image' | 'source' | 'catalog' | 'runtime' | 'external';
+  source_ref: string;           // image URL, source path, catalog slug, or endpoint URL
+  resolved_image?: string;      // final Docker image after build/resolution
+  manifest?: AgentManifest;     // for catalog agents
+  target: DeploymentTargetType;
+  verification_mode: 'full' | 'minimal';
+  env_vars: Record<string, string>;
+  port?: number;
+  metadata: {
+    marketplace_slug?: string;
+    marketplace_version?: string;
+    manifest_hash?: string;
+    image_digest?: string;
+    publisher?: string;
+    trust_tier?: 'official' | 'verified' | 'community';
+    source_hash?: string;
+  };
+}
+```
+
+CLI flags map to `source_type`:
+
+| Flag | `source_type` |
+|---|---|
+| `--image` | `image` |
+| `--runtime` | `runtime` |
+| `--path` | `source` |
+| `--agent` | `catalog` |
+| API register | `external` |
+
+---
+
+## Provider Compatibility Matrix
+
+| Path | Docker | Railway | Akash | Phala | io.net | Nosana |
+|---|---|---|---|---|---|---|
+| `--image` | Yes | Yes | Yes | Yes | Yes | Yes |
+| `--runtime` | Yes | Yes | Yes | Yes | Yes | Yes |
+| `--path` (Dockerfile) | Yes | Yes | Yes | Yes | Yes | Yes |
+| `--path` (no Dockerfile) | Local build required | Nixpacks | No | No | No | No |
+| `--agent` | Yes | Yes | Yes | Yes | Yes | Yes |
+
+If `--path` without Dockerfile targets a provider that doesn't support source builds → clear error with instructions to add a Dockerfile.
+
+---
+
+## Image Registry Strategy
+
+**Path D (from source) must NOT force Lucid-owned GHCR for Layer users.**
+
+| Mode | Registry | Who decides |
+|---|---|---|
+| Layer + `--target docker` | Local only (no push needed) | User |
+| Layer + `--target railway` | User's registry (configured in `~/.lucid/`) or Railway source deploy | User |
+| Layer + `--target akash/phala/etc` | User's registry (must be accessible) | User |
+| Cloud (any target) | `ghcr.io/lucid-fdn/agents/<passport-id>` | Lucid manages |
+
+Config in `~/.lucid/credentials.json`:
+```json
+{
+  "registry": {
+    "url": "ghcr.io/myorg",
+    "username": "...",
+    "token": "..."
+  }
+}
+```
+
+If no registry configured for Layer + remote target → error: "Configure a registry: `lucid registry set ghcr.io/myorg`"
+
+---
+
+## Marketplace Trust Tiers
+
+| Tier | Badge | Who | Requirements |
 |---|---|---|---|
-| Base runtime | `ghcr.io/lucid-fdn/agent-runtime` | Lucid CI | Deployers |
-| Official agents | `ghcr.io/lucid-fdn/lucid-agents/<name>` | Lucid CI | Deployers |
-| Community agents | `ghcr.io/lucid-fdn/lucid-agents/<name>` | Lucid CI (after PR merge) | Deployers |
-| User BYOI | `ghcr.io/<user>/<name>` or any registry | User | Deployers |
-| User from-source | `ghcr.io/lucid-fdn/agents/<passport-id>` | `lucid launch --path` | Deployers |
+| **Official** | Lucid-maintained | Lucid team | In `official/` dir, built by Lucid CI |
+| **Verified** | Audited publisher | Verified org (KYC/reputation) | Signed manifest, security scan passed |
+| **Community** | Unverified | Anyone (PR-based) | PR reviewed, manifest valid, image builds |
 
-### Versioning
+Trust tier stored in deployment record for provenance:
+```typescript
+deployment.metadata.trust_tier = 'official' | 'verified' | 'community';
+deployment.metadata.marketplace_slug = 'trading-analyst';
+deployment.metadata.marketplace_version = '1.0.0';
+deployment.metadata.image_digest = 'sha256:1f6810715...';
+deployment.metadata.manifest_hash = 'sha256:abc123...';
+```
 
-- Semantic versioning: `v1.0.0`, `v1.1.0`, `v2.0.0`
-- `:latest` always points to newest stable
-- Immutable digests for production deployments
-- Catalog tracks which versions are available
+---
 
-### Security
+## Marketplace = Separate Product Surface
 
-- Official images: signed, scanned by GitHub security
-- Community images: reviewed in PR, built by Lucid CI (not user-supplied binaries)
-- User BYOI: user's responsibility
-- From-source builds: Dockerfile audited at build time, runs in isolated build context
+Marketplace (Path E) is NOT just another launch flag. It introduces:
+- Manifest schema + validation
+- Trust tiers + governance
+- Publisher identity + verification
+- Image build CI/CD pipeline
+- Version lifecycle management
+- Discovery + ranking + reputation
+- Abuse handling
+- Legal/licensing
+
+**Treat as its own workstream** built on top of launch infrastructure, not embedded in it.
 
 ---
 
@@ -288,52 +381,59 @@ lucid-agents repo (GitHub)
 
 | Component | Repo | Purpose |
 |---|---|---|
-| `lucid launch --path` (build from source) | Lucid Layer | Docker build + push + deploy |
-| `lucid launch --agent` (marketplace deploy) | Lucid Layer | Fetch manifest + deploy image |
+| `lucid launch --path` | Lucid Layer | Build from source + deploy |
+| `lucid launch --agent` | Lucid Layer | Fetch manifest → resolve image → deploy |
 | `lucid marketplace list/search` | Lucid Layer | CLI catalog browser |
-| Agent manifests + Dockerfiles | lucid-agents (new repo) | Catalog source of truth |
-| GitHub Actions (build + publish) | lucid-agents (new repo) | CI/CD for agent images |
-| `GET /v1/marketplace/agents` | Lucid Cloud | Marketplace API |
-| `POST /v1/marketplace/agents` | Lucid Cloud | Community publish API |
+| `lucid registry set` | Lucid Layer | Configure user's image registry |
+| `LaunchSpec` normalization | Lucid Layer | All paths → one internal model |
+| Agent manifests + Dockerfiles | `lucid-fdn/lucid-agents` (new repo) | Catalog source of truth |
+| GitHub Actions (build + publish) | `lucid-fdn/lucid-agents` | CI/CD for agent images |
+| `GET /v1/marketplace/agents` | Lucid Cloud | Marketplace API + search |
+| `POST /v1/marketplace/publish` | Lucid Cloud | Community publish |
+| Trust tier management | Lucid Cloud | Verification + governance |
 | Catalog sync | Lucid Cloud | Pulls from lucid-agents repo |
 
 ---
 
 ## Implementation Order
 
-### Phase 1: From Source (Lucid Layer)
-1. `lucid launch --path` — detect Dockerfile, build, push to GHCR, deploy
-2. Fallback: push source to Railway (Nixpacks) when no Docker available
-3. Image tagged as `ghcr.io/lucid-fdn/agents/<passport-id>:latest`
+### Phase 1: From Source (Lucid Layer) — ship now
+1. `lucid launch --path` — detect Dockerfile, build, deploy
+2. Local Docker target: build locally, no registry needed
+3. Remote target: build + push to user's configured registry
+4. Fallback: push source to Railway (Nixpacks) when no Docker/Dockerfile
+5. `lucid registry set` — configure user's registry
 
-### Phase 2: Catalog Repo (lucid-agents)
-4. Create `lucid-fdn/lucid-agents` repo
-5. Define manifest schema (`manifest.yaml`)
-6. Add 3-5 official agent templates
-7. GitHub Action: build images on merge, generate `catalog.json`
+### Phase 2: LaunchSpec Normalization (Lucid Layer) — ship now
+6. All 5 paths produce a `LaunchSpec`
+7. Deployers consume `LaunchSpec` only
+8. Provider compatibility check before deploy
 
-### Phase 3: Marketplace CLI (Lucid Layer)
-8. `lucid marketplace list` — fetch catalog
-9. `lucid marketplace search` — filter
-10. `lucid launch --agent <slug>` — resolve manifest → deploy image
+### Phase 3: Catalog Repo — next sprint
+9. Create `lucid-fdn/lucid-agents` repo
+10. Define manifest schema (`manifest.yaml`)
+11. Add 3-5 official agent images
+12. GitHub Action: build on merge, generate `catalog.json`
 
-### Phase 4: Marketplace API (Lucid Cloud)
-11. `GET /v1/marketplace/agents` — browse
-12. `GET /v1/marketplace/agents/:slug` — details + stats
-13. `POST /v1/marketplace/agents` — community publish
-14. Catalog sync from GitHub repo
+### Phase 4: Marketplace (separate workstream)
+13. Trust tiers (official / verified / community)
+14. Marketplace CLI (`lucid marketplace list/search`)
+15. Marketplace API (`GET /v1/marketplace/agents`)
+16. Community publish flow
+17. Provenance tracking in deployment records
 
 ---
 
 ## Test Plan
 
-- [ ] `lucid launch --path ./test-agent` with Dockerfile → builds, pushes to GHCR, deploys
-- [ ] `lucid launch --path ./test-agent` without Docker → pushes source to Railway
-- [ ] `lucid launch --path ./test-agent --target akash` → error if no Dockerfile (Akash needs images)
-- [ ] `lucid marketplace list` → shows official agents
-- [ ] `lucid marketplace search "trading"` → filters results
-- [ ] `lucid launch --agent trading-analyst` → deploys from catalog
-- [ ] `lucid launch --agent trading-analyst --env KEY=val` → env overrides work
-- [ ] Community PR merged → GitHub Action builds image → appears in catalog
+- [ ] `lucid launch --path ./test-agent` with Dockerfile + `--target docker` → builds locally, runs
+- [ ] `lucid launch --path ./test-agent` with Dockerfile + `--target railway` → builds, pushes to user registry, deploys
+- [ ] `lucid launch --path ./test-agent` without Docker + `--target railway` → Nixpacks source deploy
+- [ ] `lucid launch --path ./test-agent --target akash` without Dockerfile → clear error
+- [ ] `lucid registry set ghcr.io/myorg` → saves to credentials
+- [ ] `LaunchSpec` produced by all 5 paths has consistent shape
+- [ ] Provider compatibility matrix enforced (error for unsupported combos)
+- [ ] `lucid marketplace list` → shows official + verified + community tiers
+- [ ] `lucid launch --agent trading-analyst` → stores provenance (slug, version, digest, trust tier)
 - [ ] Manifest validation → rejects malformed manifests
-- [ ] Image versioning → `:v1.0.0` and `:latest` both work
+- [ ] Trust tier badge shown in marketplace list output
