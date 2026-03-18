@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "last_updated": 1773835911257,
+  "last_updated": 1773855882552,
   "passports": {
     "passport_9b6283fa943f4ad2938f77a74582f6a3": {
       "passport_id": "passport_9b6283fa943f4ad2938f77a74582f6a3",
@@ -155,6 +155,94 @@
       "status": "active",
       "created_at": 1773835906370,
       "updated_at": 1773835906370
+    },
+    "passport_68d499191ed4420aa2659fda2cd597b5": {
+      "passport_id": "passport_68d499191ed4420aa2659fda2cd597b5",
+      "type": "agent",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "agent_config": {
+          "system_prompt": "Agent: E2ETestAgent",
+          "model_passport_id": "user-provided"
+        },
+        "deployment_config": {
+          "target": {
+            "type": "docker"
+          }
+        },
+        "agent_passport_id": "passport_68d499191ed4420aa2659fda2cd597b5"
+      },
+      "name": "E2ETestAgent",
+      "tags": [],
+      "status": "active",
+      "created_at": 1773854898606,
+      "updated_at": 1773854898606
+    },
+    "passport_069a4d6daa2e4917a9a37de106503b2a": {
+      "passport_id": "passport_069a4d6daa2e4917a9a37de106503b2a",
+      "type": "agent",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "agent_config": {
+          "system_prompt": "Agent: BaseRuntimeE2E",
+          "model_passport_id": "user-provided"
+        },
+        "deployment_config": {
+          "target": {
+            "type": "docker"
+          }
+        },
+        "agent_passport_id": "passport_069a4d6daa2e4917a9a37de106503b2a"
+      },
+      "name": "BaseRuntimeE2E",
+      "tags": [],
+      "status": "active",
+      "created_at": 1773854985458,
+      "updated_at": 1773854985458
+    },
+    "passport_5e41045394054f5b9778549257f9b352": {
+      "passport_id": "passport_5e41045394054f5b9778549257f9b352",
+      "type": "agent",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "agent_config": {
+          "system_prompt": "Agent: BaseRuntimeE2E",
+          "model_passport_id": "user-provided"
+        },
+        "deployment_config": {
+          "target": {
+            "type": "docker"
+          }
+        },
+        "agent_passport_id": "passport_5e41045394054f5b9778549257f9b352"
+      },
+      "name": "BaseRuntimeE2E",
+      "tags": [],
+      "status": "active",
+      "created_at": 1773855056641,
+      "updated_at": 1773855056641
+    },
+    "passport_4d45679405974a4caf9b9d4e35d74c70": {
+      "passport_id": "passport_4d45679405974a4caf9b9d4e35d74c70",
+      "type": "agent",
+      "owner": "3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3",
+      "metadata": {
+        "agent_config": {
+          "system_prompt": "Agent: OllamaE2E",
+          "model_passport_id": "user-provided"
+        },
+        "deployment_config": {
+          "target": {
+            "type": "docker"
+          }
+        },
+        "agent_passport_id": "passport_4d45679405974a4caf9b9d4e35d74c70"
+      },
+      "name": "OllamaE2E",
+      "tags": [],
+      "status": "active",
+      "created_at": 1773855877647,
+      "updated_at": 1773855877647
     }
   }
 }
