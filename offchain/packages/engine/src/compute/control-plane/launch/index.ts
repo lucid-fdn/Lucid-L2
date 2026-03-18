@@ -6,3 +6,5 @@ export { buildLucidEnvVars, buildBaseRuntimeEnvVars } from './env-builder';
 export { validateLaunchImageInput, validateBaseRuntimeInput } from './validators';
 export { checkProviderCompat } from './provider-compat';
 export type { ProviderCompatResult } from './provider-compat';
+export { buildFromSource, detectSourceType, isDockerAvailable } from './source-builder';
+export type { BuildResult } from './source-builder';
