@@ -1,10 +1,10 @@
-# Agent Launcher Redesign Implementation Plan
+# Agent Launcher Redesign Implementation Plan (v2 — architect-reviewed)
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace code-generation agent launcher with image-based deployment: `lucid launch --image` (BYOI) + `lucid launch --runtime base` (no-code) + verification modes. Make receipts unavoidable, TrustGate hardwired.
 
-**Architecture:** Add `ImageDeployInput` type alongside existing `RuntimeArtifact`. New `launchImage()` and `launchBaseRuntime()` methods on `AgentDeploymentService`. Fix 4 deployer issues (Docker no image-ref, Akash ignores user image, io.net/Nosana entrypoint override). Update CLI with `launch` command. Move 7 code-gen adapters to `examples/`. Add 14 missing endpoints to OpenAPI.
+**Architecture:** New `engine/src/launch/` module owns agent activation (separate from compute/deploy). Split into focused units: service orchestration, passport resolution, env building, runtime config, validation. Deployers accept `ImageDeployInput` alongside `RuntimeArtifact`. Adapter deprecation is two-phase (mark optional first, move later).
 
 **Tech Stack:** TypeScript, Express, Jest, Docker, existing IDeployer + IDeploymentStore.
 
@@ -12,45 +12,53 @@
 
 **Baseline:** 103 test suites, 1683 tests, 0 failures.
 
+**Architect corrections applied (v2):**
+1. Launch module lives in `engine/src/launch/` (not `compute/agent/`)
+2. Service split into focused units (passport-resolution, env-builder, runtime-config, validators)
+3. `minimal` verification is explicitly non-reputation-bearing
+4. Docker deployer returns `prepared` state (not fake `running`)
+5. Adapter move delayed to Phase B (after new path is stable)
+6. BYOI declares `verification_capabilities` (not assumed)
+7. OpenAPI distinguishes BYOI vs base-runtime modes
+8. Full deployment metadata stored (image ref, runtime version, config hash, SDK version)
+
 ---
 
 ## File Structure
 
-### Files to Create (4)
+### Files to Create (8)
 | File | Responsibility |
 |------|---------------|
 | `engine/src/compute/deploy/types.ts` | `ImageDeployInput` type + `isImageDeploy()` guard |
-| `engine/src/compute/agent/launchService.ts` | `launchImage()` + `launchBaseRuntime()` methods |
-| `engine/src/__tests__/launchService.test.ts` | ~10 tests for new launch flows |
-| `examples/adapters/README.md` | Index of moved code-gen adapters |
+| `engine/src/launch/types.ts` | `LaunchImageInput`, `LaunchBaseRuntimeInput`, `LaunchResult`, `VerificationCapabilities` |
+| `engine/src/launch/service.ts` | `launchImage()` + `launchBaseRuntime()` orchestration |
+| `engine/src/launch/passport-resolution.ts` | `resolvePassport()` — create or reuse passport |
+| `engine/src/launch/env-builder.ts` | `buildLucidEnvVars()` + `buildBaseRuntimeEnvVars()` |
+| `engine/src/launch/validators.ts` | `validateLaunchImageInput()` + `validateBaseRuntimeInput()` |
+| `engine/src/launch/index.ts` | Barrel exports |
+| `engine/src/__tests__/launch.test.ts` | ~12 tests for launch flows |
 
-### Files to Modify (10)
+### Files to Modify (9)
 | File | Changes |
 |------|---------|
 | `engine/src/compute/deploy/IDeployer.ts` | Add `ImageDeployInput` import, extend `deploy()` union |
-| `engine/src/compute/deploy/DockerDeployer.ts` | Add image-ref path (generate `image:` instead of `build: .`) |
-| `engine/src/compute/deploy/AkashDeployer.ts` | Fix `resolveImageRef()` to check `ImageDeployInput.image` first |
+| `engine/src/compute/deploy/DockerDeployer.ts` | Add image-ref path, return `prepared` not `running` |
+| `engine/src/compute/deploy/AkashDeployer.ts` | Fix `resolveImageRef()` to check user image first |
 | `engine/src/compute/deploy/IoNetDeployer.ts` | Don't override entrypoint for BYOI |
 | `engine/src/compute/deploy/NosanaDeployer.ts` | Don't override entrypoint for BYOI |
 | `engine/src/compute/deploy/index.ts` | Re-export `ImageDeployInput` |
-| `engine/src/compute/agent/agentDeploymentService.ts` | Delegate to launchService for new paths |
+| `engine/src/compute/runtime/index.ts` | Make adapter loading optional (try/catch, graceful) |
 | `src/cli.ts` | Add `launch` command with `--image`, `--runtime`, `--verification` |
-| `engine/src/__tests__/deployers.test.ts` | Add image-ref tests for Docker, Akash |
-| `openapi.yaml` | Add 14 missing endpoints + `POST /v1/agents/launch` |
+| `openapi.yaml` | Add 15 missing endpoints + `POST /v1/agents/launch` |
 
-### Files to Move (10 → `examples/adapters/`)
-| File | New Location |
-|------|-------------|
-| `engine/src/compute/runtime/VercelAIAdapter.ts` | `examples/adapters/VercelAIAdapter.ts` |
-| `engine/src/compute/runtime/OpenClawAdapter.ts` | `examples/adapters/OpenClawAdapter.ts` |
-| `engine/src/compute/runtime/OpenAIAgentsAdapter.ts` | `examples/adapters/OpenAIAgentsAdapter.ts` |
-| `engine/src/compute/runtime/LangGraphAdapter.ts` | `examples/adapters/LangGraphAdapter.ts` |
-| `engine/src/compute/runtime/CrewAIAdapter.ts` | `examples/adapters/CrewAIAdapter.ts` |
-| `engine/src/compute/runtime/GoogleADKAdapter.ts` | `examples/adapters/GoogleADKAdapter.ts` |
-| `engine/src/compute/runtime/DockerAdapter.ts` | `examples/adapters/DockerAdapter.ts` |
-| `engine/src/compute/deploy/imageBuilder.ts` | `examples/adapters/imageBuilder.ts` |
-| `engine/src/compute/agent/descriptorBuilder.ts` | `examples/adapters/descriptorBuilder.ts` |
-| `engine/src/__tests__/runtimeAdapters.test.ts` | `examples/adapters/runtimeAdapters.test.ts` |
+### Files to Move (Phase B — AFTER new path is stable)
+| File | Future Location |
+|------|----------------|
+| 7 adapter classes + imageBuilder + descriptorBuilder | `examples/adapters/` |
+| `runtimeAdapters.test.ts` | `examples/adapters/` |
+
+**Phase A (this plan):** Mark adapters deprecated in runtime/index.ts, make loading optional. Do NOT move yet.
+**Phase B (separate PR after stabilization):** Move to examples/ once launch path is proven stable.
 
 ---
 
@@ -86,7 +94,7 @@ export interface ImageDeployInput {
     username: string;
     password: string;
   };
-  /** Verification mode: full (receipts+memory+payment) or minimal (health+metadata) */
+  /** Verification mode */
   verification: 'full' | 'minimal';
 }
 
@@ -98,9 +106,7 @@ export function isImageDeploy(input: unknown): input is ImageDeployInput {
 
 - [ ] **Step 2: Update IDeployer.ts — extend deploy() signature**
 
-In `offchain/packages/engine/src/compute/deploy/IDeployer.ts`, add import and extend the `deploy()` method to accept the union type.
-
-At top of file, add:
+In `offchain/packages/engine/src/compute/deploy/IDeployer.ts`, add import at top:
 ```typescript
 import type { ImageDeployInput } from './types';
 ```
@@ -122,15 +128,9 @@ export type { ImageDeployInput } from './types';
 export { isImageDeploy } from './types';
 ```
 
-- [ ] **Step 4: Run type-check**
-
-Run: `cd offchain && npx tsc --noEmit 2>&1 | head -20`
-Expected: Type errors in deployers (their `deploy()` signatures don't match yet). This is expected — we fix them in Tasks 2-5.
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add offchain/packages/engine/src/compute/deploy/types.ts offchain/packages/engine/src/compute/deploy/IDeployer.ts offchain/packages/engine/src/compute/deploy/index.ts
 git commit -m "feat(deploy): add ImageDeployInput type for image-based deployment"
 ```
 
@@ -143,19 +143,13 @@ git commit -m "feat(deploy): add ImageDeployInput type for image-based deploymen
 
 - [ ] **Step 1: Update deploy() signature and add image-ref branch**
 
-In `DockerDeployer.ts`, update the `deploy()` method (line 22) to accept the union type and branch on `isImageDeploy()`:
-
+Add imports:
 ```typescript
 import { isImageDeploy } from './types';
 import type { ImageDeployInput } from './types';
 ```
 
-At line 22, change method signature to:
-```typescript
-async deploy(input: RuntimeArtifact | ImageDeployInput, config: DeploymentConfig, passportId: string): Promise<DeploymentResult>
-```
-
-At the top of the method body, add the image-ref branch before existing logic:
+Change method signature (line 22) to accept union type. At top of method body, add:
 ```typescript
 if (isImageDeploy(input)) {
   return this.deployImage(input, config, passportId);
@@ -165,19 +159,19 @@ const artifact = input; // existing code-gen path continues
 
 - [ ] **Step 2: Add deployImage() private method**
 
-Add after the existing `deploy()` method:
+**IMPORTANT:** Return status `prepared`, NOT `running`. Docker deployer generates config but does not start containers. Returning `running` would poison the control plane.
+
 ```typescript
 private async deployImage(input: ImageDeployInput, config: DeploymentConfig, passportId: string): Promise<DeploymentResult> {
   const deployId = `deploy_${crypto.randomBytes(6).toString('hex')}`;
-  const deployDir = path.join(process.cwd(), 'data', 'deployments', deployId);
+  const deployDir = path.join(this.outputDir, deployId);
   fs.mkdirSync(deployDir, { recursive: true });
 
   const port = input.port || 3100;
-
-  // Generate docker-compose.yml with image: directive (NOT build: .)
   const envLines = Object.entries(input.env_vars)
     .map(([k, v]) => `      - ${k}=${v}`).join('\n');
 
+  // docker-compose with image: directive (NOT build: .)
   const compose = `services:
   agent:
     image: ${input.image}
@@ -205,13 +199,13 @@ ${envLines}
     passport_id: passportId,
     image: input.image,
     target: 'docker',
-    created_at: new Date().toISOString(),
     verification: input.verification,
+    created_at: new Date().toISOString(),
   }, null, 2));
 
-  this.deployments.set(deployId, { dir: deployDir, status: 'running', passportId, createdAt: Date.now() });
+  this.deployments.set(deployId, { dir: deployDir, status: 'prepared', passportId, createdAt: Date.now() });
 
-  logger.info(`[Deploy] Docker image deployment created: ${deployDir}`);
+  logger.info(`[Deploy] Docker image deployment prepared: ${deployDir}`);
   logger.info(`[Deploy]   To start: cd ${deployDir} && docker compose up -d`);
 
   return {
@@ -219,20 +213,15 @@ ${envLines}
     deployment_id: deployId,
     target: 'docker',
     url: `http://localhost:${port}`,
+    metadata: { status: 'prepared', requires_manual_start: true },
   };
 }
 ```
 
-- [ ] **Step 3: Run type-check**
-
-Run: `cd offchain && npx tsc --noEmit 2>&1 | grep DockerDeployer`
-Expected: No errors for DockerDeployer.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add offchain/packages/engine/src/compute/deploy/DockerDeployer.ts
-git commit -m "feat(deploy): DockerDeployer supports image-ref via docker-compose image: directive"
+git commit -m "feat(deploy): DockerDeployer image-ref path — returns prepared, not running"
 ```
 
 ---
@@ -242,102 +231,88 @@ git commit -m "feat(deploy): DockerDeployer supports image-ref via docker-compos
 **Files:**
 - Modify: `offchain/packages/engine/src/compute/deploy/AkashDeployer.ts`
 
-- [ ] **Step 1: Update deploy() signature**
+- [ ] **Step 1: Update deploy() signature and fix resolveImageRef() (line 333)**
 
-Add imports and change signature same pattern as DockerDeployer.
-
-- [ ] **Step 2: Fix resolveImageRef() (line 333)**
-
-Change `resolveImageRef()` to check for `ImageDeployInput.image` first:
+Add imports. Change `resolveImageRef()` to check `ImageDeployInput.image` first:
 
 ```typescript
 private async resolveImageRef(input: RuntimeArtifact | ImageDeployInput, passportId: string): Promise<string> {
-  // BYOI: user-provided image takes priority
   if (isImageDeploy(input)) {
     return input.image;
   }
-  // Legacy code-gen path: build from artifact
   try {
     const builder = getImageBuilder();
     const ref = await builder.build(input, passportId);
     return ref.fullRef;
   } catch {
-    return 'node:20-slim'; // fallback
+    return 'node:20-slim';
   }
 }
 ```
 
-- [ ] **Step 3: Commit**
+Also update `generateSDL()` to handle env_vars from either type:
+```typescript
+const envVars = isImageDeploy(input) ? input.env_vars : (input as RuntimeArtifact).env_vars;
+```
+
+- [ ] **Step 2: Commit**
 
 ```bash
-git add offchain/packages/engine/src/compute/deploy/AkashDeployer.ts
-git commit -m "fix(deploy): AkashDeployer checks user image before falling back to imageBuilder"
+git commit -m "fix(deploy): AkashDeployer checks user image before imageBuilder fallback"
 ```
 
 ---
 
-### Task 4: Fix IoNetDeployer + NosanaDeployer — Don't Override BYOI Entrypoint
+### Task 4: Fix IoNetDeployer + NosanaDeployer + Railway + Phala Signatures
 
 **Files:**
 - Modify: `offchain/packages/engine/src/compute/deploy/IoNetDeployer.ts`
 - Modify: `offchain/packages/engine/src/compute/deploy/NosanaDeployer.ts`
+- Modify: `offchain/packages/engine/src/compute/deploy/RailwayDeployer.ts`
+- Modify: `offchain/packages/engine/src/compute/deploy/PhalaDeployer.ts`
 
-- [ ] **Step 1: Fix IoNetDeployer (line 116)**
+- [ ] **Step 1: Fix IoNetDeployer entrypoint (line 116)**
 
-Update deploy() signature. At line 116, change:
-```typescript
-entrypoint: artifact.entrypoint ? ['node', artifact.entrypoint] : ['node', 'index.js'],
-```
-to:
 ```typescript
 entrypoint: isImageDeploy(input)
-  ? (input.entrypoint || undefined)  // BYOI: use image's CMD unless explicitly overridden
+  ? (input.entrypoint || undefined)
   : (input.entrypoint ? ['node', input.entrypoint] : ['node', 'index.js']),
 ```
 
-- [ ] **Step 2: Fix NosanaDeployer (line 98)**
+- [ ] **Step 2: Fix NosanaDeployer entrypoint (line 98)**
 
-Same pattern. Change:
-```typescript
-cmd: artifact.entrypoint ? ['node', artifact.entrypoint] : ['node', 'index.js'],
-```
-to:
 ```typescript
 cmd: isImageDeploy(input)
   ? (input.entrypoint || undefined)
   : (input.entrypoint ? ['node', input.entrypoint] : ['node', 'index.js']),
 ```
 
-- [ ] **Step 3: Update both deploy() signatures to accept union type**
+- [ ] **Step 3: Update all 4 deploy() signatures to accept union type**
 
-- [ ] **Step 4: Also update RailwayDeployer and PhalaDeployer signatures**
-
-These already handle image refs functionally but need the type signature update for consistency.
-
-- [ ] **Step 5: Run type-check**
+- [ ] **Step 4: Run type-check**
 
 Run: `cd offchain && npx tsc --noEmit 2>&1 | grep "error TS" | head -10`
-Expected: No errors (all 6 deployers now accept the union type).
+Expected: 0 errors.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add offchain/packages/engine/src/compute/deploy/IoNetDeployer.ts offchain/packages/engine/src/compute/deploy/NosanaDeployer.ts offchain/packages/engine/src/compute/deploy/RailwayDeployer.ts offchain/packages/engine/src/compute/deploy/PhalaDeployer.ts
-git commit -m "fix(deploy): IoNet/Nosana don't override BYOI entrypoint, all deployers accept ImageDeployInput"
+git commit -m "fix(deploy): all 6 deployers accept ImageDeployInput, BYOI entrypoint preserved"
 ```
 
 ---
 
-### Task 5: Deployer Tests for Image-Ref Path
+### Task 5: Deployer Image-Ref Tests
 
 **Files:**
 - Modify: `offchain/packages/engine/src/__tests__/deployers.test.ts`
 
 - [ ] **Step 1: Add image-ref tests**
 
-Add to existing deployers.test.ts:
-
 ```typescript
+import { isImageDeploy } from '../compute/deploy/types';
+import type { ImageDeployInput } from '../compute/deploy/types';
+
 describe('Image-based deployment', () => {
   const imageInput: ImageDeployInput = {
     image: 'ghcr.io/test/my-agent:v1',
@@ -346,21 +321,27 @@ describe('Image-based deployment', () => {
     verification: 'full',
   };
 
-  test('DockerDeployer deploys image ref (no build)', async () => {
+  test('DockerDeployer deploys image ref with image: directive', async () => {
     const deployer = getDeployer('docker');
     const result = await deployer.deploy(imageInput, { target: { type: 'docker' }, restart_policy: 'on-failure' }, 'test_passport');
     expect(result.success).toBe(true);
     expect(result.url).toContain('8080');
-    // Verify docker-compose uses image: not build:
+    expect(result.metadata?.status).toBe('prepared');
+    expect(result.metadata?.requires_manual_start).toBe(true);
+  });
+
+  test('isImageDeploy correctly identifies image vs artifact', () => {
+    expect(isImageDeploy(imageInput)).toBe(true);
+    expect(isImageDeploy({ files: new Map(), entrypoint: 'x', adapter: 'y', dependencies: {}, env_vars: {} })).toBe(false);
+  });
+
+  test('DockerDeployer image deploy generates compose with image: not build:', async () => {
+    const deployer = getDeployer('docker');
+    const result = await deployer.deploy(imageInput, { target: { type: 'docker' }, restart_policy: 'on-failure' }, 'test_passport');
     const dir = path.join(process.cwd(), 'data', 'deployments', result.deployment_id);
     const compose = fs.readFileSync(path.join(dir, 'docker-compose.yml'), 'utf-8');
     expect(compose).toContain('image: ghcr.io/test/my-agent:v1');
     expect(compose).not.toContain('build:');
-  });
-
-  test('isImageDeploy correctly identifies image input', () => {
-    expect(isImageDeploy(imageInput)).toBe(true);
-    expect(isImageDeploy({ files: new Map(), entrypoint: 'x', adapter: 'y', dependencies: {}, env_vars: {} })).toBe(false);
   });
 });
 ```
@@ -373,39 +354,27 @@ Expected: All tests pass.
 - [ ] **Step 3: Commit**
 
 ```bash
-git add offchain/packages/engine/src/__tests__/deployers.test.ts
-git commit -m "test(deploy): image-ref deployment tests for DockerDeployer + isImageDeploy guard"
+git commit -m "test(deploy): image-ref deployment tests — DockerDeployer + isImageDeploy"
 ```
 
 ---
 
-## Chunk 2: Launch Service + CLI
+## Chunk 2: Launch Module + CLI
 
-### Task 6: Launch Service
+### Task 6: Launch Module — Types + Validators + Helpers
 
 **Files:**
-- Create: `offchain/packages/engine/src/compute/agent/launchService.ts`
+- Create: `offchain/packages/engine/src/launch/types.ts`
+- Create: `offchain/packages/engine/src/launch/validators.ts`
+- Create: `offchain/packages/engine/src/launch/passport-resolution.ts`
+- Create: `offchain/packages/engine/src/launch/env-builder.ts`
 
-- [ ] **Step 1: Create launchService.ts**
+- [ ] **Step 1: Create launch/types.ts**
 
 ```typescript
-/**
- * Launch Service — image-based agent activation.
- *
- * Two methods:
- * - launchImage(): BYOI — deploy user's Docker image
- * - launchBaseRuntime(): no-code — deploy pre-built base runtime
- *
- * Both bypass code generation entirely. Both enforce TrustGate routing.
- */
+// offchain/packages/engine/src/launch/types.ts
 
-import { logger } from '../../shared/lib/logger';
-import { getPassportManager } from '../../identity/passport/passportManager';
-import { getDeployer } from '../deploy';
-import { getDeploymentStore } from '../../deployment/control-plane';
-import type { ImageDeployInput } from '../deploy/types';
-import type { DeploymentTargetType } from '../agent/agentDescriptor';
-import crypto from 'crypto';
+import type { DeploymentTargetType } from '../compute/agent/agentDescriptor';
 
 export interface LaunchImageInput {
   image: string;
@@ -426,7 +395,7 @@ export interface LaunchBaseRuntimeInput {
   owner: string;
   name: string;
   tools?: string[];
-  runtime_version?: string;  // default: latest pinned
+  runtime_version?: string;
 }
 
 export interface LaunchResult {
@@ -434,101 +403,262 @@ export interface LaunchResult {
   passport_id?: string;
   deployment_id?: string;
   deployment_url?: string;
-  verification_mode?: string;
+  verification_mode?: 'full' | 'minimal';
   config_hash?: string;
+  /** BYOI capability declaration — only `full` is reputation-bearing */
+  reputation_eligible: boolean;
   error?: string;
 }
 
-const BASE_RUNTIME_IMAGE = 'ghcr.io/lucid-fdn/agent-runtime';
-const DEFAULT_RUNTIME_VERSION = 'v1.0.0';
-const DEFAULT_PORT = 3100;
+/** What a BYOI agent actually supports (declared, not assumed) */
+export interface VerificationCapabilities {
+  receipts: boolean;
+  memory: boolean;
+  payment: boolean;
+  tool_gateway: boolean;
+}
 
+export const BASE_RUNTIME_IMAGE = 'ghcr.io/lucid-fdn/agent-runtime';
+export const DEFAULT_RUNTIME_VERSION = 'v1.0.0';
+export const DEFAULT_PORT = 3100;
+```
+
+- [ ] **Step 2: Create launch/validators.ts**
+
+```typescript
+// offchain/packages/engine/src/launch/validators.ts
+
+import type { LaunchImageInput, LaunchBaseRuntimeInput } from './types';
+
+export function validateLaunchImageInput(input: LaunchImageInput): string | null {
+  if (!input.image || typeof input.image !== 'string') return 'image is required';
+  if (!input.target) return 'target is required';
+  if (!input.owner || typeof input.owner !== 'string') return 'owner is required';
+  if (!input.name || typeof input.name !== 'string') return 'name is required';
+  if (input.verification && !['full', 'minimal'].includes(input.verification)) {
+    return 'verification must be "full" or "minimal"';
+  }
+  return null;
+}
+
+export function validateBaseRuntimeInput(input: LaunchBaseRuntimeInput): string | null {
+  if (!input.model || typeof input.model !== 'string') return 'model is required';
+  if (!input.prompt || typeof input.prompt !== 'string') return 'prompt is required';
+  if (!input.target) return 'target is required';
+  if (!input.owner || typeof input.owner !== 'string') return 'owner is required';
+  return null;
+}
+```
+
+- [ ] **Step 3: Create launch/passport-resolution.ts**
+
+```typescript
+// offchain/packages/engine/src/launch/passport-resolution.ts
+
+import { getPassportManager } from '../identity/passport/passportManager';
+import { logger } from '../shared/lib/logger';
+
+/** Create a new agent passport or verify an existing one */
+export async function resolvePassport(opts: {
+  passport_id?: string;
+  owner: string;
+  name: string;
+  target: string;
+}): Promise<{ ok: true; passport_id: string } | { ok: false; error: string }> {
+  if (opts.passport_id) {
+    return { ok: true, passport_id: opts.passport_id };
+  }
+
+  const pm = getPassportManager();
+  const result = await pm.createPassport({
+    type: 'agent',
+    owner: opts.owner,
+    name: opts.name,
+    metadata: {
+      agent_config: {
+        system_prompt: `Agent: ${opts.name}`,
+        model_passport_id: 'user-provided',
+      },
+      deployment_config: {
+        target: { type: opts.target },
+      },
+    },
+  });
+
+  if (!result.ok || !result.data) {
+    return { ok: false, error: `Passport creation failed: ${result.error}` };
+  }
+
+  logger.info(`[Launch] Passport created: ${result.data.passport_id}`);
+  return { ok: true, passport_id: result.data.passport_id };
+}
+```
+
+- [ ] **Step 4: Create launch/env-builder.ts**
+
+```typescript
+// offchain/packages/engine/src/launch/env-builder.ts
+
+/** Build Lucid env vars injected into every launched container */
+export function buildLucidEnvVars(opts: {
+  passportId: string;
+  verification: 'full' | 'minimal';
+  extra?: Record<string, string>;
+}): Record<string, string> {
+  const lucidApiUrl = process.env.LUCID_API_URL || `http://localhost:${process.env.PORT || 3001}`;
+  return {
+    LUCID_API_URL: lucidApiUrl,
+    LUCID_PASSPORT_ID: opts.passportId,
+    LUCID_VERIFICATION_MODE: opts.verification,
+    TRUSTGATE_URL: process.env.TRUSTGATE_URL || '',
+    ...(opts.extra || {}),
+  };
+}
+
+/** Build env vars specific to the base runtime image */
+export function buildBaseRuntimeEnvVars(opts: {
+  model: string;
+  prompt: string;
+  tools: string[];
+  configHash: string;
+}): Record<string, string> {
+  return {
+    LUCID_MODEL: opts.model,
+    LUCID_PROMPT: opts.prompt,
+    LUCID_TOOLS: opts.tools.join(','),
+    LUCID_CONFIG_HASH: opts.configHash,
+    TRUSTGATE_URL: process.env.TRUSTGATE_URL || '',
+    TRUSTGATE_API_KEY: process.env.TRUSTGATE_API_KEY || '',
+    MCPGATE_URL: process.env.MCPGATE_URL || '',
+  };
+}
+```
+
+- [ ] **Step 5: Commit**
+
+```bash
+git commit -m "feat(launch): types, validators, passport-resolution, env-builder modules"
+```
+
+---
+
+### Task 7: Launch Service — Orchestration
+
+**Files:**
+- Create: `offchain/packages/engine/src/launch/service.ts`
+- Create: `offchain/packages/engine/src/launch/index.ts`
+
+- [ ] **Step 1: Create launch/service.ts**
+
+```typescript
+// offchain/packages/engine/src/launch/service.ts
+
+import crypto from 'crypto';
+import { logger } from '../shared/lib/logger';
+import { getDeployer } from '../compute/deploy';
+import { getDeploymentStore } from '../deployment/control-plane';
+import { resolvePassport } from './passport-resolution';
+import { buildLucidEnvVars, buildBaseRuntimeEnvVars } from './env-builder';
+import { validateLaunchImageInput, validateBaseRuntimeInput } from './validators';
+import type { ImageDeployInput } from '../compute/deploy/types';
+import type {
+  LaunchImageInput,
+  LaunchBaseRuntimeInput,
+  LaunchResult,
+} from './types';
+import { BASE_RUNTIME_IMAGE, DEFAULT_RUNTIME_VERSION, DEFAULT_PORT } from './types';
+
+/**
+ * Launch a user-provided Docker image (BYOI).
+ *
+ * minimal verification = NOT reputation-bearing.
+ * full verification = reputation-eligible (requires SDK integration).
+ */
 export async function launchImage(input: LaunchImageInput): Promise<LaunchResult> {
   const store = getDeploymentStore();
   const verification = input.verification || 'full';
-  logger.info(`[Launch] Starting image launch: ${input.name} → ${input.target} (${verification})`);
+  const reputationEligible = verification === 'full';
+
+  logger.info(`[Launch] Image: ${input.name} → ${input.target} (verification=${verification})`);
+
+  // 1. Validate
+  const validationError = validateLaunchImageInput(input);
+  if (validationError) return { success: false, error: validationError, reputation_eligible: false };
 
   try {
-    // 1. Create or use existing passport
-    let passportId = input.passport_id;
-    if (!passportId) {
-      const pm = getPassportManager();
-      const result = await pm.createPassport({
-        type: 'agent',
-        owner: input.owner,
-        name: input.name,
-        metadata: {
-          agent_config: {
-            system_prompt: `Agent: ${input.name}`,
-            model_passport_id: 'user-provided',
-          },
-          deployment_config: {
-            target: { type: input.target },
-          },
-        },
-      });
-      if (!result.ok || !result.data) return { success: false, error: `Passport creation failed: ${result.error}` };
-      passportId = result.data.passport_id;
-      logger.info(`[Launch] Passport created: ${passportId}`);
-    }
+    // 2. Resolve passport
+    const passport = await resolvePassport({
+      passport_id: input.passport_id,
+      owner: input.owner,
+      name: input.name,
+      target: input.target,
+    });
+    if (!passport.ok) return { success: false, error: passport.error, reputation_eligible: false };
 
-    // 2. Create deployment record (pending)
-    const lucidApiUrl = process.env.LUCID_API_URL || `http://localhost:${process.env.PORT || 3001}`;
+    // 3. Create deployment record (pending)
     const deployment = await store.create({
-      agent_passport_id: passportId,
+      agent_passport_id: passport.passport_id,
       provider: input.target,
       runtime_adapter: 'user-image',
-      descriptor_snapshot: { image: input.image, verification },
+      descriptor_snapshot: {
+        image: input.image,
+        verification,
+        reputation_eligible: reputationEligible,
+        port: input.port || DEFAULT_PORT,
+      },
       created_by: 'launch-service',
     });
-    logger.info(`[Launch] Deployment record: ${deployment.deployment_id} (pending)`);
+    logger.info(`[Launch] Deployment record: ${deployment.deployment_id}`);
 
-    // 3. Transition to deploying
+    // 4. Transition to deploying
     await store.transition(deployment.deployment_id, 'deploying', deployment.version, { actor: 'launch-service' });
 
-    // 4. Build ImageDeployInput with Lucid env vars
+    // 5. Build image deploy input
+    const envVars = buildLucidEnvVars({
+      passportId: passport.passport_id,
+      verification,
+      extra: input.env_vars,
+    });
+
     const imageInput: ImageDeployInput = {
       image: input.image,
-      env_vars: {
-        LUCID_API_URL: lucidApiUrl,
-        LUCID_PASSPORT_ID: passportId,
-        LUCID_VERIFICATION_MODE: verification,
-        TRUSTGATE_URL: process.env.TRUSTGATE_URL || '',
-        ...(input.env_vars || {}),
-      },
+      env_vars: envVars,
       port: input.port || DEFAULT_PORT,
       verification,
       ...(input.registry_auth ? { registry_auth: input.registry_auth } : {}),
     };
 
-    // 5. Deploy
+    // 6. Deploy
     const deployer = getDeployer(input.target);
     const result = await deployer.deploy(imageInput, {
       target: { type: input.target },
       restart_policy: 'on_failure',
-    }, passportId);
+    }, passport.passport_id);
 
     if (result.success) {
       await store.updateProviderResources(deployment.deployment_id, {
         provider_deployment_id: result.deployment_id,
         deployment_url: result.url || undefined,
       });
+      // Docker returns 'prepared' (not actually running). Other providers return running.
+      const newState = result.metadata?.status === 'prepared' ? 'deploying' : 'running';
       const updated = await store.getById(deployment.deployment_id);
-      await store.transition(deployment.deployment_id, 'running', updated!.version, { actor: 'launch-service' });
+      await store.transition(deployment.deployment_id, newState, updated!.version, { actor: 'launch-service' });
       await store.appendEvent({
         deployment_id: deployment.deployment_id,
-        event_type: 'succeeded',
+        event_type: newState === 'running' ? 'succeeded' : 'started',
         actor: 'launch-service',
         metadata: { image: input.image, verification, target: input.target },
       });
 
-      logger.info(`[Launch] Agent launched: ${passportId} → ${result.url || 'pending'}`);
+      logger.info(`[Launch] Agent launched: ${passport.passport_id} → ${result.url || 'pending'} (${newState})`);
       return {
         success: true,
-        passport_id: passportId,
+        passport_id: passport.passport_id,
         deployment_id: result.deployment_id,
         deployment_url: result.url,
         verification_mode: verification,
+        reputation_eligible: reputationEligible,
       };
     } else {
       const updated = await store.getById(deployment.deployment_id);
@@ -536,15 +666,23 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
         actor: 'launch-service',
         error: result.error,
       });
-      return { success: false, error: result.error };
+      return { success: false, error: result.error, reputation_eligible: false };
     }
   } catch (err: any) {
     logger.error(`[Launch] Error: ${err.message}`);
-    return { success: false, error: err.message };
+    return { success: false, error: err.message, reputation_eligible: false };
   }
 }
 
+/**
+ * Launch the pre-built Lucid base runtime (no-code).
+ * Always full verification. Always reputation-eligible.
+ * TrustGate hardwired inside the image.
+ */
 export async function launchBaseRuntime(input: LaunchBaseRuntimeInput): Promise<LaunchResult> {
+  const validationError = validateBaseRuntimeInput(input);
+  if (validationError) return { success: false, error: validationError, reputation_eligible: false };
+
   const version = input.runtime_version || DEFAULT_RUNTIME_VERSION;
   const image = `${BASE_RUNTIME_IMAGE}:${version}`;
   const configHash = crypto.createHash('sha256')
@@ -552,462 +690,254 @@ export async function launchBaseRuntime(input: LaunchBaseRuntimeInput): Promise<
     .digest('hex')
     .slice(0, 16);
 
-  logger.info(`[Launch] Base runtime: ${image} (config_hash: ${configHash})`);
+  logger.info(`[Launch] Base runtime: ${image} (config_hash=${configHash})`);
 
-  return launchImage({
+  const baseEnvVars = buildBaseRuntimeEnvVars({
+    model: input.model,
+    prompt: input.prompt,
+    tools: input.tools || [],
+    configHash,
+  });
+
+  const result = await launchImage({
     image,
     target: input.target,
     owner: input.owner,
-    name: input.name,
+    name: input.name || `base-${input.model}`,
     verification: 'full', // always full for base runtime
-    env_vars: {
-      LUCID_MODEL: input.model,
-      LUCID_PROMPT: input.prompt,
-      LUCID_TOOLS: (input.tools || []).join(','),
-      LUCID_CONFIG_HASH: configHash,
-      TRUSTGATE_URL: process.env.TRUSTGATE_URL || '',
-      TRUSTGATE_API_KEY: process.env.TRUSTGATE_API_KEY || '',
-      MCPGATE_URL: process.env.MCPGATE_URL || '',
-    },
+    env_vars: baseEnvVars,
   });
+
+  return { ...result, config_hash: configHash };
 }
 ```
 
-- [ ] **Step 2: Run type-check**
-
-Run: `cd offchain && npx tsc --noEmit 2>&1 | grep launchService`
-Expected: No errors.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add offchain/packages/engine/src/compute/agent/launchService.ts
-git commit -m "feat(launch): launchImage + launchBaseRuntime — image-based agent activation"
-```
-
----
-
-### Task 7: Launch Service Tests
-
-**Files:**
-- Create: `offchain/packages/engine/src/__tests__/launchService.test.ts`
-
-- [ ] **Step 1: Write ~8 tests**
+- [ ] **Step 2: Create launch/index.ts**
 
 ```typescript
-import { launchImage, launchBaseRuntime } from '../compute/agent/launchService';
-import { InMemoryDeploymentStore } from '../deployment/control-plane/in-memory-store';
-
-// Use in-memory store
-process.env.DEPLOYMENT_STORE = 'memory';
-
-describe('launchImage', () => {
-  test('launches image to docker target', async () => {
-    const result = await launchImage({
-      image: 'nginx:latest',
-      target: 'docker',
-      owner: '3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3',
-      name: 'TestAgent',
-      verification: 'full',
-    });
-    expect(result.success).toBe(true);
-    expect(result.passport_id).toBeDefined();
-    expect(result.deployment_id).toBeDefined();
-    expect(result.verification_mode).toBe('full');
-  });
-
-  test('launches with minimal verification', async () => {
-    const result = await launchImage({
-      image: 'nginx:latest',
-      target: 'docker',
-      owner: '3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3',
-      name: 'MinimalAgent',
-      verification: 'minimal',
-    });
-    expect(result.success).toBe(true);
-    expect(result.verification_mode).toBe('minimal');
-  });
-
-  test('reuses existing passport_id', async () => {
-    const result = await launchImage({
-      image: 'nginx:latest',
-      target: 'docker',
-      owner: '3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3',
-      name: 'ExistingPassport',
-      passport_id: 'passport_existing_123',
-      verification: 'full',
-    });
-    expect(result.success).toBe(true);
-    expect(result.passport_id).toBe('passport_existing_123');
-  });
-
-  test('injects LUCID env vars', async () => {
-    const result = await launchImage({
-      image: 'nginx:latest',
-      target: 'docker',
-      owner: '3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3',
-      name: 'EnvTestAgent',
-      verification: 'full',
-      env_vars: { CUSTOM_VAR: 'custom_value' },
-    });
-    expect(result.success).toBe(true);
-  });
-
-  test('fails with invalid owner', async () => {
-    const result = await launchImage({
-      image: 'nginx:latest',
-      target: 'docker',
-      owner: 'invalid',
-      name: 'BadOwner',
-      verification: 'full',
-    });
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('Invalid owner');
-  });
-});
-
-describe('launchBaseRuntime', () => {
-  test('launches base runtime with model+prompt', async () => {
-    const result = await launchBaseRuntime({
-      model: 'gpt-4o',
-      prompt: 'You are a test agent',
-      target: 'docker',
-      owner: '3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3',
-      name: 'BaseAgent',
-    });
-    expect(result.success).toBe(true);
-    expect(result.verification_mode).toBe('full');
-  });
-
-  test('includes config_hash for reputation lineage', async () => {
-    const result = await launchBaseRuntime({
-      model: 'gpt-4o',
-      prompt: 'You are a test agent',
-      target: 'docker',
-      owner: '3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3',
-      name: 'HashAgent',
-      tools: ['web-search'],
-    });
-    expect(result.success).toBe(true);
-  });
-
-  test('always uses full verification', async () => {
-    const result = await launchBaseRuntime({
-      model: 'test-model',
-      prompt: 'test',
-      target: 'docker',
-      owner: '3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3',
-      name: 'FullVerify',
-    });
-    expect(result.verification_mode).toBe('full');
-  });
-}
+// offchain/packages/engine/src/launch/index.ts
+export { launchImage, launchBaseRuntime } from './service';
+export type { LaunchImageInput, LaunchBaseRuntimeInput, LaunchResult, VerificationCapabilities } from './types';
+export { resolvePassport } from './passport-resolution';
+export { buildLucidEnvVars, buildBaseRuntimeEnvVars } from './env-builder';
+export { validateLaunchImageInput, validateBaseRuntimeInput } from './validators';
 ```
 
-- [ ] **Step 2: Run tests**
+- [ ] **Step 3: Run type-check**
 
-Run: `cd offchain && npx jest packages/engine/src/__tests__/launchService.test.ts --no-coverage`
-Expected: 8 tests passing.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add offchain/packages/engine/src/__tests__/launchService.test.ts
-git commit -m "test(launch): 8 tests — launchImage, launchBaseRuntime, verification modes"
-```
-
----
-
-### Task 8: CLI — Add `launch` Command
-
-**Files:**
-- Modify: `offchain/src/cli.ts`
-
-- [ ] **Step 1: Add `launch` command with --image flag (BYOI)**
-
-**IMPORTANT:** Insert BEFORE `program.parse(process.argv)` (line 255). If appended after parse(), the command is unreachable.
-
-Before the existing `program.parse(process.argv)` line, add:
-
-```typescript
-// Launch Commands (image-based — replaces code generation)
-program
-  .command('launch')
-  .description('Activate an agent in the Lucid verified network')
-  .option('--image <image>', 'Docker image to deploy (BYOI)')
-  .option('--runtime <runtime>', 'Pre-built runtime (e.g., "base")')
-  .option('-m, --model <model>', 'Model for base runtime')
-  .option('-p, --prompt <prompt>', 'System prompt for base runtime')
-  .option('--tools <tools>', 'Comma-separated tool passport IDs')
-  .option('-t, --target <target>', 'Deployment target (docker|railway|akash|phala|ionet|nosana)', 'docker')
-  .option('-o, --owner <owner>', 'Owner wallet address')
-  .option('-n, --name <name>', 'Agent name')
-  .option('--port <port>', 'Container port', '3100')
-  .option('--verification <mode>', 'Verification mode (full|minimal)', 'full')
-  .action(async (options) => {
-    try {
-      const { launchImage, launchBaseRuntime } = await import('../packages/engine/src/compute/agent/launchService');
-
-      if (options.image) {
-        // Path A: BYOI
-        if (!options.owner) { console.error('--owner required'); process.exit(1); }
-        if (!options.name) { console.error('--name required'); process.exit(1); }
-        console.log(`Launching ${options.name} (${options.image}) → ${options.target}...`);
-        const result = await launchImage({
-          image: options.image,
-          target: options.target,
-          owner: options.owner,
-          name: options.name,
-          port: parseInt(options.port),
-          verification: options.verification,
-        });
-        if (result.success) {
-          console.log('\nAgent launched:');
-          console.log(`  Passport: ${result.passport_id}`);
-          console.log(`  Deployment: ${result.deployment_id}`);
-          console.log(`  URL: ${result.deployment_url || 'pending'}`);
-          console.log(`  Verification: ${result.verification_mode}`);
-        } else {
-          console.error(`\nLaunch failed: ${result.error}`);
-          process.exit(1);
-        }
-      } else if (options.runtime === 'base') {
-        // Path B: Base runtime
-        if (!options.model) { console.error('--model required for base runtime'); process.exit(1); }
-        if (!options.prompt) { console.error('--prompt required for base runtime'); process.exit(1); }
-        const name = options.name || `base-${options.model}`;
-        const owner = options.owner || 'local';
-        console.log(`Launching base runtime (${options.model}) → ${options.target}...`);
-        const result = await launchBaseRuntime({
-          model: options.model,
-          prompt: options.prompt,
-          target: options.target,
-          owner,
-          name,
-          tools: options.tools ? options.tools.split(',') : [],
-        });
-        if (result.success) {
-          console.log('\nAgent launched:');
-          console.log(`  Passport: ${result.passport_id}`);
-          console.log(`  Deployment: ${result.deployment_id}`);
-          console.log(`  URL: ${result.deployment_url || 'pending'}`);
-          console.log(`  Verification: full (always for base runtime)`);
-        } else {
-          console.error(`\nLaunch failed: ${result.error}`);
-          process.exit(1);
-        }
-      } else {
-        console.error('Specify --image <docker_image> or --runtime base');
-        process.exit(1);
-      }
-    } catch (err: any) {
-      console.error('Launch error:', err.message || err);
-      process.exit(1);
-    }
-  });
-```
-
-- [ ] **Step 2: Run type-check**
-
-Run: `cd offchain && npx tsc --noEmit 2>&1 | grep cli`
-Expected: No errors.
-
-- [ ] **Step 3: Test CLI manually**
-
-Run: `cd offchain && DEPLOYMENT_STORE=memory npx ts-node src/cli.ts launch --image nginx:latest --target docker --owner 3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3 --name TestLaunch`
-Expected: "Agent launched:" with passport, deployment ID, URL.
+Run: `cd offchain && npx tsc --noEmit 2>&1 | grep "error TS" | head -10`
+Expected: 0 errors.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add offchain/src/cli.ts
-git commit -m "feat(cli): add 'lucid launch' command — image-based + base runtime activation"
+git commit -m "feat(launch): service orchestration + barrel exports — launchImage, launchBaseRuntime"
 ```
 
 ---
 
-## Chunk 3: Move Code-Gen to Examples + OpenAPI + Full Test
-
-### Task 9: Move Code-Gen Adapters to examples/
+### Task 8: Launch Tests
 
 **Files:**
-- Move 10 files from `engine/src/` to `examples/adapters/`
-- Update `runtime/index.ts` to handle missing adapters gracefully
+- Create: `offchain/packages/engine/src/__tests__/launch.test.ts`
 
-- [ ] **Step 1: Create examples/adapters/ directory**
+- [ ] **Step 1: Write ~12 tests**
 
-```bash
-mkdir -p offchain/examples/adapters
-```
+Use `DEPLOYMENT_STORE=memory` in test setup. Test:
+1. `launchImage` — deploys to docker, returns success
+2. `launchImage` — minimal verification returns `reputation_eligible: false`
+3. `launchImage` — full verification returns `reputation_eligible: true`
+4. `launchImage` — reuses existing passport_id
+5. `launchImage` — custom port passed through
+6. `launchImage` — custom env_vars merged with Lucid vars
+7. `launchImage` — invalid input returns validation error
+8. `launchImage` — invalid owner returns passport error
+9. `launchBaseRuntime` — deploys with model+prompt
+10. `launchBaseRuntime` — always full verification (reputation_eligible: true)
+11. `launchBaseRuntime` — returns config_hash
+12. `launchBaseRuntime` — missing model returns validation error
 
-- [ ] **Step 2: Update runtime/index.ts FIRST (before moving files)**
+- [ ] **Step 2: Run tests**
 
-In `offchain/packages/engine/src/compute/runtime/index.ts`, wrap each `require()` in `loadAdapters()` with try/catch so missing adapter files don't crash the process. Log a debug warning for each missing adapter. This must happen BEFORE Step 3 to avoid breaking all tests.
+Run: `cd offchain && npx jest packages/engine/src/__tests__/launch.test.ts --no-coverage`
+Expected: 12 tests passing.
 
-- [ ] **Step 3: Move adapter files**
-
-```bash
-cd offchain
-mv packages/engine/src/compute/runtime/VercelAIAdapter.ts examples/adapters/
-mv packages/engine/src/compute/runtime/OpenClawAdapter.ts examples/adapters/
-mv packages/engine/src/compute/runtime/OpenAIAgentsAdapter.ts examples/adapters/
-mv packages/engine/src/compute/runtime/LangGraphAdapter.ts examples/adapters/
-mv packages/engine/src/compute/runtime/CrewAIAdapter.ts examples/adapters/
-mv packages/engine/src/compute/runtime/GoogleADKAdapter.ts examples/adapters/
-mv packages/engine/src/compute/runtime/DockerAdapter.ts examples/adapters/
-mv packages/engine/src/compute/deploy/imageBuilder.ts examples/adapters/
-mv packages/engine/src/compute/agent/descriptorBuilder.ts examples/adapters/
-mv packages/engine/src/__tests__/runtimeAdapters.test.ts examples/adapters/
-```
-
-- [ ] **Step 3: Update runtime/index.ts — make adapter loading optional**
-
-In `offchain/packages/engine/src/compute/runtime/index.ts`, update `loadAdapters()` to gracefully handle missing adapter files (they've been moved). Keep `IRuntimeAdapter` interface and factory exports. The factory should log a warning if no adapters found but not crash.
-
-- [ ] **Step 4: Update agentDeploymentService.ts imports**
-
-The existing `deployAgent()` method (which uses adapters) should catch the "no adapters" case and return a clear error: "Code-generation adapters have been moved to examples/. Use launchImage() or launchBaseRuntime() instead."
-
-- [ ] **Step 5: Create examples/adapters/README.md**
-
-```markdown
-# Code Generation Adapters (Reference Examples)
-
-These adapters were the original code-generation system for Lucid agent deployment.
-They have been replaced by the image-based launch system (`lucid launch`).
-
-These files are kept as reference examples showing how to build a Lucid agent
-with each framework.
-
-## Adapters
-
-| Adapter | Framework | Language |
-|---------|-----------|----------|
-| VercelAIAdapter | Vercel AI SDK | TypeScript |
-| OpenClawAdapter | OpenClaw | Markdown |
-| OpenAIAgentsAdapter | OpenAI Agents SDK | Python |
-| LangGraphAdapter | LangGraph | Python |
-| CrewAIAdapter | CrewAI | Python |
-| GoogleADKAdapter | Google ADK | Python |
-| DockerAdapter | Vanilla Node.js | TypeScript |
-
-## Usage
-
-These are NOT used by `lucid launch`. They are reference implementations
-for developers who want to see how agent code is structured for each framework.
-
-For actual deployment, use:
-- `lucid launch --image <your-image>` (bring your own)
-- `lucid launch --runtime base --model <model> --prompt <prompt>` (no-code)
-```
-
-- [ ] **Step 6: Run full test suite**
-
-Run: `cd offchain && npx jest --no-coverage 2>&1 | tail -5`
-Expected: All tests pass (runtimeAdapters.test.ts was moved, so it won't run. agentDeploymentService.test.ts may need adaptation if it mocks adapters — fix any failures).
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add -A
-git commit -m "refactor: move code-gen adapters to examples/ — launch replaces generate"
+git commit -m "test(launch): 12 tests — image, base runtime, verification modes, reputation eligibility"
 ```
 
 ---
 
-### Task 10: Add Missing Endpoints to OpenAPI
+### Task 9: CLI — Add `launch` Command
+
+**Files:**
+- Modify: `offchain/src/cli.ts`
+
+- [ ] **Step 1: Add launch command**
+
+**IMPORTANT:** Insert BEFORE `program.parse(process.argv)` (line 255). If appended after parse(), the command is unreachable.
+
+Add the `launch` command with `--image` and `--runtime` flags. Use `launchImage` and `launchBaseRuntime` from `../packages/engine/src/launch`.
+
+- [ ] **Step 2: Test CLI manually**
+
+```bash
+cd offchain && DEPLOYMENT_STORE=memory npx ts-node src/cli.ts launch \
+  --image nginx:latest --target docker \
+  --owner 3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3 \
+  --name TestLaunch
+```
+Expected: "Agent launched:" with passport, deployment ID.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git commit -m "feat(cli): add 'lucid launch' — image-based + base runtime activation"
+```
+
+---
+
+## Chunk 3: Adapter Deprecation + OpenAPI + Full Test
+
+### Task 10: Make Runtime Adapter Loading Optional
+
+**Files:**
+- Modify: `offchain/packages/engine/src/compute/runtime/index.ts`
+
+- [ ] **Step 1: Wrap each require() in try/catch**
+
+In `loadAdapters()`, wrap each adapter `require()` in try/catch. Log debug warning for missing adapters. Do NOT crash if adapters are missing — they're being deprecated.
+
+- [ ] **Step 2: Add deprecation notice to each adapter file header**
+
+Add to each of the 7 adapter files:
+```typescript
+/** @deprecated Use lucid launch --image or --runtime base instead. Will move to examples/. */
+```
+
+- [ ] **Step 3: Run full test suite**
+
+Run: `cd offchain && npx jest --no-coverage 2>&1 | tail -5`
+Expected: All tests pass (adapters still present, just optional).
+
+- [ ] **Step 4: Commit**
+
+```bash
+git commit -m "refactor(runtime): make adapter loading optional, mark adapters deprecated"
+```
+
+---
+
+### Task 11: Add Missing Endpoints to OpenAPI
 
 **Files:**
 - Modify: `openapi.yaml` (root)
 
 - [ ] **Step 1: Add 7 memory endpoints**
 
-Add after existing `/v1/memory` paths in `openapi.yaml`:
-- `GET /v1/memory/entries/{id}`
-- `GET /v1/memory/entries`
-- `POST /v1/memory/sessions/{id}/close`
-- `GET /v1/memory/sessions/{id}/context`
-- `GET /v1/memory/provenance/{agent_id}/{namespace}`
-- `GET /v1/memory/provenance/entry/{id}`
-- `GET /v1/memory/stats/{agent_id}`
-
 - [ ] **Step 2: Add 5 blue-green deployment endpoints**
 
-- `POST /v1/agents/{passportId}/deploy/blue-green`
-- `POST /v1/agents/{passportId}/promote`
-- `POST /v1/agents/{passportId}/rollback`
-- `GET /v1/agents/{passportId}/blue`
-- `POST /v1/agents/{passportId}/blue/cancel`
+- [ ] **Step 3: Add launch endpoint with two modes**
 
-- [ ] **Step 3: Add launch + webhook + a2a endpoints**
+```yaml
+/v1/agents/launch:
+  post:
+    summary: Launch an agent in the Lucid verified network
+    requestBody:
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/LaunchImageRequest'
+              - $ref: '#/components/schemas/LaunchBaseRuntimeRequest'
+            discriminator:
+              propertyName: mode
+              mapping:
+                image: '#/components/schemas/LaunchImageRequest'
+                base-runtime: '#/components/schemas/LaunchBaseRuntimeRequest'
+```
 
-- `POST /v1/agents/launch` (new — image-based launch)
-- `POST /v1/webhooks/{provider}`
-- `DELETE /v1/a2a/{passportId}/tasks/{taskId}`
+With separate schemas for BYOI (`mode: "image"`) vs base runtime (`mode: "base-runtime"`).
 
-- [ ] **Step 4: Validate OpenAPI syntax**
+- [ ] **Step 4: Add webhook + a2a endpoints**
 
-Run: `cd offchain && npx @apidevtools/swagger-cli validate ../openapi.yaml 2>&1`
-Expected: No validation errors.
+- [ ] **Step 5: Validate OpenAPI**
 
-- [ ] **Step 5: Commit**
+Run: `npx @apidevtools/swagger-cli validate openapi.yaml 2>&1`
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add openapi.yaml
-git commit -m "docs(openapi): add 15 missing endpoints — memory, blue-green, launch, webhooks"
+git commit -m "docs(openapi): add 16 missing endpoints — memory, blue-green, launch, webhooks"
 ```
 
 ---
 
-### Task 11: Full Test Suite + Type Check
+### Task 12: Full Test Suite + Type Check + E2E
 
-- [ ] **Step 1: Run type-check**
+- [ ] **Step 1: Type-check**
 
 Run: `cd offchain && npx tsc --noEmit 2>&1 | grep "error TS" | wc -l`
 Expected: 0
 
-- [ ] **Step 2: Run full test suite**
+- [ ] **Step 2: Full test suite**
 
 Run: `cd offchain && npx jest --no-coverage 2>&1 | tail -5`
-Expected: 100+ suites, all pass.
+Expected: 103+ suites, all pass.
 
-- [ ] **Step 3: Test CLI launch end-to-end**
+- [ ] **Step 3: E2E CLI launch**
 
 ```bash
-cd offchain
-DEPLOYMENT_STORE=memory npx ts-node src/cli.ts launch --image nginx:latest --target docker --owner 3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3 --name E2ETest
+DEPLOYMENT_STORE=memory npx ts-node src/cli.ts launch \
+  --image nginx:latest --target docker \
+  --owner 3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3 \
+  --name E2ETest
 ```
-Expected: "Agent launched:" with passport ID and deployment URL.
 
 - [ ] **Step 4: Verify docker-compose uses image: not build:**
 
 ```bash
 cat data/deployments/deploy_*/docker-compose.yml | grep -E "image:|build:"
 ```
-Expected: `image: nginx:latest` (no `build:` lines).
 
-- [ ] **Step 5: Update CLAUDE.md test count if changed**
-
-- [ ] **Step 6: Final commit**
+- [ ] **Step 5: Final commit**
 
 ```bash
-git add -A
-git commit -m "feat(launch): agent launcher redesign complete — image-based, verification modes, TrustGate hardwired"
+git commit -m "feat(launch): agent launcher redesign complete — image-based, verification modes"
 ```
 
 ---
 
 ## Verification Checklist
 
-After all 11 tasks:
+After all 12 tasks:
 
 - [ ] `cd offchain && npx tsc --noEmit` — 0 errors
 - [ ] `cd offchain && npx jest --no-coverage` — all suites pass
-- [ ] `lucid launch --image nginx:latest --target docker` — container config created, image: directive used
-- [ ] `lucid launch --runtime base --model test --prompt "hello" --target docker` — base runtime config created
-- [ ] `lucid launch --image x --target docker --verification minimal` — minimal mode works
-- [ ] Code-gen adapters moved to `examples/adapters/` — not in engine/src
-- [ ] `openapi.yaml` has 15+ new endpoints, validates
-- [ ] Old `lucid deploy` command still works (backward compat)
-- [ ] launchService tests pass (8+)
-- [ ] Deployer image-ref tests pass (2+)
+- [ ] `lucid launch --image nginx:latest --target docker` — prepared, image: directive used
+- [ ] `lucid launch --runtime base --model test --prompt "hello" --target docker` — works
+- [ ] `lucid launch --image x --verification minimal` — reputation_eligible: false
+- [ ] `lucid launch --image x --verification full` — reputation_eligible: true
+- [ ] launch/service.ts is in `engine/src/launch/` (not compute/agent/)
+- [ ] Adapters marked deprecated, loading optional (still present, not moved yet)
+- [ ] `openapi.yaml` has 16 new endpoints, validates
+- [ ] Old `lucid deploy` still works (backward compat)
+- [ ] Launch tests pass (12+)
+- [ ] Deployer image-ref tests pass (3+)
+- [ ] Docker deployer returns `prepared` not `running` for image deploys
+
+---
+
+## Phase B (Separate PR — after stabilization)
+
+After the launch path is proven stable in production:
+
+- [ ] Move 7 adapter classes to `examples/adapters/`
+- [ ] Move `imageBuilder.ts` to `examples/adapters/`
+- [ ] Move `descriptorBuilder.ts` to `examples/adapters/`
+- [ ] Move `runtimeAdapters.test.ts` to `examples/adapters/`
+- [ ] Create `examples/adapters/README.md`
+- [ ] Update `runtime/index.ts` to not load any adapters by default
+- [ ] Update `agentDeploymentService.deployAgent()` to return clear deprecation message
