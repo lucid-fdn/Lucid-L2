@@ -14,7 +14,7 @@ anchor deploy --provider.cluster devnet
 
 # Tests
 cd tests && npm test                        # Mocha on-chain (6 programs)
-cd offchain && npm test                     # Jest API (103 suites, 1683 tests)
+cd offchain && npm test                     # Jest API (103 suites, 1663 tests)
 ```
 
 ## Architecture
@@ -389,11 +389,27 @@ offchain/
         escrow/                       # escrowService, disputeService
         stores/                       # paymentGateService, spentProofsStore
         airdrop/                      # revenueAirdrop
-      compute/                        # Deploy (6 targets), agent orchestration
+      launch/                         # Product-level agent activation (lucid launch)
+        types.ts                      # LaunchImageInput, LaunchBaseRuntimeInput, LaunchResult
+        service.ts                    # launchImage() + launchBaseRuntime() orchestration
+        passport-resolution.ts        # resolvePassport() — create or reuse identity
+        env-builder.ts                # buildLucidEnvVars() + buildBaseRuntimeEnvVars()
+        validators.ts                 # Input validation
+        index.ts                      # Barrel exports
+      compute/                        # Deploy infrastructure + agent descriptors
         deploy/                       # IDeployer -> Docker, Railway, Akash, Phala, io.net, Nosana
-        runtime/                      # IRuntimeAdapter interface + factory (adapters moved to examples/)
+          types.ts                    # ImageDeployInput + isImageDeploy() guard
+        runtime/                      # IRuntimeAdapter interface + factory (adapters @deprecated)
         agent/                        # agentDeploymentService, agentDescriptor, agentRevenueService
           a2a/                        # A2A protocol client/server/agentCard
+      deployment/                     # Deployment control plane (state machine)
+        control-plane/                # IDeploymentStore, types, postgres/in-memory stores
+        reconciler/                   # Drift detection, stuck repair, provider sync
+        lease-manager/                # io.net lease extension
+        webhooks/                     # Provider webhook normalizers (5 providers)
+        rollout/                      # Blue-green, promote, rollback
+        secrets/                      # ISecretsResolver (env, mock)
+        boot.ts                       # startDeploymentControlPlane()
       anchoring/                      # Unified DePIN interface — dispatcher, registry, verifier
       reputation/                     # Provider + syncer interfaces, on-chain + off-chain
       shared/                         # Cross-cutting infrastructure
