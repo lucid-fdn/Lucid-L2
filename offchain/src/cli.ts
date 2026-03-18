@@ -252,4 +252,71 @@ program
     }
   });
 
+// Launch Commands
+program
+  .command('launch')
+  .description('Launch an agent via image (Path A) or base runtime (Path B)')
+  .option('--image <image>', 'Docker image to deploy (BYOI path)')
+  .option('--runtime <runtime>', 'Pre-built runtime (e.g., "base")')
+  .option('-m, --model <model>', 'Model for base runtime')
+  .option('-p, --prompt <prompt>', 'System prompt for base runtime')
+  .option('--tools <tools>', 'Comma-separated tool passport IDs')
+  .option('-t, --target <target>', 'Deployment target', 'docker')
+  .option('-o, --owner <owner>', 'Owner wallet address')
+  .option('-n, --name <name>', 'Agent name')
+  .option('--port <port>', 'Container port', '3100')
+  .option('--verification <mode>', 'Verification mode: full or minimal', 'full')
+  .action(async (options) => {
+    try {
+      const { launchImage, launchBaseRuntime } = await import('../packages/engine/src/launch');
+
+      let result;
+
+      if (options.image) {
+        // Path A: Bring Your Own Image
+        result = await launchImage({
+          image: options.image,
+          target: options.target,
+          owner: options.owner ?? 'local',
+          name: options.name ?? options.image.split('/').pop()?.split(':')[0] ?? 'agent',
+          port: parseInt(options.port, 10),
+          verification: options.verification as 'full' | 'minimal',
+        });
+      } else if (options.runtime === 'base') {
+        // Path B: Base Runtime
+        if (!options.model || !options.prompt) {
+          console.error('Error: --runtime base requires --model and --prompt');
+          process.exit(1);
+        }
+        const tools = options.tools ? options.tools.split(',').map((t: string) => t.trim()) : undefined;
+        result = await launchBaseRuntime({
+          model: options.model,
+          prompt: options.prompt,
+          target: options.target,
+          owner: options.owner ?? 'local',
+          name: options.name ?? `base-${options.model}`,
+          tools,
+        });
+      } else {
+        console.error('Error: provide --image <image> (Path A) or --runtime base (Path B)');
+        process.exit(1);
+      }
+
+      if (result.success) {
+        console.log('\nAgent launched:');
+        console.log(`  Passport: ${result.passport_id}`);
+        console.log(`  Deployment: ${result.deployment_id}`);
+        console.log(`  URL: ${result.deployment_url || 'pending'}`);
+        console.log(`  Verification: ${result.verification_mode ?? options.verification}`);
+        console.log(`  Reputation eligible: ${result.reputation_eligible}`);
+      } else {
+        console.error(`\nLaunch failed: ${result.error}`);
+        process.exit(1);
+      }
+    } catch (err: any) {
+      console.error('Launch error:', err.message || err);
+      process.exit(1);
+    }
+  });
+
 program.parse(process.argv);
