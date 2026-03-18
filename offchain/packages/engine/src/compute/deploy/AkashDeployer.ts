@@ -26,6 +26,8 @@ import type {
   DeploymentStatus,
   LogOptions,
 } from './IDeployer';
+import { isImageDeploy } from './types';
+import type { ImageDeployInput } from './types';
 import { resilientFetch } from './resilientFetch';
 import { logger } from '../../shared/lib/logger';
 
@@ -95,7 +97,7 @@ export class AkashDeployer implements IDeployer {
   // -------------------------------------------------------------------------
 
   async deploy(
-    artifact: RuntimeArtifact,
+    input: RuntimeArtifact | ImageDeployInput,
     config: DeploymentConfig,
     passportId: string,
   ): Promise<DeploymentResult> {
@@ -103,10 +105,11 @@ export class AkashDeployer implements IDeployer {
 
     try {
       // 1. Build image reference
-      const imageRef = await this.resolveImageRef(artifact, passportId);
+      const imageRef = await this.resolveImageRef(input, passportId);
 
       // 2. Generate SDL
-      const sdl = this.generateSDL(imageRef, artifact, config, passportId);
+      const envVars = isImageDeploy(input) ? input.env_vars : input.env_vars;
+      const sdl = this.generateSDL(imageRef, envVars, config, passportId);
       logger.info(`[Deploy:Akash] SDL generated for ${passportId}`);
 
       // 3. Create deployment via Console API
@@ -249,11 +252,11 @@ export class AkashDeployer implements IDeployer {
 
   private generateSDL(
     imageRef: string,
-    artifact: RuntimeArtifact,
+    inputEnvVars: Record<string, string>,
     config: DeploymentConfig,
     _passportId: string,
   ): string {
-    const envVars = { ...artifact.env_vars, ...config.env_vars };
+    const envVars = { ...inputEnvVars, ...config.env_vars };
     const envLines = Object.entries(envVars)
       .filter(([, v]) => v)
       .map(([k, v]) => `        - "${k}=${v}"`)
@@ -330,11 +333,15 @@ deployment:
   // Helpers
   // -------------------------------------------------------------------------
 
-  private async resolveImageRef(artifact: RuntimeArtifact, passportId: string): Promise<string> {
+  private async resolveImageRef(input: RuntimeArtifact | ImageDeployInput, passportId: string): Promise<string> {
+    if (isImageDeploy(input)) {
+      return input.image;
+    }
+    // existing code-gen path
     try {
       const { getImageBuilder } = await import('./imageBuilder');
       const builder = getImageBuilder();
-      const image = await builder.build(artifact, passportId);
+      const image = await builder.build(input, passportId);
       return image.fullRef;
     } catch {
       // Fallback to generic node image if ImageBuilder not available
