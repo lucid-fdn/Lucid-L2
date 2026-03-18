@@ -14,7 +14,7 @@ anchor deploy --provider.cluster devnet
 
 # Tests
 cd tests && npm test                        # Mocha on-chain (6 programs)
-cd offchain && npm test                     # Jest API (102 suites, 1585 tests)
+cd offchain && npm test                     # Jest API (103 suites, 1603 tests)
 ```
 
 ## Architecture
@@ -222,8 +222,23 @@ All deployers accept either a Docker image reference or a RuntimeArtifact.
 
 **CLI commands:**
 ```bash
-lucid launch --image <image> --target <target>     # Path A
-lucid launch --runtime base --model <m> --prompt   # Path B
+# Auth & credentials (stored at ~/.lucid/credentials.json, override via LUCID_CONFIG_DIR)
+lucid login                                         # Browser OAuth (or --token for CI)
+lucid logout                                        # Clear Lucid auth
+lucid whoami                                        # Show current auth state
+
+# Provider management (local credentials for Layer-mode deploys)
+lucid provider add <name>                           # Connect provider (railway, akash, phala, ionet, nosana)
+lucid provider list                                 # List connected providers
+lucid provider remove <name>                        # Disconnect provider
+
+# Launch (with --mode layer|cloud resolver)
+lucid launch --image <image> --target <target>     # Path A (BYOI)
+lucid launch --runtime base --model <m> --prompt   # Path B (base runtime)
+lucid launch --mode layer --target railway ...      # Force Layer path
+lucid launch --mode cloud ...                       # Force Cloud path
+
+# Management
 lucid status <passportId>
 lucid logs <passportId> [--tail 100]
 lucid list [--status running] [--target docker]
@@ -231,6 +246,16 @@ lucid terminate <passportId>
 lucid targets                                       # List available providers
 lucid update <passportId>                           # Explicit runtime version update
 ```
+
+**Launch Resolver** (`src/cli/launch-resolver.ts`):
+Deterministic 7-step resolution for `lucid launch`:
+1. `--mode layer` → local provider path (requires `--target`)
+2. `--mode cloud` → Lucid Cloud path (requires `lucid login`)
+3. `--target X` + local credential → Layer
+4. `--target X` + no local credential → fail clearly (never redirect)
+5. No `--target` + Cloud auth → Cloud
+6. No `--target` + no Cloud + one local provider → Layer with that provider
+7. Otherwise → error with instructions
 
 ### Base Runtime (`packages/agent-runtime/`)
 
@@ -448,7 +473,14 @@ offchain/
       server.ts                       # Express server (port 3100), inference + auto-receipts
       Dockerfile                      # ghcr.io/lucid-fdn/agent-runtime:v1.0.0
       package.json                    # Deps: ai-sdk, express, zod
-  src/                                # Re-export proxies (backward compat, will be removed)
+  src/
+    cli/                              # CLI DX — auth, credentials, provider management, launch resolver
+      credentials.ts                  # ~/.lucid/credentials.json read/write (LUCID_CONFIG_DIR override)
+      auth.ts                         # lucid login/logout/whoami (browser OAuth + --token CI mode)
+      providers.ts                    # lucid provider add/list/remove (Railway OAuth, others via API key)
+      launch-resolver.ts              # 7-step deterministic launch path resolution (layer|cloud)
+      oauth-callback.ts               # Localhost HTTP server for OAuth redirect capture
+    ...                               # Re-export proxies (backward compat, will be removed)
 ```
 
 **Removed directories** (merged into domain structure):
@@ -510,7 +542,7 @@ Supabase (eu-north-1, project `kwihlcnapmkaivijyiif`):
 - `better-sqlite3` + `sqlite-vec` (optional deps for `MEMORY_STORE=sqlite`)
 
 ## Testing
-- **102 test suites, 1585 tests** (offchain)
+- **103 test suites, 1603 tests** (offchain)
 - On-chain: `anchor test` (Mocha, 6 programs)
 - Type check: `cd offchain && npm run type-check`
 - E2E: start server (`npm start`) + curl endpoints
