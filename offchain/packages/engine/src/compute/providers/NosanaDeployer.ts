@@ -44,12 +44,13 @@ export class NosanaDeployer implements IDeployer {
   readonly target = 'nosana';
   readonly description = 'Nosana Solana GPU deployment';
 
-  private apiKey: string;
-  private baseUrl: string;
+  // Read token at deploy time, not construction — allows CLI to inject credential after factory init
+  private get apiKey(): string {
+    return process.env.NOSANA_API_KEY || '';
+  }
 
-  constructor() {
-    this.apiKey = process.env.NOSANA_API_KEY || '';
-    this.baseUrl = process.env.NOSANA_API_URL || 'https://dashboard.k8s.prd.nos.ci/api';
+  private get baseUrl(): string {
+    return process.env.NOSANA_API_URL || 'https://dashboard.k8s.prd.nos.ci/api';
   }
 
   async deploy(input: RuntimeArtifact | ImageDeployInput, config: DeploymentConfig, passportId: string): Promise<DeploymentResult> {

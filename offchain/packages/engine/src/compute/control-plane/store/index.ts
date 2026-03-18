@@ -4,6 +4,7 @@
 import type { IDeploymentStore } from './store';
 import { InMemoryDeploymentStore } from './in-memory-store';
 import { PostgresDeploymentStore } from './postgres-store';
+import { logger } from '../../../shared/lib/logger';
 
 /* ------------------------------------------------------------------ */
 /*  Factory Singleton                                                 */
@@ -14,13 +15,40 @@ let store: IDeploymentStore | null = null;
 /**
  * Get the deployment store singleton.
  * Reads `DEPLOYMENT_STORE` env: 'postgres' (default) | 'memory'.
+ * Falls back to in-memory store if Postgres is unavailable (e.g., CLI without DB).
  */
 export function getDeploymentStore(): IDeploymentStore {
   if (!store) {
     const backend = process.env.DEPLOYMENT_STORE ?? 'postgres';
-    store = backend === 'memory'
-      ? new InMemoryDeploymentStore()
-      : new PostgresDeploymentStore();
+    if (backend === 'memory') {
+      store = new InMemoryDeploymentStore();
+    } else {
+      // Check if Postgres credentials are configured before attempting connection.
+      // Without a password, the pool will fail on first query — fall back early.
+      const hasPostgres = !!(
+        process.env.POSTGRES_PASSWORD ||
+        process.env.SUPABASE_DB_PASSWORD ||
+        process.env.DATABASE_URL
+      );
+      if (!hasPostgres) {
+        logger.warn(
+          '[DeploymentStore] No Postgres credentials found (POSTGRES_PASSWORD / SUPABASE_DB_PASSWORD / DATABASE_URL). ' +
+          'Falling back to in-memory store.',
+        );
+        store = new InMemoryDeploymentStore();
+      } else {
+        try {
+          store = new PostgresDeploymentStore();
+        } catch (err) {
+          logger.warn(
+            `[DeploymentStore] Postgres unavailable, falling back to in-memory store: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+          store = new InMemoryDeploymentStore();
+        }
+      }
+    }
   }
   return store;
 }

@@ -131,7 +131,7 @@ export function applyMiddleware(app: Express): void {
           validateRequests: true,
           validateResponses: false,
           validateApiSpec: true,
-          ignorePaths: /^(\/api\/|\/v1\/memory|\/v1\/anchors)/,
+          ignorePaths: /^(\/api\/|\/v1\/memory|\/v1\/anchors|\/v1\/agents\/launch|\/v1\/webhooks)/,
         })
       );
     } catch (err) {
