@@ -68,9 +68,33 @@ Every layer of this stack is designed to become fully decentralized. Identity an
 
 ---
 
+## Status
+
+Lucid Layer is in active development. Some features are production-ready, others are being built in the open.
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Identity (passports, NFT, wallets) | **Production** | Solana + EVM, Metaplex Core, ERC-6551 TBA |
+| Receipts + epochs + MMR proofs | **Production** | Ed25519 signing, multi-chain anchoring |
+| Agent memory (6 types, semantic recall) | **Production** | Local-first SQLite, hash-chained, DePIN snapshots |
+| Deployment control plane (3 phases) | **Production** | 6 deployers, reconciler, blue-green, rollback |
+| Payments (x402, revenue splits, escrow) | **Production** | 3 facilitators, dynamic pricing, share tokens |
+| Reputation (on-chain + off-chain) | **Production** | ERC-8004 sync, composite scoring |
+| Anchoring / DePIN (7 artifact types) | **Production** | Arweave + Lighthouse, unified dispatcher |
+| Solana programs (6) | **Devnet** | Deployed, tested, auditing in progress |
+| EVM contracts (17) | **Testnet** | Base Sepolia, Hardhat tests passing |
+| Solana ↔ EVM full parity | **In progress** | Session keys + escrow adapter gaps remaining |
+| zkML on-chain verification | **Partial** | EVM full, Solana off-chain only (no alt_bn128) |
+| Lucid Cloud | **Private beta** | TrustGate, MCPGate, fleet orchestration |
+
+See [CLAUDE.md](CLAUDE.md) for detailed architecture and chain parity breakdown.
+
+---
+
 ## Table of Contents
 
 - [The Internet of AI](#the-internet-of-ai)
+- [Status](#status)
 - [The Autonomous Stack](#the-autonomous-stack)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
