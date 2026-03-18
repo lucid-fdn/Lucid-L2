@@ -51,20 +51,18 @@ Agent creates passport (on-chain identity)
 
 The internet has two layers: **protocols** (TCP/IP, DNS, HTTP) and **edge infrastructure** (Cloudflare, AWS, Akamai). AI needs the same.
 
-| Internet | Lucid | What it does |
-|----------|-------|-------------|
-| TCP/IP | **Lucid Layer** (this repo) | The open protocol. The complete autonomous AI infrastructure — identity, memory, compute, deployment, payments, reputation, verification. Everything an agent needs to exist and operate independently. Runs anywhere. No vendor lock-in. |
-| Cloudflare | **Lucid Cloud** (managed service) | The fully managed, performant, accelerated edge layer on top of Lucid Layer. Not just dashboards — it runs every protocol operation faster, at scale, globally. |
+| | Internet | Lucid |
+|---|----------|-------|
+| **Protocol** | TCP/IP, DNS, HTTP | **Lucid Layer** — open-source autonomous AI infrastructure |
+| **Edge** | Cloudflare | **Lucid Cloud** — managed acceleration at global scale |
 
-**Lucid Layer** is the open-source engine — the protocol specification and reference implementation. It defines how AI assets get identity, how agents store memory, how compute is matched, how payments flow, and how every action is cryptographically verified. It's designed to run independently, on any infrastructure, without depending on any centralized service.
+**Lucid Layer** is the open protocol. Everything an agent needs to exist and operate independently — identity, memory, compute, deployment, payments, reputation, verification. Runs anywhere. No vendor lock-in. This repo.
 
-**Lucid Cloud** is the fully managed acceleration layer for Lucid Layer — the Cloudflare of AI. Just as Cloudflare doesn't replace HTTP but makes it faster, cached, secured, and globally distributed, Lucid Cloud takes everything the protocol does and runs it at production scale: accelerated inference routing (TrustGate), edge tool dispatch (MCPGate), managed deployment orchestration, fleet-wide observability, automated billing, and enterprise-grade security. Inside Lucid Cloud, the **Lucid Oracle** generates real-time intelligence feeds from live agent traffic — Model Intelligence, Tool Health, Agent Reputation, Capability Index, and Safety Signals — data that only exists because of the network. These feeds flow back into the protocol, enriching on-chain reputation and making every agent in the ecosystem smarter. The more agents use the network, the better the intelligence becomes for everyone.
-
-Together, they form the **Internet of AI**: an open protocol anyone can build on, plus managed infrastructure that accelerates it and generates intelligence that feeds back into the protocol.
+**Lucid Cloud** is the Cloudflare of AI. It takes the entire protocol and runs it faster, at scale, globally — accelerated inference, edge tool routing, fleet orchestration, real-time intelligence, automated settlement, enterprise security. The more agents use the network, the smarter it gets for everyone. Traffic data generates intelligence that feeds back into the protocol's on-chain reputation, creating a flywheel no competitor can replicate without the network.
 
 ### Progressive Decentralization
 
-Every layer of this stack is designed to become fully decentralized. Identity and verification are already on-chain. Memory is already agent-owned. Compute already runs on DePIN. Progressively — through R&D and partnerships with DePIN networks, chain infrastructure teams, and the open-source community — the remaining coordination logic moves from centralized services to trustless on-chain execution.
+The protocol is designed so that every layer can become fully decentralized — and we're already halfway there. Identity and verification are on-chain. Memory is agent-owned. Compute runs on DePIN. The remaining coordination logic moves from centralized to trustless progressively, through R&D and ecosystem partnerships. Every interface is swappable. Every centralized component can be replaced without rewriting the system.
 
 ---
 
