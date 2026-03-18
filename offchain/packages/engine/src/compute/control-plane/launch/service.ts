@@ -115,12 +115,16 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
       };
     }
 
-    // 7a. Update provider resources
+    // 7a. Update provider resources (increments version)
     await store.updateProviderResources(deploymentId, {
       provider_deployment_id: result.deployment_id,
       deployment_url: result.url,
       provider_status: result.metadata?.status as string | undefined,
     });
+
+    // Re-fetch version after updateProviderResources
+    const afterResources = await store.getById(deploymentId);
+    if (afterResources) currentVersion = afterResources.version;
 
     // 7b. Determine final state: Docker returns 'prepared' (not actually running)
     const isPrepared = result.metadata?.requires_manual_start === true;
