@@ -1,4 +1,4 @@
-export { launchImage, launchBaseRuntime } from './service';
+export { launchImage, launchBaseRuntime, toLaunchSpec } from './service';
 export type { LaunchImageInput, LaunchBaseRuntimeInput, LaunchResult, VerificationCapabilities } from './types';
 export type { LaunchSpec, LaunchSpecMetadata, SourceType, SourceBuildMode, LaunchTarget } from './launch-spec';
 export { resolvePassport } from './passport-resolution';

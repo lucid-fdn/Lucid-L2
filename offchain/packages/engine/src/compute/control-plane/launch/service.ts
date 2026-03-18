@@ -11,6 +11,28 @@ import { validateLaunchImageInput, validateBaseRuntimeInput } from './validators
 import type { ImageDeployInput } from '../../providers/types';
 import type { LaunchImageInput, LaunchBaseRuntimeInput, LaunchResult } from './types';
 import { BASE_RUNTIME_IMAGE, DEFAULT_RUNTIME_VERSION, DEFAULT_PORT } from './types';
+import type { LaunchSpec, LaunchTarget } from './launch-spec';
+
+/* ------------------------------------------------------------------ */
+/*  LaunchSpec normalization                                           */
+/* ------------------------------------------------------------------ */
+
+/** Convert launch inputs to normalized LaunchSpec for logging / auditing. */
+export function toLaunchSpec(input: LaunchImageInput, verification: 'full' | 'minimal'): LaunchSpec {
+  return {
+    source_type: 'image',
+    source_build_mode: 'prebuilt',
+    source_ref: input.image,
+    resolved_image: input.image,
+    target: input.target as LaunchTarget,
+    verification_mode: verification,
+    env_vars: input.env_vars || {},
+    port: input.port,
+    owner: input.owner,
+    name: input.name,
+    metadata: {},
+  };
+}
 
 /* ------------------------------------------------------------------ */
 /*  Path A: Bring Your Own Image                                      */
@@ -25,6 +47,10 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
 
   const verification = input.verification ?? 'full';
   const reputationEligible = verification === 'full';
+
+  // Log LaunchSpec on every launch call
+  const spec = toLaunchSpec(input, verification);
+  logger.info(`[Launch] LaunchSpec: ${JSON.stringify({ source_type: spec.source_type, target: spec.target, verification: spec.verification_mode })}`);
 
   // 2. Resolve passport (use existing or create new)
   const passportResult = await resolvePassport({
