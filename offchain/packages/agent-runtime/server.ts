@@ -13,11 +13,19 @@ const TRUSTGATE_URL = process.env.TRUSTGATE_URL;
 const TRUSTGATE_API_KEY = process.env.TRUSTGATE_API_KEY || '';
 const MCPGATE_URL = process.env.MCPGATE_URL || '';
 const PORT = parseInt(process.env.PORT || '3100');
-const ALLOW_DIRECT = process.env.LUCID_ALLOW_DIRECT_PROVIDER === 'true';
+const RECEIPTS_ENABLED = !!TRUSTGATE_URL && !!LUCID_API_URL;
 
-// --- TrustGate enforcement ---
-if (!TRUSTGATE_URL && !ALLOW_DIRECT) {
-  console.warn('[Runtime] WARNING: TRUSTGATE_URL not set. LLM calls will fail unless LUCID_ALLOW_DIRECT_PROVIDER=true');
+// --- Inference provider ---
+// TrustGate (Lucid Cloud) is the default — enables receipts, reputation, traffic data.
+// Any OpenAI-compatible endpoint works as fallback (Ollama, LiteLLM, vLLM, direct provider).
+// Without TrustGate: inference works, but no receipts = no reputation = not part of verified network.
+if (!TRUSTGATE_URL) {
+  console.warn('[Runtime] TRUSTGATE_URL not set. Inference will fail.');
+  console.warn('[Runtime] Set TRUSTGATE_URL to any OpenAI-compatible endpoint:');
+  console.warn('[Runtime]   TrustGate: https://trustgate.lucid.foundation (recommended — full Lucid stack)');
+  console.warn('[Runtime]   Ollama:    http://localhost:11434/v1 (local, free)');
+  console.warn('[Runtime]   LiteLLM:   http://localhost:4000 (self-hosted proxy)');
+  console.warn('[Runtime]   OpenAI:    https://api.openai.com/v1 (direct)');
 }
 
 const provider = createOpenAI({
@@ -25,8 +33,9 @@ const provider = createOpenAI({
   apiKey: TRUSTGATE_API_KEY,
 });
 
-// --- Receipt creation (automatic, fire-and-forget) ---
+// --- Receipt creation (automatic when TrustGate is configured, fire-and-forget) ---
 async function createReceipt(input: string, output: string, model: string, latencyMs: number) {
+  if (!RECEIPTS_ENABLED) return; // No TrustGate = no receipts = not part of verified network
   try {
     const receipt = {
       model_passport_id: model,
@@ -186,7 +195,8 @@ app.listen(PORT, () => {
   console.log(`[Lucid Agent Runtime v1.0.0]`);
   console.log(`  Passport: ${LUCID_PASSPORT_ID}`);
   console.log(`  Model: ${LUCID_MODEL}`);
-  console.log(`  TrustGate: ${TRUSTGATE_URL || 'NOT SET'}`);
+  console.log(`  Provider: ${TRUSTGATE_URL || 'NOT SET (configure TRUSTGATE_URL)'}`);
+  console.log(`  Receipts: ${RECEIPTS_ENABLED ? 'enabled (TrustGate)' : 'disabled (no TrustGate)'}`);
   console.log(`  Port: ${PORT}`);
   console.log(`  Receipts: automatic`);
 });
