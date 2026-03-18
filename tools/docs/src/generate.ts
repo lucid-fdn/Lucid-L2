@@ -36,8 +36,12 @@ import { assembleModuleDoc } from './render/assembler';
 import { readCache, writeCache } from './cache/cacheManager';
 import { renderReference } from './render/reference';
 import { generateDomainSummary, updateClaudeMdSections } from './render/claudeMd';
-import { DOCS_REFERENCE_DIR, CLAUDE_MD_PATH } from './config';
+import { DOCS_REFERENCE_DIR, CLAUDE_MD_PATH, REPO_ROOT } from './config';
 import type { DomainSnapshot, DependencyEdge, CacheData } from './extract/types';
+import { parseConventionalCommits, renderChangelog } from './render/changelog';
+import { renderLlmsTxt } from './render/llmsTxt';
+import { extractSolanaProgram, extractSolidityContract } from './extract/programExtractor';
+import { renderProgramDoc, renderContractDoc } from './render/programDoc';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -77,7 +81,9 @@ async function run(): Promise<void> {
     .option('--debug', 'Dump DomainSnapshot JSON to stdout and exit (no AI, no writes)')
     .option('--dry-run', 'Print docs to stdout; skip file writes and cache updates')
     .option('--changed', 'Only process domains where hashes differ from cache')
-    .option('--artifact <type>', 'Generate specific artifact: modules, reference, claude-md')
+    .option('--artifact <type>', 'Generate specific artifact: modules, reference, claude-md, changelog, llms-txt, programs, contracts')
+    .option('--from <ref>', 'Git ref for changelog start (e.g., v1.2.0)')
+    .option('--to <ref>', 'Git ref for changelog end (default: HEAD)')
     .parse(process.argv);
 
   const opts = program.opts<{
@@ -87,6 +93,8 @@ async function run(): Promise<void> {
     dryRun: boolean | undefined;
     changed: boolean | undefined;
     artifact: string | undefined;
+    from: string | undefined;
+    to: string | undefined;
   }>();
 
   const domainArg = opts.domain as string | undefined;
@@ -320,6 +328,157 @@ async function run(): Promise<void> {
           }
         } else {
           process.stderr.write('  CLAUDE.md: no sentinel sections found to update\n');
+        }
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Changelog
+  // -------------------------------------------------------------------------
+  if (artifactType === 'changelog') {
+    const fromRef = opts.from || '';
+    const toRef = opts.to || 'HEAD';
+    const range = fromRef ? `${fromRef}..${toRef}` : toRef;
+
+    try {
+      const gitLog = execSync(`git log ${range} --format="%H|%s|%b" --no-merges`, {
+        encoding: 'utf-8', cwd: REPO_ROOT,
+      });
+      const commits = parseConventionalCommits(gitLog);
+
+      if (commits.length === 0) {
+        process.stderr.write('No conventional commits found in range.\n');
+      } else {
+        // AI summary (optional — skip if no TRUSTGATE/OPENAI key)
+        let aiSummary: string | null = null;
+        try {
+          const summaryPrompt = `Summarize these commits for release notes:\n${commits.map(c => `- ${c.type}(${c.scope || 'general'}): ${c.description}`).join('\n')}`;
+          aiSummary = await enrichDomain(
+            'You are writing release notes. Be concise. Focus on what changed and why it matters.',
+            summaryPrompt,
+          );
+        } catch {
+          process.stderr.write('  AI summary unavailable, using commits only.\n');
+        }
+
+        const version = toRef === 'HEAD' ? 'Unreleased' : toRef;
+        const changelogEntry = renderChangelog(version, commits, aiSummary);
+
+        if (isDryRun) {
+          process.stdout.write(changelogEntry + '\n');
+        } else {
+          const changelogPath = path.join(REPO_ROOT, 'CHANGELOG.md');
+          const existing = fs.existsSync(changelogPath) ? fs.readFileSync(changelogPath, 'utf-8') : '';
+          fs.writeFileSync(changelogPath, changelogEntry + '\n' + existing, 'utf-8');
+          process.stderr.write(`  Written: ${changelogPath}\n`);
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      process.stderr.write(`  Changelog error: ${msg}\n`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // llms.txt
+  // -------------------------------------------------------------------------
+  if (artifactType === 'llms-txt') {
+    const llmsTxt = renderLlmsTxt([...DOMAIN_ALLOWLIST], REPO_ROOT);
+    if (isDryRun) {
+      process.stdout.write(llmsTxt + '\n');
+    } else {
+      const llmsPath = path.join(REPO_ROOT, 'llms.txt');
+      fs.writeFileSync(llmsPath, llmsTxt, 'utf-8');
+      process.stderr.write(`  Written: ${llmsPath}\n`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Solana programs
+  // -------------------------------------------------------------------------
+  if (artifactType === 'programs') {
+    const programsDir = path.join(REPO_ROOT, 'programs');
+    if (fs.existsSync(programsDir)) {
+      const programDirs = fs.readdirSync(programsDir, { withFileTypes: true })
+        .filter(d => d.isDirectory())
+        .map(d => path.join(programsDir, d.name));
+
+      for (const dir of programDirs) {
+        const programName = path.basename(dir);
+        process.stderr.write(`Processing program: ${programName}...\n`);
+        try {
+          const snapshot = extractSolanaProgram(dir);
+
+          // AI enrichment (optional)
+          let aiContent: string | null = null;
+          try {
+            const system = 'You are documenting a Solana Anchor program. Be precise and technical.';
+            const user = `Program: ${snapshot.programName}\nInstructions: ${snapshot.instructions.map(i => i.name).join(', ')}\n\nSource:\n${snapshot.sourceContent.slice(0, 15000)}\n\nGenerate: Purpose, Architecture, Patterns & Gotchas sections.`;
+            aiContent = await enrichDomain(system, user);
+          } catch {
+            process.stderr.write(`  AI unavailable for ${programName}\n`);
+          }
+
+          const doc = renderProgramDoc(snapshot, commitSha, aiContent);
+          const outDir = path.join(DOCS_MODULES_DIR, 'programs');
+          fs.mkdirSync(outDir, { recursive: true });
+          const outPath = path.join(outDir, `${programName}.md`);
+
+          if (isDryRun) {
+            process.stdout.write(`\n=== program: ${programName}.md ===\n${doc}\n`);
+          } else {
+            fs.writeFileSync(outPath, doc, 'utf-8');
+            process.stderr.write(`  Written: ${outPath}\n`);
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          process.stderr.write(`  Skipping ${programName}: ${msg}\n`);
+        }
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // EVM contracts
+  // -------------------------------------------------------------------------
+  if (artifactType === 'contracts') {
+    const contractsDir = path.join(REPO_ROOT, 'contracts', 'src');
+    if (fs.existsSync(contractsDir)) {
+      const solFiles = fs.readdirSync(contractsDir)
+        .filter(f => f.endsWith('.sol') && !f.startsWith('Mock'));
+
+      for (const file of solFiles) {
+        const contractPath = path.join(contractsDir, file);
+        const contractName = file.replace('.sol', '');
+        process.stderr.write(`Processing contract: ${contractName}...\n`);
+        try {
+          const snapshot = extractSolidityContract(contractPath);
+
+          // AI enrichment (optional)
+          let aiContent: string | null = null;
+          try {
+            const system = 'You are documenting an EVM Solidity smart contract. Be precise and technical.';
+            const user = `Contract: ${snapshot.contractName}\nFunctions: ${snapshot.functions.map(f => f.name).join(', ')}\n\nSource:\n${snapshot.sourceContent.slice(0, 15000)}\n\nGenerate: Purpose, Architecture, Patterns & Gotchas sections.`;
+            aiContent = await enrichDomain(system, user);
+          } catch {
+            process.stderr.write(`  AI unavailable for ${contractName}\n`);
+          }
+
+          const doc = renderContractDoc(snapshot, commitSha, aiContent);
+          const outDir = path.join(DOCS_MODULES_DIR, 'contracts');
+          fs.mkdirSync(outDir, { recursive: true });
+          const outPath = path.join(outDir, `${contractName}.md`);
+
+          if (isDryRun) {
+            process.stdout.write(`\n=== contract: ${contractName}.md ===\n${doc}\n`);
+          } else {
+            fs.writeFileSync(outPath, doc, 'utf-8');
+            process.stderr.write(`  Written: ${outPath}\n`);
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          process.stderr.write(`  Skipping ${contractName}: ${msg}\n`);
         }
       }
     }
