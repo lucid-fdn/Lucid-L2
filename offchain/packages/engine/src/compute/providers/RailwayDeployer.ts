@@ -33,10 +33,9 @@ export class RailwayDeployer implements IDeployer {
   readonly target = 'railway';
   readonly description = 'Railway.app container deployment';
 
-  private apiToken: string;
-
-  constructor() {
-    this.apiToken = process.env.RAILWAY_API_TOKEN || '';
+  // Read token at deploy time, not construction — allows CLI to inject credential after factory init
+  private get apiToken(): string {
+    return process.env.RAILWAY_API_TOKEN || '';
   }
 
   async deploy(input: RuntimeArtifact | ImageDeployInput, config: DeploymentConfig, passportId: string): Promise<DeploymentResult> {
@@ -50,14 +49,27 @@ export class RailwayDeployer implements IDeployer {
     }
 
     try {
-      const projectId = (config.target as any).project_id || process.env.RAILWAY_PROJECT_ID;
+      let projectId = (config.target as any).project_id || process.env.RAILWAY_PROJECT_ID;
       if (!projectId) {
-        return {
-          success: false,
-          deployment_id: '',
-          target: this.target,
-          error: 'Railway project_id required in deployment target config or RAILWAY_PROJECT_ID env var',
-        };
+        // Auto-create project (industry standard — Vercel, Railway CLI, Fly.io all do this)
+        logger.info('[Deploy:Railway] No project ID — creating new project...');
+        try {
+          const createProjectResult = await this.graphql(`
+            mutation ProjectCreate($input: ProjectCreateInput!) {
+              projectCreate(input: $input) { id name }
+            }
+          `, { input: { name: `lucid-agent-${passportId.substring(0, 12)}` } });
+          projectId = createProjectResult.data?.projectCreate?.id;
+          if (!projectId) throw new Error('Project creation returned no ID');
+          logger.info(`[Deploy:Railway] Project created: ${projectId}`);
+        } catch (err: any) {
+          return {
+            success: false,
+            deployment_id: '',
+            target: this.target,
+            error: `Failed to create Railway project: ${err.message}`,
+          };
+        }
       }
 
       // Resolve Docker image reference
@@ -75,7 +87,25 @@ export class RailwayDeployer implements IDeployer {
         };
       }
 
-      const environmentId = (config.target as any).environment_id || process.env.RAILWAY_ENVIRONMENT_ID;
+      let environmentId = (config.target as any).environment_id || process.env.RAILWAY_ENVIRONMENT_ID;
+
+      // Auto-fetch default environment if not provided (needed for env vars + domain)
+      if (!environmentId) {
+        try {
+          const envResult = await this.graphql(`
+            query ProjectEnvs($projectId: String!) {
+              project(id: $projectId) {
+                environments { edges { node { id name } } }
+              }
+            }
+          `, { projectId });
+          const envs = envResult.data?.project?.environments?.edges || [];
+          const prod = envs.find((e: any) => e.node.name === 'production');
+          environmentId = prod?.node?.id || envs[0]?.node?.id;
+        } catch {
+          // Continue without environmentId — some operations may fail
+        }
+      }
 
       // Create service with Docker image source
       const serviceName = `agent-${passportId.substring(0, 20)}`;
