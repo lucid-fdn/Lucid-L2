@@ -261,6 +261,56 @@ program
     }
   });
 
+// Authentication Commands
+program.command('login')
+  .description('Authenticate with Lucid')
+  .option('--token <token>', 'API token (for CI/headless)')
+  .action(async (opts) => {
+    const { loginCommand } = await import('./cli/auth');
+    await loginCommand(opts);
+  });
+
+program.command('logout')
+  .description('Log out of Lucid or disconnect a provider')
+  .option('--provider <name>', 'Disconnect specific provider')
+  .action(async (opts) => {
+    const { logoutCommand } = await import('./cli/auth');
+    await logoutCommand(opts);
+  });
+
+program.command('whoami')
+  .description('Show current authentication status')
+  .action(async () => {
+    const { whoamiCommand } = await import('./cli/auth');
+    await whoamiCommand();
+  });
+
+// Provider Management Commands
+const providerCmd = program.command('provider').description('Manage deployment providers');
+
+providerCmd.command('add <provider>')
+  .description('Connect a provider (railway, akash, phala, ionet, nosana)')
+  .option('--key <key>', 'API key (non-interactive)')
+  .option('--token <token>', 'Auth token (non-interactive)')
+  .action(async (provider: string, opts: { key?: string; token?: string }) => {
+    const { addProviderCommand } = await import('./cli/providers');
+    await addProviderCommand(provider, opts);
+  });
+
+providerCmd.command('list')
+  .description('List connected providers')
+  .action(async () => {
+    const { listProvidersCommand } = await import('./cli/providers');
+    await listProvidersCommand();
+  });
+
+providerCmd.command('remove <provider>')
+  .description('Remove a provider connection')
+  .action(async (provider: string) => {
+    const { removeProviderCommand } = await import('./cli/providers');
+    await removeProviderCommand(provider);
+  });
+
 // Launch Commands
 program
   .command('launch')
@@ -275,8 +325,54 @@ program
   .option('-n, --name <name>', 'Agent name')
   .option('--port <port>', 'Container port', '3100')
   .option('--verification <mode>', 'Verification mode: full or minimal', 'full')
+  .option('--mode <mode>', 'Force layer or cloud path (layer|cloud)')
   .action(async (options) => {
     try {
+      // Resolve launch path (skip for docker — local, no credentials needed)
+      const isDocker = options.target === 'docker' && !options.mode;
+      if (!isDocker) {
+        const { resolveLaunchPath } = await import('./cli/launch-resolver');
+        const resolved = resolveLaunchPath({ mode: options.mode, target: options.target });
+
+        if (resolved.path === 'error') {
+          console.error(resolved.error);
+          process.exit(1);
+        }
+
+        // Print which path was chosen (architect requirement: never be mysterious)
+        if (resolved.path === 'cloud') {
+          console.log('Using Lucid Cloud (managed deployment)');
+          console.error('Lucid Cloud deployment not yet implemented. Use --target <provider> with local credentials.');
+          process.exit(1);
+        } else if (resolved.path === 'layer') {
+          console.log(`Using local ${resolved.provider} account`);
+          console.log(`Credential source: ~/.lucid/credentials.json`);
+
+          // Inject provider credential into env for deployer
+          const PROVIDER_ENV_MAP: Record<string, string> = {
+            railway: 'RAILWAY_API_TOKEN',
+            akash: 'AKASH_CONSOLE_API_KEY',
+            phala: 'PHALA_CLOUD_API_KEY',
+            ionet: 'IONET_API_KEY',
+            nosana: 'NOSANA_API_KEY',
+          };
+
+          if (resolved.provider && resolved.providerCredential) {
+            const envVar = PROVIDER_ENV_MAP[resolved.provider];
+            if (envVar) {
+              const credValue = resolved.providerCredential.token || resolved.providerCredential.key || '';
+              if (credValue) {
+                process.env[envVar] = credValue;
+              }
+            }
+            // Use resolved provider as target if not explicitly set via --target
+            if (!options.target || options.target === 'docker') {
+              options.target = resolved.provider;
+            }
+          }
+        }
+      }
+
       const { launchImage, launchBaseRuntime } = await import('../packages/engine/src/compute/control-plane/launch');
 
       let result;
