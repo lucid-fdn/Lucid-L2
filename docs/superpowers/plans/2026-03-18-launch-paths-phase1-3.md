@@ -12,6 +12,18 @@
 
 **Baseline:** 103 suites, ~1600 tests, 0 failures.
 
+**Architect corrections (v2):**
+1. `LaunchSpec.target` strongly typed (`LaunchTarget` union, not string)
+2. Add `source_build_mode` to LaunchSpec ('dockerfile' | 'nixpacks' | 'prebuilt' | 'external')
+3. Registry image paths namespaced: `${registry}/agents/${passportId}:${tag}`
+4. Source hash: ignore node_modules/.git, sort paths, deterministic
+5. CLI must NOT create fake passport IDs — use real passport service first
+6. Railway Nixpacks = future (error with instructions for now, not implemented)
+7. Trust tier enforced in CI (authors can't self-declare 'official')
+8. Manifest validation: YAML→JSON conversion before AJV
+9. Catalog generation: fix operator precedence bug
+10. `--agent` normalizes through LaunchSpec like all other paths
+
 ---
 
 ## Phase 1: From Source + Registry Config
@@ -25,6 +37,8 @@
 
 ```typescript
 export type SourceType = 'image' | 'source' | 'catalog' | 'runtime' | 'external';
+export type SourceBuildMode = 'dockerfile' | 'nixpacks' | 'prebuilt' | 'external';
+export type LaunchTarget = 'docker' | 'railway' | 'akash' | 'phala' | 'ionet' | 'nosana';
 
 export interface LaunchSpecMetadata {
   marketplace_slug?: string;
@@ -38,9 +52,10 @@ export interface LaunchSpecMetadata {
 
 export interface LaunchSpec {
   source_type: SourceType;
+  source_build_mode?: SourceBuildMode;
   source_ref: string;
   resolved_image?: string;
-  target: string;
+  target: LaunchTarget;
   verification_mode: 'full' | 'minimal';
   env_vars: Record<string, string>;
   port?: number;
@@ -211,13 +226,18 @@ export function detectSourceType(sourcePath: string): 'dockerfile' | 'nixpacks' 
   return 'unknown';
 }
 
+const HASH_IGNORE = ['node_modules', '.git', 'dist', 'build', '__pycache__', '.next', '.venv'];
+
 function hashDirectory(dir: string): string {
   const hash = crypto.createHash('sha256');
-  const files = fs.readdirSync(dir, { recursive: true }) as string[];
-  for (const file of files.slice(0, 100)) {
+  const files = (fs.readdirSync(dir, { recursive: true }) as string[])
+    .filter(f => !HASH_IGNORE.some(ig => f.includes(ig)))
+    .sort(); // deterministic ordering
+  for (const file of files) {
     const fullPath = path.join(dir, file);
     try {
       if (fs.statSync(fullPath).isFile()) {
+        hash.update(file); // include relative path for determinism
         hash.update(fs.readFileSync(fullPath));
       }
     } catch { /* skip unreadable */ }
@@ -272,7 +292,7 @@ export async function buildFromSource(opts: {
   }
 
   // Build and push to registry
-  const imageRef = `${opts.registryUrl}/${opts.passportId}:${tag}`;
+  const imageRef = `${opts.registryUrl}/agents/${opts.passportId}:${tag}`;
   try {
     logger.info(`[Build] Building ${imageRef} from ${absPath}`);
     execFileSync('docker', ['build', '-t', imageRef, '.'], {
@@ -330,7 +350,7 @@ When `--path` is set:
 2. Check provider compatibility
 3. If `--target docker` → build locally, no registry needed
 4. If remote target → check registry configured, build + push, then deploy image
-5. If no Dockerfile + `--target railway` → push source for Nixpacks (future: for now error with instructions)
+5. If no Dockerfile → error: "Add a Dockerfile to your project. Nixpacks source deploy coming in a future release."
 
 ```typescript
 if (options.path) {
@@ -354,8 +374,16 @@ if (options.path) {
     process.exit(1);
   }
 
-  // Create passport first
-  const passportId = `passport_${crypto.randomBytes(8).toString('hex')}`;
+  // Create real passport through passport service (never invent fake IDs)
+  const { resolvePassport } = await import('../packages/engine/src/compute/control-plane/launch/passport-resolution');
+  const owner = options.owner || '0x0000000000000000000000000000000000000000';
+  const passportResult = await resolvePassport({ owner, name: options.name || path.basename(options.path), target });
+  if (!passportResult.ok) {
+    console.error(`Passport creation failed: ${passportResult.error}`);
+    process.exit(1);
+  }
+  const passportId = passportResult.passport_id;
+  console.log(`✓ Passport: ${passportId}`);
   console.log(`Building from ${options.path}...`);
 
   const buildResult = await buildFromSource({
@@ -699,28 +727,15 @@ categories:
 
 ### Task 11: GitHub Actions
 
-- [ ] **Step 1: Manifest validation workflow**
+- [ ] **Step 1: Manifest validation workflow (YAML to JSON + AJV + trust tier enforcement)**
 
-```yaml
-# .github/workflows/validate-manifest.yml
-name: Validate Manifest
-on:
-  pull_request:
-    paths: ['**/manifest.yaml']
+Create a Node.js validation script that:
+- Reads each `manifest.yaml` with `js-yaml`
+- Validates against `manifest.schema.json` with `ajv`
+- Enforces: community PRs cannot declare `trust_tier: 'official'` or `trust_tier: 'verified'`
+- Uses `glob` to find manifests (no shell exec for file discovery)
 
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Validate manifests
-        run: |
-          npm install -g ajv-cli
-          find . -name "manifest.yaml" -exec sh -c '
-            echo "Validating: {}"
-            ajv validate -s manifest.schema.json -d "{}" --strict=false
-          ' \;
-```
+GitHub Action runs this script on every PR that touches `**/manifest.yaml`.
 
 - [ ] **Step 2: Build and publish workflow**
 
@@ -768,7 +783,7 @@ jobs:
                 const mPath = tier + '/' + name + '/manifest.yaml';
                 if (fs.existsSync(mPath)) {
                   const m = yaml.load(fs.readFileSync(mPath, 'utf8'));
-                  m.trust_tier = m.trust_tier || tier === 'official' ? 'official' : 'community';
+                  m.trust_tier = m.trust_tier || (tier === 'official' ? 'official' : 'community');
                   catalog.agents.push(m);
                 }
               }
