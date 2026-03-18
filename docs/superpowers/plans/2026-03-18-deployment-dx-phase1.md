@@ -8,6 +8,13 @@
 
 **Tech Stack:** TypeScript, Commander.js (already used in cli.ts), `open` package (browser open), `http` (localhost OAuth callback).
 
+**Architect corrections (v2):**
+1. CLI output must be explicit about which path was chosen ("Using Lucid Cloud" / "Using local Railway account")
+2. OAuth must exchange code → token before storing (never store raw auth code)
+3. Ship `lucid logout` alongside `lucid login`
+4. `lucid provider add` supports non-interactive flags (`--key`, `--token`) for CI
+5. Credentials path overrideable via `LUCID_CONFIG_DIR` env var
+
 **Spec:** `docs/superpowers/specs/2026-03-18-deployment-dx-design.md`
 
 **Baseline:** 102 test suites, 1585 tests, 0 failures.
@@ -46,8 +53,8 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-const LUCID_DIR = path.join(os.homedir(), '.lucid');
-const CREDS_FILE = path.join(LUCID_DIR, 'credentials.json');
+const LUCID_DIR = process.env.LUCID_CONFIG_DIR || path.join(os.homedir(), '.lucid');
+const CREDS_FILE = process.env.LUCID_CREDENTIALS_FILE || path.join(LUCID_DIR, 'credentials.json');
 
 export interface LucidAuth {
   api_url: string;
@@ -196,7 +203,7 @@ git commit -m "feat(cli): OAuth callback server for browser-based auth flows"
 
 ```typescript
 // src/cli/auth.ts
-import { setLucidAuth, getLucidAuth } from './credentials';
+import { setLucidAuth, getLucidAuth, loadCredentials, saveCredentials } from './credentials';
 
 const LUCID_AUTH_URL = process.env.LUCID_AUTH_URL || 'https://lucid.foundation/auth/cli';
 
@@ -264,6 +271,23 @@ export async function loginCommand(opts: { token?: string }): Promise<void> {
   }
 }
 
+export async function logoutCommand(opts?: { provider?: string }): Promise<void> {
+  if (opts?.provider) {
+    const { removeProvider } = await import('./credentials');
+    if (removeProvider(opts.provider)) {
+      console.log(`✓ ${opts.provider} disconnected`);
+    } else {
+      console.log(`${opts.provider} was not connected`);
+    }
+    return;
+  }
+  // Remove Lucid auth
+  const creds = loadCredentials();
+  delete creds.lucid;
+  saveCredentials(creds);
+  console.log('✓ Logged out');
+}
+
 export async function whoamiCommand(): Promise<void> {
   const auth = getLucidAuth();
   if (!auth) {
@@ -323,12 +347,21 @@ async function promptForKey(provider: string): Promise<string> {
   });
 }
 
-export async function addProviderCommand(provider: string): Promise<void> {
+export async function addProviderCommand(provider: string, opts?: { key?: string; token?: string }): Promise<void> {
   const validProviders = [...Object.keys(OAUTH_PROVIDERS), ...KEY_PROVIDERS];
   if (!validProviders.includes(provider)) {
     console.error(`Unknown provider: ${provider}`);
     console.error(`Available: ${validProviders.join(', ')}`);
     process.exit(1);
+  }
+
+  // Non-interactive mode (CI/scripts): --key or --token flag
+  if (opts?.key || opts?.token) {
+    const value = opts.key || opts.token || '';
+    setProvider(provider, { key: value, token: value, method: 'manual', connected_at: new Date().toISOString() });
+    console.log(`✓ ${provider} connected`);
+    console.log('✓ Saved to ~/.lucid/credentials.json');
+    return;
   }
 
   if (OAUTH_PROVIDERS[provider] && OAUTH_PROVIDERS[provider].clientId) {
@@ -560,6 +593,14 @@ program.command('login')
     await loginCommand(opts);
   });
 
+program.command('logout')
+  .description('Log out of Lucid (optionally disconnect a provider)')
+  .option('--provider <name>', 'Disconnect specific provider instead of Lucid account')
+  .action(async (opts) => {
+    const { logoutCommand } = await import('./cli/auth');
+    await logoutCommand(opts);
+  });
+
 program.command('whoami')
   .description('Show current authentication status')
   .action(async () => {
@@ -572,9 +613,11 @@ const providerCmd = program.command('provider').description('Manage deployment p
 
 providerCmd.command('add <provider>')
   .description('Connect a deployment provider (railway, akash, phala, ionet, nosana)')
-  .action(async (provider) => {
+  .option('--key <key>', 'API key (non-interactive, for CI)')
+  .option('--token <token>', 'Auth token (non-interactive, for CI)')
+  .action(async (provider, opts) => {
     const { addProviderCommand } = await import('./cli/providers');
-    await addProviderCommand(provider);
+    await addProviderCommand(provider, opts);
   });
 
 providerCmd.command('list')
@@ -629,14 +672,19 @@ git commit -m "feat(cli): wire login, whoami, provider, launch resolver into CLI
 
 - [ ] `lucid login --token lk_test` → saves to `~/.lucid/credentials.json`
 - [ ] `lucid whoami` → shows token
+- [ ] `lucid logout` → removes Lucid auth
+- [ ] `lucid logout --provider railway` → removes Railway only
 - [ ] `lucid provider add akash` → prompts for key, saves
+- [ ] `lucid provider add akash --key xxx` → saves without prompt (CI)
 - [ ] `lucid provider list` → shows connected providers
 - [ ] `lucid provider remove akash` → removes
-- [ ] `lucid launch --image x` with no auth → clear error
-- [ ] `lucid launch --image x` with Lucid token → Cloud path
-- [ ] `lucid launch --target railway --image x` without Railway credential → clear error (not redirect)
+- [ ] `lucid launch --image x` with no auth → clear error with instructions
+- [ ] `lucid launch --image x` with Lucid token → Cloud path, prints "Using Lucid Cloud"
+- [ ] `lucid launch --target railway --image x` with credential → Layer, prints "Using local Railway account"
+- [ ] `lucid launch --target railway --image x` without credential → clear error (never redirect to Cloud)
 - [ ] `lucid launch --mode layer --target docker --image x` → Layer path
 - [ ] `lucid launch --mode cloud --image x` with token → Cloud path
-- [ ] 15 unit tests pass
+- [ ] `LUCID_CONFIG_DIR=/tmp/test lucid login --token x` → saves to `/tmp/test/credentials.json`
+- [ ] 15+ unit tests pass
 - [ ] Type-check: 0 errors
 - [ ] Full test suite: all pass
