@@ -42,6 +42,7 @@ import { parseConventionalCommits, renderChangelog } from './render/changelog';
 import { renderLlmsTxt } from './render/llmsTxt';
 import { extractSolanaProgram, extractSolidityContract } from './extract/programExtractor';
 import { renderProgramDoc, renderContractDoc } from './render/programDoc';
+import { syncToMintlify, updateDocsJson } from './render/mintlifySync';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -81,7 +82,7 @@ async function run(): Promise<void> {
     .option('--debug', 'Dump DomainSnapshot JSON to stdout and exit (no AI, no writes)')
     .option('--dry-run', 'Print docs to stdout; skip file writes and cache updates')
     .option('--changed', 'Only process domains where hashes differ from cache')
-    .option('--artifact <type>', 'Generate specific artifact: modules, reference, claude-md, changelog, llms-txt, programs, contracts')
+    .option('--artifact <type>', 'Generate specific artifact: modules, reference, claude-md, changelog, llms-txt, programs, contracts, mintlify')
     .option('--from <ref>', 'Git ref for changelog start (e.g., v1.2.0)')
     .option('--to <ref>', 'Git ref for changelog end (default: HEAD)')
     .parse(process.argv);
@@ -481,6 +482,33 @@ async function run(): Promise<void> {
           process.stderr.write(`  Skipping ${contractName}: ${msg}\n`);
         }
       }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Mintlify sync — push generated docs to public docs site
+  // -------------------------------------------------------------------------
+  if (artifactType === 'mintlify' || !artifactType) {
+    const mintlifyDir = path.resolve(REPO_ROOT, '..', 'docs'); // /c/docs/
+    if (fs.existsSync(mintlifyDir)) {
+      process.stderr.write('Syncing to Mintlify docs site...\n');
+      const syncResult = syncToMintlify(DOCS_MODULES_DIR, mintlifyDir, {
+        dryRun: isDryRun,
+        programs: path.join(DOCS_MODULES_DIR, 'programs'),
+        contracts: path.join(DOCS_MODULES_DIR, 'contracts'),
+      });
+
+      const docsJsonPath = path.join(mintlifyDir, 'docs.json');
+      const addedToNav = updateDocsJson(docsJsonPath, syncResult, isDryRun);
+
+      for (const p of syncResult.created) process.stderr.write(`  Created: ${p}.mdx\n`);
+      for (const p of syncResult.updated) process.stderr.write(`  Updated: ${p}.mdx\n`);
+      for (const p of syncResult.skipped) process.stderr.write(`  Skipped: ${p}\n`);
+      if (addedToNav.length > 0) {
+        process.stderr.write(`  Added to docs.json nav: ${addedToNav.join(', ')}\n`);
+      }
+    } else {
+      process.stderr.write('  Mintlify docs dir not found (expected at ../docs/). Skipping sync.\n');
     }
   }
 
