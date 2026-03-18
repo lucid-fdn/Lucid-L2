@@ -34,6 +34,9 @@ import { renderKeyInterfaces } from './render/keyInterfaces';
 import { renderCrossDeps } from './render/crossDeps';
 import { assembleModuleDoc } from './render/assembler';
 import { readCache, writeCache } from './cache/cacheManager';
+import { renderReference } from './render/reference';
+import { generateDomainSummary, updateClaudeMdSections } from './render/claudeMd';
+import { DOCS_REFERENCE_DIR, CLAUDE_MD_PATH } from './config';
 import type { DomainSnapshot, DependencyEdge, CacheData } from './extract/types';
 
 // ---------------------------------------------------------------------------
@@ -73,6 +76,8 @@ async function run(): Promise<void> {
     .option('--force', 'Reserved for Phase 2: force re-generation even when hashes are unchanged')
     .option('--debug', 'Dump DomainSnapshot JSON to stdout and exit (no AI, no writes)')
     .option('--dry-run', 'Print docs to stdout; skip file writes and cache updates')
+    .option('--changed', 'Only process domains where hashes differ from cache')
+    .option('--artifact <type>', 'Generate specific artifact: modules, reference, claude-md')
     .parse(process.argv);
 
   const opts = program.opts<{
@@ -80,6 +85,8 @@ async function run(): Promise<void> {
     force: boolean | undefined;
     debug: boolean | undefined;
     dryRun: boolean | undefined;
+    changed: boolean | undefined;
+    artifact: string | undefined;
   }>();
 
   const domainArg = opts.domain as string | undefined;
@@ -134,6 +141,37 @@ async function run(): Promise<void> {
   }
 
   // -------------------------------------------------------------------------
+  // --changed: filter to domains with changed hashes
+  // -------------------------------------------------------------------------
+  if (opts.changed && !opts.force) {
+    const existingCache = readCache(CACHE_FILE);
+    const before = snapshots.size;
+    for (const [d, snapshot] of snapshots) {
+      const cached = existingCache[d];
+      if (cached) {
+        const artifactType = opts.artifact;
+        let unchanged: boolean;
+        if (artifactType === 'reference') {
+          unchanged = cached.apiHash === snapshot.apiHash;
+        } else if (artifactType === 'modules' || artifactType === 'claude-md') {
+          unchanged = cached.contentHash === snapshot.contentHash;
+        } else {
+          unchanged = cached.apiHash === snapshot.apiHash && cached.contentHash === snapshot.contentHash;
+        }
+        if (unchanged) snapshots.delete(d);
+      }
+    }
+    const after = snapshots.size;
+    if (before !== after) {
+      process.stderr.write(`--changed: ${before - after} domain(s) unchanged, ${after} to process\n`);
+    }
+    if (snapshots.size === 0) {
+      process.stderr.write('All domains up to date. Nothing to generate.\n');
+      process.exit(0);
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Step 4: --debug mode — dump snapshots as JSON and exit
   // -------------------------------------------------------------------------
   if (isDebug) {
@@ -180,63 +218,110 @@ async function run(): Promise<void> {
   const cache: CacheData = readCache(CACHE_FILE);
   const updatedCache: CacheData = { ...cache };
 
+  const artifactType = opts.artifact;
+
   for (const [d, snapshot] of snapshots) {
     process.stderr.write(`Processing ${d}...\n`);
 
-    const domainPath = getDomainPath(d);
-
-    // Select files for prompt context
-    const selectedFiles = selectFiles(domainPath, []);
-
-    // Build prompt
-    const { system, user } = buildModulePrompt(snapshot, selectedFiles);
-
-    // Enrich via AI — fall back to stub on error
-    let aiContent: string;
-    try {
-      process.stderr.write(`  Calling AI enricher for ${d}...\n`);
-      aiContent = await enrichDomain(system, user);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.warn(`  Warning: AI enrichment failed for ${d}: ${message}`);
-      console.warn(`  Using fallback stub.`);
-      aiContent = AI_FALLBACK_STUB;
+    // --- Reference docs (deterministic, no AI) ---
+    if (!artifactType || artifactType === 'reference') {
+      const refMd = renderReference(d, snapshot, commitSha);
+      if (isDryRun) {
+        process.stdout.write(`\n=== reference: ${d}.md ===\n${refMd}\n`);
+      } else {
+        fs.mkdirSync(DOCS_REFERENCE_DIR, { recursive: true });
+        const refPath = path.join(DOCS_REFERENCE_DIR, `${d}.md`);
+        fs.writeFileSync(refPath, refMd, 'utf-8');
+        process.stderr.write(`  Written: ${refPath}\n`);
+      }
     }
 
-    // Symbol guard
-    const symbolWarnings = checkSymbols(aiContent, snapshot);
+    // --- Module overviews (AI-enriched) ---
+    if (!artifactType || artifactType === 'modules') {
+      const domainPath = getDomainPath(d);
 
-    // Render deterministic sections
-    const keyInterfacesSection = renderKeyInterfaces(snapshot.interfaces, snapshot.types);
-    const crossDepsSection = renderCrossDeps(d, allEdges);
+      // Select files for prompt context
+      const selectedFiles = selectFiles(domainPath, []);
 
-    // Assemble final markdown
-    const markdown = assembleModuleDoc({
-      domain: d,
-      commitSha,
-      aiContent,
-      keyInterfacesSection,
-      crossDepsSection,
-      symbolWarnings,
-    });
+      // Build prompt
+      const { system, user } = buildModulePrompt(snapshot, selectedFiles);
 
-    // Write or print
-    if (isDryRun) {
-      process.stdout.write(`\n${'='.repeat(72)}\n`);
-      process.stdout.write(`=== DRY RUN: ${d}.md\n`);
-      process.stdout.write(`${'='.repeat(72)}\n\n`);
-      process.stdout.write(markdown + '\n');
-    } else {
-      fs.mkdirSync(DOCS_MODULES_DIR, { recursive: true });
-      const outPath = domainDocPath(d);
-      fs.writeFileSync(outPath, markdown, 'utf-8');
-      process.stderr.write(`  Written: ${outPath}\n`);
+      // Enrich via AI — fall back to stub on error
+      let aiContent: string;
+      try {
+        process.stderr.write(`  Calling AI enricher for ${d}...\n`);
+        aiContent = await enrichDomain(system, user);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.warn(`  Warning: AI enrichment failed for ${d}: ${message}`);
+        console.warn(`  Using fallback stub.`);
+        aiContent = AI_FALLBACK_STUB;
+      }
 
-      // Update cache entry
-      updatedCache[d] = {
-        apiHash: snapshot.apiHash,
-        contentHash: snapshot.contentHash,
-      };
+      // Symbol guard
+      const symbolWarnings = checkSymbols(aiContent, snapshot);
+
+      // Render deterministic sections
+      const keyInterfacesSection = renderKeyInterfaces(snapshot.interfaces, snapshot.types);
+      const crossDepsSection = renderCrossDeps(d, allEdges);
+
+      // Assemble final markdown
+      const markdown = assembleModuleDoc({
+        domain: d,
+        commitSha,
+        aiContent,
+        keyInterfacesSection,
+        crossDepsSection,
+        symbolWarnings,
+      });
+
+      // Write or print
+      if (isDryRun) {
+        process.stdout.write(`\n${'='.repeat(72)}\n`);
+        process.stdout.write(`=== DRY RUN: ${d}.md\n`);
+        process.stdout.write(`${'='.repeat(72)}\n\n`);
+        process.stdout.write(markdown + '\n');
+      } else {
+        fs.mkdirSync(DOCS_MODULES_DIR, { recursive: true });
+        const outPath = domainDocPath(d);
+        fs.writeFileSync(outPath, markdown, 'utf-8');
+        process.stderr.write(`  Written: ${outPath}\n`);
+      }
+    }
+
+    // Update cache (always, unless dry-run)
+    if (!isDryRun) {
+      updatedCache[d] = { apiHash: snapshot.apiHash, contentHash: snapshot.contentHash };
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // CLAUDE.md sync
+  // -------------------------------------------------------------------------
+  if (!artifactType || artifactType === 'claude-md') {
+    if (fs.existsSync(CLAUDE_MD_PATH)) {
+      const claudeMd = fs.readFileSync(CLAUDE_MD_PATH, 'utf-8');
+      const summaries: Record<string, string> = {};
+      for (const [d] of snapshots) {
+        const moduleDocPath = path.join(DOCS_MODULES_DIR, `${d}.md`);
+        if (fs.existsSync(moduleDocPath)) {
+          const moduleDoc = fs.readFileSync(moduleDocPath, 'utf-8');
+          summaries[d] = generateDomainSummary(moduleDoc);
+        }
+      }
+      if (Object.keys(summaries).length > 0) {
+        const updated = updateClaudeMdSections(claudeMd, summaries);
+        if (updated !== claudeMd) {
+          if (isDryRun) {
+            process.stderr.write('  CLAUDE.md would be updated (dry-run)\n');
+          } else {
+            fs.writeFileSync(CLAUDE_MD_PATH, updated, 'utf-8');
+            process.stderr.write(`  Updated: ${CLAUDE_MD_PATH}\n`);
+          }
+        } else {
+          process.stderr.write('  CLAUDE.md: no sentinel sections found to update\n');
+        }
+      }
     }
   }
 
