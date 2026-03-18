@@ -1,0 +1,21 @@
+{
+  "name": "@lucid-fdn/agent-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "tsx server.ts",
+    "dev": "tsx watch server.ts",
+    "build": "docker build -t ghcr.io/lucid-fdn/agent-runtime:v1.0.0 ."
+  },
+  "dependencies": {
+    "ai": "^6.0.0",
+    "@ai-sdk/openai": "^1.0.0",
+    "express": "^4.18.2",
+    "zod": "^3.22.0",
+    "tsx": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "typescript": "^5.3.0"
+  }
+}
