@@ -30,10 +30,9 @@ export class IoNetDeployer implements IDeployer {
   readonly target = 'ionet';
   readonly description = 'io.net decentralized GPU deployment';
 
-  private apiKey: string;
-
-  constructor() {
-    this.apiKey = process.env.IONET_API_KEY || '';
+  // Read token at deploy time, not construction — allows CLI to inject credential after factory init
+  private get apiKey(): string {
+    return process.env.IONET_API_KEY || '';
   }
 
   async deploy(input: RuntimeArtifact | ImageDeployInput, config: DeploymentConfig, passportId: string): Promise<DeploymentResult> {

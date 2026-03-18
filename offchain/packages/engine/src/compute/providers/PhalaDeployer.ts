@@ -46,10 +46,9 @@ export class PhalaDeployer implements IDeployer {
   readonly target = 'phala';
   readonly description = 'Phala Network TEE-secured deployment';
 
-  private apiKey: string;
-
-  constructor() {
-    this.apiKey = process.env.PHALA_CLOUD_API_KEY || process.env.PHALA_API_KEY || '';
+  // Read token at deploy time, not construction — allows CLI to inject credential after factory init
+  private get apiKey(): string {
+    return process.env.PHALA_CLOUD_API_KEY || process.env.PHALA_API_KEY || '';
   }
 
   async deploy(input: RuntimeArtifact | ImageDeployInput, config: DeploymentConfig, passportId: string): Promise<DeploymentResult> {
