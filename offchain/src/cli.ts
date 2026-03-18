@@ -324,6 +324,7 @@ program
   .option('-o, --owner <owner>', 'Owner wallet address')
   .option('-n, --name <name>', 'Agent name')
   .option('--port <port>', 'Container port', '3100')
+  .option('--path <path>', 'Build from source directory')
   .option('--verification <mode>', 'Verification mode: full or minimal', 'full')
   .option('--mode <mode>', 'Force layer or cloud path (layer|cloud)')
   .action(async (options) => {
@@ -373,6 +374,64 @@ program
         }
       }
 
+      // Path C: Build from source (--path)
+      if (options.path) {
+        const { buildFromSource, detectSourceType } = await import('../packages/engine/src/compute/control-plane/launch');
+        const { checkProviderCompat } = await import('../packages/engine/src/compute/control-plane/launch/provider-compat');
+        const { getRegistry } = await import('./cli/credentials');
+        const pathMod = await import('path');
+
+        const target = options.target || 'docker';
+        const sourceType = detectSourceType(options.path);
+        const hasDockerfile = sourceType === 'dockerfile';
+
+        // Check provider compatibility
+        const compat = checkProviderCompat(target, 'source', hasDockerfile);
+        if (!compat.ok) {
+          console.error(compat.error);
+          process.exit(1);
+        }
+
+        // For remote targets, require registry
+        const registry = target === 'docker' ? undefined : getRegistry()?.url;
+        if (target !== 'docker' && !registry) {
+          console.error('Registry required for remote targets. Run: lucid registry set ghcr.io/myorg');
+          process.exit(1);
+        }
+
+        // Create real passport via resolvePassport (never fake IDs)
+        const { resolvePassport } = await import('../packages/engine/src/compute/control-plane/launch');
+        const owner = options.owner || '0x0000000000000000000000000000000000000000';
+        const passportResult = await resolvePassport({
+          owner,
+          name: options.name || pathMod.basename(options.path),
+          target,
+        });
+        if (!passportResult.ok) {
+          console.error(`Passport creation failed: ${passportResult.error}`);
+          process.exit(1);
+        }
+        const passportId = passportResult.passport_id;
+        console.log(`Passport: ${passportId}`);
+        console.log(`Building from ${options.path}...`);
+
+        const buildResult = await buildFromSource({
+          sourcePath: options.path,
+          passportId,
+          registryUrl: registry,
+        });
+
+        if (!buildResult.success) {
+          console.error(`Build failed: ${buildResult.error}`);
+          process.exit(1);
+        }
+
+        console.log(`Image built: ${buildResult.image}`);
+
+        // Set the image so the existing --image path handles deployment
+        options.image = buildResult.image;
+      }
+
       const { launchImage, launchBaseRuntime } = await import('../packages/engine/src/compute/control-plane/launch');
 
       let result;
@@ -407,7 +466,7 @@ program
           tools,
         });
       } else {
-        console.error('Error: provide --image <image> (Path A) or --runtime base (Path B)');
+        console.error('Error: provide --image <image> (Path A), --runtime base (Path B), or --path <dir> (Path C)');
         process.exit(1);
       }
 
