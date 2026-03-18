@@ -1,33 +1,33 @@
-<!-- generated: commit d2cfd9e, 2026-03-18T17:01:12.129Z -->
-<!-- WARNING: unverified identifiers: InvalidTransitionError, LeaseManagerService, ReconcilerService, extend, getDeployer, reconcileDeployment, sweep -->
+<!-- generated: commit 8a415ae, 2026-03-18T17:36:32.810Z -->
+<!-- WARNING: unverified identifiers: LeaseManagerService, ReconcilerService, canExtend, getDeployer, reconcileDeployment -->
 # Deployment
 
 ## Purpose
-The deployment module in the Lucid L2 platform manages the lifecycle of deployments across various providers. It ensures that deployments transition through their lifecycle states correctly, handles provider-specific interactions, and maintains synchronization between the desired and actual states of deployments. This module is crucial for automating deployment management, handling state transitions, and ensuring deployments are healthy and up-to-date with provider states.
+The deployment module in the Lucid L2 platform is designed to manage the lifecycle of deployments across various cloud providers. It handles the creation, monitoring, updating, and termination of deployments, ensuring that the desired state of each deployment is maintained. This module abstracts the complexities of interacting with different provider APIs and provides a unified interface for managing deployments, which is crucial for maintaining consistency and reliability in a multi-cloud environment.
 
 ## Architecture
 The module is structured around several key components:
 
-- **Control Plane**: Manages deployment state and transitions. It includes interfaces like `IDeploymentStore` for CRUD operations on deployments and events, and functions like `canTransition` and `assertValidTransition` for state management.
-  
-- **Reconciler**: Ensures deployments are in their desired state by periodically checking and correcting any drift. It uses `ReconcilerService` to perform sweeps and reconcile individual deployments.
+1. **Deployment Store**: Implemented via `IDeploymentStore` in `control-plane/store.ts`, it acts as the central repository for deployment data, supporting operations like creation, state transitions, and health updates. The store can be backed by either an in-memory or PostgreSQL database, determined by the `DEPLOYMENT_STORE` environment variable.
 
-- **Provider Sync**: Handles interactions with deployment providers, mapping provider-specific statuses to Lucid's internal states using functions like `mapProviderStatus` and `syncProviderState`.
+2. **State Machine**: Defined in `control-plane/state-machine.ts`, it enforces valid state transitions for deployments, preventing illegal state changes through functions like `canTransition` and `assertValidTransition`.
 
-- **Lease Manager**: Manages deployment leases, extending them when possible and warning when they are about to expire.
+3. **Reconciler Service**: Located in `reconciler/service.ts`, it periodically checks for discrepancies between the desired and actual states of deployments, attempting to repair any drift or stuck states. It uses provider capabilities and status mappings to make informed decisions.
 
-Key design choices include using a state machine for managing deployment transitions, a singleton pattern for managing store instances, and a provider capability map to handle provider-specific operations.
+4. **Provider Sync**: The `reconciler/provider-sync.ts` file contains logic for mapping provider-specific statuses to the platform's canonical states and syncing provider states into the deployment store.
+
+5. **Lease Manager**: Found in `lease-manager/service.ts`, it manages lease expirations, extending leases when supported by the provider, or issuing warnings when leases are about to expire.
 
 ## Data Flow
-1. **Deployment Creation**: A deployment is created using the `create` method in `IDeploymentStore` (file: `control-plane/store.ts`). The input is a `CreateDeploymentInput` object, and the result is a `Deployment` object stored in the database.
+1. **Deployment Creation**: A deployment is created using `IDeploymentStore.create` with input from `control-plane/types.ts`. The deployment is stored in the configured backend (memory or PostgreSQL).
 
-2. **State Transitions**: State transitions are managed by `transition` in `IDeploymentStore` (file: `control-plane/store.ts`). The `assertValidTransition` function (file: `control-plane/state-machine.ts`) ensures transitions are valid before they are applied.
+2. **State Transitions**: Transitions are managed via `IDeploymentStore.transition`, which updates the deployment's state in the store. Validity is checked using `assertValidTransition` from `control-plane/state-machine.ts`.
 
-3. **Provider State Sync**: The `syncProviderState` function (file: `reconciler/provider-sync.ts`) fetches the current state from the provider using `getDeployer` (file: `compute/deploy`) and updates the deployment's state in the store.
+3. **Provider State Sync**: The `syncProviderState` function in `reconciler/provider-sync.ts` fetches the current state from the provider using `getDeployer` from `compute/deploy`, updates the deployment's provider resources, and health status in the store.
 
-4. **Reconciliation**: The `ReconcilerService` (file: `reconciler/service.ts`) periodically calls `sweep` to check for drifted or stuck deployments, using `reconcileDeployment` to correct them.
+4. **Reconciliation**: The `ReconcilerService` in `reconciler/service.ts` periodically calls `reconcileDeployment` to ensure deployments are in their desired state, using data from the store and provider sync results.
 
-5. **Lease Management**: The `LeaseManagerService` (file: `lease-manager/service.ts`) checks for expiring leases and attempts to extend them using `extend`.
+5. **Lease Management**: The `LeaseManagerService` in `lease-manager/service.ts` checks for expiring leases and either extends them or logs warnings, updating the store with new lease expiry times or events.
 
 ## Key Interfaces
 
@@ -75,12 +75,14 @@ Key design choices include using a state machine for managing deployment transit
 | exports to | compute | `ActualState`, `Deployment`, `IDeploymentStore`, `getDeploymentStore` | — |
 
 ## Patterns & Gotchas
-- **Singleton Pattern**: The deployment store and reconciler are managed as singletons, initialized based on environment variables. This can lead to unexpected behavior if not reset properly in tests using `resetDeploymentStore`.
+- **Singleton Pattern**: The deployment store and reconciler services are implemented as singletons, initialized once per application lifecycle. Use `resetDeploymentStore` and `resetReconciler` for test environments to clear state.
 
-- **State Machine**: The state machine enforces strict transitions. Any attempt to transition to an invalid state will throw an `InvalidTransitionError`, which must be handled.
+- **State Transition Validation**: Always use `assertValidTransition` to enforce legal state changes. Direct state updates without validation can lead to inconsistent states.
 
-- **Provider Capabilities**: Not all providers support the same operations. The `PROVIDER_CAPABILITIES` map dictates what actions can be performed, which can lead to no-ops if a capability is not supported.
+- **Provider Capabilities**: The `getProviderCapabilities` function provides a centralized way to check what operations are supported by each provider. This prevents unsupported operations from being attempted.
 
-- **Cooldown Mechanism**: The reconciler uses a cooldown mechanism to prevent repeatedly attempting to fix broken deployments, which can delay recovery if not understood.
+- **Cooldown Mechanism**: The reconciler uses a cooldown mechanism to avoid repeatedly attempting to reconcile deployments that are in a known broken state, which can prevent unnecessary load and potential throttling by providers.
 
-- **Lease Extension**: Only specific providers (e.g., io.net) support lease extensions. Attempting to extend leases with unsupported providers will result in warnings rather than errors.
+- **Lease Extension**: Not all providers support lease extensions. The `canExtend` method in `LeaseManagerService` checks provider capabilities before attempting an extension, which is crucial for avoiding unsupported operations.
+
+- **Error Handling**: The module is designed to be resilient to provider errors. Functions like `syncProviderState` and `reconcileDeployment` catch errors and update the deployment's health status to 'unknown' rather than crashing, ensuring the system remains operational even when providers are unreachable.

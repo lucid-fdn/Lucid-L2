@@ -1,41 +1,43 @@
-<!-- generated: commit d2cfd9e, 2026-03-18T16:59:12.163Z -->
-<!-- WARNING: unverified identifiers: PassportManager, PassportStore, createPassport, updateOnChainInfo, validateWithSchema -->
+<!-- generated: commit 8a415ae, 2026-03-18T17:33:06.811Z -->
+<!-- WARNING: unverified identifiers: IDs, PassportStore, attemptNFTMint, attemptOnChainSync, create, createPassport, validateWithSchema -->
 # Identity
 
 ## Purpose
-The identity module in the Lucid L2 platform is designed to manage digital identities through passports, NFTs, wallets, and related services. It provides a comprehensive system for creating, managing, and synchronizing digital passports across different blockchain networks, primarily focusing on Solana and EVM-compatible chains. This module addresses the need for a unified identity management system that supports multi-chain operations, on-chain synchronization, and NFT minting, thereby facilitating decentralized identity verification and asset management.
+The identity module in the Lucid L2 platform is designed to manage digital identities through the use of passports, NFTs, and wallets. It provides a comprehensive system for creating, updating, and managing these identities across different blockchain networks, primarily Solana and EVM. This module addresses the need for a unified identity management system that can handle multi-chain operations, ensuring that digital assets and identities are securely managed and synchronized on-chain.
 
 ## Architecture
 The identity module is structured around several key components:
 
-- **Passport Management**: Centralized in `passport/passportManager.ts`, this component handles the creation, updating, and synchronization of digital passports. It interfaces with the `PassportStore` for data persistence and supports schema validation for metadata.
+- **Passport Management**: The `passportManager.ts` file provides the core logic for managing passports, including creation, updating, and deletion. It integrates schema validation and on-chain synchronization through the `OnChainSyncHandler` interface.
 
-- **Wallet Management**: Defined in `wallet/IAgentWalletProvider.ts`, this component provides interfaces for wallet operations such as creation, balance retrieval, and transaction execution. It abstracts the underlying blockchain interactions to support multiple chains.
+- **Wallet Management**: The `IAgentWalletProvider.ts` interface defines methods for wallet operations such as creating wallets, executing transactions, and setting spending limits. The `getAgentWalletProvider` function in `wallet/index.ts` provides access to the wallet provider.
 
-- **NFT Management**: Implemented in `nft/INFTProvider.ts` and `nft/Token2022Provider.ts`, this component manages NFT operations, including minting and metadata updates. It supports chain-agnostic operations and integrates with Solana's Token-2022 standard.
+- **NFT Management**: The `INFTProvider.ts` interface supports chain-agnostic NFT operations like minting and burning. The `getNFTProvider` and `getAllNFTProviders` functions in `nft/index.ts` facilitate access to NFT providers.
 
-- **On-Chain Synchronization**: The `OnChainSyncHandler` interface in `passport/passportManager.ts` facilitates the synchronization of passport data with blockchain networks, ensuring that digital identities are consistently represented on-chain.
+- **Token Launching**: The `ITokenLauncher.ts` interface allows for token launching operations, supporting both SPL mint and Genesis TGE.
 
-- **CAIP-10 Utilities**: Located in `bridge/caip10.ts`, these utilities handle the parsing and validation of CAIP-10 account identifiers, supporting both Solana and EVM address formats.
+- **CAIP-10 Utilities**: The `caip10.ts` file provides utilities for parsing and validating CAIP-10 account IDs, which are crucial for cross-chain identity management.
+
+Key design choices include the use of interfaces to abstract blockchain-specific operations, allowing the module to be easily extended to support additional chains or identity types.
 
 ## Data Flow
+Data flow within the identity module follows these paths:
+
 1. **Passport Creation**: 
-   - Initiated in `passport/passportManager.ts` via the `createPassport` function.
-   - Validates input using `validateWithSchema` from `shared/crypto/schemaValidator`.
-   - Stores passport data in `stores/passportStore.ts` using `PassportStore.create`.
-   - Optionally mints an NFT through `nft/Token2022Provider.ts` using `mint`.
+   - `passport/passportManager.ts` → `createPassport` function → `stores/passportStore.ts` → `create` method.
+   - This flow validates input, creates a passport, and stores it in the `PassportStore`.
 
 2. **Wallet Operations**:
-   - Accessed via `wallet/index.ts` using `getAgentWalletProvider`.
-   - Wallet creation and management are handled by methods in `IAgentWalletProvider`, such as `createWallet` and `getBalance`.
+   - `wallet/index.ts` → `getAgentWalletProvider` function → `IAgentWalletProvider` interface methods.
+   - Wallet operations such as `createWallet` and `executeTransaction` are executed through the wallet provider.
 
-3. **NFT Management**:
-   - Primary operations are accessed through `nft/index.ts` using `getNFTProvider`.
-   - Minting and metadata updates are executed in `nft/Token2022Provider.ts` using `mint` and `updateMetadata`.
+3. **NFT Minting**:
+   - `nft/index.ts` → `getNFTProvider` function → `INFTProvider` interface methods.
+   - The `mint` method is used to create NFTs, with metadata stored and managed through the NFT provider.
 
 4. **On-Chain Sync**:
-   - Managed in `passport/passportManager.ts` using `syncToChain`.
-   - Synchronization results are stored in `stores/passportStore.ts` using `updateOnChainInfo`.
+   - `passport/passportManager.ts` → `attemptOnChainSync` method → `OnChainSyncHandler` interface.
+   - This flow handles the synchronization of passport data to the blockchain, ensuring consistency between off-chain and on-chain states.
 
 ## Key Interfaces
 
@@ -80,14 +82,14 @@ The identity module is structured around several key components:
 | exports to | reputation | `ReputationRegistryClient`, `ValidationRegistryClient` | — |
 
 ## Patterns & Gotchas
-- **Schema Validation**: Metadata for passports is rigorously validated against predefined schemas. Ensure that any changes to metadata structures are reflected in the schema definitions to avoid validation errors.
+- **Schema Validation**: The `validateWithSchema` function is heavily used to ensure that metadata conforms to predefined schemas. This can be a source of errors if schemas are not correctly defined or updated.
 
-- **Chain Detection**: The module auto-detects the blockchain network from the owner address format (EVM or Solana). Be cautious when handling addresses to ensure correct chain operations.
+- **Chain Detection**: The system auto-detects the blockchain network (Solana or EVM) based on the format of the owner address. This can lead to issues if addresses are incorrectly formatted.
 
-- **NFT Minting**: The decision to mint an NFT is controlled by both a per-request flag and an environment variable (`NFT_MINT_ON_CREATE`). This dual control can lead to unexpected behavior if not properly configured.
+- **NFT Minting**: The `attemptNFTMint` function is non-blocking and best-effort, meaning NFT minting failures do not halt passport creation. This can lead to inconsistencies if not properly monitored.
 
-- **On-Chain Sync**: The `syncToChain` function is non-blocking and best-effort, meaning it may not immediately reflect changes on-chain. Developers should handle potential delays in synchronization.
+- **On-Chain Sync**: The `syncToChain` function relies on an external sync handler. If this handler is not configured, on-chain synchronization will fail silently, which can be problematic for maintaining data integrity.
 
-- **CAIP-10 Parsing**: The `fromCaip10` function assumes a specific format and may throw errors if the input is malformed. Always validate CAIP-10 strings using `validateCaip10` before parsing.
+- **Auto-Save Mechanism**: The `PassportStore` uses an auto-save mechanism to persist data. Developers must ensure that changes are marked as dirty to trigger persistence, or data may be lost.
 
-- **Singleton Instances**: Many components, such as `PassportManager` and `PassportStore`, are implemented as singletons. Reset functions like `resetPassportManager` are provided for testing but should be used cautiously in production to avoid state inconsistencies.
+Understanding these patterns and potential pitfalls is crucial for effectively contributing to the identity module.

@@ -1,34 +1,25 @@
-<!-- generated: commit d2cfd9e, 2026-03-18T16:59:42.954Z -->
-<!-- WARNING: unverified identifiers: BoundedMap, createReceiptGeneric, idempotencyStore, persistReceiptToDb, receipt, receiptStore -->
+<!-- generated: commit 8a415ae, 2026-03-18T17:33:53.844Z -->
+<!-- WARNING: unverified identifiers: BoundedMap, idempotencyStore, persistReceiptToDb, receipt, receiptStore -->
 # Receipt
 
 ## Purpose
-The `receipt` module in the Lucid L2 platform is designed to manage the creation, storage, and verification of various types of receipts related to computational tasks. These receipts serve as verifiable records of task execution, ensuring integrity, authenticity, and traceability. The module supports multiple receipt types, including inference, compute, tool, agent, dataset, and memory receipts, each tailored to specific use cases within the platform. By providing a unified interface for receipt management, the module addresses the need for consistent and secure tracking of computational activities.
+The `receipt` module in the Lucid L2 platform is designed to handle the creation, storage, and verification of various types of receipts related to computational tasks and data access events. It ensures that each receipt is cryptographically signed, hashed, and stored in a verifiable manner, providing a reliable audit trail for operations such as inference, compute tasks, tool invocations, agent executions, dataset accesses, and memory writes. This module addresses the need for secure, traceable, and verifiable records of computational activities, which are crucial for accountability, billing, and compliance in distributed systems.
 
 ## Architecture
-The module is structured around a central service (`receiptService.ts`) that handles the core functionalities of receipt creation, storage, and verification. Key design choices include:
+The module is structured around a set of interfaces and functions defined primarily in `receiptService.ts`. Key design choices include:
 
-- **Receipt Types**: The module supports a variety of receipt types, each with its own interface and creation function. This allows for flexibility in handling different computational scenarios.
-- **Hashing and Signing**: Receipts are secured using SHA256 hashing and ed25519 signing, ensuring data integrity and authenticity.
-- **Merkle Tree Integration**: A Merkle tree is used for inclusion proofs, enhancing the verifiability of receipts.
-- **Unified Receipt Functions**: The module provides a single entry point for creating and managing receipts, simplifying the interface for developers.
+- **Unified Receipt Model**: A type alias `Receipt` encompasses all receipt types, allowing for a unified handling approach.
+- **Receipt Creation Functions**: Functions like `createInferenceReceipt`, `createComputeReceipt`, and `createToolReceipt` are responsible for generating receipts, each tailored to specific receipt types with their own validation and signing processes.
+- **Merkle Mountain Range (MMR)**: Receipts are added to an MMR for inclusion proofs, enhancing the verifiability of the receipts.
+- **Hash and Signature Verification**: Functions such as `verifyReceipt` ensure the integrity and authenticity of receipts by checking hashes and signatures.
+- **In-Memory and Database Storage**: Receipts are initially stored in a bounded in-memory cache (`BoundedMap`) and are asynchronously persisted to a database for durability.
 
 ## Data Flow
-1. **Receipt Creation**: 
-   - File: `receiptService.ts` → Function: `createReceipt` → Store: `receiptStore`
-   - The `createReceipt` function serves as the entry point for creating any type of receipt. It delegates to specific creation functions based on the receipt type, such as `createInferenceReceipt` or `createComputeReceipt`.
-
-2. **Receipt Storage**:
-   - File: `receiptService.ts` → Function: `createReceiptGeneric` → Store: `receiptStore`
-   - Receipts are stored in an in-memory `BoundedMap` called `receiptStore`, which supports LRU eviction to manage memory usage.
-
-3. **Receipt Verification**:
-   - File: `receiptService.ts` → Function: `verifyReceipt` → Store: `receiptStore`
-   - The `verifyReceipt` function retrieves a receipt from `receiptStore`, recomputes its hash, and verifies its signature and Merkle tree inclusion.
-
-4. **Database Persistence**:
-   - File: `receiptService.ts` → Function: `persistReceiptToDb`
-   - Receipts are asynchronously persisted to a database for durability, with a fallback mechanism to load receipts from the database if not found in memory.
+1. **Receipt Creation**: When a receipt is created (e.g., `createInferenceReceipt` in `receiptService.ts`), the input data is validated, a hash is computed, and the receipt is signed.
+2. **Storage**: The signed receipt is stored in an in-memory cache (`receiptStore` in `receiptService.ts`) and optionally associated with an idempotency key in `idempotencyStore`.
+3. **Persistence**: The receipt is asynchronously persisted to the database via `persistReceiptToDb` in `receiptService.ts`.
+4. **Verification**: Verification functions (e.g., `verifyInferenceReceipt`) recompute hashes and verify signatures using the stored receipt data.
+5. **MMR Inclusion**: Receipts are added to the MMR using `getReceiptMMR` and can be verified for inclusion using `getReceiptProof`.
 
 ## Key Interfaces
 
@@ -71,8 +62,8 @@ The module is structured around a central service (`receiptService.ts`) that han
 | exports to | epoch | `InferenceReceipt`, `getInferenceReceipt`, `getMmrLeafCount`, `getMmrRoot`, `listInferenceReceipts` | — |
 
 ## Patterns & Gotchas
-- **Idempotency Handling**: The module uses an `idempotencyStore` to ensure that receipt creation is idempotent. Developers must be cautious about race conditions when using idempotency keys.
-- **Optional Fields**: Receipt bodies include optional fields that must be handled carefully to ensure deterministic hashing. Changes to these fields can break existing receipts.
-- **Validation Gates**: The `validateComputeReceiptInput` function enforces strict validation rules for compute receipts. Developers should be aware of these rules to avoid validation errors.
-- **Merkle Tree Management**: The Merkle tree is crucial for receipt verification. Developers must ensure that receipts are correctly added to the tree and that proofs are accurately generated and verified.
-- **Environment-Specific Features**: Some features, like zkML proof attachment, are environment-dependent and may not be available in all deployments. Developers should account for these variations.
+- **Idempotency Handling**: The use of `idempotencyStore` ensures that duplicate receipt creation requests with the same idempotency key return the same receipt, preventing unnecessary duplications.
+- **Canonical JSON Serialization**: The module uses JSON Canonicalization Scheme (JCS) for deterministic hashing, which is crucial for ensuring consistent hash values across different environments.
+- **Non-blocking Persistence**: Database persistence is non-blocking, meaning that failures in persisting receipts do not affect the immediate availability of receipts in memory, but care must be taken to handle potential inconsistencies.
+- **MMR Initialization**: The MMR must be initialized at startup using `initReceiptMMR` to ensure that inclusion proofs can be generated and verified.
+- **Optional Fields**: Many receipt fields are optional and only included in hashes if present, which can lead to subtle bugs if not handled consistently across different parts of the codebase.
