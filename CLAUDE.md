@@ -38,7 +38,7 @@ Client → /v1/chat/completions → Passport matching → LLM execution
 ### Offchain API (Express, port 3001)
 
 **Identity:**
-- `/v1/passports` — CRUD for model/compute/tool/agent/dataset passports
+- `/v1/passports` — CRUD for model/compute/tool/agent/dataset passports (`?provider=` filter, `?type=` filter)
 - `/v1/passports/:id/token/launch` — Launch share token
 - `/v1/passports/:id/token/airdrop` — Revenue airdrop
 
@@ -54,6 +54,7 @@ Client → /v1/chat/completions → Passport matching → LLM execution
 - `POST /v1/agents/:passportId/promote` — Promote blue to primary
 - `POST /v1/agents/:passportId/rollback` — Rollback to previous
 - `GET /v1/agents/:passportId/events` — Deployment event history
+- `POST /v1/webhooks/telegram` — Telegram webhook proxy (→ telegram-bot on port 4050, env `TELEGRAM_BOT_URL`)
 - `POST /v1/webhooks/:provider` — Provider webhook receiver
 
 **Receipt & Epoch:**
@@ -376,7 +377,8 @@ Env: `TOKEN_LAUNCHER` (default: `mock`). Revenue: off-chain airdrop via `revenue
 ### Schema Validation
 ToolMeta and AgentMeta schemas wired into passport creation. `TYPE_SCHEMA_MAP` in `passportManager.ts`:
 - `model` → `ModelMeta.schema.json`, `compute` → `ComputeMeta.schema.json`
-- `tool` → `ToolMeta.schema.json`, `agent` → `AgentMeta.schema.json`
+- `tool` → `ToolMeta.schema.json` (`additionalProperties: true` — supports `skill_md`, `setup`, rich metadata)
+- `agent` → `AgentMeta.schema.json`
 - `dataset` → no schema (basic validation only)
 
 ### MemoryMap (Agent Memory System)
