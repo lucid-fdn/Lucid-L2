@@ -235,31 +235,54 @@ export async function registerAgentSkills(opts: {
     }
 
     try {
-      const createRes = await fetch(`${apiUrl}/v1/passports`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(opts.apiKey ? { 'Authorization': `Bearer ${opts.apiKey}` } : {}),
-        },
-        body: JSON.stringify({
-          type: 'tool',
-          owner: opts.owner,
-          name: meta.name,
-          description: meta.description,
-          metadata: meta,
-          tags: meta.tags,
-        }),
-      });
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        ...(opts.apiKey ? { 'Authorization': `Bearer ${opts.apiKey}` } : {}),
+      };
 
-      if (createRes.ok) {
-        stats.registered++;
-      } else {
-        const err = await createRes.text();
-        if (err.includes('already exists') || err.includes('duplicate')) {
-          stats.skipped++;
+      // Check if passport already exists (search by name + provider tag)
+      const searchRes = await fetch(`${apiUrl}/v1/passports?type=tool&tags=${opts.agentSlug},${skill.slug}&per_page=1`, { headers });
+      const searchData = await searchRes.json() as any;
+      const existing = searchData.passports?.[0];
+
+      if (existing) {
+        // Update existing passport with fresh metadata
+        const patchRes = await fetch(`${apiUrl}/v1/passports/${existing.passport_id}`, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify({
+            name: meta.name,
+            description: meta.description,
+            metadata: meta,
+            tags: meta.tags,
+          }),
+        });
+        if (patchRes.ok) {
+          stats.registered++;
         } else {
           stats.errors++;
-          logger.warn(`  ✗ ${meta.tool_passport_id}: ${err.substring(0, 80)}`);
+        }
+      } else {
+        // Create new passport
+        const createRes = await fetch(`${apiUrl}/v1/passports`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            type: 'tool',
+            owner: opts.owner,
+            name: meta.name,
+            description: meta.description,
+            metadata: meta,
+            tags: meta.tags,
+          }),
+        });
+
+        if (createRes.ok) {
+          stats.registered++;
+        } else {
+          stats.errors++;
+          const errText = await createRes.text().catch(() => '');
+          logger.warn(`  ✗ ${meta.tool_passport_id}: ${errText.substring(0, 80)}`);
         }
       }
     } catch (err: any) {
