@@ -17,6 +17,7 @@ export interface AgentManifest {
   defaults?: { model?: string; port?: number };
   required_env?: Array<{ name: string; description?: string; default?: string }>;
   optional_env?: Array<{ name: string; description?: string; default?: string }>;
+  skills_enabled?: boolean;
   skills?: {
     bundled?: string[];
     optional?: Array<{
@@ -209,9 +210,40 @@ export async function runLaunchUI(
   }
 
   // --- Skills selection ---
+  // Try to fetch live skills from the Docker image if available
   const skills = manifest.skills || { bundled: [], optional: [] };
-  const bundledSkills = skills.bundled || [];
-  const optionalSkills = skills.optional || [];
+  let bundledSkills = skills.bundled || [];
+  let optionalSkills = skills.optional || [];
+
+  if (manifest.image && manifest.skills_enabled !== false) {
+    try {
+      const { execFileSync } = await import('child_process');
+      const liveSkills = execFileSync('docker', [
+        'run', '--rm', manifest.image, 'ls',
+        '/usr/local/lib/node_modules/openclaw/skills/',
+      ], { timeout: 15000, stdio: 'pipe' }).toString().trim().split('\n').filter(Boolean);
+
+      if (liveSkills.length > 0) {
+        // Use live skills from image, keeping manifest entries for those with env/description metadata
+        const manifestSlugs = new Set(optionalSkills.map((s: any) => s.slug));
+        const manifestBundled = new Set(bundledSkills);
+
+        // Skills in manifest keep their metadata, new ones get auto-discovered
+        const dynamicOptional = liveSkills
+          .filter(s => !manifestBundled.has(s))
+          .map(slug => {
+            const existing = optionalSkills.find((s: any) => s.slug === slug);
+            if (existing) return existing;
+            return { slug, display_name: slug.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()), description: 'Bundled OpenClaw skill' };
+          });
+
+        optionalSkills = dynamicOptional;
+        p.log.info(`Found ${liveSkills.length} skills in image (${bundledSkills.length} bundled, ${optionalSkills.length} optional)`);
+      }
+    } catch {
+      // Docker not available or image not pulled — fall back to manifest
+    }
+  }
 
   if (bundledSkills.length > 0 || optionalSkills.length > 0) {
     p.log.step('Skills');
