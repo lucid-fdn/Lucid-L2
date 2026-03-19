@@ -148,7 +148,8 @@ export async function promptChannels(
   for (const v of channelVars) {
     const platform = CHANNEL_MAP[v.name];
     console.log(`\n  ${platform}:`);
-    console.log('    [1] Use Lucid Bot (instant — no token needed)');
+    const managedBotName = platform === 'Telegram' ? (process.env.LUCID_TELEGRAM_BOT_USERNAME || 'mylclaw_bot') : 'Lucid Bot';
+    console.log(`    [1] Use @${managedBotName} (instant — no token needed)`);
     console.log('    [2] Bring your own bot');
     console.log('    [3] Skip');
     const choice = await ask('    Choice [3]: ') || '3';
@@ -185,7 +186,8 @@ export function printChannelLinks(channels: ChannelChoice[], passportId: string)
   console.log('\n  Channels:');
   for (const ch of managed) {
     if (ch.platform === 'telegram') {
-      console.log(`    Telegram: https://t.me/LucidAgentBot?start=${passportId}`);
+      const botUsername = process.env.LUCID_TELEGRAM_BOT_USERNAME || 'mylclaw_bot';
+      console.log(`    Telegram: https://t.me/${botUsername}?start=${passportId}`);
     } else if (ch.platform === 'discord') {
       console.log(`    Discord: Managed — invite link available at https://lucid.foundation/agents/${passportId}/channels`);
     } else if (ch.platform === 'slack') {
