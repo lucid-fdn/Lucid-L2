@@ -10,6 +10,28 @@ export const webhookRouter = Router();
  * Normalizes payload, updates deployment store, enqueues reconciliation.
  * Always returns 2xx after basic validation -- never block the provider.
  */
+// Telegram webhook proxy → forwards to telegram-bot service (port 4050)
+webhookRouter.post('/v1/webhooks/telegram', async (req, res) => {
+  const botUrl = process.env.TELEGRAM_BOT_URL || 'http://localhost:4050';
+  try {
+    const proxyRes = await fetch(`${botUrl}/webhooks/telegram`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(req.headers['x-telegram-bot-api-secret-token']
+          ? { 'x-telegram-bot-api-secret-token': req.headers['x-telegram-bot-api-secret-token'] as string }
+          : {}),
+      },
+      body: JSON.stringify(req.body),
+    });
+    const data = await proxyRes.json();
+    return res.json(data);
+  } catch (err: any) {
+    console.warn('[webhook] Telegram proxy error:', err.message);
+    return res.json({ ok: true });
+  }
+});
+
 webhookRouter.post('/v1/webhooks/:provider', async (req, res) => {
   try {
     const { WebhookHandler } = await import('../../../../engine/src/compute/control-plane/webhooks/handler');
