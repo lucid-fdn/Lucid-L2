@@ -28,7 +28,7 @@ For the fully managed, globally accelerated version, see **Lucid Cloud**.
 npm install
 cp .env.example .env       # Edit with your values
 npm start                  # API on :3001
-npm test                   # 102 suites, 1,654 tests
+npm test                   # 104 suites, 1,622 tests
 npm run type-check         # TypeScript compilation
 ```
 
@@ -68,7 +68,8 @@ local-packages/
 | File | What it does |
 |------|-------------|
 | `src/index.ts` | Boots Express server (delegates to gateway-lite) |
-| `src/cli.ts` | Deploy CLI (`npm run cli deploy <passport_id> <target>`) |
+| `src/cli.ts` | Full CLI: launch, deploy, auth, providers, marketplace, skills, registry |
+| `src/cli/` | CLI modules: auth, credentials, launch-resolver, agent-launch-ui, agent-setup, skill-oauth, register-skills |
 | `src/commands/` | CLI subcommands (batch, mmr, run) |
 | `src/workers/worker-gpu-vllm/` | GPU inference worker (vLLM backend) |
 | `src/workers/worker-sim-hf/` | HuggingFace simulation worker |
@@ -126,10 +127,52 @@ engine/src/
 
 ---
 
-## Deployment CLI
+## CLI
+
+### Launch (5 paths)
 
 ```bash
-npm run cli deploy <passport_id> <target>     # Deploy agent
+lucid launch --image <image> --target <target>     # Path A: BYOI
+lucid launch --runtime base --model <m> --prompt   # Path B: Base runtime
+lucid launch --path ./my-agent --target railway    # Path C: Build from source
+lucid launch --agent openclaw --target docker      # Path D: Marketplace catalog
+lucid launch --agent openclaw --env KEY=VALUE      # Path D: pre-filled env
+lucid launch --agent openclaw --config ./my.env    # Path D: CI mode
+# Path E: External registration via POST /v1/passports
+```
+
+### Auth & Providers
+
+```bash
+lucid login                                        # Browser OAuth (or --token for CI)
+lucid logout                                       # Clear auth
+lucid whoami                                       # Show auth state
+lucid provider add <name>                          # Connect provider
+lucid provider list                                # List connected providers
+lucid provider remove <name>                       # Disconnect provider
+```
+
+### Registry & Marketplace
+
+```bash
+lucid registry set ghcr.io/myorg                   # Set Docker registry for Path C
+lucid registry get                                  # Show configured registry
+lucid marketplace list                              # List available agents
+lucid marketplace search <query>                    # Search agents
+```
+
+### Agent Skills
+
+```bash
+lucid agent skills register <slug>                  # Register skills as tool passports
+lucid agent skills register <slug> --dry-run        # Preview
+lucid agent skills list <slug>                      # List registered tool passports
+```
+
+### Legacy Deploy
+
+```bash
+npm run cli deploy <passport_id> <target>     # Deploy agent (deprecated, use launch)
 npm run cli deploy status <passport_id>       # Check status
 npm run cli deploy logs <passport_id>         # View logs
 npm run cli deploy list                       # List all deployments
@@ -146,7 +189,7 @@ npm run cli deploy targets                    # Available targets
 ## Testing
 
 ```bash
-npm test                                       # Full suite (102 suites, 1,654 tests)
+npm test                                       # Full suite (104 suites, 1,622 tests)
 npx jest packages/engine/src/memory/ --no-coverage   # Single domain
 npx jest --testPathPattern="deployment"        # Pattern match
 npm run type-check                             # TypeScript compilation
@@ -154,8 +197,8 @@ npm run type-check                             # TypeScript compilation
 
 | Suite | Tests | Coverage |
 |-------|-------|----------|
-| Engine (control plane, memory, anchoring, receipts, reputation, payment) | ~1,400 | Core domain logic |
-| Gateway-lite (routes, middleware) | ~250 | API layer |
+| Engine (control plane, memory, anchoring, receipts, reputation, payment) | ~1,350 | Core domain logic |
+| Gateway-lite (routes, middleware) | ~270 | API layer |
 
 Tests use `InMemory*` store implementations — fast, deterministic, no DB required.
 

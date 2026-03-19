@@ -14,7 +14,7 @@ anchor deploy --provider.cluster devnet
 
 # Tests
 cd tests && npm test                        # Mocha on-chain (6 programs)
-cd offchain && npm test                     # Jest API (103 suites, 1603 tests)
+cd offchain && npm test                     # Jest API (104 suites, 1622 tests)
 ```
 
 ## Architecture
@@ -181,9 +181,9 @@ All 7 producers use `getAnchorDispatcher().dispatch()`:
 
 **Env:** `DEPIN_PERMANENT_PROVIDER`, `DEPIN_EVOLVING_PROVIDER` (default: `mock`). `DEPIN_UPLOAD_ENABLED=false` (kill switch). `ANCHOR_REGISTRY_STORE=postgres|memory`.
 
-### Agent Activation (3 Paths)
+### Agent Activation (5 Paths)
 
-Three ways to activate an agent in the Lucid verified network. No code generation. Deployment is the entry point — verification is the product.
+Five ways to activate an agent in the Lucid verified network. No code generation. Deployment is the entry point — verification is the product.
 
 **Strategic principle:** All inference routes through TrustGate by default. Every call produces a cryptographic receipt. Receipts are unavoidable, not opt-in.
 
@@ -199,7 +199,19 @@ lucid launch --runtime base --model gpt-4o --prompt "You are a helpful agent" --
 ```
 Deploys pre-built `ghcr.io/lucid-fdn/agent-runtime:v1.0.0` image (source: `packages/agent-runtime/`). Inference via `PROVIDER_URL` (any OpenAI-compatible endpoint). Receipts via `LUCID_API_URL` (decoupled from inference). Configured via env vars (`LUCID_MODEL`, `LUCID_PROMPT`, `LUCID_TOOLS`). Always full verification.
 
-**Path C: External Registration (self-hosted, already operational)**
+**Path C: Build from Source (developers with source code)**
+```bash
+lucid launch --path ./my-agent --target railway --owner 0x...
+```
+Detects Dockerfile (or generates one), builds image locally, pushes to configured registry (`lucid registry set ghcr.io/myorg`), then deploys like Path A. Requires `lucid registry set` for remote targets. Docker-only targets skip registry push.
+
+**Path D: Marketplace Catalog (one-command deploy)**
+```bash
+lucid launch --agent openclaw --target docker
+```
+Fetches agent manifest from `lucid-fdn/lucid-agents` catalog, runs interactive setup wizard (clack UI), collects env vars (LLM keys, channel tokens), and deploys. Supports `--env KEY=VALUE` pre-fill and `--config ./my.env` for CI. See "Launch UI" section below.
+
+**Path E: External Registration (self-hosted, already operational)**
 ```bash
 POST /v1/passports { type: "agent", deployment_config: { target: { type: "self_hosted" } } }
 PATCH /v1/passports/:id/endpoints { invoke_url: "https://my-agent.com/run" }
@@ -235,6 +247,10 @@ lucid provider remove <name>                        # Disconnect provider
 # Launch (with --mode layer|cloud resolver)
 lucid launch --image <image> --target <target>     # Path A (BYOI)
 lucid launch --runtime base --model <m> --prompt   # Path B (base runtime)
+lucid launch --path ./my-agent --target railway    # Path C (build from source)
+lucid launch --agent openclaw --target docker      # Path D (marketplace catalog)
+lucid launch --agent openclaw --env KEY=VALUE      # Path D with pre-filled env
+lucid launch --agent openclaw --config ./my.env    # Path D non-interactive (CI)
 lucid launch --mode layer --target railway ...      # Force Layer path
 lucid launch --mode cloud ...                       # Force Cloud path
 
@@ -245,6 +261,21 @@ lucid list [--status running] [--target docker]
 lucid terminate <passportId>
 lucid targets                                       # List available providers
 lucid update <passportId>                           # Explicit runtime version update
+
+# Registry (Docker image push target for Path C)
+lucid registry set ghcr.io/myorg                   # Set registry URL
+lucid registry set ghcr.io/myorg --username x --token y  # With auth
+lucid registry get                                  # Show configured registry
+
+# Marketplace (browse agent catalog)
+lucid marketplace list                              # List available agents
+lucid marketplace list --category defi             # Filter by category
+lucid marketplace search <query>                    # Search agents by name/description
+
+# Agent skill management (register skills as tool passports)
+lucid agent skills register <agent-slug>            # Register all skills as tool passports
+lucid agent skills register <agent-slug> --dry-run  # Preview without creating passports
+lucid agent skills list <agent-slug>                # List registered tool passports
 ```
 
 **Launch Resolver** (`src/cli/launch-resolver.ts`):
@@ -256,6 +287,28 @@ Deterministic 7-step resolution for `lucid launch`:
 5. No `--target` + Cloud auth → Cloud
 6. No `--target` + no Cloud + one local provider → Layer with that provider
 7. Otherwise → error with instructions
+
+**Launch UI** (`src/cli/agent-launch-ui.ts`):
+Interactive wizard using `@clack/prompts` for Path D (marketplace catalog) deploys. "Internet of AI" branding. Driven by agent manifest (provider-agnostic). Collects:
+- LLM inference mode: Lucid Cloud (auto-inject `PROVIDER_URL`) vs. own API key
+- Channel setup: Telegram (managed Lucid bot / BYO token / skip), Discord, Slack
+- Required and optional env vars from manifest
+- Skill selection (bundled + optional skills from catalog)
+- Pre-launch confirmation summary
+
+`--env KEY=VALUE` flags pre-fill prompts (clack skips already-answered questions). `--config ./my.env` bypasses clack entirely (CI mode). Non-TTY stdin falls back to readline-based prompts.
+
+**Agent Setup** (`src/cli/agent-setup.ts`):
+Fallback interactive setup (readline-based) for non-TTY environments. Three modes: interactive prompts, config file (`--config`), env flags (`--env`). Handles Lucid inference auto-inject and channel setup.
+
+**Wallet Auto-Creation on Launch:**
+All launch paths (A-D) auto-create an agent wallet during `launchImage()`/`launchBaseRuntime()`. Best-effort — wallet creation failure does not block launch. Wallet address returned in launch result and injected as `LUCID_WALLET_ADDRESS` env var.
+
+**Skills as Tool Passports:**
+Agent skills (e.g., from OpenClaw) are registered as Lucid tool passports via `lucid agent skills register <slug>`. Metadata extracted from Docker image `SKILL.md` frontmatter (env vars, binaries, install steps, OS restrictions). Falls back to catalog.json. Registered passports queryable via `GET /v1/passports?type=tool&provider=<slug>`.
+
+**Skill OAuth** (`src/cli/skill-oauth.ts`):
+Generic OAuth framework for skill connections. Supports Notion, GitHub, Slack, Discord, Spotify (extensible). Client IDs are public (embedded in CLI, overridable via env). Flow: CLI opens browser, user authorizes, localhost callback captures token, stored locally.
 
 ### Base Runtime (`packages/agent-runtime/`)
 
@@ -474,12 +527,16 @@ offchain/
       Dockerfile                      # ghcr.io/lucid-fdn/agent-runtime:v1.0.0
       package.json                    # Deps: ai-sdk, express, zod
   src/
-    cli/                              # CLI DX — auth, credentials, provider management, launch resolver
+    cli/                              # CLI DX — auth, credentials, provider management, launch resolver, agent setup
       credentials.ts                  # ~/.lucid/credentials.json read/write (LUCID_CONFIG_DIR override)
       auth.ts                         # lucid login/logout/whoami (browser OAuth + --token CI mode)
       providers.ts                    # lucid provider add/list/remove (Railway OAuth, others via API key)
       launch-resolver.ts              # 7-step deterministic launch path resolution (layer|cloud)
       oauth-callback.ts               # Localhost HTTP server for OAuth redirect capture
+      agent-launch-ui.ts              # Clack-based interactive launch wizard (Internet of AI branding)
+      agent-setup.ts                  # Readline-based agent env setup (fallback for non-TTY/CI)
+      skill-oauth.ts                  # Generic OAuth for skill connections (Notion, GitHub, Slack, Discord, Spotify)
+      register-skills.ts              # Register agent skills as tool passports (SKILL.md extraction)
     ...                               # Re-export proxies (backward compat, will be removed)
 ```
 
@@ -536,6 +593,7 @@ Supabase (eu-north-1, project `kwihlcnapmkaivijyiif`):
   - Automatic receipt creation on every call (fire-and-forget)
   - Failed receipts queued in-memory, retried with exponential backoff (max 5 attempts)
   - `agent.run({ model, prompt })` — single call does inference + receipt + identity
+  - Env-based construction: `new LucidAgent({ apiKey })` reads `LUCID_API_URL`, `LUCID_PASSPORT_ID`, `PROVIDER_URL`, `PROVIDER_API_KEY` from env
 
 ## Cross-Dependencies
 - `@lucid-fdn/passport` npm package (shared with lucid-plateform-core)
@@ -607,7 +665,7 @@ Public (synced to /c/docs/ → Mintlify):
 - No overlap: pipeline never generates API endpoint docs, Speakeasy never generates architecture docs
 
 ## Testing
-- **103 test suites, 1603 tests** (offchain)
+- **104 test suites, 1622 tests** (offchain)
 - **361 tests, 18 suites** (docs pipeline — `tools/docs/`)
 - On-chain: `anchor test` (Mocha, 6 programs)
 - Type check: `cd offchain && npm run type-check`
