@@ -6,6 +6,12 @@
  * 1. Interactive prompts (default for humans)
  * 2. Config file (--config ./my.env for CI)
  * 3. --env flags (already handled by commander, no code needed here)
+ *
+ * Additional capabilities:
+ * - Lucid inference auto-inject: when user is logged in and PROVIDER_URL is set,
+ *   offers to use Lucid Cloud for LLM inference instead of requiring own API key.
+ * - Channel setup: for agents with TELEGRAM_BOT_TOKEN / DISCORD_BOT_TOKEN / SLACK_BOT_TOKEN,
+ *   offers managed Lucid Bot, BYO token, or skip.
  */
 
 import readline from 'readline';
@@ -17,10 +23,175 @@ export interface EnvVarSpec {
   default?: string;
 }
 
+export interface ChannelChoice {
+  platform: string;
+  mode: 'managed' | 'byo' | 'skip';
+  token?: string;
+}
+
+/** Patterns that identify an LLM provider API key in required_env */
+const LLM_KEY_PATTERNS = [
+  'ANTHROPIC_API_KEY',
+  'OPENAI_API_KEY',
+  'LLM_API_KEY',
+  'PROVIDER_API_KEY',
+];
+
 const SECRET_PATTERNS = ['KEY', 'TOKEN', 'SECRET', 'PASSWORD', 'CREDENTIAL', 'PRIVATE'];
 
 function isSecret(name: string): boolean {
   return SECRET_PATTERNS.some(p => name.toUpperCase().includes(p));
+}
+
+/**
+ * Check if Lucid inference can replace an LLM API key requirement.
+ *
+ * Conditions:
+ * 1. User is logged in (credentials.json has lucid.token)
+ * 2. PROVIDER_URL env var is set (points to TrustGate or compatible endpoint)
+ * 3. Manifest required_env contains an LLM API key variable
+ *
+ * If all true, prompts user to choose Lucid Cloud or own key.
+ * Returns the filtered required list and any env overrides to inject.
+ */
+export async function checkLucidInference(
+  required: EnvVarSpec[],
+): Promise<{
+  filteredRequired: EnvVarSpec[];
+  envOverrides: Record<string, string>;
+  useLucidInference: boolean;
+}> {
+  const result = { filteredRequired: required, envOverrides: {} as Record<string, string>, useLucidInference: false };
+
+  // Find LLM key vars in required_env
+  const llmKeyVars = required.filter(v =>
+    LLM_KEY_PATTERNS.some(p => v.name.toUpperCase() === p) ||
+    (v.name.toUpperCase().includes('API_KEY') && (
+      v.name.toUpperCase().includes('ANTHROPIC') ||
+      v.name.toUpperCase().includes('OPENAI') ||
+      v.name.toUpperCase().includes('LLM')
+    ))
+  );
+  if (llmKeyVars.length === 0) return result;
+
+  // Check if user is logged in
+  let getLucidAuth: () => import('./credentials').LucidAuth | undefined;
+  try {
+    const creds = await import('./credentials');
+    getLucidAuth = creds.getLucidAuth;
+  } catch {
+    return result;
+  }
+  const auth = getLucidAuth();
+  if (!auth?.token) return result;
+
+  // Check if PROVIDER_URL is set
+  const providerUrl = process.env.PROVIDER_URL;
+  if (!providerUrl) return result;
+
+  // Both conditions met — prompt the user
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const ask = (q: string): Promise<string> =>
+    new Promise(resolve => rl.question(q, answer => resolve(answer.trim())));
+
+  console.log('\nLLM Provider:');
+  console.log('  [1] Use Lucid Cloud (no API key needed — uses your Lucid account)');
+  console.log('  [2] Use your own API key');
+  const choice = await ask('  Choice [1]: ') || '1';
+  rl.close();
+
+  if (choice === '1') {
+    // Remove LLM key vars from required list, inject PROVIDER_API_KEY from Lucid token
+    result.filteredRequired = required.filter(v => !llmKeyVars.includes(v));
+    result.envOverrides.PROVIDER_API_KEY = auth.token;
+    result.useLucidInference = true;
+    console.log('  Using Lucid Cloud for inference');
+  }
+  // choice === '2' or anything else: proceed with normal prompts (no changes)
+
+  return result;
+}
+
+/**
+ * Prompt for messaging channel setup (Telegram, Discord, Slack).
+ *
+ * For each channel token found in optional_env, offers:
+ *   [1] Use Lucid Bot (managed — no token needed, agent receives traffic via Lucid routing)
+ *   [2] Bring your own bot (paste token)
+ *   [3] Skip
+ *
+ * Managed mode: the agent does not need the bot token. Lucid's shared bot
+ * routes messages to the agent's /run endpoint externally.
+ * After deploy, the CLI prints: t.me/LucidAgentBot?start=<passport_id>
+ */
+export async function promptChannels(
+  optionalEnv: EnvVarSpec[],
+): Promise<{ channels: ChannelChoice[]; envOverrides: Record<string, string> }> {
+  const CHANNEL_MAP: Record<string, string> = {
+    TELEGRAM_BOT_TOKEN: 'Telegram',
+    DISCORD_BOT_TOKEN: 'Discord',
+    SLACK_BOT_TOKEN: 'Slack',
+  };
+
+  const channels: ChannelChoice[] = [];
+  const envOverrides: Record<string, string> = {};
+
+  const channelVars = optionalEnv.filter(v => CHANNEL_MAP[v.name]);
+  if (channelVars.length === 0) return { channels, envOverrides };
+
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  const ask = (q: string): Promise<string> =>
+    new Promise(resolve => rl.question(q, answer => resolve(answer.trim())));
+
+  console.log('\nChannel setup:');
+
+  for (const v of channelVars) {
+    const platform = CHANNEL_MAP[v.name];
+    console.log(`\n  ${platform}:`);
+    console.log('    [1] Use Lucid Bot (instant — no token needed)');
+    console.log('    [2] Bring your own bot');
+    console.log('    [3] Skip');
+    const choice = await ask('    Choice [3]: ') || '3';
+
+    if (choice === '1') {
+      channels.push({ platform: platform.toLowerCase(), mode: 'managed' });
+      // Managed mode: no token injected. Lucid shared bot routes to agent externally.
+    } else if (choice === '2') {
+      const desc = v.description ? ` (${v.description})` : '';
+      const token = await ask(`    ${v.name}${desc}: `);
+      if (token) {
+        channels.push({ platform: platform.toLowerCase(), mode: 'byo', token });
+        envOverrides[v.name] = token;
+      } else {
+        channels.push({ platform: platform.toLowerCase(), mode: 'skip' });
+      }
+    } else {
+      channels.push({ platform: platform.toLowerCase(), mode: 'skip' });
+    }
+  }
+
+  rl.close();
+  return { channels, envOverrides };
+}
+
+/**
+ * Print post-deploy channel links for managed channels.
+ * Call this after launch succeeds and passport_id is known.
+ */
+export function printChannelLinks(channels: ChannelChoice[], passportId: string): void {
+  const managed = channels.filter(c => c.mode === 'managed');
+  if (managed.length === 0) return;
+
+  console.log('\n  Channels:');
+  for (const ch of managed) {
+    if (ch.platform === 'telegram') {
+      console.log(`    Telegram: https://t.me/LucidAgentBot?start=${passportId}`);
+    } else if (ch.platform === 'discord') {
+      console.log(`    Discord: Managed — invite link available at https://lucid.foundation/agents/${passportId}/channels`);
+    } else if (ch.platform === 'slack') {
+      console.log(`    Slack: Managed — install link available at https://lucid.foundation/agents/${passportId}/channels`);
+    }
+  }
 }
 
 /**

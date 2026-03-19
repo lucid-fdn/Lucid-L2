@@ -452,7 +452,7 @@ program
         if (!options.name) options.name = manifest.name;
 
         // Interactive agent setup — prompt for required/optional env vars from manifest
-        const { resolveAgentEnv } = await import('./cli/agent-setup');
+        const { resolveAgentEnv, checkLucidInference, promptChannels, printChannelLinks } = await import('./cli/agent-setup');
         const envFlags: Record<string, string> = {};
         if (options.env) {
           for (const e of (Array.isArray(options.env) ? options.env : [options.env])) {
@@ -460,25 +460,51 @@ program
             if (eq > 0) envFlags[(e as string).slice(0, eq)] = (e as string).slice(eq + 1);
           }
         }
+
+        // Feature 1: Lucid inference auto-inject
+        // If user is logged in and PROVIDER_URL is set, offer to skip LLM API key prompt
+        let effectiveRequired = manifest.required_env || [];
+        const inferenceOverrides: Record<string, string> = {};
+        const isInteractive = !options.config && Object.keys(envFlags).length === 0;
+        if (isInteractive) {
+          const inferenceResult = await checkLucidInference(effectiveRequired);
+          effectiveRequired = inferenceResult.filteredRequired;
+          Object.assign(inferenceOverrides, inferenceResult.envOverrides);
+        }
+
         const setupResult = await resolveAgentEnv({
-          required: manifest.required_env || [],
+          required: effectiveRequired,
           optional: manifest.optional_env || [],
           configFile: options.config,
           envFlags,
-          nonInteractive: !!options.config || Object.keys(envFlags).length > 0,
+          nonInteractive: !isInteractive,
         });
         if (setupResult.ok === false) {
           console.error(setupResult.error);
           process.exit(1);
         }
 
-        // Merge: manifest defaults < agent setup env < explicit --env flags
+        // Feature 2: Channel setup (Telegram, Discord, Slack)
+        // Prompt for managed bot vs BYO vs skip for channel token vars in optional_env
+        let channelChoices: import('./cli/agent-setup').ChannelChoice[] = [];
+        if (isInteractive) {
+          const channelResult = await promptChannels(manifest.optional_env || []);
+          channelChoices = channelResult.channels;
+          // Channel BYO tokens override env
+          Object.assign(inferenceOverrides, channelResult.envOverrides);
+        }
+        // Store channel choices for post-deploy output
+        options._channelChoices = channelChoices;
+
+        // Merge: manifest defaults < agent setup env < inference/channel overrides < explicit --env flags
         options._catalogEnv = {} as Record<string, string>;
         if (manifest.defaults?.model) options._catalogEnv['LUCID_MODEL'] = manifest.defaults.model;
         if (manifest.defaults?.prompt) options._catalogEnv['LUCID_PROMPT'] = manifest.defaults.prompt;
         if (manifest.defaults?.tools) options._catalogEnv['LUCID_TOOLS'] = Array.isArray(manifest.defaults.tools) ? manifest.defaults.tools.join(',') : manifest.defaults.tools;
         // Agent setup env vars (from prompts/config/flags) override defaults
         Object.assign(options._catalogEnv, setupResult.env);
+        // Inference and channel overrides
+        Object.assign(options._catalogEnv, inferenceOverrides);
 
         // Store catalog metadata for LaunchSpec
         options._catalogMeta = {
@@ -487,6 +513,9 @@ program
           trust_tier: manifest.trust_tier || 'community',
           publisher: manifest.publisher,
         };
+
+        // Store printChannelLinks for post-deploy output
+        options._printChannelLinks = printChannelLinks;
       }
 
       const { launchImage, launchBaseRuntime } = await import('../packages/engine/src/compute/control-plane/launch');
@@ -536,6 +565,11 @@ program
         console.log(`  URL: ${result.deployment_url || 'pending'}`);
         console.log(`  Verification: ${result.verification_mode ?? options.verification}`);
         console.log(`  Reputation eligible: ${result.reputation_eligible}`);
+
+        // Print managed channel links (Feature 2 post-deploy output)
+        if (options._printChannelLinks && options._channelChoices?.length > 0) {
+          options._printChannelLinks(options._channelChoices, result.passport_id);
+        }
       } else {
         console.error(`\nLaunch failed: ${result.error}`);
         process.exit(1);
