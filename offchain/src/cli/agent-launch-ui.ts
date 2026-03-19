@@ -210,26 +210,59 @@ export async function runLaunchUI(
   }
 
   // --- Skills selection ---
-  // Skills come from catalog API (fetched alongside manifest), not from Docker image.
-  // catalog.json has a `skills` array per agent with slug, name, description, env, bundled flag.
-  const catalogSkills: Array<{ slug: string; name?: string; description?: string; env?: string; bundled?: boolean }> = (manifest as any)._catalogSkills || [];
-  const skills = manifest.skills || { bundled: [], optional: [] };
+  // Skills come from Lucid passport API: GET /v1/passports?type=tool&tags=<agent>
+  // Registered via: lucid agent skills register <agent>
+  // Falls back to catalog.json if API unavailable.
+  const agentSlug = manifest.name || '';
+  const apiUrl = process.env.LUCID_API_URL || 'http://localhost:3001';
 
-  // Use catalog skills if available, fall back to manifest
-  let bundledSkills: string[];
-  let optionalSkills: Array<{ slug: string; display_name?: string; description?: string; env?: string; env_description?: string }>;
+  let bundledSkills: string[] = [];
+  let optionalSkills: Array<{ slug: string; display_name?: string; description?: string; env?: string; env_description?: string }> = [];
 
-  if (catalogSkills.length > 0) {
-    bundledSkills = catalogSkills.filter(s => s.bundled).map(s => s.slug);
-    optionalSkills = catalogSkills.filter(s => !s.bundled).map(s => ({
-      slug: s.slug,
-      display_name: s.name,
-      description: s.description,
-      env: s.env,
-    }));
-  } else {
-    bundledSkills = skills.bundled || [];
-    optionalSkills = skills.optional || [];
+  try {
+    const skillsRes = await fetch(`${apiUrl}/v1/passports?type=tool&tags=${agentSlug}&per_page=100`);
+    if (skillsRes.ok) {
+      const data = await skillsRes.json() as any;
+      const passports = data.passports || [];
+      if (passports.length > 0) {
+        for (const pp of passports) {
+          const meta = pp.metadata || {};
+          const slug = meta.operations?.[0]?.name || pp.name || '';
+          const tags: string[] = meta.tags || pp.tags || [];
+          if (tags.includes('bundled')) {
+            bundledSkills.push(slug);
+          } else {
+            optionalSkills.push({
+              slug,
+              display_name: meta.name || pp.name,
+              description: meta.description || pp.description,
+              env: meta.auth?.mode !== 'none' ? meta.auth?.env || undefined : undefined,
+            });
+          }
+        }
+      }
+    }
+  } catch {
+    // API unavailable — fall back to catalog or manifest
+  }
+
+  // Fallback to catalog skills if API returned nothing
+  if (bundledSkills.length === 0 && optionalSkills.length === 0) {
+    const catalogSkills: Array<{ slug: string; name?: string; description?: string; env?: string; bundled?: boolean }> = (manifest as any)._catalogSkills || [];
+    const skills = manifest.skills || { bundled: [], optional: [] };
+
+    if (catalogSkills.length > 0) {
+      bundledSkills = catalogSkills.filter(s => s.bundled).map(s => s.slug);
+      optionalSkills = catalogSkills.filter(s => !s.bundled).map(s => ({
+        slug: s.slug,
+        display_name: s.name,
+        description: s.description,
+        env: s.env,
+      }));
+    } else {
+      bundledSkills = skills.bundled || [];
+      optionalSkills = skills.optional || [];
+    }
   }
 
   if (bundledSkills.length > 0 || optionalSkills.length > 0) {
