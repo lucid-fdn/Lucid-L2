@@ -21,6 +21,7 @@ interface SkillMeta {
   description: string;
   homepage?: string;
   emoji?: string;
+  skill_md?: string; // Full SKILL.md content — stored in passport for live access
   env?: string[];
   primaryEnv?: string;
   bins?: string[];
@@ -36,13 +37,13 @@ interface SkillMeta {
 async function extractSkillsFromImage(image: string): Promise<SkillMeta[]> {
   const { execFileSync } = await import('child_process');
 
-  // Extract all SKILL.md frontmatter in one docker run
+  // Extract full SKILL.md content + frontmatter in one docker run
   const raw = execFileSync('docker', [
     'run', '--rm', image, 'sh', '-c',
     `for dir in /usr/local/lib/node_modules/openclaw/skills/*/; do
       name=$(basename "$dir")
       echo "===SKILL:$name==="
-      awk '/^---$/{n++; next} n==1{print}' "$dir/SKILL.md" 2>/dev/null
+      cat "$dir/SKILL.md" 2>/dev/null
     done`,
   ], { timeout: 30000, stdio: 'pipe' }).toString();
 
@@ -51,7 +52,13 @@ async function extractSkillsFromImage(image: string): Promise<SkillMeta[]> {
 
   for (let i = 1; i < blocks.length; i += 2) {
     const slug = blocks[i].trim();
-    const yaml = blocks[i + 1] || '';
+    const fullContent = blocks[i + 1] || '';
+
+    // Split frontmatter from body (content between --- markers is frontmatter)
+    const fmMatch = fullContent.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)/);
+    const yaml = fmMatch ? fmMatch[1] : fullContent;
+    const body = fmMatch ? fmMatch[2] : '';
+    const skillMd = fullContent.trim();
 
     // Parse YAML-ish frontmatter (simple extraction, not full YAML parser)
     const desc = yaml.match(/^description:\s*"?(.+?)"?\s*$/m)?.[1] || slug;
@@ -102,6 +109,7 @@ async function extractSkillsFromImage(image: string): Promise<SkillMeta[]> {
       description: desc.replace(/"/g, '').substring(0, 200),
       homepage,
       emoji,
+      skill_md: skillMd, // Full SKILL.md content for live access via API
       env: env.length > 0 ? env : undefined,
       primaryEnv: primaryEnv || (env.length > 0 ? env[0] : undefined),
       bins: bins.length > 0 ? bins : undefined,
@@ -178,6 +186,8 @@ function skillToToolMeta(skill: SkillMeta, agentSlug: string) {
       ...(skill.os ? { requires_os: skill.os } : {}),
       ...(skill.install ? { install_instructions: skill.install } : {}),
     },
+    // Full SKILL.md content — always up to date, accessible via GET /v1/passports/:id
+    ...(skill.skill_md ? { skill_md: skill.skill_md } : {}),
   };
 }
 
