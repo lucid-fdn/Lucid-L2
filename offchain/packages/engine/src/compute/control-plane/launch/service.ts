@@ -65,6 +65,23 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
   }
 
   const passportId = passportResult.passport_id;
+
+  // 2b. Create agent wallet (best-effort — don't block launch if wallet creation fails)
+  let walletAddress: string | undefined;
+  try {
+    const { getAgentWalletProvider } = await import('../../../identity/wallet');
+    const walletProvider = getAgentWalletProvider();
+    const chain = input.owner.startsWith('0x') ? 'evm' : 'solana';
+    const walletResult = await walletProvider.createWallet(passportId, chain);
+    walletAddress = walletResult?.address;
+    if (walletAddress) {
+      logger.info(`[Launch] Wallet created: ${walletAddress} (chain=${chain})`);
+    }
+  } catch (err: any) {
+    logger.warn(`[Launch] Wallet creation skipped: ${err.message}`);
+    // Don't block launch — wallet is nice-to-have, not required
+  }
+
   const store = getDeploymentStore();
 
   // 3. Create deployment record
@@ -146,6 +163,7 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
       provider_deployment_id: result.deployment_id,
       deployment_url: result.url,
       provider_status: result.metadata?.status as string | undefined,
+      ...(walletAddress ? { wallet_address: walletAddress } : {}),
     });
 
     // Re-fetch version after updateProviderResources
@@ -171,6 +189,7 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
         provider_deployment_id: result.deployment_id,
         url: result.url,
         prepared: isPrepared,
+        ...(walletAddress ? { wallet_address: walletAddress } : {}),
       },
     });
 
@@ -181,6 +200,7 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
       passport_id: passportId,
       deployment_id: deploymentId,
       deployment_url: result.url,
+      wallet_address: walletAddress,
       verification_mode: verification,
       reputation_eligible: reputationEligible,
     };

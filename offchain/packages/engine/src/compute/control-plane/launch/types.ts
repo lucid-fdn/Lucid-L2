@@ -27,6 +27,7 @@ export interface LaunchResult {
   passport_id?: string;
   deployment_id?: string;
   deployment_url?: string;
+  wallet_address?: string;
   verification_mode?: 'full' | 'minimal';
   config_hash?: string;
   reputation_eligible: boolean;
