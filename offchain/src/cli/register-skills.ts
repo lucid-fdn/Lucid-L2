@@ -72,19 +72,22 @@ async function extractSkillsFromImage(image: string): Promise<SkillMeta[]> {
     let emoji: string | undefined;
     let install: SkillMeta['install'] = [];
 
-    const metaMatch = yaml.match(/"openclaw"\s*:\s*\{([\s\S]*?)\}\s*,?\s*\}/);
+    const metaMatch = fullContent.match(/"openclaw"\s*:\s*\{([\s\S]*?)\}\s*,?\s*\}/);
     if (metaMatch) {
       const meta = metaMatch[0];
-      // Extract env
-      const envMatch = meta.match(/"env"\s*:\s*\[([^\]]*)\]/);
-      if (envMatch) {
-        env = envMatch[1].match(/"([^"]+)"/g)?.map(s => s.replace(/"/g, '')) || [];
-      }
-      // Extract primaryEnv
+      // Extract primaryEnv (most reliable — single env var the skill needs)
       const primaryMatch = meta.match(/"primaryEnv"\s*:\s*"([^"]+)"/);
       if (primaryMatch) primaryEnv = primaryMatch[1];
-      // Extract bins
-      const binsMatch = meta.match(/"bins"\s*:\s*\[([^\]]*)\]/);
+      // Extract requires.env (only env vars that look like API keys — uppercase with underscores)
+      const requiresEnvMatch = meta.match(/"requires"\s*:\s*\{[^}]*"env"\s*:\s*\[([^\]]*)\]/);
+      if (requiresEnvMatch) {
+        const candidates = requiresEnvMatch[1].match(/"([A-Z][A-Z_]+)"/g)?.map(s => s.replace(/"/g, '')) || [];
+        env = candidates.filter(e => e.includes('_') && e === e.toUpperCase()); // Only UPPER_CASE env vars
+      }
+      // Use primaryEnv as authoritative if no requires.env found
+      if (env.length === 0 && primaryEnv) env = [primaryEnv];
+      // Extract bins from requires.bins
+      const binsMatch = meta.match(/"requires"\s*:\s*\{[^}]*"bins"\s*:\s*\[([^\]]*)\]/);
       if (binsMatch) {
         bins = binsMatch[1].match(/"([^"]+)"/g)?.map(s => s.replace(/"/g, '')) || [];
       }
@@ -230,8 +233,13 @@ export async function registerAgentSkills(opts: {
   const apiUrl = opts.apiUrl || process.env.LUCID_API_URL || 'http://localhost:3001';
   logger.info(`[Skills] Registering ${skills.length} skills from ${opts.agentSlug}`);
 
+  const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+
   for (const skill of skills) {
     const meta = skillToToolMeta(skill, opts.agentSlug);
+
+    // Rate limit protection — 500ms between API calls (each skill = 2 calls: search + patch/create)
+    await delay(500);
 
     if (opts.dryRun) {
       const envInfo = skill.primaryEnv ? ` [${skill.primaryEnv}]` : '';

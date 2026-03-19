@@ -45,12 +45,21 @@
 
     "auth": {
       "type": "object",
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "mode": {
           "type": "string",
           "enum": ["none", "api_key", "oauth2", "bearer", "byok", "lucid_managed"],
           "description": "Authentication mode"
+        },
+        "env": {
+          "type": "string",
+          "description": "Primary environment variable for authentication"
+        },
+        "required_env": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "All required environment variables"
         },
         "oauth_scopes": {
           "type": "array",
