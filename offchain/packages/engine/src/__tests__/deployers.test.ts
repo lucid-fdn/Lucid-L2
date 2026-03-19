@@ -243,11 +243,43 @@ describe('RailwayDeployer', () => {
       expect(result.error).toContain('RAILWAY_API_TOKEN');
     });
 
-    it('should return error when project_id is missing', async () => {
+    it('should auto-create project when project_id is missing', async () => {
+      // projectCreate
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { projectCreate: { id: 'auto_proj_123', name: 'lucid-agent' } } }),
+      });
+      // project environments query
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { project: { environments: { edges: [{ node: { id: 'env_prod', name: 'production' } }] } } } }),
+      });
+      // serviceCreate
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { serviceCreate: { id: 'svc_auto', name: 'agent' } } }),
+      });
+      // variableCollectionUpsert
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { variableCollectionUpsert: true } }),
+      });
+      // serviceDomainCreate
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { serviceDomainCreate: { domain: 'test.up.railway.app' } } }),
+      });
+      // deployment status poll
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { service: { deployments: { edges: [{ node: { status: 'SUCCESS' } }] } } } }),
+      });
+
       const config = makeConfig({ target: { type: 'railway' } });
-      const result = await deployer.deploy(makeArtifact(), config, PASSPORT_ID);
-      expect(result.success).toBe(false);
-      expect(result.error).toContain('project_id');
+      const artifact = makeArtifact();
+      artifact.env_vars.AGENT_IMAGE_REF = 'ghcr.io/test/agent:v1';
+      const result = await deployer.deploy(artifact, config, PASSPORT_ID);
+      expect(result.success).toBe(true);
     });
 
     it('should return error when image_ref is missing', async () => {
@@ -263,6 +295,11 @@ describe('RailwayDeployer', () => {
     it('should create a Railway service with Docker image source', async () => {
       const serviceId = 'svc_railway_123';
 
+      // project environments query (auto-fetched when no environmentId)
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { project: { environments: { edges: [{ node: { id: 'env_prod', name: 'production' } }] } } } }),
+      });
       // serviceCreate
       mockFetch.mockResolvedValueOnce({
         ok: true,
