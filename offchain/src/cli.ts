@@ -451,6 +451,11 @@ program
         options.image = manifest.image;
         if (!options.name) options.name = manifest.name;
 
+        // Pass catalog skills to the UI (fetched from API, not Docker)
+        if (manifest.skills) {
+          (manifest as any)._catalogSkills = manifest.skills;
+        }
+
         // Parse --env flags upfront (needed for both paths)
         const envFlags: Record<string, string> = {};
         if (options.env) {

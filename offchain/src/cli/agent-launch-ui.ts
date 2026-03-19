@@ -210,39 +210,26 @@ export async function runLaunchUI(
   }
 
   // --- Skills selection ---
-  // Try to fetch live skills from the Docker image if available
+  // Skills come from catalog API (fetched alongside manifest), not from Docker image.
+  // catalog.json has a `skills` array per agent with slug, name, description, env, bundled flag.
+  const catalogSkills: Array<{ slug: string; name?: string; description?: string; env?: string; bundled?: boolean }> = (manifest as any)._catalogSkills || [];
   const skills = manifest.skills || { bundled: [], optional: [] };
-  let bundledSkills = skills.bundled || [];
-  let optionalSkills = skills.optional || [];
 
-  if (manifest.image && manifest.skills_enabled !== false) {
-    try {
-      const { execFileSync } = await import('child_process');
-      const liveSkills = execFileSync('docker', [
-        'run', '--rm', manifest.image, 'ls',
-        '/usr/local/lib/node_modules/openclaw/skills/',
-      ], { timeout: 15000, stdio: 'pipe' }).toString().trim().split('\n').filter(Boolean);
+  // Use catalog skills if available, fall back to manifest
+  let bundledSkills: string[];
+  let optionalSkills: Array<{ slug: string; display_name?: string; description?: string; env?: string; env_description?: string }>;
 
-      if (liveSkills.length > 0) {
-        // Use live skills from image, keeping manifest entries for those with env/description metadata
-        const manifestSlugs = new Set(optionalSkills.map((s: any) => s.slug));
-        const manifestBundled = new Set(bundledSkills);
-
-        // Skills in manifest keep their metadata, new ones get auto-discovered
-        const dynamicOptional = liveSkills
-          .filter(s => !manifestBundled.has(s))
-          .map(slug => {
-            const existing = optionalSkills.find((s: any) => s.slug === slug);
-            if (existing) return existing;
-            return { slug, display_name: slug.replace(/-/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()), description: 'Bundled OpenClaw skill' };
-          });
-
-        optionalSkills = dynamicOptional;
-        p.log.info(`Found ${liveSkills.length} skills in image (${bundledSkills.length} bundled, ${optionalSkills.length} optional)`);
-      }
-    } catch {
-      // Docker not available or image not pulled — fall back to manifest
-    }
+  if (catalogSkills.length > 0) {
+    bundledSkills = catalogSkills.filter(s => s.bundled).map(s => s.slug);
+    optionalSkills = catalogSkills.filter(s => !s.bundled).map(s => ({
+      slug: s.slug,
+      display_name: s.name,
+      description: s.description,
+      env: s.env,
+    }));
+  } else {
+    bundledSkills = skills.bundled || [];
+    optionalSkills = skills.optional || [];
   }
 
   if (bundledSkills.length > 0 || optionalSkills.length > 0) {
