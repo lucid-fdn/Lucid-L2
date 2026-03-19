@@ -465,11 +465,11 @@ program
           }
         }
 
-        // Determine if we should use the clack interactive UI
+        // Use clack UI whenever TTY is available (even with --env flags — they just pre-fill)
+        // Only skip clack for: --config file (fully non-interactive) or piped stdin (no TTY)
         const isTTY = process.stdin.isTTY === true;
         const hasConfigFile = !!options.config;
-        const hasEnvFlags = Object.keys(envFlags).length > 0;
-        const useClackUI = isTTY && !hasConfigFile && !hasEnvFlags;
+        const useClackUI = isTTY && !hasConfigFile;
 
         // Initialize catalog env with manifest defaults
         options._catalogEnv = {} as Record<string, string>;
@@ -487,6 +487,7 @@ program
             isLoggedIn: !!auth?.token,
             hasProviderUrl: !!process.env.PROVIDER_URL,
             lucidToken: auth?.token,
+            prefilled: envFlags, // --env flags pre-fill values, clack skips those prompts
           });
 
           if (uiResult.cancelled) process.exit(0);
@@ -511,7 +512,7 @@ program
           // Feature 1: Lucid inference auto-inject
           let effectiveRequired = manifest.required_env || [];
           const inferenceOverrides: Record<string, string> = {};
-          const isInteractive = !hasConfigFile && !hasEnvFlags;
+          const isInteractive = !hasConfigFile && Object.keys(envFlags).length === 0;
           if (isInteractive) {
             const inferenceResult = await checkLucidInference(effectiveRequired);
             effectiveRequired = inferenceResult.filteredRequired;

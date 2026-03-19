@@ -54,12 +54,14 @@ export async function runLaunchUI(
     isLoggedIn: boolean;
     hasProviderUrl: boolean;
     lucidToken?: string;
+    prefilled?: Record<string, string>; // --env flags pre-fill values
   },
 ): Promise<LaunchUIResult> {
+  const prefilled = opts.prefilled || {};
   const result: LaunchUIResult = {
     useLucidInference: false,
     channels: [],
-    envVars: {},
+    envVars: { ...prefilled }, // Start with prefilled values
     cancelled: false,
   };
 
@@ -114,6 +116,11 @@ export async function runLaunchUI(
     : required;
 
   for (const v of remainingRequired) {
+    // Skip if already provided via --env flag
+    if (prefilled[v.name]) {
+      p.log.info(`${v.name}: ${prefilled[v.name].substring(0, 8)}... (from --env)`);
+      continue;
+    }
     const value = await p.text({
       message: `${v.name}`,
       placeholder: v.description || '',
