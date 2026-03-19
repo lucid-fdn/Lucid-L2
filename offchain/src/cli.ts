@@ -328,6 +328,8 @@ program
   .option('--verification <mode>', 'Verification mode: full or minimal', 'full')
   .option('--mode <mode>', 'Force layer or cloud path (layer|cloud)')
   .option('--agent <slug>', 'Deploy from marketplace catalog')
+  .option('--config <file>', 'Config file for agent env vars (.env format)')
+  .option('--env <vars...>', 'Environment variables (KEY=VALUE)')
   .action(async (options) => {
     try {
       // Resolve launch path (skip for docker — local, no credentials needed)
@@ -449,11 +451,34 @@ program
         options.image = manifest.image;
         if (!options.name) options.name = manifest.name;
 
-        // Inject manifest defaults as env vars for the base runtime
+        // Interactive agent setup — prompt for required/optional env vars from manifest
+        const { resolveAgentEnv } = await import('./cli/agent-setup');
+        const envFlags: Record<string, string> = {};
+        if (options.env) {
+          for (const e of (Array.isArray(options.env) ? options.env : [options.env])) {
+            const eq = (e as string).indexOf('=');
+            if (eq > 0) envFlags[(e as string).slice(0, eq)] = (e as string).slice(eq + 1);
+          }
+        }
+        const setupResult = await resolveAgentEnv({
+          required: manifest.required_env || [],
+          optional: manifest.optional_env || [],
+          configFile: options.config,
+          envFlags,
+          nonInteractive: !!options.config || Object.keys(envFlags).length > 0,
+        });
+        if (setupResult.ok === false) {
+          console.error(setupResult.error);
+          process.exit(1);
+        }
+
+        // Merge: manifest defaults < agent setup env < explicit --env flags
         options._catalogEnv = {} as Record<string, string>;
         if (manifest.defaults?.model) options._catalogEnv['LUCID_MODEL'] = manifest.defaults.model;
         if (manifest.defaults?.prompt) options._catalogEnv['LUCID_PROMPT'] = manifest.defaults.prompt;
         if (manifest.defaults?.tools) options._catalogEnv['LUCID_TOOLS'] = Array.isArray(manifest.defaults.tools) ? manifest.defaults.tools.join(',') : manifest.defaults.tools;
+        // Agent setup env vars (from prompts/config/flags) override defaults
+        Object.assign(options._catalogEnv, setupResult.env);
 
         // Store catalog metadata for LaunchSpec
         options._catalogMeta = {
