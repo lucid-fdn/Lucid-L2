@@ -107,8 +107,15 @@ export class RailwayDeployer implements IDeployer {
         }
       }
 
-      // Create service with Docker image source
+      // Create service with Docker image or GitHub repo source
       const serviceName = `agent-${passportId.substring(0, 20)}`;
+      const repoUrl = (config.env_vars?.GITHUB_REPO_URL)
+        || (config.target as any).repo_url;
+      const source = repoUrl
+        ? { repo: repoUrl }
+        : { image: imageRef };
+      logger.info(`[Deploy:Railway] Creating service "${serviceName}" with source:`, source);
+
       const createServiceResult = await this.graphql(`
         mutation ServiceCreate($input: ServiceCreateInput!) {
           serviceCreate(input: $input) {
@@ -120,7 +127,7 @@ export class RailwayDeployer implements IDeployer {
         input: {
           name: serviceName,
           projectId,
-          source: { image: imageRef },
+          source,
         },
       });
 
@@ -143,10 +150,72 @@ export class RailwayDeployer implements IDeployer {
         };
       }
 
+      // Provision Postgres if the agent needs a database (e.g., IronClaw)
+      const needsPostgres = config.env_vars?.NEEDS_POSTGRES === 'true'
+        || (config.target as any).needs_postgres === true;
+      if (needsPostgres) {
+        logger.info(`[Deploy:Railway] Agent needs Postgres — creating database service...`);
+        try {
+          const dbServiceResult = await this.graphql(`
+            mutation ServiceCreate($input: ServiceCreateInput!) {
+              serviceCreate(input: $input) { id name }
+            }
+          `, {
+            input: {
+              name: `db-${passportId.substring(0, 16)}`,
+              projectId,
+              source: { image: 'postgres:15' },
+            },
+          });
+          const dbServiceId = dbServiceResult?.data?.serviceCreate?.id;
+          if (dbServiceId) {
+            // Set Postgres env vars on the DB service
+            const dbPassword = require('crypto').randomBytes(16).toString('hex');
+            await this.graphql(`
+              mutation VariablesUpsert($input: VariableCollectionUpsertInput!) {
+                variableCollectionUpsert(input: $input)
+              }
+            `, {
+              input: {
+                serviceId: dbServiceId,
+                projectId,
+                ...(environmentId ? { environmentId } : {}),
+                variables: {
+                  POSTGRES_USER: 'ironclaw',
+                  POSTGRES_PASSWORD: dbPassword,
+                  POSTGRES_DB: 'ironclaw',
+                },
+              },
+            });
+            // Generate internal domain for DB service
+            const dbDomainResult = await this.graphql(`
+              mutation ServiceDomainCreate($input: ServiceDomainCreateInput!) {
+                serviceDomainCreate(input: $input) { domain }
+              }
+            `, {
+              input: { serviceId: dbServiceId, ...(environmentId ? { environmentId } : {}) },
+            });
+            const dbDomain = dbDomainResult?.data?.serviceDomainCreate?.domain;
+            if (dbDomain) {
+              // Inject DATABASE_URL into the agent's env vars
+              config.env_vars = config.env_vars || {};
+              config.env_vars.DATABASE_URL = `postgres://ironclaw:${dbPassword}@${dbDomain}:5432/ironclaw`;
+              logger.info(`[Deploy:Railway] Postgres provisioned: ${dbDomain}`);
+            }
+          }
+        } catch (dbErr) {
+          logger.warn(`[Deploy:Railway] Postgres provisioning failed (non-fatal): ${dbErr}`);
+          // Agent may fail if it strictly requires DATABASE_URL, but don't block deployment
+        }
+      }
+
       // Set environment variables on the service
       const envVars = { ...input.env_vars, ...config.env_vars };
       // Remove AGENT_IMAGE_REF from env vars — it was used for the image source, not runtime
       delete envVars.AGENT_IMAGE_REF;
+      // Remove internal flags
+      delete envVars.NEEDS_POSTGRES;
+      delete envVars.GITHUB_REPO_URL;
 
       const envInput: Record<string, string> = {};
       for (const [key, value] of Object.entries(envVars)) {
