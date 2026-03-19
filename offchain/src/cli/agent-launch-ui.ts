@@ -220,19 +220,67 @@ export async function runLaunchUI(
       p.log.info(`Included: ${bundledSkills.join(', ')}`);
     }
 
+    const selectedSlugs: string[] = [];
+
     if (optionalSkills.length > 0) {
-      const selected = await p.multiselect({
-        message: 'Add optional skills:',
-        options: optionalSkills.map((s: any) => ({
-          value: s.slug,
-          label: s.display_name || s.slug,
-          hint: s.description || '',
-        })),
-        required: false,
+      const wantSkills = await p.confirm({
+        message: `Browse ${optionalSkills.length} optional skills?`,
+        initialValue: false,
       });
 
-      if (!p.isCancel(selected)) {
-        const selectedSlugs = selected as string[];
+      if (!p.isCancel(wantSkills) && wantSkills) {
+        // Search/filter loop
+        let browsing = true;
+        while (browsing) {
+          const query = await p.text({
+            message: 'Search skills (or Enter to see all):',
+            placeholder: 'e.g., github, voice, browser...',
+            defaultValue: '',
+          });
+
+          if (p.isCancel(query)) break;
+
+          const q = ((query as string) || '').toLowerCase();
+          const filtered = q
+            ? optionalSkills.filter((s: any) =>
+                s.slug.includes(q) ||
+                (s.display_name || '').toLowerCase().includes(q) ||
+                (s.description || '').toLowerCase().includes(q)
+              )
+            : optionalSkills;
+
+          if (filtered.length === 0) {
+            p.log.warn(`No skills matching "${q}"`);
+            continue;
+          }
+
+          const selected = await p.multiselect({
+            message: `Select skills${q ? ` matching "${q}"` : ''}:`,
+            options: filtered.map((s: any) => ({
+              value: s.slug,
+              label: `${s.display_name || s.slug}${s.env ? ' (needs key)' : ''}`,
+              hint: s.description || '',
+            })),
+            required: false,
+          });
+
+          if (!p.isCancel(selected)) {
+            for (const slug of selected as string[]) {
+              if (!selectedSlugs.includes(slug)) selectedSlugs.push(slug);
+            }
+          }
+
+          if (selectedSlugs.length > 0) {
+            p.log.info(`Selected: ${selectedSlugs.join(', ')}`);
+          }
+
+          const more = await p.confirm({
+            message: 'Search for more skills?',
+            initialValue: false,
+          });
+
+          if (p.isCancel(more) || !more) browsing = false;
+        }
 
         // Prompt for env vars required by selected skills
         for (const slug of selectedSlugs) {
@@ -247,13 +295,13 @@ export async function runLaunchUI(
             }
           }
         }
-
-        // Store all skills (bundled + selected) as LUCID_SKILLS env var
-        const allSkills = [...bundledSkills, ...selectedSlugs];
-        result.envVars.LUCID_SKILLS = allSkills.join(',');
       }
-    } else if (bundledSkills.length > 0) {
-      result.envVars.LUCID_SKILLS = bundledSkills.join(',');
+    }
+
+    // Store all skills (bundled + selected) as LUCID_SKILLS env var
+    const allSkills = [...bundledSkills, ...selectedSlugs];
+    if (allSkills.length > 0) {
+      result.envVars.LUCID_SKILLS = allSkills.join(',');
     }
   }
 
