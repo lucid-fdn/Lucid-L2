@@ -208,10 +208,17 @@ export async function registerAgentSkills(opts: {
     const agent = catalog.agents?.find((a: any) => a.name === opts.agentSlug);
     const image = agent?.image;
 
+    // Get bundled list from manifest to tag skills correctly
+    const bundledList = new Set<string>(agent?.skills_manifest?.bundled || agent?.skills?.filter((s: any) => s.bundled)?.map((s: any) => s.slug) || []);
+
     if (image) {
       logger.info(`[Skills] Extracting from Docker image: ${image}`);
       skills = await extractSkillsFromImage(image);
-      logger.info(`[Skills] Found ${skills.length} skills with rich metadata`);
+      // Cross-reference with manifest bundled list
+      for (const skill of skills) {
+        if (bundledList.has(skill.slug)) skill.bundled = true;
+      }
+      logger.info(`[Skills] Found ${skills.length} skills (${skills.filter(s => s.bundled).length} bundled)`);
     } else {
       skills = await fetchSkillsFromCatalog(opts.agentSlug);
     }
