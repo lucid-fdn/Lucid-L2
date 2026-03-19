@@ -334,16 +334,46 @@ export async function runLaunchUI(
           if (p.isCancel(more) || !more) browsing = false;
         }
 
-        // Prompt for env vars required by selected skills
+        // Prompt for env vars required by selected skills (with OAuth option)
+        const { hasOAuthProvider, getOAuthProviderName, oauthConnect } = await import('./skill-oauth');
+
         for (const slug of selectedSlugs) {
           const skill = optionalSkills.find((s: any) => s.slug === slug);
           if (skill?.env) {
-            const value = await p.text({
-              message: `${skill.env}`,
-              placeholder: skill.env_description || `Required for ${skill.display_name || slug}`,
-            });
-            if (!p.isCancel(value) && value) {
-              result.envVars[skill.env] = value as string;
+            const envVar = skill.env;
+            const oauthAvailable = hasOAuthProvider(envVar);
+
+            if (oauthAvailable) {
+              const providerName = getOAuthProviderName(envVar) || 'service';
+              const method = await p.select({
+                message: `${skill.display_name || slug} setup:`,
+                options: [
+                  { value: 'oauth', label: `Connect via browser (${providerName} OAuth)`, hint: 'recommended' },
+                  { value: 'manual', label: 'Paste key manually' },
+                ],
+              });
+
+              if (!p.isCancel(method)) {
+                if (method === 'oauth') {
+                  const token = await oauthConnect(envVar);
+                  if (token) {
+                    result.envVars[envVar] = token;
+                  } else {
+                    p.log.warn(`OAuth failed — paste key manually`);
+                    const value = await p.text({ message: envVar, placeholder: `Paste your ${providerName} key` });
+                    if (!p.isCancel(value) && value) result.envVars[envVar] = value as string;
+                  }
+                } else {
+                  const value = await p.text({ message: envVar, placeholder: skill.env_description || `Key for ${skill.display_name || slug}` });
+                  if (!p.isCancel(value) && value) result.envVars[envVar] = value as string;
+                }
+              }
+            } else {
+              const value = await p.text({
+                message: envVar,
+                placeholder: skill.env_description || `Required for ${skill.display_name || slug}`,
+              });
+              if (!p.isCancel(value) && value) result.envVars[envVar] = value as string;
             }
           }
         }
