@@ -700,4 +700,42 @@ marketplaceCmd.command('search <query>')
     }
   });
 
+// Agent skill management (register as tool passports)
+const agentCmd = program.command('agent').description('Manage deployed agents');
+const skillsCmd = agentCmd.command('skills').description('Manage agent skills');
+
+skillsCmd.command('register <agent-slug>')
+  .description('Register all skills as Lucid tool passports')
+  .option('-o, --owner <owner>', 'Owner wallet address')
+  .option('--dry-run', 'Show what would be registered without creating passports')
+  .action(async (agentSlug, opts) => {
+    try {
+      const { registerAgentSkills } = await import('./cli/register-skills');
+      const { getLucidAuth } = await import('./cli/credentials');
+      const auth = getLucidAuth();
+      const result = await registerAgentSkills({
+        agentSlug,
+        owner: opts.owner || '3kYo5DwnsYQeHt3KihqLXqoWW6L7AHodavyG9j4yimC3',
+        apiKey: auth?.token,
+        dryRun: opts.dryRun,
+      });
+      console.log(`\nDone: ${result.registered} registered, ${result.skipped} skipped, ${result.errors} errors`);
+    } catch (err: any) {
+      console.error('Error:', err.message);
+    }
+  });
+
+skillsCmd.command('list <agent-slug>')
+  .description('List registered tool passports for an agent')
+  .action(async (agentSlug) => {
+    try {
+      const { listAgentSkillPassports } = await import('./cli/register-skills');
+      const { getLucidAuth } = await import('./cli/credentials');
+      const auth = getLucidAuth();
+      await listAgentSkillPassports({ agentSlug, apiKey: auth?.token });
+    } catch (err: any) {
+      console.error('Error:', err.message);
+    }
+  });
+
 program.parse(process.argv);
