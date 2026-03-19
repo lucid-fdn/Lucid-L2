@@ -451,8 +451,7 @@ program
         options.image = manifest.image;
         if (!options.name) options.name = manifest.name;
 
-        // Interactive agent setup — prompt for required/optional env vars from manifest
-        const { resolveAgentEnv, checkLucidInference, promptChannels, printChannelLinks } = await import('./cli/agent-setup');
+        // Parse --env flags upfront (needed for both paths)
         const envFlags: Record<string, string> = {};
         if (options.env) {
           for (const e of (Array.isArray(options.env) ? options.env : [options.env])) {
@@ -461,50 +460,88 @@ program
           }
         }
 
-        // Feature 1: Lucid inference auto-inject
-        // If user is logged in and PROVIDER_URL is set, offer to skip LLM API key prompt
-        let effectiveRequired = manifest.required_env || [];
-        const inferenceOverrides: Record<string, string> = {};
-        const isInteractive = !options.config && Object.keys(envFlags).length === 0;
-        if (isInteractive) {
-          const inferenceResult = await checkLucidInference(effectiveRequired);
-          effectiveRequired = inferenceResult.filteredRequired;
-          Object.assign(inferenceOverrides, inferenceResult.envOverrides);
-        }
+        // Determine if we should use the clack interactive UI
+        const isTTY = process.stdin.isTTY === true;
+        const hasConfigFile = !!options.config;
+        const hasEnvFlags = Object.keys(envFlags).length > 0;
+        const useClackUI = isTTY && !hasConfigFile && !hasEnvFlags;
 
-        const setupResult = await resolveAgentEnv({
-          required: effectiveRequired,
-          optional: manifest.optional_env || [],
-          configFile: options.config,
-          envFlags,
-          nonInteractive: !isInteractive,
-        });
-        if (setupResult.ok === false) {
-          console.error(setupResult.error);
-          process.exit(1);
-        }
-
-        // Feature 2: Channel setup (Telegram, Discord, Slack)
-        // Prompt for managed bot vs BYO vs skip for channel token vars in optional_env
-        let channelChoices: import('./cli/agent-setup').ChannelChoice[] = [];
-        if (isInteractive) {
-          const channelResult = await promptChannels(manifest.optional_env || []);
-          channelChoices = channelResult.channels;
-          // Channel BYO tokens override env
-          Object.assign(inferenceOverrides, channelResult.envOverrides);
-        }
-        // Store channel choices for post-deploy output
-        options._channelChoices = channelChoices;
-
-        // Merge: manifest defaults < agent setup env < inference/channel overrides < explicit --env flags
+        // Initialize catalog env with manifest defaults
         options._catalogEnv = {} as Record<string, string>;
         if (manifest.defaults?.model) options._catalogEnv['LUCID_MODEL'] = manifest.defaults.model;
         if (manifest.defaults?.prompt) options._catalogEnv['LUCID_PROMPT'] = manifest.defaults.prompt;
         if (manifest.defaults?.tools) options._catalogEnv['LUCID_TOOLS'] = Array.isArray(manifest.defaults.tools) ? manifest.defaults.tools.join(',') : manifest.defaults.tools;
-        // Agent setup env vars (from prompts/config/flags) override defaults
-        Object.assign(options._catalogEnv, setupResult.env);
-        // Inference and channel overrides
-        Object.assign(options._catalogEnv, inferenceOverrides);
+
+        if (useClackUI) {
+          // --- Beautiful clack UI (interactive TTY, no --config or --env flags) ---
+          const { runLaunchUI, showPreLaunchSummary } = await import('./cli/agent-launch-ui');
+          const { getLucidAuth } = await import('./cli/credentials');
+
+          const auth = getLucidAuth();
+          const uiResult = await runLaunchUI(manifest, {
+            isLoggedIn: !!auth?.token,
+            hasProviderUrl: !!process.env.PROVIDER_URL,
+            lucidToken: auth?.token,
+          });
+
+          if (uiResult.cancelled) process.exit(0);
+
+          // Show confirmation
+          const confirmed = await showPreLaunchSummary({
+            useLucidInference: uiResult.useLucidInference,
+            channels: uiResult.channels,
+            target: options.target || 'docker',
+          });
+          if (!confirmed) process.exit(0);
+
+          // Merge UI results into catalog env vars
+          Object.assign(options._catalogEnv, uiResult.envVars);
+
+          // Store channels for post-deploy output
+          options._channels = uiResult.channels;
+        } else {
+          // --- Fallback: old readline-based prompts (--config, --env, or non-TTY) ---
+          const { resolveAgentEnv, checkLucidInference, promptChannels, printChannelLinks } = await import('./cli/agent-setup');
+
+          // Feature 1: Lucid inference auto-inject
+          let effectiveRequired = manifest.required_env || [];
+          const inferenceOverrides: Record<string, string> = {};
+          const isInteractive = !hasConfigFile && !hasEnvFlags;
+          if (isInteractive) {
+            const inferenceResult = await checkLucidInference(effectiveRequired);
+            effectiveRequired = inferenceResult.filteredRequired;
+            Object.assign(inferenceOverrides, inferenceResult.envOverrides);
+          }
+
+          const setupResult = await resolveAgentEnv({
+            required: effectiveRequired,
+            optional: manifest.optional_env || [],
+            configFile: options.config,
+            envFlags,
+            nonInteractive: !isInteractive,
+          });
+          if (setupResult.ok === false) {
+            console.error(setupResult.error);
+            process.exit(1);
+          }
+
+          // Feature 2: Channel setup (Telegram, Discord, Slack)
+          let channelChoices: import('./cli/agent-setup').ChannelChoice[] = [];
+          if (isInteractive) {
+            const channelResult = await promptChannels(manifest.optional_env || []);
+            channelChoices = channelResult.channels;
+            Object.assign(inferenceOverrides, channelResult.envOverrides);
+          }
+          options._channelChoices = channelChoices;
+
+          // Agent setup env vars override defaults
+          Object.assign(options._catalogEnv, setupResult.env);
+          // Inference and channel overrides
+          Object.assign(options._catalogEnv, inferenceOverrides);
+
+          // Store printChannelLinks for post-deploy output
+          options._printChannelLinks = printChannelLinks;
+        }
 
         // Store catalog metadata for LaunchSpec
         options._catalogMeta = {
@@ -513,9 +550,6 @@ program
           trust_tier: manifest.trust_tier || 'community',
           publisher: manifest.publisher,
         };
-
-        // Store printChannelLinks for post-deploy output
-        options._printChannelLinks = printChannelLinks;
       }
 
       const { launchImage, launchBaseRuntime } = await import('../packages/engine/src/compute/control-plane/launch');
@@ -559,16 +593,27 @@ program
       }
 
       if (result.success) {
-        console.log('\nAgent launched:');
-        console.log(`  Passport: ${result.passport_id}`);
-        console.log(`  Deployment: ${result.deployment_id}`);
-        console.log(`  URL: ${result.deployment_url || 'pending'}`);
-        console.log(`  Verification: ${result.verification_mode ?? options.verification}`);
-        console.log(`  Reputation eligible: ${result.reputation_eligible}`);
+        if (options._channels) {
+          // Clack UI post-launch card
+          const { showPostLaunchSuccess } = await import('./cli/agent-launch-ui');
+          showPostLaunchSuccess({
+            passportId: result.passport_id || '',
+            url: result.deployment_url,
+            channels: options._channels,
+          });
+        } else {
+          // Non-clack output (--config, --env, non-TTY, or non-agent launches)
+          console.log('\nAgent launched:');
+          console.log(`  Passport: ${result.passport_id}`);
+          console.log(`  Deployment: ${result.deployment_id}`);
+          console.log(`  URL: ${result.deployment_url || 'pending'}`);
+          console.log(`  Verification: ${result.verification_mode ?? options.verification}`);
+          console.log(`  Reputation eligible: ${result.reputation_eligible}`);
 
-        // Print managed channel links (Feature 2 post-deploy output)
-        if (options._printChannelLinks && options._channelChoices?.length > 0) {
-          options._printChannelLinks(options._channelChoices, result.passport_id);
+          // Print managed channel links (old readline fallback)
+          if (options._printChannelLinks && options._channelChoices?.length > 0) {
+            options._printChannelLinks(options._channelChoices, result.passport_id);
+          }
         }
       } else {
         console.error(`\nLaunch failed: ${result.error}`);
