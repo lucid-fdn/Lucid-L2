@@ -17,6 +17,16 @@ export interface AgentManifest {
   defaults?: { model?: string; port?: number };
   required_env?: Array<{ name: string; description?: string; default?: string }>;
   optional_env?: Array<{ name: string; description?: string; default?: string }>;
+  skills?: {
+    bundled?: string[];
+    optional?: Array<{
+      slug: string;
+      display_name?: string;
+      description?: string;
+      env?: string;
+      env_description?: string;
+    }>;
+  };
 }
 
 export interface LaunchUIResult {
@@ -195,6 +205,55 @@ export async function runLaunchUI(
       } else if (v.default) {
         result.envVars[v.name] = v.default;
       }
+    }
+  }
+
+  // --- Skills selection ---
+  const skills = manifest.skills || { bundled: [], optional: [] };
+  const bundledSkills = skills.bundled || [];
+  const optionalSkills = skills.optional || [];
+
+  if (bundledSkills.length > 0 || optionalSkills.length > 0) {
+    p.log.step('Skills');
+
+    if (bundledSkills.length > 0) {
+      p.log.info(`Included: ${bundledSkills.join(', ')}`);
+    }
+
+    if (optionalSkills.length > 0) {
+      const selected = await p.multiselect({
+        message: 'Add optional skills:',
+        options: optionalSkills.map((s: any) => ({
+          value: s.slug,
+          label: s.display_name || s.slug,
+          hint: s.description || '',
+        })),
+        required: false,
+      });
+
+      if (!p.isCancel(selected)) {
+        const selectedSlugs = selected as string[];
+
+        // Prompt for env vars required by selected skills
+        for (const slug of selectedSlugs) {
+          const skill = optionalSkills.find((s: any) => s.slug === slug);
+          if (skill?.env) {
+            const value = await p.text({
+              message: `${skill.env}`,
+              placeholder: skill.env_description || `Required for ${skill.display_name || slug}`,
+            });
+            if (!p.isCancel(value) && value) {
+              result.envVars[skill.env] = value as string;
+            }
+          }
+        }
+
+        // Store all skills (bundled + selected) as LUCID_SKILLS env var
+        const allSkills = [...bundledSkills, ...selectedSlugs];
+        result.envVars.LUCID_SKILLS = allSkills.join(',');
+      }
+    } else if (bundledSkills.length > 0) {
+      result.envVars.LUCID_SKILLS = bundledSkills.join(',');
     }
   }
 
