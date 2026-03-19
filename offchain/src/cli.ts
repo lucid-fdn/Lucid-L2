@@ -327,6 +327,7 @@ program
   .option('--path <path>', 'Build from source directory')
   .option('--verification <mode>', 'Verification mode: full or minimal', 'full')
   .option('--mode <mode>', 'Force layer or cloud path (layer|cloud)')
+  .option('--agent <slug>', 'Deploy from marketplace catalog')
   .action(async (options) => {
     try {
       // Resolve launch path (skip for docker — local, no credentials needed)
@@ -432,12 +433,48 @@ program
         options.image = buildResult.image;
       }
 
+      // Path D: Marketplace catalog (--agent <slug>)
+      if (options.agent) {
+        const catalogUrl = process.env.LUCID_CATALOG_URL || 'https://raw.githubusercontent.com/lucid-fdn/lucid-agents/main/catalog.json';
+        const catalogRes = await fetch(catalogUrl);
+        if (!catalogRes.ok) { console.error('Failed to fetch agent catalog'); process.exit(1); }
+        const catalog = await catalogRes.json() as any;
+        const manifest = (catalog.agents || []).find((a: any) => a.name === options.agent);
+        if (!manifest) {
+          console.error(`Agent "${options.agent}" not found in catalog. Run: lucid marketplace list`);
+          process.exit(1);
+        }
+
+        console.log(`Deploying ${manifest.display_name} (${manifest.version}) [${manifest.trust_tier || 'community'}]`);
+        options.image = manifest.image;
+        if (!options.name) options.name = manifest.name;
+
+        // Inject manifest defaults as env vars for the base runtime
+        options._catalogEnv = {} as Record<string, string>;
+        if (manifest.defaults?.model) options._catalogEnv['LUCID_MODEL'] = manifest.defaults.model;
+        if (manifest.defaults?.prompt) options._catalogEnv['LUCID_PROMPT'] = manifest.defaults.prompt;
+        if (manifest.defaults?.tools) options._catalogEnv['LUCID_TOOLS'] = Array.isArray(manifest.defaults.tools) ? manifest.defaults.tools.join(',') : manifest.defaults.tools;
+
+        // Store catalog metadata for LaunchSpec
+        options._catalogMeta = {
+          marketplace_slug: manifest.name,
+          marketplace_version: manifest.version,
+          trust_tier: manifest.trust_tier || 'community',
+          publisher: manifest.publisher,
+        };
+      }
+
       const { launchImage, launchBaseRuntime } = await import('../packages/engine/src/compute/control-plane/launch');
 
       let result;
 
       if (options.image) {
-        // Path A: Bring Your Own Image
+        // Path A: Bring Your Own Image (also used by --agent after catalog resolution)
+        const envVars: Record<string, string> = {
+          PROVIDER_URL: process.env.PROVIDER_URL || '',
+          PROVIDER_API_KEY: process.env.PROVIDER_API_KEY || '',
+          ...(options._catalogEnv || {}),
+        };
         result = await launchImage({
           image: options.image,
           target: options.target,
@@ -445,10 +482,7 @@ program
           name: options.name ?? options.image.split('/').pop()?.split(':')[0] ?? 'agent',
           port: parseInt(options.port, 10),
           verification: options.verification as 'full' | 'minimal',
-          env_vars: {
-            PROVIDER_URL: process.env.PROVIDER_URL || '',
-            PROVIDER_API_KEY: process.env.PROVIDER_API_KEY || '',
-          },
+          env_vars: envVars,
         });
       } else if (options.runtime === 'base') {
         // Path B: Base Runtime
@@ -466,7 +500,7 @@ program
           tools,
         });
       } else {
-        console.error('Error: provide --image <image> (Path A), --runtime base (Path B), or --path <dir> (Path C)');
+        console.error('Error: provide --image <image> (Path A), --runtime base (Path B), --path <dir> (Path C), or --agent <slug> (Path D)');
         process.exit(1);
       }
 
@@ -510,6 +544,50 @@ registryCmd.command('get')
       if (reg.username) console.log(`Username: ${reg.username}`);
     } else {
       console.log('No registry configured. Run: lucid registry set ghcr.io/myorg');
+    }
+  });
+
+// Marketplace Commands
+const marketplaceCmd = program.command('marketplace').description('Browse agent catalog');
+
+marketplaceCmd.command('list')
+  .description('List available agents')
+  .option('--category <cat>', 'Filter by category')
+  .action(async (opts) => {
+    try {
+      const catalogUrl = process.env.LUCID_CATALOG_URL || 'https://raw.githubusercontent.com/lucid-fdn/lucid-agents/main/catalog.json';
+      const res = await fetch(catalogUrl);
+      if (!res.ok) { console.error('Failed to fetch catalog'); process.exit(1); }
+      const catalog = await res.json() as any;
+      console.log('Available agents:\n');
+      for (const agent of catalog.agents || []) {
+        if (opts.category && !agent.categories?.includes(opts.category)) continue;
+        const tier = agent.trust_tier === 'official' ? ' [official]' : agent.trust_tier === 'verified' ? ' [verified]' : '';
+        console.log(`  ${agent.name.padEnd(25)} ${agent.display_name} (${agent.version})${tier}`);
+      }
+    } catch (err: any) {
+      console.error('Error fetching catalog:', err.message);
+    }
+  });
+
+marketplaceCmd.command('search <query>')
+  .description('Search agents by name or description')
+  .action(async (query) => {
+    try {
+      const catalogUrl = process.env.LUCID_CATALOG_URL || 'https://raw.githubusercontent.com/lucid-fdn/lucid-agents/main/catalog.json';
+      const res = await fetch(catalogUrl);
+      const catalog = await res.json() as any;
+      const q = query.toLowerCase();
+      const matches = (catalog.agents || []).filter((a: any) =>
+        a.name?.includes(q) || a.display_name?.toLowerCase().includes(q) || a.description?.toLowerCase().includes(q)
+      );
+      if (matches.length === 0) { console.log('No agents found'); return; }
+      for (const a of matches) {
+        const tier = a.trust_tier === 'official' ? ' [official]' : '';
+        console.log(`  ${a.name.padEnd(25)} ${a.display_name}${tier} — ${(a.description || '').substring(0, 60)}`);
+      }
+    } catch (err: any) {
+      console.error('Error:', err.message);
     }
   });
 
