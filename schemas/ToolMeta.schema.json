@@ -3,7 +3,7 @@
   "$id": "https://lucidlayer.ai/schemas/passport/2.0/ToolMeta.schema.json",
   "title": "Lucid Tool Metadata v2",
   "type": "object",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "required": ["schema_version", "tool_passport_id", "protocol", "operations"],
   "properties": {
 
