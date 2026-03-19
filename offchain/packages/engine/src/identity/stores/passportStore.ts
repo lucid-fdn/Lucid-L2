@@ -52,6 +52,7 @@ export interface Passport {
 export interface PassportFilters {
   type?: PassportType | PassportType[];
   owner?: string;
+  provider?: string; // Filter by metadata.provider (e.g., "openclaw", "mastra")
   status?: PassportStatus | PassportStatus[];
   tags?: string[];
   tag_match?: 'all' | 'any'; // Match all tags or any tag
@@ -387,6 +388,20 @@ export class PassportStore {
       } else {
         candidateIds = this.intersectSets(candidateIds, ownerMatches);
       }
+    }
+
+    // Apply provider filter (metadata.provider)
+    if (filters.provider) {
+      const providerFilter = filters.provider.toLowerCase();
+      const all = candidateIds || new Set(this.passports.keys());
+      const providerMatches = new Set<string>();
+      for (const id of all) {
+        const p = this.passports.get(id);
+        if (p?.metadata?.provider && String(p.metadata.provider).toLowerCase() === providerFilter) {
+          providerMatches.add(id);
+        }
+      }
+      candidateIds = providerMatches;
     }
 
     // Apply status filter

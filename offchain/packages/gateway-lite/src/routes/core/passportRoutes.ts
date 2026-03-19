@@ -427,6 +427,7 @@ passportRouter.get('/v1/passports', async (req, res) => {
     const {
       type,
       owner,
+      provider,
       status,
       tags,
       tag_match,
@@ -454,6 +455,11 @@ passportRouter.get('/v1/passports', async (req, res) => {
     // Owner filter
     if (owner && typeof owner === 'string') {
       filters.owner = owner;
+    }
+
+    // Provider filter (metadata.provider — e.g., "openclaw", "mastra")
+    if (provider && typeof provider === 'string') {
+      filters.provider = provider;
     }
 
     // Status filter

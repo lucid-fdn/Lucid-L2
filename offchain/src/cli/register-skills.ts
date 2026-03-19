@@ -133,7 +133,7 @@ export async function listAgentSkillPassports(opts: {
 }): Promise<void> {
   const apiUrl = opts.apiUrl || process.env.LUCID_API_URL || 'http://localhost:3001';
 
-  const res = await fetch(`${apiUrl}/v1/passports?type=tool&tags=${opts.agentSlug}&per_page=100`, {
+  const res = await fetch(`${apiUrl}/v1/passports?type=tool&provider=${opts.agentSlug}&per_page=100`, {
     headers: opts.apiKey ? { 'Authorization': `Bearer ${opts.apiKey}` } : {},
   });
 

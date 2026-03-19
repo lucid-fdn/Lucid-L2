@@ -220,7 +220,7 @@ export async function runLaunchUI(
   let optionalSkills: Array<{ slug: string; display_name?: string; description?: string; env?: string; env_description?: string }> = [];
 
   try {
-    const skillsRes = await fetch(`${apiUrl}/v1/passports?type=tool&tags=${agentSlug}&per_page=100`);
+    const skillsRes = await fetch(`${apiUrl}/v1/passports?type=tool&provider=${agentSlug}&per_page=100`);
     if (skillsRes.ok) {
       const data = await skillsRes.json() as any;
       const passports = data.passports || [];
