@@ -43,6 +43,9 @@ import { renderLlmsTxt } from './render/llmsTxt';
 import { extractSolanaProgram, extractSolidityContract } from './extract/programExtractor';
 import { renderProgramDoc, renderContractDoc } from './render/programDoc';
 import { syncToMintlify, updateDocsJson } from './render/mintlifySync';
+import { extractAllPages } from './adapters';
+import { renderPage } from './render/pageRenderer';
+import { enrichPage } from './render/pageEnricher';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -82,9 +85,11 @@ async function run(): Promise<void> {
     .option('--debug', 'Dump DomainSnapshot JSON to stdout and exit (no AI, no writes)')
     .option('--dry-run', 'Print docs to stdout; skip file writes and cache updates')
     .option('--changed', 'Only process domains where hashes differ from cache')
-    .option('--artifact <type>', 'Generate specific artifact: modules, reference, claude-md, changelog, llms-txt, programs, contracts, mintlify')
+    .option('--artifact <type>', 'Generate specific artifact: modules, reference, claude-md, changelog, llms-txt, programs, contracts, mintlify, pages')
     .option('--from <ref>', 'Git ref for changelog start (e.g., v1.2.0)')
     .option('--to <ref>', 'Git ref for changelog end (default: HEAD)')
+    .option('--adapter <name>', 'Filter pages extraction to a specific adapter (used with --artifact pages)')
+    .option('--output <dir>', 'Output directory for pages (default: ./output)')
     .parse(process.argv);
 
   const opts = program.opts<{
@@ -96,6 +101,8 @@ async function run(): Promise<void> {
     artifact: string | undefined;
     from: string | undefined;
     to: string | undefined;
+    adapter: string | undefined;
+    output: string | undefined;
   }>();
 
   const domainArg = opts.domain as string | undefined;
@@ -509,6 +516,48 @@ async function run(): Promise<void> {
       }
     } else {
       process.stderr.write('  Mintlify docs dir not found (expected at ../docs/). Skipping sync.\n');
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Pages (adapter-based extraction → optional AI enrichment → .mdx)
+  // -------------------------------------------------------------------------
+  if (artifactType === 'pages') {
+    const adapterFilter = opts.adapter;
+    const outputDir = opts.output
+      ? path.resolve(opts.output)
+      : path.resolve(__dirname, '..', 'output');
+
+    process.stderr.write('Extracting pages from adapters...\n');
+    const pages = await extractAllPages(adapterFilter);
+    process.stderr.write(`  Found ${pages.length} page(s)\n`);
+
+    for (const page of pages) {
+      process.stderr.write(`  Processing: ${page.pagePath}...\n`);
+
+      let body: string;
+      if (page.needsEnrichment) {
+        try {
+          body = await enrichPage(page.title, page.description, page.rawContent, page.sourceFile);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          process.stderr.write(`    AI enrichment failed: ${msg}. Using raw content.\n`);
+          body = page.rawContent;
+        }
+      } else {
+        body = page.rawContent;
+      }
+
+      const mdx = renderPage(page, body);
+
+      if (isDryRun) {
+        process.stdout.write(`\n=== page: ${page.pagePath}.mdx ===\n${mdx}\n`);
+      } else {
+        const outPath = path.join(outputDir, `${page.pagePath}.mdx`);
+        fs.mkdirSync(path.dirname(outPath), { recursive: true });
+        fs.writeFileSync(outPath, mdx, 'utf-8');
+        process.stderr.write(`    Written: ${outPath}\n`);
+      }
     }
   }
 
