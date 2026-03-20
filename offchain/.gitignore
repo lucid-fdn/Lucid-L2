@@ -15,3 +15,5 @@ bun.lock
 keys/
 .depin-mock-storage/
 .mmr-storage
+dist/
+data/
