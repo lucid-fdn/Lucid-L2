@@ -1,4 +1,4 @@
-<!-- generated: commit 505ae77, 2026-03-18T19:46:46.367Z -->
+<!-- generated: commit c7113a7, 2026-03-20T11:04:15.770Z -->
 # anchoring — Interface Reference
 
 ## Interfaces

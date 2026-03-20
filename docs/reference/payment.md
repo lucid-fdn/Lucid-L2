@@ -1,4 +1,4 @@
-<!-- generated: commit 505ae77, 2026-03-18T19:46:46.363Z -->
+<!-- generated: commit c7113a7, 2026-03-20T11:04:15.768Z -->
 # payment — Interface Reference
 
 ## Interfaces

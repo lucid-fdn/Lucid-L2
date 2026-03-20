@@ -1,10 +1,10 @@
-<!-- generated: commit 505ae77, 2026-03-18T19:46:46.364Z -->
+<!-- generated: commit c7113a7, 2026-03-20T11:08:23.153Z -->
 # compute — Interface Reference
 
 ## Interfaces
 
 ### A2AClientOptions
-> `agent/a2a/a2aClient.ts`
+> `control-plane/agent/a2a/a2aClient.ts`
 
 **Properties**
 
@@ -16,7 +16,7 @@
 **Extends:** —
 
 ### A2AMessage
-> `agent/a2a/a2aServer.ts`
+> `control-plane/agent/a2a/a2aServer.ts`
 
 **Properties**
 
@@ -28,7 +28,7 @@
 **Extends:** —
 
 ### A2APart
-> `agent/a2a/a2aServer.ts`
+> `control-plane/agent/a2a/a2aServer.ts`
 
 **Properties**
 
@@ -42,7 +42,7 @@
 **Extends:** —
 
 ### A2ATask
-> `agent/a2a/a2aServer.ts`
+> `control-plane/agent/a2a/a2aServer.ts`
 
 **Properties**
 
@@ -57,7 +57,7 @@
 **Extends:** —
 
 ### A2ATaskStore
-> `agent/a2a/a2aServer.ts`
+> `control-plane/agent/a2a/a2aServer.ts`
 
 **Properties**
 
@@ -68,7 +68,7 @@
 **Extends:** —
 
 ### AgentCard
-> `agent/a2a/agentCard.ts`
+> `control-plane/agent/a2a/agentCard.ts`
 
 A2A Agent Card Generator
 
@@ -90,7 +90,7 @@ A2A Agent Card Generator
 **Extends:** —
 
 ### AgentCardSkill
-> `agent/a2a/agentCard.ts`
+> `control-plane/agent/a2a/agentCard.ts`
 
 **Properties**
 
@@ -104,7 +104,7 @@ A2A Agent Card Generator
 **Extends:** —
 
 ### AgentConfig
-> `agent/agentDescriptor.ts`
+> `control-plane/agent/agentDescriptor.ts`
 
 **Properties**
 
@@ -134,7 +134,7 @@ A2A Agent Card Generator
 **Extends:** —
 
 ### AgentDescriptor
-> `agent/agentDescriptor.ts`
+> `control-plane/agent/agentDescriptor.ts`
 
 **Properties**
 
@@ -149,7 +149,7 @@ A2A Agent Card Generator
 **Extends:** —
 
 ### AgentRevenuePool
-> `agent/agentRevenueService.ts`
+> `control-plane/agent/agentRevenueService.ts`
 
 **Properties**
 
@@ -163,7 +163,7 @@ A2A Agent Card Generator
 **Extends:** —
 
 ### ChannelConfig
-> `agent/agentDescriptor.ts`
+> `control-plane/agent/agentDescriptor.ts`
 
 **Properties**
 
@@ -175,7 +175,7 @@ A2A Agent Card Generator
 **Extends:** —
 
 ### DeployAgentInput
-> `agent/agentDeploymentService.ts`
+> `control-plane/agent/agentDeploymentService.ts`
 
 **Properties**
 
@@ -193,7 +193,7 @@ A2A Agent Card Generator
 **Extends:** —
 
 ### DeployAgentResult
-> `agent/agentDeploymentService.ts`
+> `control-plane/agent/agentDeploymentService.ts`
 
 **Properties**
 
@@ -214,7 +214,7 @@ A2A Agent Card Generator
 **Extends:** —
 
 ### DeploymentConfig
-> `deploy/IDeployer.ts`
+> `providers/IDeployer.ts`
 
 Configuration for a deployment
 
@@ -233,7 +233,7 @@ Configuration for a deployment
 **Extends:** —
 
 ### DeploymentResult
-> `deploy/IDeployer.ts`
+> `providers/IDeployer.ts`
 
 Result of a deploy operation
 
@@ -251,7 +251,7 @@ Result of a deploy operation
 **Extends:** —
 
 ### DeploymentStatus
-> `deploy/IDeployer.ts`
+> `providers/IDeployer.ts`
 
 Current status of a deployment
 
@@ -270,7 +270,7 @@ Current status of a deployment
 **Extends:** —
 
 ### Guardrail
-> `agent/agentDescriptor.ts`
+> `control-plane/agent/agentDescriptor.ts`
 
 **Properties**
 
@@ -282,7 +282,7 @@ Current status of a deployment
 **Extends:** —
 
 ### HandoffRule
-> `agent/agentDescriptor.ts`
+> `control-plane/agent/agentDescriptor.ts`
 
 **Properties**
 
@@ -295,7 +295,7 @@ Current status of a deployment
 **Extends:** —
 
 ### IDeployer
-> `deploy/IDeployer.ts`
+> `providers/IDeployer.ts`
 
 Deployer interface — all deployment providers implement this.
 
@@ -310,7 +310,7 @@ Deployer interface — all deployment providers implement this.
 
 | Method | Params | Return Type | Description |
 |--------|--------|-------------|-------------|
-| `deploy` | `artifact`: `RuntimeArtifact`, `config`: `DeploymentConfig`, `passportId`: `string` | `Promise<DeploymentResult>` | Deploy an agent artifact to this target |
+| `deploy` | `input`: `RuntimeArtifact | ImageDeployInput`, `config`: `DeploymentConfig`, `passportId`: `string` | `Promise<DeploymentResult>` | Deploy an agent artifact or pre-built image to this target |
 | `isHealthy` |  | `Promise<boolean>` | Health check for the deployer itself |
 | `logs` | `deploymentId`: `string`, `options`?: `LogOptions` | `Promise<string>` | Get deployment logs |
 | `scale` | `deploymentId`: `string`, `replicas`: `number` | `Promise<void>` | Scale replicas (if supported) |
@@ -319,8 +319,26 @@ Deployer interface — all deployment providers implement this.
 
 **Extends:** —
 
+### ImageDeployInput
+> `providers/types.ts`
+
+Input for deploying a pre-built Docker image (BYOI or base runtime).
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `entrypoint` | `string[]` | yes | Override image's CMD/ENTRYPOINT — only if user explicitly specifies |
+| `env_vars` | `Record<string, string>` | no | Environment variables to inject into the container |
+| `image` | `string` | no | Docker image reference, e.g. "ghcr.io/myorg/my-agent:latest" |
+| `port` | `number` | yes | Container port (default 3100) |
+| `registry_auth` | `{ username: string; password: string; }` | yes | Credentials for private registries |
+| `verification` | `"full" | "minimal"` | no | Verification mode |
+
+**Extends:** —
+
 ### IRuntimeAdapter
-> `runtime/IRuntimeAdapter.ts`
+> `providers/IRuntimeAdapter.ts`
 
 Runtime Adapter Interface
 
@@ -342,7 +360,7 @@ Runtime Adapter Interface
 **Extends:** —
 
 ### LogOptions
-> `deploy/IDeployer.ts`
+> `providers/IDeployer.ts`
 
 Options for fetching deployment logs
 
@@ -357,7 +375,7 @@ Options for fetching deployment logs
 **Extends:** —
 
 ### MonetizationConfig
-> `agent/agentDescriptor.ts`
+> `control-plane/agent/agentDescriptor.ts`
 
 **Properties**
 
@@ -373,7 +391,7 @@ Options for fetching deployment logs
 **Extends:** —
 
 ### RuntimeArtifact
-> `deploy/IDeployer.ts`
+> `providers/IDeployer.ts`
 
 Agent runtime artifact — the output of code generation, input to deployment
 
@@ -390,8 +408,26 @@ Agent runtime artifact — the output of code generation, input to deployment
 
 **Extends:** —
 
+### RuntimeArtifact
+> `providers/IRuntimeAdapter.ts`
+
+Result of a runtime adapter code generation.
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `adapter` | `string` | no | Which adapter generated this |
+| `dependencies` | `Record<string, string>` | no | npm/pip dependencies |
+| `dockerfile` | `string` | yes | Optional Dockerfile for containerized deployment |
+| `entrypoint` | `string` | no | Main entrypoint file |
+| `env_vars` | `Record<string, string>` | no | Required environment variables |
+| `files` | `Map<string, string>` | no | Generated files: filename → content |
+
+**Extends:** —
+
 ### SpendingLimits
-> `agent/agentDescriptor.ts`
+> `control-plane/agent/agentDescriptor.ts`
 
 **Properties**
 
@@ -403,7 +439,7 @@ Agent runtime artifact — the output of code generation, input to deployment
 **Extends:** —
 
 ### StopCondition
-> `agent/agentDescriptor.ts`
+> `control-plane/agent/agentDescriptor.ts`
 
 **Properties**
 
@@ -415,7 +451,7 @@ Agent runtime artifact — the output of code generation, input to deployment
 **Extends:** —
 
 ### WalletConfig
-> `agent/agentDescriptor.ts`
+> `control-plane/agent/agentDescriptor.ts`
 
 **Properties**
 
@@ -432,7 +468,7 @@ Agent runtime artifact — the output of code generation, input to deployment
 ## Functions
 
 ### addTaskArtifact
-> `agent/a2a/a2aServer.ts`
+> `control-plane/agent/a2a/a2aServer.ts`
 
 Add an artifact (result) to a task.
 
@@ -447,7 +483,7 @@ Add an artifact (result) to a task.
 **Async:** no
 
 ### cancelTask
-> `agent/a2a/a2aClient.ts`
+> `control-plane/agent/a2a/a2aClient.ts`
 
 Cancel a task on an external agent.
 
@@ -462,7 +498,7 @@ Cancel a task on an external agent.
 **Async:** yes
 
 ### createA2ATask
-> `agent/a2a/a2aServer.ts`
+> `control-plane/agent/a2a/a2aServer.ts`
 
 Create a new A2A task from an incoming request.
 
@@ -476,7 +512,7 @@ Create a new A2A task from an incoming request.
 **Async:** no
 
 ### createTaskStore
-> `agent/a2a/a2aServer.ts`
+> `control-plane/agent/a2a/a2aServer.ts`
 
 Create an A2A task store.
 
@@ -485,7 +521,7 @@ Create an A2A task store.
 **Async:** no
 
 ### discoverAgent
-> `agent/a2a/a2aClient.ts`
+> `control-plane/agent/a2a/a2aClient.ts`
 
 Discover an agent by fetching its Agent Card.
 
@@ -499,7 +535,7 @@ Discover an agent by fetching its Agent Card.
 **Async:** yes
 
 ### extractText
-> `agent/a2a/a2aServer.ts`
+> `control-plane/agent/a2a/a2aServer.ts`
 
 Extract text from an A2A message.
 
@@ -512,7 +548,7 @@ Extract text from an A2A message.
 **Async:** no
 
 ### generateAgentCard
-> `agent/a2a/agentCard.ts`
+> `control-plane/agent/a2a/agentCard.ts`
 
 Generate an A2A Agent Card from a passport and agent descriptor.
 
@@ -527,14 +563,14 @@ Generate an A2A Agent Card from a passport and agent descriptor.
 **Async:** no
 
 ### getAgentDeploymentService
-> `agent/agentDeploymentService.ts`
+> `control-plane/agent/agentDeploymentService.ts`
 
 **Returns:** `AgentDeploymentService`
 
 **Async:** no
 
 ### getAgentRevenuePool
-> `agent/agentRevenueService.ts`
+> `control-plane/agent/agentRevenueService.ts`
 
 Get revenue pool for an agent.
 
@@ -547,7 +583,7 @@ Get revenue pool for an agent.
 **Async:** no
 
 ### getAllDeployers
-> `deploy/index.ts`
+> `providers/index.ts`
 
 Get all registered deployers
 
@@ -556,7 +592,7 @@ Get all registered deployers
 **Async:** no
 
 ### getAllRevenuePools
-> `agent/agentRevenueService.ts`
+> `control-plane/agent/agentRevenueService.ts`
 
 Get all revenue pools.
 
@@ -565,7 +601,7 @@ Get all revenue pools.
 **Async:** no
 
 ### getAllRuntimeAdapters
-> `runtime/index.ts`
+> `providers/index.ts`
 
 Get all registered runtime adapters.
 
@@ -574,7 +610,7 @@ Get all registered runtime adapters.
 **Async:** no
 
 ### getDeployer
-> `deploy/index.ts`
+> `providers/index.ts`
 
 Get a deployer by target name.
 
@@ -587,7 +623,7 @@ Get a deployer by target name.
 **Async:** no
 
 ### getRuntimeAdapter
-> `runtime/index.ts`
+> `providers/index.ts`
 
 Get a specific runtime adapter by name.
 
@@ -600,7 +636,7 @@ Get a specific runtime adapter by name.
 **Async:** no
 
 ### getTaskStatus
-> `agent/a2a/a2aClient.ts`
+> `control-plane/agent/a2a/a2aClient.ts`
 
 Get the status of an existing task.
 
@@ -614,8 +650,21 @@ Get the status of an existing task.
 
 **Async:** yes
 
+### isImageDeploy
+> `providers/types.ts`
+
+Type guard: is this an image deploy or a code-gen artifact?
+
+| Param | Type | Optional | Default |
+|-------|------|----------|---------|
+| `input` | `unknown` | no | — |
+
+**Returns:** `boolean`
+
+**Async:** no
+
 ### listAdapterNames
-> `runtime/index.ts`
+> `providers/index.ts`
 
 List available adapter names.
 
@@ -624,7 +673,7 @@ List available adapter names.
 **Async:** no
 
 ### listDeployerTargets
-> `deploy/index.ts`
+> `providers/index.ts`
 
 List available deployer target names
 
@@ -633,7 +682,7 @@ List available deployer target names
 **Async:** no
 
 ### processAgentRevenue
-> `agent/agentRevenueService.ts`
+> `control-plane/agent/agentRevenueService.ts`
 
 Process revenue from an agent receipt.
 
@@ -646,14 +695,14 @@ Process revenue from an agent receipt.
 **Async:** yes
 
 ### resetAgentDeploymentService
-> `agent/agentDeploymentService.ts`
+> `control-plane/agent/agentDeploymentService.ts`
 
 **Returns:** `void`
 
 **Async:** no
 
 ### resetDeployers
-> `deploy/index.ts`
+> `providers/index.ts`
 
 Reset singletons (for tests)
 
@@ -662,7 +711,7 @@ Reset singletons (for tests)
 **Async:** no
 
 ### resetRevenuePools
-> `agent/agentRevenueService.ts`
+> `control-plane/agent/agentRevenueService.ts`
 
 Reset all revenue pools (testing only).
 
@@ -671,7 +720,7 @@ Reset all revenue pools (testing only).
 **Async:** no
 
 ### resetRuntimeAdapters
-> `runtime/index.ts`
+> `providers/index.ts`
 
 Reset registry (for tests)
 
@@ -680,7 +729,7 @@ Reset registry (for tests)
 **Async:** no
 
 ### selectBestAdapter
-> `runtime/index.ts`
+> `providers/index.ts`
 
 Find the best adapter for a given descriptor.
 
@@ -694,7 +743,7 @@ Find the best adapter for a given descriptor.
 **Async:** no
 
 ### sendTask
-> `agent/a2a/a2aClient.ts`
+> `control-plane/agent/a2a/a2aClient.ts`
 
 Send a task to an external A2A agent.
 
@@ -709,7 +758,7 @@ Send a task to an external A2A agent.
 **Async:** yes
 
 ### triggerAgentAirdrop
-> `agent/agentRevenueService.ts`
+> `control-plane/agent/agentRevenueService.ts`
 
 Trigger an airdrop of accumulated revenue to share token holders.
 
@@ -722,7 +771,7 @@ Trigger an airdrop of accumulated revenue to share token holders.
 **Async:** yes
 
 ### updateTaskState
-> `agent/a2a/a2aServer.ts`
+> `control-plane/agent/a2a/a2aServer.ts`
 
 Update task state.
 
@@ -737,7 +786,7 @@ Update task state.
 **Async:** no
 
 ### validateAgentCard
-> `agent/a2a/agentCard.ts`
+> `control-plane/agent/a2a/agentCard.ts`
 
 Validate an incoming Agent Card from an external agent.
 
@@ -752,7 +801,7 @@ Validate an incoming Agent Card from an external agent.
 ## Types
 
 ### A2ATaskState
-> `agent/a2a/a2aServer.ts`
+> `control-plane/agent/a2a/a2aServer.ts`
 
 A2A Protocol Server
 
@@ -761,14 +810,14 @@ type A2ATaskState = "failed" | "submitted" | "working" | "input-required" | "com
 ```
 
 ### AutonomyLevel
-> `agent/agentDescriptor.ts`
+> `control-plane/agent/agentDescriptor.ts`
 
 ```ts
 type AutonomyLevel = "supervised" | "semi_autonomous" | "fully_autonomous"
 ```
 
 ### DeploymentStatusType
-> `deploy/IDeployer.ts`
+> `providers/IDeployer.ts`
 
 Deployment lifecycle status
 
@@ -777,28 +826,28 @@ type DeploymentStatusType = "deploying" | "running" | "stopped" | "failed" | "te
 ```
 
 ### DeploymentTargetType
-> `agent/agentDescriptor.ts`
+> `control-plane/agent/agentDescriptor.ts`
 
 ```ts
 type DeploymentTargetType = "railway" | "akash" | "phala" | "ionet" | "nosana" | "vercel_edge" | "docker" | "aws_bedrock" | "self_hosted"
 ```
 
 ### MemoryProvider
-> `agent/agentDescriptor.ts`
+> `control-plane/agent/agentDescriptor.ts`
 
 ```ts
 type MemoryProvider = "supabase" | "lighthouse" | "redis"
 ```
 
 ### WalletProvider
-> `agent/agentDescriptor.ts`
+> `control-plane/agent/agentDescriptor.ts`
 
 ```ts
 type WalletProvider = "crossmint" | "erc6551" | "squads" | "custom"
 ```
 
 ### WorkflowType
-> `agent/agentDescriptor.ts`
+> `control-plane/agent/agentDescriptor.ts`
 
 ```ts
 type WorkflowType = "single" | "sequential" | "parallel" | "dag"

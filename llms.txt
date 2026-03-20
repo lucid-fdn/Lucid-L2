@@ -29,7 +29,7 @@
 - AgentWallet: Agent Wallet Provider Interface
 - CreatePassportInput: Input for creating a passport
 - ERC8004AgentMetadata: ERC-8004 Registry Types
-- IAgentWalletProvider: C:\Lucid-L2\docs\modules\identity.md
+- IAgentWalletProvider: /home/debian/Lucid/Lucid-L2/docs/modules/identity.md
 - INFTProvider: Chain-agnostic NFT provider.
 - ITokenLauncher: Token launcher interface — swappable between direct SPL mint and Genesis TGE.
 - MintResult: Result of an NFT mint operation
@@ -38,192 +38,192 @@
 - OperationResult: Result type for operations
 - ReputationRecord: Reputation feedback record
 - ReputationSummary: Average reputation score
-- SpendingLimits: C:\Lucid-L2\docs\modules\identity.md
-- TokenInfo: C:\Lucid-L2\docs\modules\identity.md
-- TokenLaunchParams: C:\Lucid-L2\docs\modules\identity.md
-- TokenLaunchResult: C:\Lucid-L2\docs\modules\identity.md
-- TransactionRequest: C:\Lucid-L2\docs\modules\identity.md
-- TransactionResult: C:\Lucid-L2\docs\modules\identity.md
+- SpendingLimits: /home/debian/Lucid/Lucid-L2/docs/modules/identity.md
+- TokenInfo: /home/debian/Lucid/Lucid-L2/docs/modules/identity.md
+- TokenLaunchParams: /home/debian/Lucid/Lucid-L2/docs/modules/identity.md
+- TokenLaunchResult: /home/debian/Lucid/Lucid-L2/docs/modules/identity.md
+- TransactionRequest: /home/debian/Lucid/Lucid-L2/docs/modules/identity.md
+- TransactionResult: /home/debian/Lucid/Lucid-L2/docs/modules/identity.md
 - ValidationRecord: Validation record returned from the Validation Registry
-- WalletBalance: C:\Lucid-L2\docs\modules\identity.md
+- WalletBalance: /home/debian/Lucid/Lucid-L2/docs/modules/identity.md
 - ComputeAvailabilityChecker: alias
 - ModelCatalogLookup: alias
-- ChainVerifyResult: C:\Lucid-L2\docs\modules\memory.md
-- CompactionConfig: C:\Lucid-L2\docs\modules\memory.md
-- CompactionResult: C:\Lucid-L2\docs\modules\memory.md
-- EmbeddingResult: C:\Lucid-L2\docs\modules\memory.md
-- EntityMemory: C:\Lucid-L2\docs\modules\memory.md
-- EntityRelation: C:\Lucid-L2\docs\modules\memory.md
-- EpisodicMemory: C:\Lucid-L2\docs\modules\memory.md
-- ExtractionOutputSchema: C:\Lucid-L2\docs\modules\memory.md
-- IEmbeddingProvider: C:\Lucid-L2\docs\modules\memory.md
-- IMemoryStore: C:\Lucid-L2\docs\modules\memory.md
-- IProjectionSink: C:\Lucid-L2\docs\modules\memory.md
-- LucidMemoryFile: C:\Lucid-L2\docs\modules\memory.md
-- MemoryCreatedEvent: C:\Lucid-L2\docs\modules\memory.md
-- MemoryEntry: C:\Lucid-L2\docs\modules\memory.md
-- MemoryEvent: C:\Lucid-L2\docs\modules\memory.md
-- MemoryQuery: C:\Lucid-L2\docs\modules\memory.md
-- MemoryServiceConfig: C:\Lucid-L2\docs\modules\memory.md
-- MemorySession: C:\Lucid-L2\docs\modules\memory.md
-- MemorySnapshot: C:\Lucid-L2\docs\modules\memory.md
-- MemoryStats: C:\Lucid-L2\docs\modules\memory.md
-- MemoryStoreCapabilities: C:\Lucid-L2\docs\modules\memory.md
-- MemoryStoreHealth: C:\Lucid-L2\docs\modules\memory.md
-- MemoryWriteResult: C:\Lucid-L2\docs\modules\memory.md
-- OutboxEvent: C:\Lucid-L2\docs\modules\memory.md
-- ProceduralMemory: C:\Lucid-L2\docs\modules\memory.md
-- ProjectableEntry: C:\Lucid-L2\docs\modules\memory.md
-- ProjectionPolicy: C:\Lucid-L2\docs\modules\memory.md
-- ProvenanceRecord: C:\Lucid-L2\docs\modules\memory.md
-- RecallRequest: C:\Lucid-L2\docs\modules\memory.md
-- RecallResponse: C:\Lucid-L2\docs\modules\memory.md
-- RestoreRequest: C:\Lucid-L2\docs\modules\memory.md
-- RestoreResult: C:\Lucid-L2\docs\modules\memory.md
-- SemanticMemory: C:\Lucid-L2\docs\modules\memory.md
-- TemporalMemory: C:\Lucid-L2\docs\modules\memory.md
-- ToolCallRecord: C:\Lucid-L2\docs\modules\memory.md
-- TrustWeightedMemory: C:\Lucid-L2\docs\modules\memory.md
-- ValidatedExtractionResult: C:\Lucid-L2\docs\modules\memory.md
-- AgentReceipt: C:\Lucid-L2\docs\modules\receipt.md
+- ChainVerifyResult: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- CompactionConfig: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- CompactionResult: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- EmbeddingResult: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- EntityMemory: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- EntityRelation: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- EpisodicMemory: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- ExtractionOutputSchema: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- IEmbeddingProvider: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- IMemoryStore: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- IProjectionSink: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- LucidMemoryFile: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- MemoryCreatedEvent: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- MemoryEntry: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- MemoryEvent: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- MemoryQuery: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- MemoryServiceConfig: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- MemorySession: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- MemorySnapshot: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- MemoryStats: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- MemoryStoreCapabilities: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- MemoryStoreHealth: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- MemoryWriteResult: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- OutboxEvent: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- ProceduralMemory: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- ProjectableEntry: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- ProjectionPolicy: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- ProvenanceRecord: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- RecallRequest: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- RecallResponse: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- RestoreRequest: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- RestoreResult: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- SemanticMemory: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- TemporalMemory: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- ToolCallRecord: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- TrustWeightedMemory: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- ValidatedExtractionResult: /home/debian/Lucid/Lucid-L2/docs/modules/memory.md
+- AgentReceipt: /home/debian/Lucid/Lucid-L2/docs/modules/receipt.md
 - AgentReceiptBody: Agent receipt body — the data that gets hashed.
-- AgentReceiptInput: C:\Lucid-L2\docs\modules\receipt.md
-- BatchedEpisodicReceiptBody: C:\Lucid-L2\docs\modules\receipt.md
+- AgentReceiptInput: /home/debian/Lucid/Lucid-L2/docs/modules/receipt.md
+- BatchedEpisodicReceiptBody: /home/debian/Lucid/Lucid-L2/docs/modules/receipt.md
 - ComputeReceipt: Extended Signed Receipt for Fluid Compute v0.
 - ComputeReceiptBody: Extended Receipt Body for Fluid Compute v0.2.
 - ComputeReceiptInput: Input for creating a receipt with extended fields.
-- DatasetReceipt: C:\Lucid-L2\docs\modules\receipt.md
+- DatasetReceipt: /home/debian/Lucid/Lucid-L2/docs/modules/receipt.md
 - DatasetReceiptBody: Dataset receipt body — the data that gets hashed.
-- DatasetReceiptInput: C:\Lucid-L2\docs\modules\receipt.md
-- InferenceReceipt: C:\Lucid-L2\docs\modules\receipt.md
+- DatasetReceiptInput: /home/debian/Lucid/Lucid-L2/docs/modules/receipt.md
+- InferenceReceipt: /home/debian/Lucid/Lucid-L2/docs/modules/receipt.md
 - InferenceReceiptBody: Receipt body - the data that gets hashed for receipt_hash.
-- InferenceReceiptInput: C:\Lucid-L2\docs\modules\receipt.md
-- MemoryReceipt: C:\Lucid-L2\docs\modules\receipt.md
-- MemoryReceiptBody: C:\Lucid-L2\docs\modules\receipt.md
+- InferenceReceiptInput: /home/debian/Lucid/Lucid-L2/docs/modules/receipt.md
+- MemoryReceipt: /home/debian/Lucid/Lucid-L2/docs/modules/receipt.md
+- MemoryReceiptBody: /home/debian/Lucid/Lucid-L2/docs/modules/receipt.md
 - ReceiptCreateOptions: Options for the unified createReceipt function
-- ReceiptVerifyResult: C:\Lucid-L2\docs\modules\receipt.md
-- SerializedMMRProof: C:\Lucid-L2\docs\modules\receipt.md
-- ToolReceipt: C:\Lucid-L2\docs\modules\receipt.md
+- ReceiptVerifyResult: /home/debian/Lucid/Lucid-L2/docs/modules/receipt.md
+- SerializedMMRProof: /home/debian/Lucid/Lucid-L2/docs/modules/receipt.md
+- ToolReceipt: /home/debian/Lucid/Lucid-L2/docs/modules/receipt.md
 - ToolReceiptBody: Tool receipt body — the data that gets hashed.
-- ToolReceiptInput: C:\Lucid-L2\docs\modules\receipt.md
+- ToolReceiptInput: /home/debian/Lucid/Lucid-L2/docs/modules/receipt.md
 - Receipt: alias
 - ReceiptType: alias
-- AgentEpochData: C:\Lucid-L2\docs\modules\epoch.md
-- AnchoringConfig: C:\Lucid-L2\docs\modules\epoch.md
-- AnchoringHealth: C:\Lucid-L2\docs\modules\epoch.md
-- AnchorResult: C:\Lucid-L2\docs\modules\epoch.md
-- Epoch: C:\Lucid-L2\docs\modules\epoch.md
-- EpochConfig: C:\Lucid-L2\docs\modules\epoch.md
-- EpochFilters: C:\Lucid-L2\docs\modules\epoch.md
-- EpochSummary: C:\Lucid-L2\docs\modules\epoch.md
+- AgentEpochData: /home/debian/Lucid/Lucid-L2/docs/modules/epoch.md
+- AnchoringConfig: /home/debian/Lucid/Lucid-L2/docs/modules/epoch.md
+- AnchoringHealth: /home/debian/Lucid/Lucid-L2/docs/modules/epoch.md
+- AnchorResult: /home/debian/Lucid/Lucid-L2/docs/modules/epoch.md
+- Epoch: /home/debian/Lucid/Lucid-L2/docs/modules/epoch.md
+- EpochConfig: /home/debian/Lucid/Lucid-L2/docs/modules/epoch.md
+- EpochFilters: /home/debian/Lucid/Lucid-L2/docs/modules/epoch.md
+- EpochSummary: /home/debian/Lucid/Lucid-L2/docs/modules/epoch.md
 - MMRCommitResult: MMR Service for Lucid L2
-- PaginatedEpochs: C:\Lucid-L2\docs\modules\epoch.md
-- VerifyAnchorResult: C:\Lucid-L2\docs\modules\epoch.md
-- AirdropResult: C:\Lucid-L2\docs\modules\payment.md
-- AssetPricing: C:\Lucid-L2\docs\modules\payment.md
-- ChainConfig: C:\Lucid-L2\docs\modules\payment.md
-- CoinbaseFacilitatorConfig: C:\Lucid-L2\docs\modules\payment.md
-- DirectFacilitatorConfig: C:\Lucid-L2\docs\modules\payment.md
-- DisputeInfo: C:\Lucid-L2\docs\modules\payment.md
-- EscrowInfo: C:\Lucid-L2\docs\modules\payment.md
-- EscrowParams: C:\Lucid-L2\docs\modules\payment.md
-- EvidenceSubmission: C:\Lucid-L2\docs\modules\payment.md
-- PayAIFacilitatorConfig: C:\Lucid-L2\docs\modules\payment.md
-- PaymentExpectation: C:\Lucid-L2\docs\modules\payment.md
-- PaymentGrant: C:\Lucid-L2\docs\modules\payment.md
-- PaymentInstructions: C:\Lucid-L2\docs\modules\payment.md
-- PaymentParams: C:\Lucid-L2\docs\modules\payment.md
-- PaymentProof: C:\Lucid-L2\docs\modules\payment.md
-- RecordRevenueParams: C:\Lucid-L2\docs\modules\payment.md
-- ResolveParams: C:\Lucid-L2\docs\modules\payment.md
-- RevenueInfo: C:\Lucid-L2\docs\modules\payment.md
-- SetPricingParams: C:\Lucid-L2\docs\modules\payment.md
-- SpentProofsStore: C:\Lucid-L2\docs\modules\payment.md
-- SplitRecipient: C:\Lucid-L2\docs\modules\payment.md
-- SplitResolution: C:\Lucid-L2\docs\modules\payment.md
-- SplitResolverConfig: C:\Lucid-L2\docs\modules\payment.md
-- TokenConfig: C:\Lucid-L2\docs\modules\payment.md
-- VerificationResult: C:\Lucid-L2\docs\modules\payment.md
-- WithdrawResult: C:\Lucid-L2\docs\modules\payment.md
-- X402Facilitator: C:\Lucid-L2\docs\modules\payment.md
-- X402ResponseV2: C:\Lucid-L2\docs\modules\payment.md
+- PaginatedEpochs: /home/debian/Lucid/Lucid-L2/docs/modules/epoch.md
+- VerifyAnchorResult: /home/debian/Lucid/Lucid-L2/docs/modules/epoch.md
+- AirdropResult: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- AssetPricing: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- ChainConfig: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- CoinbaseFacilitatorConfig: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- DirectFacilitatorConfig: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- DisputeInfo: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- EscrowInfo: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- EscrowParams: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- EvidenceSubmission: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- PayAIFacilitatorConfig: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- PaymentExpectation: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- PaymentGrant: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- PaymentInstructions: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- PaymentParams: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- PaymentProof: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- RecordRevenueParams: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- ResolveParams: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- RevenueInfo: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- SetPricingParams: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- SpentProofsStore: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- SplitRecipient: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- SplitResolution: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- SplitResolverConfig: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- TokenConfig: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- VerificationResult: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- WithdrawResult: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- X402Facilitator: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
+- X402ResponseV2: /home/debian/Lucid/Lucid-L2/docs/modules/payment.md
 - DisputeStatus: enum
 - EscrowStatus: enum
-- A2AClientOptions: C:\Lucid-L2\docs\modules\compute.md
-- A2AMessage: C:\Lucid-L2\docs\modules\compute.md
-- A2APart: C:\Lucid-L2\docs\modules\compute.md
-- A2ATask: C:\Lucid-L2\docs\modules\compute.md
-- A2ATaskStore: C:\Lucid-L2\docs\modules\compute.md
+- A2AClientOptions: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
+- A2AMessage: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
+- A2APart: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
+- A2ATask: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
+- A2ATaskStore: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
 - AgentCard: A2A Agent Card Generator
-- AgentCardSkill: C:\Lucid-L2\docs\modules\compute.md
-- AgentConfig: C:\Lucid-L2\docs\modules\compute.md
-- AgentDescriptor: C:\Lucid-L2\docs\modules\compute.md
-- AgentRevenuePool: C:\Lucid-L2\docs\modules\compute.md
-- ChannelConfig: C:\Lucid-L2\docs\modules\compute.md
-- DeployAgentInput: C:\Lucid-L2\docs\modules\compute.md
-- DeployAgentResult: C:\Lucid-L2\docs\modules\compute.md
+- AgentCardSkill: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
+- AgentConfig: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
+- AgentDescriptor: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
+- AgentRevenuePool: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
+- ChannelConfig: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
+- DeployAgentInput: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
+- DeployAgentResult: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
 - DeploymentConfig: Configuration for a deployment
 - DeploymentResult: Result of a deploy operation
 - DeploymentStatus: Current status of a deployment
-- Guardrail: C:\Lucid-L2\docs\modules\compute.md
-- HandoffRule: C:\Lucid-L2\docs\modules\compute.md
+- Guardrail: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
+- HandoffRule: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
 - IDeployer: Deployer interface — all deployment providers implement this.
 - IRuntimeAdapter: Runtime Adapter Interface
 - LogOptions: Options for fetching deployment logs
-- MonetizationConfig: C:\Lucid-L2\docs\modules\compute.md
+- MonetizationConfig: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
 - RuntimeArtifact: Agent runtime artifact — the output of code generation, input to deployment
-- SpendingLimits: C:\Lucid-L2\docs\modules\compute.md
-- StopCondition: C:\Lucid-L2\docs\modules\compute.md
-- WalletConfig: C:\Lucid-L2\docs\modules\compute.md
+- SpendingLimits: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
+- StopCondition: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
+- WalletConfig: /home/debian/Lucid/Lucid-L2/docs/modules/compute.md
 - A2ATaskState: alias
 - DeploymentStatusType: alias
-- CreateDeploymentEvent: C:\Lucid-L2\docs\modules\deployment.md
-- CreateDeploymentEvent: C:\Lucid-L2\docs\modules\deployment.md
-- CreateDeploymentInput: C:\Lucid-L2\docs\modules\deployment.md
-- CreateDeploymentInput: C:\Lucid-L2\docs\modules\deployment.md
-- Deployment: C:\Lucid-L2\docs\modules\deployment.md
-- Deployment: C:\Lucid-L2\docs\modules\deployment.md
-- DeploymentEvent: C:\Lucid-L2\docs\modules\deployment.md
-- DeploymentEvent: C:\Lucid-L2\docs\modules\deployment.md
-- DeploymentFilters: C:\Lucid-L2\docs\modules\deployment.md
-- DeploymentFilters: C:\Lucid-L2\docs\modules\deployment.md
-- IDeploymentStore: C:\Lucid-L2\docs\modules\deployment.md
-- IDeploymentStore: C:\Lucid-L2\docs\modules\deployment.md
+- CreateDeploymentEvent: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- CreateDeploymentEvent: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- CreateDeploymentInput: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- CreateDeploymentInput: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- Deployment: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- Deployment: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- DeploymentEvent: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- DeploymentEvent: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- DeploymentFilters: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- DeploymentFilters: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- IDeploymentStore: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- IDeploymentStore: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
 - IProviderNormalizer: Per-provider normalizer.
 - IProviderNormalizer: Per-provider normalizer.
 - ISecretsResolver: Resolves secret references to their actual values.
 - ISecretsResolver: Resolves secret references to their actual values.
-- LeaseConfig: C:\Lucid-L2\docs\modules\deployment.md
-- LeaseConfig: C:\Lucid-L2\docs\modules\deployment.md
-- MappedProviderStatus: C:\Lucid-L2\docs\modules\deployment.md
-- MappedProviderStatus: C:\Lucid-L2\docs\modules\deployment.md
+- LeaseConfig: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- LeaseConfig: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- MappedProviderStatus: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- MappedProviderStatus: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
 - NormalizedProviderEvent: Standard shape for provider webhook callbacks.
 - NormalizedProviderEvent: Standard shape for provider webhook callbacks.
-- ProviderCapabilities: C:\Lucid-L2\docs\modules\deployment.md
-- ProviderCapabilities: C:\Lucid-L2\docs\modules\deployment.md
-- ReconcilerConfig: C:\Lucid-L2\docs\modules\deployment.md
-- ReconcilerConfig: C:\Lucid-L2\docs\modules\deployment.md
+- ProviderCapabilities: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- ProviderCapabilities: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- ReconcilerConfig: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- ReconcilerConfig: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
 - RolloutConfig: Configuration for blue-green rollout behavior.
 - RolloutConfig: Configuration for blue-green rollout behavior.
-- SweepResult: C:\Lucid-L2\docs\modules\deployment.md
-- SweepResult: C:\Lucid-L2\docs\modules\deployment.md
-- WebhookResult: C:\Lucid-L2\docs\modules\deployment.md
-- WebhookResult: C:\Lucid-L2\docs\modules\deployment.md
-- AnchorRecord: C:\Lucid-L2\docs\modules\anchoring.md
-- AnchorRequest: C:\Lucid-L2\docs\modules\anchoring.md
-- AnchorResult: C:\Lucid-L2\docs\modules\anchoring.md
-- IAnchorRegistry: C:\Lucid-L2\docs\modules\anchoring.md
-- ExternalFeedback: C:\Lucid-L2\docs\modules\reputation.md
-- ExternalSummary: C:\Lucid-L2\docs\modules\reputation.md
-- FeedbackParams: C:\Lucid-L2\docs\modules\reputation.md
-- IReputationProvider: C:\Lucid-L2\docs\modules\reputation.md
-- IReputationSyncer: C:\Lucid-L2\docs\modules\reputation.md
-- ReadOptions: C:\Lucid-L2\docs\modules\reputation.md
-- ReputationData: C:\Lucid-L2\docs\modules\reputation.md
-- ReputationSummary: C:\Lucid-L2\docs\modules\reputation.md
-- TxReceipt: C:\Lucid-L2\docs\modules\reputation.md
-- ValidationParams: C:\Lucid-L2\docs\modules\reputation.md
-- ValidationResult: C:\Lucid-L2\docs\modules\reputation.md
+- SweepResult: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- SweepResult: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- WebhookResult: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- WebhookResult: /home/debian/Lucid/Lucid-L2/docs/modules/deployment.md
+- AnchorRecord: /home/debian/Lucid/Lucid-L2/docs/modules/anchoring.md
+- AnchorRequest: /home/debian/Lucid/Lucid-L2/docs/modules/anchoring.md
+- AnchorResult: /home/debian/Lucid/Lucid-L2/docs/modules/anchoring.md
+- IAnchorRegistry: /home/debian/Lucid/Lucid-L2/docs/modules/anchoring.md
+- ExternalFeedback: /home/debian/Lucid/Lucid-L2/docs/modules/reputation.md
+- ExternalSummary: /home/debian/Lucid/Lucid-L2/docs/modules/reputation.md
+- FeedbackParams: /home/debian/Lucid/Lucid-L2/docs/modules/reputation.md
+- IReputationProvider: /home/debian/Lucid/Lucid-L2/docs/modules/reputation.md
+- IReputationSyncer: /home/debian/Lucid/Lucid-L2/docs/modules/reputation.md
+- ReadOptions: /home/debian/Lucid/Lucid-L2/docs/modules/reputation.md
+- ReputationData: /home/debian/Lucid/Lucid-L2/docs/modules/reputation.md
+- ReputationSummary: /home/debian/Lucid/Lucid-L2/docs/modules/reputation.md
+- TxReceipt: /home/debian/Lucid/Lucid-L2/docs/modules/reputation.md
+- ValidationParams: /home/debian/Lucid/Lucid-L2/docs/modules/reputation.md
+- ValidationResult: /home/debian/Lucid/Lucid-L2/docs/modules/reputation.md
 
 ## Stack
 - TypeScript 5.0, Node.js 20+, Express 4.18

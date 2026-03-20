@@ -12,10 +12,8 @@ export const DOMAIN_ALLOWLIST = [
   'identity',
   'memory',
   'receipt',
-  'epoch',
   'payment',
   'compute',
-  'deployment',
   'anchoring',
   'reputation',
 ] as const;
