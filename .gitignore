@@ -71,3 +71,4 @@ contracts/artifacts/
 internal/legacy/data/
 test-ledger/
 target/
+tools/docs/cache/
