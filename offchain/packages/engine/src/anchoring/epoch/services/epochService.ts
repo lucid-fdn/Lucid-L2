@@ -377,6 +377,12 @@ export function addReceiptToEpoch(run_id: string, project_id?: string): void {
   epoch.leaf_count++;
   receiptToEpoch.set(run_id, epoch.epoch_id);
 
+  // Fix start_leaf_index on first receipt (MMR leaf was added before epoch routing)
+  const rcpt = getInferenceReceipt(run_id);
+  if (rcpt?._mmr_leaf_index !== undefined && epoch.leaf_count === 1) {
+    epoch.start_leaf_index = rcpt._mmr_leaf_index;
+  }
+
   // Update MMR root snapshot
   epoch.mmr_root = getMmrRoot();
 
