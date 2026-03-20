@@ -66,3 +66,8 @@ sdk/.speakeasy/
 .worktrees/
 offchain/data/
 contracts/artifacts/
+
+# Runtime data (passport store, test artifacts)
+internal/legacy/data/
+test-ledger/
+target/
