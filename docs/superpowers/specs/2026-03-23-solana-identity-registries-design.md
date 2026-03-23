@@ -1,8 +1,8 @@
-# Solana Multi-Registry Identity Integration
+# Solana Multi-Registry Identity Projection
 
 **Date:** 2026-03-23
-**Status:** Approved
-**Scope:** Metaplex `mpl-agent-registry` + QuantuLabs `8004-solana` — registry-agnostic identity layer for AI agents on Solana
+**Status:** Approved (v2 — revised after architectural review)
+**Scope:** Metaplex `mpl-agent-registry` + QuantuLabs `8004-solana` — async projection layer for AI agent identity on Solana
 
 ## Problem
 
@@ -12,42 +12,71 @@ Solana's agent identity landscape has multiple competing registries. Lucid curre
 - **QuantuLabs** — reputation sync only (`Solana8004Syncer`), no identity registration
 - **Lucid `lucid_passports`** — canonical passport registry, always the source of truth
 
-Missing: an abstraction that lets Lucid register agent identity on external Solana registries and project passport data to them for discoverability.
+Missing: an abstraction that lets Lucid project passport identity to external Solana registries asynchronously, without coupling passport creation to external registry availability.
 
 ## Design Decisions
 
-1. **Separate interfaces, shared internals (Approach B)** — `ISolanaIdentityRegistry` for identity registration, `IReputationSyncer` for reputation sync. Implementations for the same registry share an SDK connection internally.
+1. **Separate interfaces, shared internals** — `ISolanaIdentityRegistry` for identity projection, `IReputationSyncer` for reputation sync. Implementations for the same registry share an SDK connection internally.
 
-2. **Registry-per-module (Approach 1)** — Each registry (Metaplex, QuantuLabs) gets its own directory containing identity provider, reputation syncer, and shared connection. Co-located for clarity.
+2. **Registry-per-module** — Each registry (Metaplex, QuantuLabs) gets its own directory containing connection + identity + reputation. Co-located for clarity.
 
-3. **Two registries only** — Metaplex + QuantuLabs. SATI/SAID stubs stay in `reputation/syncers/` unchanged — they're reputation-only placeholders with no identity registration capability.
+3. **Two registries only** — Metaplex + QuantuLabs. SATI/SAID stubs stay in `reputation/syncers/` unchanged.
 
-4. **External registries are projections** — `lucid_passports` is always canonical. External registration is fire-and-forget; failure never blocks passport creation.
+4. **External registries are projections** — `lucid_passports` is always canonical. External registration never blocks passport creation. Projections are async, retryable, observable.
+
+5. **Async job-driven projection** — Passport creation writes canonical state synchronously. NFT minting + external registry projection happen in a background job. No user request depends on external registry availability.
+
+6. **Single registration doc builder** — One centralized function builds `ERC8004RegistrationDoc` from `Passport`. Registry adapters only handle transport and registry-specific publishing. No drift between registries.
+
+7. **Capability model** — Registries declare what they support via a `capabilities` object, not via returning `null` for unsupported methods.
 
 ## Type Imports
 
-- `AssetType` — imported from `reputation/types` (consistent with `IReputationSyncer`). Both `PassportType` in `identity/stores/passportStore.ts` and `AssetType` in `reputation/types.ts` are structurally identical (`'model' | 'compute' | 'tool' | 'agent' | 'dataset'`). We import from reputation to stay consistent with the syncer pattern. If this becomes a problem, extract to `shared/types/` later.
-- `Passport` — imported from `identity/stores/passportStore.ts`.
-- `TxReceipt` — imported from `reputation/types`.
-- `ERC8004AgentMetadata` — imported from `identity/registries/types.ts`.
+- `AssetType` — from `reputation/types` (consistent with `IReputationSyncer`). Structurally identical to `PassportType`.
+- `Passport` — from `identity/stores/passportStore.ts`.
+- `TxReceipt` — from `reputation/types`.
+- `ERC8004AgentMetadata` — from `identity/registries/types.ts`.
 
 ## Interface
 
 ```typescript
+interface RegistryCapabilities {
+  register: boolean;
+  resolve: boolean;
+  sync: boolean;
+  deregister: boolean;
+}
+
 interface ISolanaIdentityRegistry {
   readonly registryName: string;              // 'metaplex' | 'quantulabs'
   readonly supportedAssetTypes: AssetType[];  // both: ['agent'] today
+  readonly capabilities: RegistryCapabilities;
 
-  register(passport: Passport, options?: RegistrationOptions): Promise<RegistrationResult | null>;
+  // Project a Lucid passport to this external registry
+  register(passport: Passport, options?: RegistrationOptions): Promise<RegistrationResult>;
+
+  // Resolve an agent's identity from this registry
   resolve(agentId: string): Promise<ExternalIdentity | null>;
-  update(agentId: string, metadata: Partial<RegistrationMetadata>): Promise<TxReceipt | null>;
+
+  // Re-project current passport state to this registry (rebuild doc from canonical, push)
+  sync(passport: Passport): Promise<TxReceipt | null>;
+
+  // Remove from this registry (only if capabilities.deregister === true)
   deregister(agentId: string): Promise<TxReceipt | null>;
+
+  // Health check
   isAvailable(): Promise<boolean>;
 }
+```
 
+**Key change from v1:** `update(agentId, metadata)` replaced with `sync(passport)`. Projections are always rebuilt from canonical passport state. No partial external metadata — eliminates drift risk.
+
+**Capability model:** Callers check `registry.capabilities.deregister` before calling `deregister()`. Calling a method when `capabilities.X === false` throws `RegistryCapabilityError`. No more null-return semantics for unsupported operations.
+
+```typescript
 interface RegistrationOptions {
   skipIfExists?: boolean;
-  registrationDocUri?: string;
+  registrationDocUri?: string;  // pre-uploaded doc URI (skip DePIN upload)
 }
 
 interface RegistrationResult {
@@ -64,26 +93,50 @@ interface ExternalIdentity {
   metadata: ERC8004RegistrationDoc;
   registrationDocUri?: string;
 }
+```
 
-// Extends ERC8004AgentMetadata with structured services (matching the Metaplex registration doc format)
+## Registration Doc Builder (Centralized)
+
+One function, used by all registries. No registry builds its own doc.
+
+```typescript
+// registration-doc/buildRegistrationDoc.ts
+
+function buildRegistrationDocFromPassport(
+  passport: Passport,
+  options?: { agentRegistry?: string }
+): ERC8004RegistrationDoc {
+  return {
+    type: 'https://eips.ethereum.org/EIPS/eip-8004#registration-v1',
+    name: passport.name ?? passport.metadata?.name ?? passport.passport_id,
+    description: passport.description ?? passport.metadata?.description ?? '',
+    capabilities: mapAssetTypeToCapabilities(passport.type),
+    services: mapEndpointsToServices(passport.metadata?.endpoints),
+    registrations: passport.nft_mint
+      ? [{ agentId: passport.nft_mint, agentRegistry: options?.agentRegistry ?? 'solana:101:metaplex' }]
+      : [],
+    supportedTrust: ['reputation'],
+    active: passport.status === 'active',
+  };
+}
+```
+
+**Mapping rules:**
+- `passport.type` → capabilities: `agent` → `["autonomous"]`, `model` → `["inference"]`, `tool` → `["integration"]`, `compute` → `["execution"]`, `dataset` → `["data"]`
+- `passport.metadata.endpoints` → services array. Endpoints are `Record<string, any>` set via `PassportManager.updateEndpoints()`. Keys are endpoint names, values contain `url`, `type` (mcp/a2a/web/rest). If no endpoints, `services` is `[]`.
+- `supportedTrust` always includes `"reputation"` — Lucid backs it with traffic data.
+
+```typescript
+// registration-doc/types.ts
+
 interface ERC8004RegistrationDoc extends ERC8004AgentMetadata {
-  type: string;  // "https://eips.ethereum.org/EIPS/eip-8004#registration-v1"
+  type: string;
   services?: Array<{ name: string; endpoint: string; version?: string; skills?: string[]; domains?: string[] }>;
   registrations?: Array<{ agentId: string; agentRegistry: string }>;
   supportedTrust?: string[];
   active?: boolean;
 }
-
-interface RegistrationMetadata {
-  name: string;
-  description: string;
-  services?: Array<{ name: string; endpoint: string; version?: string; skills?: string[] }>;
-  supportedTrust?: string[];
-  image?: string;
-}
 ```
-
-**Note on `register()` return type:** Returns `RegistrationResult | null`. `null` when the registry doesn't support identity registration (e.g., QuantuLabs SDK is reputation-only). Callers must check `isAvailable()` or null-guard the result.
 
 ## Metaplex Implementation
 
@@ -93,33 +146,38 @@ Shared lazy-loaded Umi instance with `mplCore()` + `mplAgentIdentity()` plugins.
 
 New dependency: `@metaplex-foundation/mpl-agent-registry`
 
+```typescript
+// metaplex/connection.ts — module-level singleton
+let _conn: MetaplexConnection | null = null;
+export function getMetaplexConnection(): MetaplexConnection {
+  if (!_conn) _conn = new MetaplexConnection();
+  return _conn;
+}
+export function resetMetaplexConnection(): void { _conn = null; }
+```
+
 ### MetaplexIdentityRegistry
+
+```typescript
+capabilities: { register: true, resolve: true, sync: true, deregister: false }
+```
 
 **`register(passport)`:**
 
-Requires `passport.nft_mint` to be set (the Metaplex Core asset must already exist). If `nft_mint` is null, logs a warning and returns `null` — the NFT mint must complete before identity registration.
+Requires `passport.nft_mint` to be set (the Core asset must already exist). Throws if `nft_mint` is null — callers (the projection job) ensure this precondition.
 
-1. Build `ERC8004RegistrationDoc` from passport metadata:
-   - `type`: `"https://eips.ethereum.org/EIPS/eip-8004#registration-v1"`
-   - `name`: `passport.name ?? passport.metadata?.name ?? passport.passport_id`
-   - `description`: `passport.description ?? passport.metadata?.description ?? ''`
-   - Map `passport.type` → capabilities (`agent` → `["autonomous"]`, `model` → `["inference"]`, `tool` → `["integration"]`)
-   - Map `passport.metadata.endpoints` → services array. Endpoints live in `passport.metadata.endpoints` (a `Record<string, any>` set via `PassportManager.updateEndpoints()`). Keys are endpoint names, values contain `url`, `type` (mcp/a2a/web/rest). If no endpoints, `services` is empty array.
-   - Add `registrations: [{ agentId: passport.nft_mint, agentRegistry: "solana:101:metaplex" }]`
-   - Add `supportedTrust: ["reputation"]` (Lucid backs it)
-   - `active: passport.status === 'active'`
-2. Upload registration doc to DePIN via `AnchorDispatcher.dispatch()` (artifact type: `agent_registration`, permanent tier)
+1. Build `ERC8004RegistrationDoc` via `buildRegistrationDocFromPassport(passport, { agentRegistry: 'solana:101:metaplex' })`
+2. Upload registration doc to DePIN via `AnchorDispatcher.dispatch()` (artifact: `agent_registration`, permanent tier)
 3. Call `registerIdentityV1(umi, { asset: passport.nft_mint, collection, agentRegistrationUri })`
 4. One-time: `registerExecutiveV1()` for Lucid operator wallet (check PDA exists first, cache flag)
 5. `delegateExecutionV1()` for this agent → Lucid's executive profile
-6. Store result on passport (see "Persisting Registration Results" section below)
-7. Return `RegistrationResult`
+6. Return `RegistrationResult`
 
 **`resolve(agentId)`:** `findAgentIdentityV1Pda()` → fetch registration doc → parse as `ExternalIdentity`
 
-**`update(agentId, metadata)`:** Re-upload registration doc, update Core asset URI via `updateV1()`
+**`sync(passport)`:** Rebuild doc via `buildRegistrationDocFromPassport()`, re-upload to DePIN, update Core asset URI via `updateV1()`. Always rebuilds from canonical passport — never accepts partial external metadata.
 
-**`deregister(agentId)`:** Not supported by `mpl-agent-registry` (one-time registration). Returns `null`.
+**`deregister(agentId)`:** Throws `RegistryCapabilityError` — Metaplex registration is permanent.
 
 ### MetaplexReputationSyncer (implements IReputationSyncer)
 
@@ -128,7 +186,7 @@ Reads/writes reputation via the Core asset's Attributes plugin:
 - **`pullFeedback()`:** Read `reputation:*` attribute keys → map to `ExternalFeedback[]`
 - **`pullSummary()`:** Read `reputation:avg_score`, `reputation:feedback_count`
 - **`pushFeedback()`:** Call `syncReputationPlugin()` via shared connection (existing prep code, now wired)
-- **`resolveExternalId(passportId)`:** Looks up `nft_mint` via `getPassportStore().get(passportId)`. Returns `passport.nft_mint` or `null` if no NFT minted. Constructor takes a `mintLookup: (passportId: string) => Promise<string | null>` function to avoid a direct `PassportStore` dependency — the factory injects `async (id) => (await getPassportStore().get(id))?.nft_mint ?? null`.
+- **`resolveExternalId(passportId)`:** Uses injected `mintLookup: (passportId: string) => Promise<string | null>` to resolve `passportId → nft_mint`. Factory injects `async (id) => (await getPassportStore().get(id))?.nft_mint ?? null`. Returns `null` if no NFT minted.
 
 ## QuantuLabs Implementation
 
@@ -136,14 +194,53 @@ Reads/writes reputation via the Core asset's Attributes plugin:
 
 Shared lazy-loaded `SolanaSDK` instance from `8004-solana` (already in package.json ^0.8.0).
 
+```typescript
+// quantulabs/connection.ts — module-level singleton
+let _conn: QuantuLabsConnection | null = null;
+export function getQuantuLabsConnection(): QuantuLabsConnection {
+  if (!_conn) _conn = new QuantuLabsConnection();
+  return _conn;
+}
+export function resetQuantuLabsConnection(): void { _conn = null; }
+```
+
+**Capability detection** happens in the connection layer, not via method-existence checks:
+
+```typescript
+class QuantuLabsConnection {
+  readonly capabilities = {
+    identityRegistration: false,  // set to true if SDK exposes register()
+    reputation: true,
+  };
+
+  constructor() {
+    const sdk = this.getSDK();
+    this.capabilities.identityRegistration = typeof sdk?.register === 'function';
+  }
+}
+```
+
 ### QuantuLabsIdentityRegistry
 
-Uses SDK registration methods if available (`sdk.register()`, `sdk.getAgent()`, `sdk.updateAgent()`). If SDK is reputation-only:
+Capabilities derived from connection:
 
-- `register()` returns `null` (return type is `RegistrationResult | null`)
-- `resolve()` returns `null`
-- `isAvailable()` returns `false` for identity, `true` for reputation (the connection is still useful for the syncer)
-- A `hasIdentitySupport` readonly boolean on the class indicates whether the SDK supports registration, detected at construction time by checking for `sdk.register` method existence
+```typescript
+get capabilities(): RegistryCapabilities {
+  return {
+    register: this.connection.capabilities.identityRegistration,
+    resolve: this.connection.capabilities.identityRegistration,
+    sync: this.connection.capabilities.identityRegistration,
+    deregister: false,
+  };
+}
+```
+
+If `capabilities.register === false`, calling `register()` throws `RegistryCapabilityError`. The projection job checks capabilities before calling.
+
+When registration IS supported:
+- **`register(passport)`:** Build doc via `buildRegistrationDocFromPassport()` → `sdk.register(passportId, doc)`
+- **`resolve(agentId)`:** `sdk.getAgent(agentId)`
+- **`sync(passport)`:** Rebuild doc → `sdk.updateAgent(passportId, doc)`
 
 ### QuantuLabsReputationSyncer (replaces Solana8004Syncer)
 
@@ -153,11 +250,97 @@ Direct refactor of existing `Solana8004Syncer` — identical behavior, shared `Q
 - `pullSummary()` → `sdk.getSummary(passportId)`
 - `pushFeedback()` → `sdk.giveFeedback(passportId, score, category)`
 
+## Async Projection Job
+
+**Core architectural change from v1:** External identity registration is NOT part of `createPassport()`. It is an async background job.
+
+```
+createPassport()                          syncExternalIdentity job
+─────────────────                         ──────────────────────────
+1. Validate + store passport              Triggered by: passport creation event
+2. Return immediately                     OR manual re-sync
+                                          OR periodic reconciliation
+
+                                          Steps:
+                                          1. Mint NFT if missing (nft_mint === null)
+                                          2. For each enabled registry:
+                                             a. Check capabilities.register
+                                             b. buildRegistrationDocFromPassport()
+                                             c. registry.register() or registry.sync()
+                                             d. Persist projection status
+                                          3. On failure: log, increment attempt_count, schedule retry
+```
+
+### Job: `syncExternalIdentity`
+
+Located in `engine/src/identity/projections/jobs/syncExternalIdentity.ts`.
+
+**Triggers:**
+- Passport creation (via existing event system or direct call from PassportManager after store write)
+- Passport update (metadata change, status change, endpoint update)
+- Manual re-sync (CLI or API)
+- Periodic reconciliation (optional, env-controlled)
+
+**Idempotency:** Uses `skipIfExists` for registration. For sync, always rebuilds from canonical. Safe to run multiple times.
+
+**Retry:** On failure, logs error with passport_id + registry_name, increments `attempt_count` in projection status. Configurable retry with backoff (env: `IDENTITY_PROJECTION_MAX_RETRIES`, default: 3).
+
+### Job: `syncExternalReputation`
+
+Located in `engine/src/identity/projections/jobs/syncExternalReputation.ts`.
+
+Pushes reputation updates to external registries. Triggered by reputation changes (new feedback, score recalculation). Uses the existing `IReputationSyncer.pushFeedback()` mechanism.
+
+## Projection Status Persistence
+
+### V1: Summary cache on Passport (now)
+
+Add an optional field to `Passport` — this is a **read cache/summary**, not the operational ledger:
+
+```typescript
+// In passportStore.ts
+external_registrations?: Record<string, {
+  externalId: string;
+  txSignature: string;
+  registrationDocUri?: string;
+  registeredAt: number;
+  lastSyncedAt: number;
+  status: 'synced' | 'failed' | 'pending';
+}>;
+// Key is registryName (e.g., 'metaplex', 'quantulabs')
+```
+
+Useful for fast reads ("is this passport on Metaplex?") and for `resolve()` to use `externalId` without hitting the chain.
+
+### V2: Dedicated projection table (later)
+
+When retries, version drift, and multi-attempt tracking become important:
+
+```sql
+CREATE TABLE passport_external_projections (
+  id UUID PRIMARY KEY,
+  passport_id TEXT NOT NULL,
+  registry_name TEXT NOT NULL,
+  external_id TEXT,
+  tx_signature TEXT,
+  registration_doc_uri TEXT,
+  status TEXT NOT NULL,  -- 'pending' | 'synced' | 'failed'
+  last_synced_at TIMESTAMPTZ,
+  last_error TEXT,
+  attempt_count INT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (passport_id, registry_name)
+);
+```
+
+V1 summary field becomes a materialized view of this table. Not in scope for this implementation — flagged for when operational needs arise.
+
 ## Factory & Wiring
 
 ### Identity Registry Factory
 
 ```typescript
+// factory.ts
 // env: IDENTITY_REGISTRIES=metaplex,quantulabs (default: empty — opt-in)
 
 let _registries: ISolanaIdentityRegistry[] | null = null;
@@ -172,12 +355,12 @@ function getIdentityRegistries(): ISolanaIdentityRegistry[] {
   for (const name of names) {
     switch (name) {
       case 'metaplex': {
-        const conn = getMetaplexConnection(); // module-level singleton
+        const conn = getMetaplexConnection();
         _registries.push(new MetaplexIdentityRegistry(conn));
         break;
       }
       case 'quantulabs': {
-        const conn = getQuantuLabsConnection(); // module-level singleton
+        const conn = getQuantuLabsConnection();
         _registries.push(new QuantuLabsIdentityRegistry(conn));
         break;
       }
@@ -191,89 +374,63 @@ function resetIdentityRegistryFactory(): void {
 }
 ```
 
-**Connection sharing mechanism:** Each registry module exports a `get<Name>Connection()` singleton function (e.g., `getMetaplexConnection()` from `metaplex/MetaplexConnection.ts`). Both the identity registry and reputation syncer call the same function, ensuring one SDK connection per registry regardless of which factory initializes first.
+**Connection sharing:** Each registry module exports `get<Name>Connection()` singleton. Both identity and reputation code call the same function — one SDK connection per registry.
 
 ### Reputation Factory Changes
 
 - New case `'metaplex'` → `new MetaplexReputationSyncer(getMetaplexConnection(), mintLookup)`
 - Case `'8004'` → `new QuantuLabsReputationSyncer(getQuantuLabsConnection())` (backward-compatible)
-- Connection sharing: both factories call the same `get<Name>Connection()` singletons — no dedup logic needed, the module-level singletons handle it
 
 ### PassportManager Integration
 
-The NFT mint in `createPassport()` is currently fire-and-forget (`.catch()`). Identity registration requires `nft_mint` to be set (at least for Metaplex). Two options:
-
-**Chosen: await the NFT mint, then register.** Change the NFT mint from fire-and-forget to awaited. If NFT mint fails, passport is still created (existing behavior), but identity registration is skipped. If NFT mint succeeds, identity registration runs as a follow-up fire-and-forget:
+**No changes to `createPassport()` hot path.** Passport creation stays synchronous (store write only). The projection job is triggered after:
 
 ```typescript
-// Step 1: NFT mint (now awaited instead of fire-and-forget)
-if (NFT_MINT_ON_CREATE) {
-  await this.attemptNFTMint(passport, chain);  // sets passport.nft_mint on success
-}
+// In passportManager.ts — after successful store write
+const passport = await this.store.create(input);
 
-// Step 2: External identity registration (fire-and-forget, requires nft_mint)
-const registries = getIdentityRegistries();
-for (const registry of registries) {
-  if (registry.supportedAssetTypes.includes(passport.type)) {
-    try {
-      const result = await registry.register(passport, { skipIfExists: true });
-      if (result) {
-        // Persist the registration (see section below)
-        await this.storeExternalRegistration(passport.passport_id, result);
-      }
-    } catch (err) {
-      logger.warn(`[Identity] ${registry.registryName} registration failed: ${err}`);
-    }
-  }
-}
+// Trigger async projection (non-blocking)
+this.triggerIdentityProjection(passport);
+
+return { ok: true, data: passport };
 ```
 
-Never blocks passport creation — passport is saved to store before this code runs. The NFT mint await only affects the identity registration step.
+`triggerIdentityProjection()` enqueues the `syncExternalIdentity` job. In V1 this can be a simple `setImmediate()` / `process.nextTick()` call. When the job infra matures, it becomes a proper queue entry.
 
-## Persisting Registration Results
-
-After `register()` returns a `RegistrationResult`, persist it on the passport. Add an optional field to `Passport`:
-
-```typescript
-// In passportStore.ts — new optional field
-external_registrations?: Record<string, {
-  externalId: string;
-  txSignature: string;
-  registrationDocUri?: string;
-  registeredAt: number;
-}>;
-// Key is registryName (e.g., 'metaplex', 'quantulabs')
-```
-
-`PassportManager.storeExternalRegistration()` calls `store.update(passportId, { external_registrations: merged })`. This allows:
-- Tracking which registries a passport is published to
-- `resolve()` can use the stored `externalId` instead of hitting the chain every time
-- `update()` knows where to push changes
+Similarly, `updatePassport()` and `updateEndpoints()` trigger re-projection via `sync()`.
 
 ## File Structure
 
 ### New Files
 
 ```
-engine/src/identity/registries/solana/
-  ISolanaIdentityRegistry.ts
-  factory.ts
-  index.ts
+engine/src/identity/projections/
+  ISolanaIdentityRegistry.ts          # Interface + RegistryCapabilities + types
+  factory.ts                          # getIdentityRegistries() singleton
+  index.ts                            # Barrel export
+  registration-doc/
+    buildRegistrationDoc.ts           # Centralized doc builder
+    types.ts                          # ERC8004RegistrationDoc
   metaplex/
-    MetaplexConnection.ts
-    MetaplexIdentityRegistry.ts
-    MetaplexReputationSyncer.ts
+    connection.ts                     # getMetaplexConnection() singleton
+    identity.ts                       # MetaplexIdentityRegistry
+    reputation.ts                     # MetaplexReputationSyncer
     index.ts
   quantulabs/
-    QuantuLabsConnection.ts
-    QuantuLabsIdentityRegistry.ts
-    QuantuLabsReputationSyncer.ts
+    connection.ts                     # getQuantuLabsConnection() singleton
+    identity.ts                       # QuantuLabsIdentityRegistry
+    reputation.ts                     # QuantuLabsReputationSyncer
     index.ts
+  jobs/
+    syncExternalIdentity.ts           # Async projection job (mint + register/sync)
+    syncExternalReputation.ts         # Async reputation push job
   __tests__/
+    buildRegistrationDoc.test.ts
     MetaplexIdentityRegistry.test.ts
     MetaplexReputationSyncer.test.ts
     QuantuLabsIdentityRegistry.test.ts
     QuantuLabsReputationSyncer.test.ts
+    syncExternalIdentity.test.ts
     factory.test.ts
 ```
 
@@ -281,9 +438,9 @@ engine/src/identity/registries/solana/
 
 | File | Change |
 |---|---|
-| `engine/src/identity/index.ts` | Re-export from `registries/solana/` |
-| `engine/src/identity/stores/passportStore.ts` | Add `external_registrations` field to `Passport` interface |
-| `engine/src/identity/passport/passportManager.ts` | Await NFT mint, add registry loop, add `storeExternalRegistration()` |
+| `engine/src/identity/index.ts` | Re-export from `projections/` |
+| `engine/src/identity/stores/passportStore.ts` | Add `external_registrations` summary cache field |
+| `engine/src/identity/passport/passportManager.ts` | Add `triggerIdentityProjection()` after store writes (non-blocking) |
 | `engine/src/reputation/index.ts` | Add `metaplex` case, redirect `8004` to new module |
 | `engine/package.json` | Add `@metaplex-foundation/mpl-agent-registry` |
 
@@ -291,44 +448,56 @@ engine/src/identity/registries/solana/
 
 | File | Reason |
 |---|---|
-| `engine/src/reputation/syncers/Solana8004Syncer.ts` | Replaced by `quantulabs/QuantuLabsReputationSyncer.ts` |
+| `engine/src/reputation/syncers/Solana8004Syncer.ts` | Replaced by `quantulabs/reputation.ts` |
 
 ### Migrated Tests
 
-`Solana8004Syncer.test.ts` → `QuantuLabsReputationSyncer.test.ts` (same test cases, new import paths)
+`Solana8004Syncer.test.ts` → `QuantuLabsReputationSyncer.test.ts` (same cases, new imports)
 
 ## Environment Variables
 
 | Variable | Values | Default | Purpose |
 |---|---|---|---|
-| `IDENTITY_REGISTRIES` | `metaplex,quantulabs` | (empty) | Which registries to publish to |
+| `IDENTITY_REGISTRIES` | `metaplex,quantulabs` | (empty) | Which registries to project to |
 | `METAPLEX_COLLECTION_ADDRESS` | pubkey | (existing) | Metaplex Core collection |
 | `REPUTATION_SYNCERS` | `8004,metaplex,evm,...` | (existing) | `8004` routes to QuantuLabs module |
+| `IDENTITY_PROJECTION_MAX_RETRIES` | number | `3` | Max retry attempts per projection |
 
 ## Backward Compatibility
 
 - `REPUTATION_SYNCERS=8004` keeps working (maps to QuantuLabs module)
 - `NFT_PROVIDER=metaplex-core` keeps working (`MetaplexCoreProvider` untouched)
 - No API endpoint changes
+- No changes to `createPassport()` latency — projection is async
 - External registration is opt-in (`IDENTITY_REGISTRIES` defaults to empty)
 
 ## Strategic Position
 
 ```
-lucid_passports (canonical, always)
-  ├── Metaplex mpl-agent-registry (projection for discoverability)
-  ├── QuantuLabs 8004-solana (projection for discoverability)
-  └── Future registries (add a directory, implement interface)
-
-Reputation flows:
-  Lucid gateway traffic → lucid_reputation (canonical)
-    ├── → Metaplex Core Attributes plugin (push)
-    ├── → QuantuLabs 8004-solana feedback (push)
-    ├── ← Metaplex plugin reads (pull)
-    └── ← QuantuLabs feedback reads (pull)
+lucid_passports (canonical, always, synchronous)
+  │
+  ├── Projection Layer (async, retryable, observable)
+  │   ├── Metaplex mpl-agent-registry
+  │   ├── QuantuLabs 8004-solana
+  │   └── Future registries (add a directory, implement interface)
+  │
+  └── Reputation Layer (bidirectional)
+      ├── → Metaplex Core Attributes plugin (push)
+      ├── → QuantuLabs 8004-solana feedback (push)
+      ├── ← Metaplex plugin reads (pull)
+      └── ← QuantuLabs feedback reads (pull)
 ```
 
 Identity: Metaplex/QuantuLabs (where agents are discovered).
 Reputation: Lucid (backed by real traffic data — the moat).
 Validation: Lucid (receipts + MMR proofs + on-chain anchoring).
 Rich passport: Lucid (attestations, x402, versioning, licensing — no one else does this).
+
+## Architectural Principles (from review)
+
+1. **Canonical domain first** — `passportStore` is truth. No third-party registry owns state.
+2. **Projection is async** — External publishing is a background job. Retryable, observable, isolated.
+3. **One doc builder** — `buildRegistrationDocFromPassport()` is the single source of derived state. Registries never build their own docs.
+4. **Capability-driven adapters** — Registries declare what they support. No null-return semantics.
+5. **Summary cache, not ledger** — `external_registrations` on passport is a fast-read cache. Operational tracking (retries, errors, attempts) belongs in a dedicated table (V2).
+6. **No user request depends on external registry** — Passport CRUD is always fast. Projection health is a background concern.
