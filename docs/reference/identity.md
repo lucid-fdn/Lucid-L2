@@ -1,4 +1,4 @@
-<!-- generated: commit c7113a7, 2026-03-20T11:04:15.752Z -->
+<!-- generated: commit c69aab0, 2026-03-23T14:58:43.950Z -->
 # identity — Interface Reference
 
 ## Interfaces
@@ -60,6 +60,36 @@ ERC-8004 Registry Types
 
 **Extends:** —
 
+### ERC8004RegistrationDoc
+> `projections/registration-doc/types.ts`
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `active` | `boolean` | yes |  |
+| `registrations` | `{ agentId: string; agentRegistry: string; }[]` | yes |  |
+| `services` | `{ name: string; endpoint: string; version?: string; skills?: string[]; domains?: string[]; }[]` | yes |  |
+| `supportedTrust` | `string[]` | yes |  |
+| `type` | `string` | no |  |
+
+**Extends:** `ERC8004AgentMetadata`
+
+### ExternalIdentity
+> `projections/ISolanaIdentityRegistry.ts`
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `externalId` | `string` | no |  |
+| `metadata` | `ERC8004RegistrationDoc` | no |  |
+| `owner` | `string` | no |  |
+| `registrationDocUri` | `string` | yes |  |
+| `registryName` | `string` | no |  |
+
+**Extends:** —
+
 ### IAgentWalletProvider
 > `wallet/IAgentWalletProvider.ts`
 
@@ -104,6 +134,29 @@ Chain-agnostic NFT provider.
 | `isHealthy` |  | `Promise<boolean>` | Health check |
 | `mint` | `owner`: `string`, `metadata`: `NFTMetadata` | `Promise<MintResult>` | Mint a new NFT for a passport |
 | `updateMetadata` | `mint`: `string`, `newMetadata`: `Partial<NFTMetadata>` | `Promise<string>` | Update NFT metadata URI |
+
+**Extends:** —
+
+### ISolanaIdentityRegistry
+> `projections/ISolanaIdentityRegistry.ts`
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `capabilities` | `RegistryCapabilities` | no |  |
+| `registryName` | `string` | no |  |
+| `supportedAssetTypes` | `AssetType[]` | no |  |
+
+**Methods**
+
+| Method | Params | Return Type | Description |
+|--------|--------|-------------|-------------|
+| `deregister` | `agentId`: `string` | `Promise<TxReceipt>` |  |
+| `isAvailable` |  | `Promise<boolean>` |  |
+| `register` | `passport`: `Passport`, `options`?: `RegistrationOptions` | `Promise<RegistrationResult>` |  |
+| `resolve` | `agentId`: `string` | `Promise<ExternalIdentity>` |  |
+| `sync` | `passport`: `Passport` | `Promise<TxReceipt>` |  |
 
 **Extends:** —
 
@@ -192,6 +245,34 @@ Result type for operations
 | `details` | `any` | yes |  |
 | `error` | `string` | yes |  |
 | `ok` | `boolean` | no |  |
+
+**Extends:** —
+
+### RegistrationResult
+> `projections/ISolanaIdentityRegistry.ts`
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `externalId` | `string` | no |  |
+| `registrationDocUri` | `string` | yes |  |
+| `registryName` | `string` | no |  |
+| `txSignature` | `string` | no |  |
+
+**Extends:** —
+
+### RegistryCapabilities
+> `projections/ISolanaIdentityRegistry.ts`
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `deregister` | `boolean` | no |  |
+| `register` | `boolean` | no |  |
+| `resolve` | `boolean` | no |  |
+| `sync` | `boolean` | no |  |
 
 **Extends:** —
 
@@ -351,6 +432,18 @@ Validation record returned from the Validation Registry
 
 ## Functions
 
+### buildRegistrationDocFromPassport
+> `projections/registration-doc/buildRegistrationDoc.ts`
+
+| Param | Type | Optional | Default |
+|-------|------|----------|---------|
+| `passport` | `Passport` | no | — |
+| `options` | `BuildRegistrationDocOptions` | yes | — |
+
+**Returns:** `ERC8004RegistrationDoc`
+
+**Async:** no
+
 ### fromCaip10
 > `bridge/caip10.ts`
 
@@ -393,6 +486,13 @@ Get all configured NFT providers for multi-chain minting.
 > `bridge/identityBridgeService.ts`
 
 **Returns:** `IdentityBridgeService`
+
+**Async:** no
+
+### getIdentityRegistries
+> `projections/factory.ts`
+
+**Returns:** `ISolanaIdentityRegistry[]`
 
 **Async:** no
 
@@ -478,6 +578,13 @@ Check if a CAIP-10 string is a Solana address.
 | `caip10` | `string` | no | — |
 
 **Returns:** `boolean`
+
+**Async:** no
+
+### resetIdentityRegistryFactory
+> `projections/factory.ts`
+
+**Returns:** `void`
 
 **Async:** no
 
