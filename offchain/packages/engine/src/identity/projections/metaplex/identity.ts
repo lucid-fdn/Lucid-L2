@@ -7,6 +7,7 @@ import {
 } from '../ISolanaIdentityRegistry';
 import { buildRegistrationDocFromPassport } from '../registration-doc/buildRegistrationDoc';
 import type { MetaplexConnection } from './connection';
+import { logger } from '../../../shared/lib/logger';
 
 export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
   readonly registryName = 'metaplex';
@@ -16,10 +17,25 @@ export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
 
   constructor(private connection: MetaplexConnection) {}
 
-  async register(passport: Passport, _options?: RegistrationOptions): Promise<RegistrationResult> {
+  async register(passport: Passport, options?: RegistrationOptions): Promise<RegistrationResult> {
     if (!passport.nft_mint) {
       throw new Error(`Cannot register on Metaplex: passport ${passport.passport_id} has no nft_mint`);
     }
+
+    // Check if already registered when skipIfExists is set
+    if (options?.skipIfExists) {
+      const existing = await this.resolve(passport.nft_mint);
+      if (existing) {
+        logger.info(`[Metaplex] Passport ${passport.passport_id} already registered, skipping`);
+        return {
+          registryName: this.registryName,
+          externalId: passport.nft_mint,
+          txSignature: '',
+          registrationDocUri: existing.registrationDocUri,
+        };
+      }
+    }
+
     const umi = await this.connection.getUmi();
     const doc = buildRegistrationDocFromPassport(passport, { agentRegistry: 'solana:101:metaplex' });
 
@@ -66,7 +82,10 @@ export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
         metadata: { type: 'https://eips.ethereum.org/EIPS/eip-8004#registration-v1', name: asset.name ?? '', description: '' },
         registrationDocUri: asset.uri,
       };
-    } catch { return null; }
+    } catch (err) {
+      logger.warn(`[Metaplex] resolve(${agentId}) failed:`, err instanceof Error ? err.message : err);
+      return null;
+    }
   }
 
   async sync(passport: Passport): Promise<TxReceipt | null> {
@@ -83,9 +102,12 @@ export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
       });
       const { updateV1 } = require('@metaplex-foundation/mpl-core');
       const { publicKey } = require('@metaplex-foundation/umi');
-      await updateV1(umi, { asset: publicKey(passport.nft_mint), uri: anchorResult?.url ?? '' }).sendAndConfirm(umi);
-      return { success: true, txHash: '' };
-    } catch { return null; }
+      const result = await updateV1(umi, { asset: publicKey(passport.nft_mint), uri: anchorResult?.url ?? '' }).sendAndConfirm(umi);
+      return { success: true, txHash: result?.signature ? Buffer.from(result.signature).toString('base64') : '' };
+    } catch (err) {
+      logger.warn(`[Metaplex] sync(${passport.passport_id}) failed:`, err instanceof Error ? err.message : err);
+      return null;
+    }
   }
 
   async deregister(_agentId: string): Promise<TxReceipt | null> {

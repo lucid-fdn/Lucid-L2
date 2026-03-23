@@ -10,6 +10,7 @@ import {
 } from '../ISolanaIdentityRegistry';
 import { buildRegistrationDocFromPassport } from '../registration-doc/buildRegistrationDoc';
 import type { QuantuLabsConnection } from './connection';
+import { logger } from '../../../shared/lib/logger';
 
 export class QuantuLabsIdentityRegistry implements ISolanaIdentityRegistry {
   readonly registryName = 'quantulabs';
@@ -22,10 +23,27 @@ export class QuantuLabsIdentityRegistry implements ISolanaIdentityRegistry {
     return { register: has, resolve: has, sync: has, deregister: false };
   }
 
-  async register(passport: Passport, _options?: RegistrationOptions): Promise<RegistrationResult> {
+  async register(passport: Passport, options?: RegistrationOptions): Promise<RegistrationResult> {
     if (!this.capabilities.register) {
       throw new RegistryCapabilityError(this.registryName, 'register');
     }
+
+    // Check if already registered when skipIfExists is set
+    if (options?.skipIfExists) {
+      const existingId = passport.external_registrations?.quantulabs?.externalId;
+      if (existingId) {
+        const existing = await this.resolve(existingId);
+        if (existing) {
+          logger.info(`[QuantuLabs] Passport ${passport.passport_id} already registered as ${existingId}, skipping`);
+          return {
+            registryName: this.registryName,
+            externalId: existingId,
+            txSignature: '',
+          };
+        }
+      }
+    }
+
     const sdk = this.connection.getSDK();
     const doc = buildRegistrationDocFromPassport(passport, { agentRegistry: 'solana:101:quantulabs' });
     const result = await sdk.register(passport.passport_id, doc);
@@ -54,7 +72,8 @@ export class QuantuLabsIdentityRegistry implements ISolanaIdentityRegistry {
           description: agent.description ?? '',
         },
       };
-    } catch {
+    } catch (err) {
+      logger.warn(`[QuantuLabs] resolve(${agentId}) failed:`, err instanceof Error ? err.message : err);
       return null;
     }
   }
@@ -65,11 +84,12 @@ export class QuantuLabsIdentityRegistry implements ISolanaIdentityRegistry {
     }
     try {
       const sdk = this.connection.getSDK();
-      const externalId = (passport as any).external_registrations?.quantulabs?.externalId || passport.passport_id;
+      const externalId = passport.external_registrations?.quantulabs?.externalId || passport.passport_id;
       const doc = buildRegistrationDocFromPassport(passport, { agentRegistry: 'solana:101:quantulabs' });
       const result = await sdk.updateAgent(externalId, doc);
       return { success: true, txHash: result?.txHash ?? result?.signature };
-    } catch {
+    } catch (err) {
+      logger.warn(`[QuantuLabs] sync(${passport.passport_id}) failed:`, err instanceof Error ? err.message : err);
       return null;
     }
   }

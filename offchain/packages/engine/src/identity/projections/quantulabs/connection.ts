@@ -1,3 +1,5 @@
+import { logger } from '../../../shared/lib/logger';
+
 export class QuantuLabsConnection {
   private sdk: any = null;
   readonly capabilities: { identityRegistration: boolean; reputation: boolean };
@@ -6,7 +8,7 @@ export class QuantuLabsConnection {
     const sdk = this.getSDK();
     this.capabilities = {
       identityRegistration: typeof sdk?.register === 'function',
-      reputation: true,
+      reputation: !!sdk, // only true if SDK loaded successfully
     };
   }
 
@@ -15,7 +17,8 @@ export class QuantuLabsConnection {
     try {
       const { SolanaSDK } = require('8004-solana');
       this.sdk = new SolanaSDK();
-    } catch {
+    } catch (err) {
+      logger.warn('[QuantuLabs] 8004-solana SDK not available:', err instanceof Error ? err.message : err);
       this.sdk = null;
     }
     return this.sdk;

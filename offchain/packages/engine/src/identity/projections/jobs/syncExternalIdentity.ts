@@ -1,4 +1,5 @@
 import type { Passport } from '../../stores/passportStore';
+import type { ISolanaIdentityRegistry } from '../ISolanaIdentityRegistry';
 import { getIdentityRegistries } from '../factory';
 import { logger } from '../../../shared/lib/logger';
 
@@ -9,13 +10,13 @@ function sleep(ms: number): Promise<void> {
 }
 
 function backoffMs(attempt: number): number {
-  const base = Math.min(1000 * Math.pow(2, attempt - 1), 8000);
+  const base = Math.min(1000 * Math.pow(2, attempt - 1), 30000); // 1s, 2s, 4s... cap 30s
   const jitter = Math.random() * 300;
   return base + jitter;
 }
 
 async function projectToRegistry(
-  registry: { registryName: string; register: Function; sync: Function; capabilities: { register: boolean; sync: boolean } },
+  registry: ISolanaIdentityRegistry,
   passport: Passport,
   mode: 'register' | 'sync',
 ): Promise<void> {
@@ -24,20 +25,26 @@ async function projectToRegistry(
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const result = mode === 'register'
-        ? await registry.register(passport, { skipIfExists: true })
-        : await registry.sync(passport);
-
-      if (result) {
+      if (mode === 'register') {
+        const result = await registry.register(passport, { skipIfExists: true });
         await store.updateExternalRegistration(passport.passport_id, registry.registryName, {
-          externalId: result.externalId ?? '',
-          txSignature: result.txSignature ?? '',
+          externalId: result.externalId,
+          txSignature: result.txSignature,
           registrationDocUri: result.registrationDocUri,
           registeredAt: Date.now(),
           lastSyncedAt: Date.now(),
           status: 'synced',
           lastError: undefined,
         });
+      } else {
+        const result = await registry.sync(passport);
+        if (result) {
+          await store.updateExternalRegistration(passport.passport_id, registry.registryName, {
+            lastSyncedAt: Date.now(),
+            status: 'synced',
+            lastError: undefined,
+          });
+        }
       }
 
       logger.info(`[Identity] Projected ${passport.passport_id} to ${registry.registryName} (${mode}, attempt ${attempt})`);
@@ -70,6 +77,6 @@ export async function syncExternalIdentity(passport: Passport, mode: 'register' 
   );
 
   await Promise.allSettled(
-    compatible.map(registry => projectToRegistry(registry as any, passport, mode)),
+    compatible.map(registry => projectToRegistry(registry, passport, mode)),
   );
 }

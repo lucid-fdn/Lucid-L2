@@ -1,6 +1,7 @@
 import type { IReputationSyncer, ExternalFeedback, ExternalSummary } from '../../../reputation/IReputationSyncer';
 import type { FeedbackParams, TxReceipt, AssetType } from '../../../reputation/types';
 import type { MetaplexConnection } from './connection';
+import { logger } from '../../../shared/lib/logger';
 
 export type MintLookup = (passportId: string) => Promise<string | null>;
 
@@ -25,7 +26,10 @@ export class MetaplexReputationSyncer implements IReputationSyncer {
         }
       }
       return feedbacks;
-    } catch { return []; }
+    } catch (err) {
+      logger.warn(`[Metaplex] pullFeedback(${passportId}) failed:`, err instanceof Error ? err.message : err);
+      return [];
+    }
   }
 
   async pullSummary(passportId: string): Promise<ExternalSummary | null> {
@@ -35,7 +39,10 @@ export class MetaplexReputationSyncer implements IReputationSyncer {
       const avgAttr = feedbacks.find(f => f.category === 'avg_score');
       const countAttr = feedbacks.find(f => f.category === 'feedback_count');
       return { source: this.syncerName, externalId: passportId, avgScore: avgAttr?.score ?? 0, feedbackCount: countAttr?.score ?? 0, lastUpdated: Math.floor(Date.now() / 1000) };
-    } catch { return null; }
+    } catch (err) {
+      logger.warn(`[Metaplex] pullSummary(${passportId}) failed:`, err instanceof Error ? err.message : err);
+      return null;
+    }
   }
 
   async pushFeedback(params: FeedbackParams): Promise<TxReceipt | null> {
@@ -52,7 +59,10 @@ export class MetaplexReputationSyncer implements IReputationSyncer {
         { key: 'reputation:last_updated', value: String(Math.floor(Date.now() / 1000)) },
       ] } }).sendAndConfirm(umi);
       return { success: true };
-    } catch { return null; }
+    } catch (err) {
+      logger.warn(`[Metaplex] pushFeedback(${params.passportId}) failed:`, err instanceof Error ? err.message : err);
+      return null;
+    }
   }
 
   async resolveExternalId(passportId: string): Promise<string | null> { return this.mintLookup(passportId); }

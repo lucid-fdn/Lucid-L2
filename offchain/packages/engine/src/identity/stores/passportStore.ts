@@ -121,6 +121,7 @@ export class PassportStore {
   private isDirty: boolean = false;
   private autoSaveInterval: NodeJS.Timeout | null = null;
   private autoSaveDelay: number;
+  private registrationLocks: Map<string, Promise<void>> = new Map();
 
   constructor(dataDir?: string, autoSaveDelay: number = 5000) {
     this.dataDir = dataDir || path.join(PATHS.DATA_DIR, 'passports');
@@ -591,18 +592,29 @@ export class PassportStore {
   }
 
   /**
-   * Atomically update a single registry's projection status in external_registrations
+   * Update a single registry's projection status in external_registrations.
+   * Serialized per-passport to prevent concurrent read-modify-write clobbering
+   * when multiple registries complete via Promise.allSettled.
    */
   async updateExternalRegistration(
     passportId: string,
     registryName: string,
     patch: Partial<NonNullable<Passport['external_registrations']>[string]>,
   ): Promise<void> {
-    const existing = await this.get(passportId);
-    if (!existing) return;
-    const registrations = { ...(existing.external_registrations ?? {}) };
-    registrations[registryName] = { ...(registrations[registryName] ?? {} as any), ...patch };
-    await this.update(passportId, { external_registrations: registrations });
+    // Serialize per-passport: wait for any pending update on this passport
+    const pending = this.registrationLocks.get(passportId) ?? Promise.resolve();
+    const task = pending.then(async () => {
+      const existing = await this.get(passportId);
+      if (!existing) return;
+      const registrations = { ...(existing.external_registrations ?? {}) };
+      registrations[registryName] = {
+        ...(registrations[registryName] ?? ({} as NonNullable<Passport['external_registrations']>[string])),
+        ...patch,
+      };
+      await this.update(passportId, { external_registrations: registrations });
+    });
+    this.registrationLocks.set(passportId, task.catch(() => {}));
+    await task;
   }
 
   /**
