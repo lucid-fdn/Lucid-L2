@@ -7047,6 +7047,23 @@ components:
         nft_mint: { type: string, nullable: true, description: 'NFT mint address (Solana base58 or EVM 0x)' }
         nft_chain: { type: string, nullable: true, description: 'Chain where NFT was minted' }
         share_token_mint: { type: string, nullable: true, description: 'Share token SPL mint address' }
+        external_registrations:
+          type: object
+          nullable: true
+          description: 'External identity projection status per registry (summary cache). Key is registry name.'
+          additionalProperties:
+            type: object
+            properties:
+              externalId: { type: string, description: 'ID on the external registry (e.g., Metaplex asset pubkey)' }
+              txSignature: { type: string, description: 'Registration transaction signature' }
+              registrationDocUri: { type: string, nullable: true, description: 'ERC-8004 registration document URI on DePIN storage' }
+              registeredAt: { type: integer, description: 'Unix ms when first registered' }
+              lastSyncedAt: { type: integer, description: 'Unix ms of last sync attempt' }
+              status:
+                type: string
+                enum: [synced, failed, pending]
+                description: 'Projection status'
+              lastError: { type: string, nullable: true, description: 'Last error message (null when synced)' }
         created_at: { type: integer }
         updated_at: { type: integer }
         on_chain:
