@@ -4,6 +4,7 @@
 export const ARTIFACT_TYPES = [
   'epoch_bundle', 'epoch_proof', 'memory_snapshot',
   'deploy_artifact', 'passport_metadata', 'nft_metadata', 'mmr_checkpoint',
+  'agent_registration',
 ] as const;
 
 export type ArtifactType = (typeof ARTIFACT_TYPES)[number];
