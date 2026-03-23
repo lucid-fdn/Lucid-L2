@@ -35,3 +35,7 @@ export { IdentityRegistryClient } from './registries/evm-identity';
 export { ValidationRegistryClient } from './registries/evm-validation';
 export { ReputationRegistryClient } from './registries/evm-reputation';
 export * from './registries/types';
+
+// ─── Projections (Solana Identity Registries) ─────────────────────────────
+export { getIdentityRegistries, resetIdentityRegistryFactory, RegistryCapabilityError, buildRegistrationDocFromPassport } from './projections';
+export type { ISolanaIdentityRegistry, RegistryCapabilities, RegistrationResult, ExternalIdentity, ERC8004RegistrationDoc } from './projections';

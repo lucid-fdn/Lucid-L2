@@ -60,13 +60,24 @@ export function getReputationSyncers(): IReputationSyncer[] {
 
   for (const name of syncerNames) {
     switch (name) {
-      case '8004': {
+      case '8004':
+      case 'quantulabs': {
         try {
-          const { SolanaSDK } = require('8004-solana');
-          const { Solana8004Syncer } = require('./syncers/Solana8004Syncer');
-          _syncers.push(new Solana8004Syncer(new SolanaSDK()));
-        } catch {
-          logger.warn('[Reputation] 8004-solana SDK not available, skipping syncer');
+          const { getQuantuLabsConnection, QuantuLabsReputationSyncer } = require('../identity/projections/quantulabs');
+          _syncers.push(new QuantuLabsReputationSyncer(getQuantuLabsConnection()));
+        } catch (err) {
+          logger.warn('[Reputation] QuantuLabs syncer not available:', err instanceof Error ? err.message : err);
+        }
+        break;
+      }
+      case 'metaplex': {
+        try {
+          const { getMetaplexConnection, MetaplexReputationSyncer } = require('../identity/projections/metaplex');
+          const { getPassportStore } = require('../identity/stores/passportStore');
+          const mintLookup = async (id: string) => (await getPassportStore().get(id))?.nft_mint ?? null;
+          _syncers.push(new MetaplexReputationSyncer(getMetaplexConnection(), mintLookup));
+        } catch (err) {
+          logger.warn('[Reputation] Metaplex syncer not available:', err instanceof Error ? err.message : err);
         }
         break;
       }
