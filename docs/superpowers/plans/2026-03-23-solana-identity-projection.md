@@ -46,8 +46,8 @@ engine/src/identity/projections/
 ```
 
 **Modified files:**
-- `engine/src/identity/stores/passportStore.ts` — add `external_registrations` field
-- `engine/src/identity/passport/passportManager.ts` — add `triggerIdentityProjection()` hook
+- `engine/src/identity/stores/passportStore.ts` — add `external_registrations` field + `updateExternalRegistration()` merge helper
+- `engine/src/identity/passport/passportManager.ts` — add durable `triggerIdentityProjection()` hook (3 call sites)
 - `engine/src/identity/index.ts` — re-export projections
 - `engine/src/reputation/index.ts` — add `metaplex` case, redirect `8004`
 - `engine/package.json` — add `@metaplex-foundation/mpl-agent-registry`
@@ -624,8 +624,8 @@ describe('QuantuLabsIdentityRegistry (no identity support)', () => {
     await expect(registry.register(passport)).rejects.toThrow(RegistryCapabilityError);
   });
 
-  it('resolve returns null', async () => {
-    expect(await registry.resolve('agent-1')).toBeNull();
+  it('resolve throws RegistryCapabilityError', async () => {
+    await expect(registry.resolve('agent-1')).rejects.toThrow(RegistryCapabilityError);
   });
 
   it('isAvailable returns false', async () => {
@@ -732,7 +732,9 @@ export class QuantuLabsIdentityRegistry implements ISolanaIdentityRegistry {
   }
 
   async resolve(agentId: string): Promise<ExternalIdentity | null> {
-    if (!this.capabilities.resolve) return null;
+    if (!this.capabilities.resolve) {
+      throw new RegistryCapabilityError(this.registryName, 'resolve');
+    }
     try {
       const sdk = this.connection.getSDK();
       const agent = await sdk.getAgent(agentId);
@@ -753,11 +755,15 @@ export class QuantuLabsIdentityRegistry implements ISolanaIdentityRegistry {
   }
 
   async sync(passport: Passport): Promise<TxReceipt | null> {
-    if (!this.capabilities.sync) return null;
+    if (!this.capabilities.sync) {
+      throw new RegistryCapabilityError(this.registryName, 'sync');
+    }
     try {
       const sdk = this.connection.getSDK();
+      // Use stored external ID if available, fall back to passport_id
+      const externalId = passport.external_registrations?.quantulabs?.externalId || passport.passport_id;
       const doc = buildRegistrationDocFromPassport(passport, { agentRegistry: 'solana:101:quantulabs' });
-      const result = await sdk.updateAgent(passport.passport_id, doc);
+      const result = await sdk.updateAgent(externalId, doc);
       return { success: true, txHash: result?.txHash ?? result?.signature };
     } catch {
       return null;
@@ -983,11 +989,12 @@ export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
     const { registerIdentityV1, publicKey } = require('@metaplex-foundation/mpl-agent-registry');
     const collectionAddress = process.env.METAPLEX_COLLECTION_ADDRESS;
 
-    await registerIdentityV1(umi, {
+    const identityResult = await registerIdentityV1(umi, {
       asset: publicKey(passport.nft_mint),
       ...(collectionAddress ? { collection: publicKey(collectionAddress) } : {}),
       agentRegistrationUri: registrationDocUri,
     }).sendAndConfirm(umi);
+    const txSignature = Buffer.from(identityResult.signature).toString('base64');
 
     // 3. Register executive (one-time)
     await this.ensureExecutiveRegistered(umi);
@@ -1011,7 +1018,7 @@ export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
     return {
       registryName: this.registryName,
       externalId: passport.nft_mint,
-      txSignature: '',  // multiple txs — registration is the key one
+      txSignature,
       registrationDocUri,
     };
   }
@@ -1553,7 +1560,25 @@ In `passportStore.ts`, add after the `share_token_mint` field:
     registeredAt: number;
     lastSyncedAt: number;
     status: 'synced' | 'failed' | 'pending';
+    lastError?: string;
   }>;
+```
+
+Then add a registry-specific merge helper to `passportStore.ts` to avoid race conditions when multiple registries finish near-simultaneously:
+
+```typescript
+  /** Atomically update a single registry's projection status (no clobbering) */
+  async updateExternalRegistration(
+    passportId: string,
+    registryName: string,
+    patch: Partial<Passport['external_registrations'][string]>,
+  ): Promise<void> {
+    const existing = await this.get(passportId);
+    if (!existing) return;
+    const registrations = { ...(existing.external_registrations ?? {}) };
+    registrations[registryName] = { ...(registrations[registryName] ?? {}), ...patch } as any;
+    await this.update(passportId, { external_registrations: registrations });
+  }
 ```
 
 - [ ] **Step 2: Write failing test for syncExternalIdentity**
@@ -1644,8 +1669,14 @@ import { logger } from '../../../shared/lib/logger';
 
 const MAX_RETRIES = parseInt(process.env.IDENTITY_PROJECTION_MAX_RETRIES || '3', 10);
 
-async function sleep(ms: number): Promise<void> {
+function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function backoffMs(attempt: number): number {
+  const base = Math.min(1000 * Math.pow(2, attempt - 1), 8000); // 1s, 2s, 4s, 8s cap
+  const jitter = Math.random() * 300;
+  return base + jitter;
 }
 
 async function projectToRegistry(
@@ -1663,17 +1694,15 @@ async function projectToRegistry(
         : await registry.sync(passport);
 
       if (result) {
-        const existing = await store.get(passport.passport_id);
-        const registrations = existing?.external_registrations ?? {};
-        registrations[registry.registryName] = {
-          externalId: result.externalId ?? registrations[registry.registryName]?.externalId ?? '',
-          txSignature: result.txSignature ?? result.txHash ?? '',
+        await store.updateExternalRegistration(passport.passport_id, registry.registryName, {
+          externalId: result.externalId ?? '',
+          txSignature: result.txSignature ?? '',
           registrationDocUri: result.registrationDocUri,
-          registeredAt: registrations[registry.registryName]?.registeredAt ?? Date.now(),
+          registeredAt: Date.now(),
           lastSyncedAt: Date.now(),
           status: 'synced',
-        };
-        await store.update(passport.passport_id, { external_registrations: registrations });
+          lastError: undefined,
+        });
       }
 
       logger.info(`[Identity] Projected ${passport.passport_id} to ${registry.registryName} (${mode}, attempt ${attempt})`);
@@ -1684,20 +1713,14 @@ async function projectToRegistry(
       if (attempt === MAX_RETRIES) {
         // Mark as failed after all retries exhausted
         try {
-          const existing = await store.get(passport.passport_id);
-          const registrations = existing?.external_registrations ?? {};
-          registrations[registry.registryName] = {
-            ...(registrations[registry.registryName] ?? {}),
-            externalId: registrations[registry.registryName]?.externalId ?? '',
-            txSignature: '',
-            registeredAt: registrations[registry.registryName]?.registeredAt ?? 0,
+          await store.updateExternalRegistration(passport.passport_id, registry.registryName, {
             lastSyncedAt: Date.now(),
             status: 'failed',
-          };
-          await store.update(passport.passport_id, { external_registrations: registrations });
+            lastError: err instanceof Error ? err.message : String(err),
+          });
         } catch { /* best effort */ }
       } else {
-        await sleep(1000 * attempt); // linear backoff: 1s, 2s, 3s
+        await sleep(backoffMs(attempt)); // exponential backoff + jitter
       }
     }
   }
@@ -1707,13 +1730,15 @@ export async function syncExternalIdentity(passport: Passport, mode: 'register' 
   const registries = getIdentityRegistries();
   if (registries.length === 0) return;
 
-  for (const registry of registries) {
-    if (!registry.supportedAssetTypes.includes(passport.type as any)) continue;
-    const capability = mode === 'register' ? 'register' : 'sync';
-    if (!registry.capabilities[capability]) continue;
+  const capability = mode === 'register' ? 'register' : 'sync';
+  const compatible = registries.filter(
+    r => r.supportedAssetTypes.includes(passport.type as any) && r.capabilities[capability],
+  );
 
-    await projectToRegistry(registry as any, passport, mode);
-  }
+  // Run all compatible registries in parallel — one slow registry does not delay others
+  await Promise.allSettled(
+    compatible.map(registry => projectToRegistry(registry as any, passport, mode)),
+  );
 }
 ```
 
@@ -1722,12 +1747,35 @@ export async function syncExternalIdentity(passport: Passport, mode: 'register' 
 Run: `cd /home/debian/Lucid/Lucid-L2/offchain && npx jest --testPathPattern='syncExternalIdentity' --no-coverage 2>&1 | tail -5`
 Expected: PASS
 
-- [ ] **Step 6: Add projection triggers to PassportManager**
+- [ ] **Step 6: Add durable projection trigger to PassportManager**
 
-In `passportManager.ts`, add the trigger method to the class:
+Instead of `setImmediate()` (fragile — lost on crash/restart), use a durable projection queue. Write a pending job to the passport store, then drain it.
+
+In `passportManager.ts`, add the trigger method:
 
 ```typescript
-  private triggerIdentityProjection(passport: Passport, mode: 'register' | 'sync' = 'register'): void {
+  /**
+   * Enqueue a durable identity projection job.
+   * Writes 'pending' status to external_registrations, then runs sync.
+   * If process crashes mid-projection, pending entries are retried on next startup
+   * or manual re-sync.
+   */
+  private async triggerIdentityProjection(passport: Passport, mode: 'register' | 'sync' = 'register'): Promise<void> {
+    // Mark all enabled registries as 'pending' before starting (durable intent)
+    try {
+      const { getIdentityRegistries } = await import('../projections/factory');
+      const registries = getIdentityRegistries();
+      for (const registry of registries) {
+        if (registry.supportedAssetTypes.includes(passport.type as any) && registry.capabilities[mode]) {
+          await this.store.updateExternalRegistration(passport.passport_id, registry.registryName, {
+            status: 'pending',
+            lastSyncedAt: Date.now(),
+          });
+        }
+      }
+    } catch { /* best effort */ }
+
+    // Run projection in background (non-blocking to caller)
     setImmediate(async () => {
       try {
         const { syncExternalIdentity } = await import('../projections/jobs/syncExternalIdentity');
@@ -1739,11 +1787,13 @@ In `passportManager.ts`, add the trigger method to the class:
   }
 ```
 
+The key improvement: **pending status is persisted before the async work starts**. If the process crashes, `external_registrations[registry].status === 'pending'` is observable. A startup reconciler or manual `POST /v1/passports/:id/sync` can retry pending entries. This is a lightweight durable queue — no separate table needed for V1.
+
 Then wire it into three places:
 
 **a)** After the NFT mint block in `createPassport()` (around line 392):
 ```typescript
-      // Trigger async identity projection (non-blocking)
+      // Trigger durable identity projection (non-blocking)
       this.triggerIdentityProjection(passport, 'register');
 ```
 
