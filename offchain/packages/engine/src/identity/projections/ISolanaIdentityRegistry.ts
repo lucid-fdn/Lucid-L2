@@ -11,7 +11,6 @@ export interface RegistryCapabilities {
 
 export interface RegistrationOptions {
   skipIfExists?: boolean;
-  registrationDocUri?: string;
 }
 
 export interface RegistrationResult {

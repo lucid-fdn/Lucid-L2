@@ -1,20 +1,15 @@
+import { LazyUmi } from '../../../shared/chains/solana/umi';
+
 export class MetaplexConnection {
-  private umi: any = null;
+  private lazyUmi = new LazyUmi({
+    plugins: [() => {
+      const { mplAgentIdentity } = require('@metaplex-foundation/mpl-agent-registry');
+      return mplAgentIdentity();
+    }],
+  });
 
   async getUmi(): Promise<any> {
-    if (this.umi) return this.umi;
-    const { createUmi } = require('@metaplex-foundation/umi-bundle-defaults');
-    const { mplCore } = require('@metaplex-foundation/mpl-core');
-    const { mplAgentIdentity } = require('@metaplex-foundation/mpl-agent-registry');
-    const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-    this.umi = createUmi(rpcUrl).use(mplCore()).use(mplAgentIdentity());
-    const secretKey = process.env.LUCID_ORCHESTRATOR_SECRET_KEY;
-    if (secretKey) {
-      const { keypairIdentity } = require('@metaplex-foundation/umi');
-      const decoded = Buffer.from(secretKey, 'base64');
-      this.umi.use(keypairIdentity(this.umi.eddsa.createKeypairFromSecretKey(decoded)));
-    }
-    return this.umi;
+    return this.lazyUmi.get();
   }
 }
 

@@ -2,39 +2,19 @@
 // Metaplex Core NFT provider — lazy-loaded, optional alternative to Token-2022
 
 import { INFTProvider, MintResult, NFTMetadata } from './INFTProvider';
+import { LazyUmi } from '../../shared/chains/solana/umi';
 
 export class MetaplexCoreProvider implements INFTProvider {
   readonly providerName = 'metaplex-core';
   readonly chain: string;
-  private umi: any = null;
+  private lazyUmi = new LazyUmi();
 
   constructor() {
     this.chain = process.env.SOLANA_CLUSTER === 'mainnet-beta' ? 'solana-mainnet' : 'solana-devnet';
   }
 
   private async getUmi(): Promise<any> {
-    if (this.umi) return this.umi;
-
-    try {
-      const { createUmi } = require('@metaplex-foundation/umi-bundle-defaults');
-      const { mplCore } = require('@metaplex-foundation/mpl-core');
-
-      const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
-      this.umi = createUmi(rpcUrl).use(mplCore());
-
-      // Add signer from env
-      const secretKey = process.env.LUCID_ORCHESTRATOR_SECRET_KEY;
-      if (secretKey) {
-        const { keypairIdentity } = require('@metaplex-foundation/umi');
-        const decoded = Buffer.from(secretKey, 'base64');
-        this.umi.use(keypairIdentity(this.umi.eddsa.createKeypairFromSecretKey(decoded)));
-      }
-
-      return this.umi;
-    } catch (err) {
-      this.umi = null;
-      throw new Error(`Failed to initialize Metaplex Umi: ${err instanceof Error ? err.message : err}`);
-    }
+    return this.lazyUmi.get();
   }
 
   async mint(owner: string, metadata: NFTMetadata): Promise<MintResult> {
