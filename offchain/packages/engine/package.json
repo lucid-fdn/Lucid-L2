@@ -6,6 +6,7 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "dependencies": {
+    "@metaplex-foundation/mpl-agent-registry": "^0.2.1",
     "8004-solana": "^0.8.0"
   }
 }
