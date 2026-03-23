@@ -14,7 +14,7 @@ anchor deploy --provider.cluster devnet
 
 # Tests
 cd tests && npm test                        # Mocha on-chain (6 programs)
-cd offchain && npm test                     # Jest API (104 suites, 1622 tests)
+cd offchain && npm test                     # Jest API (109 suites, 1644 tests)
 ```
 
 ## Architecture
@@ -363,6 +363,57 @@ NFT minting behind `INFTProvider` interface. String-based addresses work for bot
 
 Env: `NFT_PROVIDER` (default: `mock`), `NFT_CHAINS` (multi-chain: `solana-devnet,base`), `NFT_MINT_ON_CREATE=true`.
 
+### Identity Projection Layer (Solana Registries)
+Async projection of Lucid passport identity to external Solana agent registries. Lucid passports are canonical; external registries are derived projections for discoverability.
+
+**Architecture:** `ISolanaIdentityRegistry` interface with capability model (`RegistryCapabilities`). Unsupported operations throw `RegistryCapabilityError`. Each registry is a co-located module (connection + identity + reputation). One centralized `buildRegistrationDocFromPassport()` builds ERC-8004 docs — registries only handle transport.
+
+| Registry | Package | Identity | Reputation | Asset Types |
+|----------|---------|----------|------------|-------------|
+| **Metaplex** | `@metaplex-foundation/mpl-agent-registry` | `registerIdentityV1`, executive delegation | Core Attributes plugin | agent |
+| **QuantuLabs** | `8004-solana` | SDK-based (if available) | `readAllFeedback/giveFeedback` | agent |
+
+**Projection flow:**
+```
+createPassport() → store passport (canonical)
+  → triggerIdentityProjection() → persist 'pending' status (durable intent)
+    → setImmediate → syncExternalIdentity()
+      → Promise.allSettled across registries (parallel)
+        → projectToRegistry() with exponential backoff + jitter (30s cap, 3 retries)
+          → register or sync → updateExternalRegistration (per-passport mutex)
+```
+
+**Recovery:** `recoverPendingProjections()` scans for `status: 'pending'` entries on boot.
+
+**Shared Umi:** `LazyUmi` in `shared/chains/solana/umi.ts` — used by both `MetaplexCoreProvider` (NFT) and `MetaplexConnection` (identity). Avoids DRY violation.
+
+Files:
+```
+engine/src/identity/projections/
+  ISolanaIdentityRegistry.ts          # Interface + RegistryCapabilities + RegistryCapabilityError
+  factory.ts                          # getIdentityRegistries() + recoverPendingProjections()
+  registration-doc/
+    buildRegistrationDoc.ts           # Centralized ERC-8004 doc builder from Passport
+    types.ts                          # ERC8004RegistrationDoc extends ERC8004AgentMetadata
+  metaplex/
+    connection.ts                     # LazyUmi + mplAgentIdentity plugin
+    identity.ts                       # registerIdentityV1, delegateExecutionV1, resolve, sync
+    reputation.ts                     # Core Attributes plugin read/write
+  quantulabs/
+    connection.ts                     # 8004-solana SDK singleton + capability detection
+    identity.ts                       # SDK-based register/resolve/sync
+    reputation.ts                     # readAllFeedback/getSummary/giveFeedback
+  jobs/
+    syncExternalIdentity.ts           # Parallel projection with retry + backoff
+    syncExternalReputation.ts         # Async reputation push to all syncers
+```
+
+Env: `IDENTITY_REGISTRIES` (comma-separated: `metaplex,quantulabs`, default: empty — opt-in), `IDENTITY_PROJECTION_MAX_RETRIES` (default: `3`).
+
+Passport triggers: `createPassport()` (mode: `register`), `updatePassport()` (mode: `sync`), `updateEndpoints()` (mode: `sync`).
+
+`REPUTATION_SYNCERS=8004` backward compat maintained — maps to QuantuLabs module. New: `REPUTATION_SYNCERS=metaplex`.
+
 ### Share Tokens (Fractional Ownership)
 Token IS the share — no custom Anchor program. Swappable launcher behind `ITokenLauncher`.
 
@@ -471,7 +522,12 @@ offchain/
   tsconfig.base.json                  # Shared compiler options
   packages/
     engine/src/                       # @lucid-l2/engine — 7 feature domains + shared
-      identity/                       # Who you are — passports, NFT, wallet, shares, TBA, bridge
+      identity/                       # Who you are — passports, NFT, wallet, shares, TBA, bridge, projections
+        projections/                  # Async identity projection to external Solana registries
+          metaplex/                   # Metaplex mpl-agent-registry adapter
+          quantulabs/                 # QuantuLabs 8004-solana adapter
+          registration-doc/           # Centralized ERC-8004 doc builder
+          jobs/                       # syncExternalIdentity, syncExternalReputation
       compute/                        # Where you run — providers + control-plane
         providers/                    # 6 deployer adapters (Docker, Railway, Akash, Phala, io.net, Nosana)
         control-plane/                # State + orchestration
@@ -667,7 +723,7 @@ Public (synced to /c/docs/ → Mintlify):
 - No overlap: pipeline never generates API endpoint docs, Speakeasy never generates architecture docs
 
 ## Testing
-- **104 test suites, 1622 tests** (offchain)
+- **109 test suites, 1644 tests** (offchain)
 - **361 tests, 18 suites** (docs pipeline — `tools/docs/`)
 - On-chain: `anchor test` (Mocha, 6 programs)
 - Type check: `cd offchain && npm run type-check`
