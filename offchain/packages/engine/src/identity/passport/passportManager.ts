@@ -391,6 +391,9 @@ export class PassportManager {
         });
       }
 
+      // Trigger durable identity projection (non-blocking)
+      this.triggerIdentityProjection(passport, 'register');
+
       return {
         ok: true,
         data: passport,
@@ -588,6 +591,8 @@ export class PassportManager {
       const hasMetadataChange = !!input.metadata;
       await this.attemptOnChainSync(updated, { forceReupload: hasMetadataChange });
 
+      this.triggerIdentityProjection(updated, 'sync');
+
       return {
         ok: true,
         data: updated,
@@ -672,6 +677,7 @@ export class PassportManager {
     if (!updated) return { ok: false, error: 'Failed to update passport' };
 
     await this.attemptOnChainSync(updated, { forceReupload: true });
+    this.triggerIdentityProjection(updated, 'sync');
     return { ok: true, data: updated };
   }
 
@@ -960,6 +966,35 @@ export class PassportManager {
       .catch(error => {
         logger.error(`Failed to sync passport ${passport.passport_id} to chain:`, error);
       });
+  }
+
+  /**
+   * Trigger async identity projection to external registries.
+   * Persists 'pending' status before dispatching — makes intent durable.
+   * Fire-and-forget via setImmediate — never blocks the caller.
+   */
+  private async triggerIdentityProjection(passport: Passport, mode: 'register' | 'sync' = 'register'): Promise<void> {
+    try {
+      const { getIdentityRegistries } = await import('../projections/factory');
+      const registries = getIdentityRegistries();
+      for (const registry of registries) {
+        if (registry.supportedAssetTypes.includes(passport.type as any) && registry.capabilities[mode]) {
+          await this.store.updateExternalRegistration(passport.passport_id, registry.registryName, {
+            status: 'pending',
+            lastSyncedAt: Date.now(),
+          });
+        }
+      }
+    } catch { /* best effort */ }
+
+    setImmediate(async () => {
+      try {
+        const { syncExternalIdentity } = await import('../projections/jobs/syncExternalIdentity');
+        await syncExternalIdentity(passport, mode);
+      } catch (err) {
+        logger.warn(`[PassportManager] Identity projection failed for ${passport.passport_id}:`, err instanceof Error ? err.message : err);
+      }
+    });
   }
 
   /**

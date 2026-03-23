@@ -44,6 +44,16 @@ export interface Passport {
   nft_chain?: string; // Chain where NFT was minted
   // Share token fields
   share_token_mint?: string; // SPL token mint for fractional ownership
+  // External identity projection cache (summary — not the operational ledger)
+  external_registrations?: Record<string, {
+    externalId: string;
+    txSignature: string;
+    registrationDocUri?: string;
+    registeredAt: number;
+    lastSyncedAt: number;
+    status: 'synced' | 'failed' | 'pending';
+    lastError?: string;
+  }>;
 }
 
 /**
@@ -578,6 +588,21 @@ export class PassportStore {
     return Array.from(this.passports.values()).filter(
       p => p.status === 'active' && !p.on_chain_pda
     );
+  }
+
+  /**
+   * Atomically update a single registry's projection status in external_registrations
+   */
+  async updateExternalRegistration(
+    passportId: string,
+    registryName: string,
+    patch: Partial<NonNullable<Passport['external_registrations']>[string]>,
+  ): Promise<void> {
+    const existing = await this.get(passportId);
+    if (!existing) return;
+    const registrations = { ...(existing.external_registrations ?? {}) };
+    registrations[registryName] = { ...(registrations[registryName] ?? {} as any), ...patch };
+    await this.update(passportId, { external_registrations: registrations });
   }
 
   /**
