@@ -206,6 +206,44 @@ passportRouter.get('/v1/passports/:passport_id', async (req, res) => {
 });
 
 /**
+ * POST /v1/passports/:passport_id/projections/retry
+ * Retry failed or pending identity projections for a passport.
+ * Triggers syncExternalIdentity in 'register' mode for all configured registries.
+ */
+passportRouter.post('/v1/passports/:passport_id/projections/retry', async (req, res) => {
+  try {
+    const { passport_id } = req.params;
+    if (!passport_id) {
+      return res.status(400).json({ success: false, error: 'Missing passport_id parameter' });
+    }
+
+    const manager = getPassportManager();
+    const result = await manager.getPassport(passport_id);
+    if (!result.ok) {
+      return res.status(404).json({ success: false, error: result.error });
+    }
+
+    const { syncExternalIdentity } = await import('../../../../engine/src/identity/projections/jobs/syncExternalIdentity');
+    // Fire async — don't block the response
+    syncExternalIdentity(result.data!, 'register').catch(err => {
+      logger.warn(`[Projections] Retry failed for ${passport_id}:`, err instanceof Error ? err.message : err);
+    });
+
+    return res.json({
+      success: true,
+      message: `Identity projection retry triggered for ${passport_id}`,
+      current_registrations: result.data!.external_registrations ?? {},
+    });
+  } catch (error) {
+    logger.error('Error in POST /v1/passports/:id/projections/retry:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Internal server error',
+    });
+  }
+});
+
+/**
  * PATCH /v1/passports/:passport_id/pricing
  * Update only pricing fields on a passport's metadata (convenience endpoint).
  *

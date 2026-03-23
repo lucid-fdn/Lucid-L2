@@ -1,0 +1,51 @@
+http:
+  routers:
+    # Nango OAuth server
+    nango:
+      rule: "Host(`api.lucid.foundation`) && PathPrefix(`/nango`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      service: nango
+      middlewares:
+        - nango-strip
+
+    # Lucid API
+    lucid-api:
+      rule: "Host(`api.lucid.foundation`) && PathPrefix(`/v1`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      service: lucid-api
+
+    # Lucid API health
+    lucid-health:
+      rule: "Host(`api.lucid.foundation`) && Path(`/health`)"
+      entryPoints:
+        - websecure
+      tls: {}
+      service: lucid-api
+
+  middlewares:
+    nango-strip:
+      stripPrefix:
+        prefixes:
+          - "/nango"
+
+  services:
+    nango:
+      loadBalancer:
+        servers:
+          - url: "http://lucid-nango:3003"
+
+    lucid-api:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3001"
+          # Lucid API runs on host (PM2), not in Docker
+          # host.docker.internal resolves to Docker host IP
+
+tls:
+  certificates:
+    - certFile: /etc/letsencrypt/live/api.lucid.foundation/fullchain.pem
+      keyFile: /etc/letsencrypt/live/api.lucid.foundation/privkey.pem
