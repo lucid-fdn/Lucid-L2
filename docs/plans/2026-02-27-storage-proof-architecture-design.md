@@ -1385,7 +1385,7 @@ Internal infra (MMR, DePIN providers, storage adapters, epoch batching) is **NOT
 | `raijinlabs/Lucid-L2` | **Public** | Apache-2.0 | Engine + Gateway Lite + Solana programs + schemas |
 | `raijinlabs/lucid-plateform-core` | **Private** | Proprietary | Gateway Pro/Enterprise (TrustGate, MCPGate, Control-Plane, cloud/) |
 | `raijinlabs/lucid-ai-sdk` | **Public** | MIT | SDK (`@lucid-ai/sdk`) |
-| `raijinlabs/lucid-skills` | **Public** | MIT | 18 AgentSkills plugins |
+| `lucid-fdn/lucid-plugins` | **Public** | MIT | 18 AgentSkills plugins |
 | `raijinlabs/lucid-docs` | **Public** | MIT | Mintlify documentation |
 | `daishizenSensei/LucidMerged` | **Private** | Proprietary | Studio UI (Next.js 15) |
 
