@@ -18,6 +18,8 @@ The identity module is structured around several key components:
 
 - **CAIP-10 Utilities**: The `caip10.ts` file provides utilities for parsing and validating CAIP-10 account IDs, which are crucial for cross-chain identity management.
 
+- **Identity Projection**: The `projections/` module handles async projection of Lucid passport identity to external Solana agent registries (Metaplex `mpl-agent-registry`, QuantuLabs `8004-solana`). Lucid passports are canonical; external registries are derived projections for discoverability. Uses `ISolanaIdentityRegistry` interface with a capability model, centralized ERC-8004 doc builder, and parallel projection with exponential backoff.
+
 Key design choices include the use of interfaces to abstract blockchain-specific operations, allowing the module to be easily extended to support additional chains or identity types.
 
 ## Data Flow
@@ -39,6 +41,15 @@ Data flow within the identity module follows these paths:
    - `passport/passportManager.ts` → `attemptOnChainSync` method → `OnChainSyncHandler` interface.
    - This flow handles the synchronization of passport data to the blockchain, ensuring consistency between off-chain and on-chain states.
 
+5. **Identity Projection** (async, non-blocking):
+   - `passport/passportManager.ts` → `triggerIdentityProjection()` → `projections/jobs/syncExternalIdentity.ts`
+   - Persists `status: 'pending'` to `external_registrations` (durable intent), then dispatches via `setImmediate`.
+   - `syncExternalIdentity()` fans out to all configured registries via `Promise.allSettled`.
+   - Each registry: `buildRegistrationDocFromPassport()` → upload to DePIN → call registry SDK (e.g., `registerIdentityV1` for Metaplex).
+   - Retry with exponential backoff + jitter (30s cap, configurable max retries).
+   - Results persisted to `passport.external_registrations` via per-passport mutex (`updateExternalRegistration`).
+   - Triggered on `createPassport` (register mode), `updatePassport` (sync mode), `updateEndpoints` (sync mode).
+
 ## Key Interfaces
 
 | Interface | File | Role |
@@ -46,6 +57,9 @@ Data flow within the identity module follows these paths:
 | `AgentWallet` | `wallet/IAgentWalletProvider.ts` | Agent Wallet Provider Interface |
 | `CreatePassportInput` | `passport/passportManager.ts` | Input for creating a passport |
 | `ERC8004AgentMetadata` | `registries/types.ts` | ERC-8004 Registry Types |
+| `ERC8004RegistrationDoc` | `projections/registration-doc/types.ts` | Extended ERC-8004 doc with services, registrations, supportedTrust |
+| `ISolanaIdentityRegistry` | `projections/ISolanaIdentityRegistry.ts` | Capability-driven registry adapter interface |
+| `RegistryCapabilities` | `projections/ISolanaIdentityRegistry.ts` | Register/resolve/sync/deregister capability flags |
 | `IAgentWalletProvider` | `wallet/IAgentWalletProvider.ts` | — |
 | `INFTProvider` | `nft/INFTProvider.ts` | Chain-agnostic NFT provider. |
 | `ITokenLauncher` | `shares/ITokenLauncher.ts` | Token launcher interface — swappable between direct SPL mint and Genesis TGE. |
@@ -91,5 +105,11 @@ Data flow within the identity module follows these paths:
 - **On-Chain Sync**: The `syncToChain` function relies on an external sync handler. If this handler is not configured, on-chain synchronization will fail silently, which can be problematic for maintaining data integrity.
 
 - **Auto-Save Mechanism**: The `PassportStore` uses an auto-save mechanism to persist data. Developers must ensure that changes are marked as dirty to trigger persistence, or data may be lost.
+
+- **Identity Projection**: External registry projection is async and non-blocking — passport creation never depends on external registry health. Projections use `Promise.allSettled` (parallel), exponential backoff with jitter, and per-passport mutex for safe concurrent writes. `recoverPendingProjections()` should be called on server startup to retry stuck projections.
+
+- **Lucid Passports vs ERC-8004**: Lucid passports and Metaplex/QuantuLabs identity registrations serve different purposes. ERC-8004 is a narrow identity standard ("I exist, here's how to reach me"). Lucid passports are a rich asset record ("I exist, here's my proof, my license, my price, my audit trail, my version history"). Both records exist for the same agent — Metaplex gives discoverability in their ecosystem, Lucid gives everything else (x402 payment gates, attestations, versioning, licensing, content hashes, revenue splits, 5 asset types).
+
+- **Shared Umi**: `LazyUmi` in `shared/chains/solana/umi.ts` is used by both `MetaplexCoreProvider` (NFT minting) and `MetaplexConnection` (identity projection). Adding Umi plugins (e.g., `mplAgentIdentity`) is done via the `plugins` option, not by modifying the shared base.
 
 Understanding these patterns and potential pitfalls is crucial for effectively contributing to the identity module.
