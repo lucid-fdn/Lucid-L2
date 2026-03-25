@@ -136,7 +136,7 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
   const deployer = getDeployer(input.target);
 
   try {
-    const result = await deployer.deploy(imageInput, { target: { type: input.target } }, passportId);
+    const result = await deployer.deploy(imageInput, { target: { type: input.target, skip_deploy_polling: true } }, passportId);
 
     if (!result.success) {
       // Deploy failed — transition to failed
