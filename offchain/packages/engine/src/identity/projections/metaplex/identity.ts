@@ -62,7 +62,8 @@ export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
       txSignature = Buffer.from(identityResult.signature).toString('base64');
     } catch (err: any) {
       // "Agent Identity already registered" is success — idempotent
-      if (err?.message?.includes('already registered') || err?.logs?.some?.((l: string) => l.includes('already registered'))) {
+      const errStr = String(err?.message ?? '') + String(err?.cause?.message ?? '') + JSON.stringify(err?.cause?.logs ?? err?.logs ?? []);
+      if (errStr.includes('already registered')) {
         logger.info(`[Metaplex] Agent ${passport.passport_id} already registered on-chain, treating as success`);
       } else {
         throw err;
