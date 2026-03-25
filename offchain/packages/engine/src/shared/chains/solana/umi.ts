@@ -28,11 +28,20 @@ export function createBaseUmi(options?: CreateUmiOptions): any {
     }
   }
 
-  // Add signer from env
-  const secretKey = process.env.LUCID_ORCHESTRATOR_SECRET_KEY;
-  if (secretKey) {
+  // Add signer from env — checks LUCID_ORCHESTRATOR_SECRET_KEY first, then SOLANA_PRIVATE_KEY
+  const orchestratorKey = process.env.LUCID_ORCHESTRATOR_SECRET_KEY;
+  const solanaKey = process.env.SOLANA_PRIVATE_KEY;
+  const rawKey = orchestratorKey || solanaKey;
+  if (rawKey) {
     const { keypairIdentity } = require('@metaplex-foundation/umi');
-    const decoded = Buffer.from(secretKey, 'base64');
+    let decoded: Uint8Array;
+    if (rawKey.trim().startsWith('[')) {
+      decoded = Uint8Array.from(JSON.parse(rawKey));
+    } else {
+      // Try base64 first (LUCID_ORCHESTRATOR_SECRET_KEY format), then base58 (SOLANA_PRIVATE_KEY format)
+      const buf = Buffer.from(rawKey, 'base64');
+      decoded = buf.length === 64 ? new Uint8Array(buf) : new Uint8Array(require('bs58').decode(rawKey));
+    }
     umi.use(keypairIdentity(umi.eddsa.createKeypairFromSecretKey(decoded)));
   }
 

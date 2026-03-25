@@ -33,6 +33,7 @@ import type { IEpochAdapter, IEscrowAdapter, IPassportAdapter, IAgentWalletAdapt
 import { ChainFeatureUnavailable } from '../../../errors';
 import { SolanaPassportClient } from '../../../identity/nft/solana/solana-token2022';
 import { logger } from '../../lib/logger';
+import { getSolanaKeypair } from './keypair';
 
 // =============================================================================
 // ANCHOR INSTRUCTION DISCRIMINATORS
@@ -1259,38 +1260,18 @@ export class SolanaAdapter implements IBlockchainAdapter {
   }
 
   private loadKeypair(): Keypair | null {
-    // Try SOLANA_PRIVATE_KEY env (base58 or JSON byte array)
-    const privateKey = process.env.SOLANA_PRIVATE_KEY;
-    if (privateKey) {
-      try {
-        // Try JSON byte array format first
-        const bytes = JSON.parse(privateKey);
-        if (Array.isArray(bytes)) {
-          return Keypair.fromSecretKey(Uint8Array.from(bytes));
-        }
-      } catch {
-        // Not JSON, try base58
-        try {
-          return Keypair.fromSecretKey(bs58.decode(privateKey));
-        } catch {
-          logger.warn('Failed to parse SOLANA_PRIVATE_KEY');
-        }
-      }
+    // Delegate to the shared keypair resolver, which checks (in order):
+    // 1. SOLANA_PRIVATE_KEY (base58 or JSON array)
+    // 2. LUCID_ORCHESTRATOR_SECRET_KEY (base64 or JSON array)
+    // 3. SOLANA_KEYPAIR env var
+    // 4. SOLANA_KEYPAIR_PATH file
+    // 5. ANCHOR_WALLET file
+    // 6. solana CLI config (dev-only)
+    try {
+      return getSolanaKeypair('SOLANA_PRIVATE_KEY');
+    } catch {
+      return null;
     }
-
-    // Try ANCHOR_WALLET path
-    const walletPath = process.env.ANCHOR_WALLET;
-    if (walletPath) {
-      try {
-        const data = fs.readFileSync(walletPath, 'utf8');
-        const bytes = JSON.parse(data);
-        return Keypair.fromSecretKey(Uint8Array.from(bytes));
-      } catch {
-        logger.warn(`Failed to load keypair from ANCHOR_WALLET: ${walletPath}`);
-      }
-    }
-
-    return null;
   }
 
   identity(): IIdentityAdapter {

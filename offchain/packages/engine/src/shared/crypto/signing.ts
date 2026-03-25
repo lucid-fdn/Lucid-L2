@@ -32,24 +32,46 @@ export function getOrchestratorKeypair(): SigningKeypair {
     return cachedKeypair;
   }
 
+  // Check LUCID_ORCHESTRATOR_SECRET_KEY (hex) or fall back to SOLANA_PRIVATE_KEY (base64/JSON/base58)
   const secretKeyHex = process.env.LUCID_ORCHESTRATOR_SECRET_KEY;
-  
+  const solanaPrivateKey = process.env.SOLANA_PRIVATE_KEY;
+
   if (secretKeyHex) {
-    // Load from environment (64-byte secret key in hex = 128 chars)
+    // Load from LUCID_ORCHESTRATOR_SECRET_KEY (64-byte secret key in hex = 128 chars)
     const secretKey = Buffer.from(secretKeyHex, 'hex');
     if (secretKey.length !== 64) {
       throw new Error('LUCID_ORCHESTRATOR_SECRET_KEY must be 64 bytes (128 hex chars)');
     }
-    const publicKey = secretKey.slice(32); // Last 32 bytes of nacl secretKey is the publicKey
+    const publicKey = secretKey.slice(32);
     cachedKeypair = {
       publicKey: new Uint8Array(publicKey),
       secretKey: new Uint8Array(secretKey),
     };
+  } else if (solanaPrivateKey) {
+    // Fall back to SOLANA_PRIVATE_KEY — parse base64/JSON/base58, extract Ed25519 signing keypair
+    let secretKey: Uint8Array;
+    try {
+      if (solanaPrivateKey.trim().startsWith('[')) {
+        secretKey = Uint8Array.from(JSON.parse(solanaPrivateKey));
+      } else {
+        // Try base64 first, then base58
+        const buf = Buffer.from(solanaPrivateKey, 'base64');
+        secretKey = buf.length === 64 ? new Uint8Array(buf) : new Uint8Array(require('bs58').decode(solanaPrivateKey));
+      }
+    } catch {
+      throw new Error('SOLANA_PRIVATE_KEY could not be parsed (expected base64, base58, or JSON byte array)');
+    }
+    if (secretKey.length !== 64) {
+      throw new Error('SOLANA_PRIVATE_KEY must be a 64-byte Ed25519 secret key');
+    }
+    cachedKeypair = {
+      publicKey: new Uint8Array(secretKey.slice(32)),
+      secretKey: new Uint8Array(secretKey),
+    };
+    logger.info('[Signing] Using SOLANA_PRIVATE_KEY as signing key');
   } else if (process.env.NODE_ENV === 'production') {
-    // CRITICAL: Never fall back to a dev key in production
     throw new Error(
-      'LUCID_ORCHESTRATOR_SECRET_KEY is required in production. ' +
-      'Generate one with: node -e "logger.info(require(\'tweetnacl\').sign.keyPair().secretKey.reduce((s,b)=>s+b.toString(16).padStart(2,\'0\'),\'\'))"'
+      'Signing key required in production. Set SOLANA_PRIVATE_KEY or LUCID_ORCHESTRATOR_SECRET_KEY.'
     );
   } else {
     // Development/test fallback: deterministic keypair from a seed
