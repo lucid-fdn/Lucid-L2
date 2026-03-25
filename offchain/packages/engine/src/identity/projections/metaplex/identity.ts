@@ -48,7 +48,8 @@ export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
     });
     const registrationDocUri = anchorResult?.url ?? '';
 
-    const { registerIdentityV1, publicKey } = require('@metaplex-foundation/mpl-agent-registry');
+    const { registerIdentityV1 } = require('@metaplex-foundation/mpl-agent-registry');
+    const { publicKey } = require('@metaplex-foundation/umi');
     const collectionAddress = process.env.METAPLEX_COLLECTION_ADDRESS;
     const identityResult = await registerIdentityV1(umi, {
       asset: publicKey(passport.nft_mint),

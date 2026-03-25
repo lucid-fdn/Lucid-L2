@@ -14,6 +14,9 @@ jest.mock('@metaplex-foundation/mpl-agent-registry', () => ({
   delegateExecutionV1: (...args: any[]) => mockDelegateExecutionV1(...args),
   findAgentIdentityV1Pda: (...args: any[]) => mockFindAgentIdentityV1Pda(...args),
   findExecutiveProfileV1Pda: jest.fn().mockReturnValue('ExecProfilePDA'),
+}), { virtual: true });
+
+jest.mock('@metaplex-foundation/umi', () => ({
   publicKey: (k: string) => k,
 }), { virtual: true });
 
