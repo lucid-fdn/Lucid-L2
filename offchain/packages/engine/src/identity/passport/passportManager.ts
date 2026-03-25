@@ -471,10 +471,12 @@ export class PassportManager {
         passportType: passport.type,
       });
 
-      // Store NFT mint address on passport
+      // Store NFT mint address on passport (both top-level and in metadata)
       passport.nft_mint = result.mint;
       passport.nft_chain = result.chain;
       await this.store.update(passport.passport_id, {
+        nft_mint: result.mint,
+        nft_chain: result.chain,
         metadata: { ...passport.metadata, nft_mint: result.mint, nft_chain: result.chain },
       });
 
