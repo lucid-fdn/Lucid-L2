@@ -121,7 +121,7 @@ In-memory registry with 30s TTL. Compute nodes send periodic heartbeats to stay 
 ### Key Algorithms
 - **MMR**: SHA-256, right-to-left peak bagging. Epoch finalization: >100 receipts OR >1 hour
 - **Receipt hash**: `SHA-256(JCS(receipt))` — RFC 8785 canonical JSON
-- **Signing**: Ed25519 via tweetnacl (`LUCID_ORCHESTRATOR_SECRET_KEY`)
+- **Signing**: Ed25519 via tweetnacl. Unified keypair resolution: `SOLANA_PRIVATE_KEY` (base58/base64/JSON) works everywhere — receipt signing, Anchor programs, NFT minting, Metaplex identity, token launches, airdrops. `LUCID_ORCHESTRATOR_SECRET_KEY` (hex) still takes priority if set.
 - **Gas**: iGas (1 LUCID/call) + mGas (5 LUCID/root). Batch: 2+5=7 LUCID total
 - **Revenue split**: Default 70% compute / 20% model / 10% protocol (basis points)
 - **x402 payment**: HTTP 402 protocol — server returns payment instructions, agent pays USDC on-chain, retries with `X-Payment-Proof` header. Facilitator-agnostic (DirectFacilitator, CoinbaseFacilitator, PayAIFacilitator). Dynamic pricing resolved per-asset from `asset_pricing` table. SpentProofsStore (Redis/in-memory) prevents replay.
@@ -408,7 +408,7 @@ engine/src/identity/projections/
     syncExternalReputation.ts         # Async reputation push to all syncers
 ```
 
-Env: `IDENTITY_REGISTRIES` (comma-separated: `metaplex,quantulabs`, default: empty — opt-in), `IDENTITY_PROJECTION_MAX_RETRIES` (default: `3`).
+Env: `IDENTITY_REGISTRIES` (comma-separated: `metaplex,quantulabs`, default: empty — opt-in), `IDENTITY_PROJECTION_MAX_RETRIES` (default: `3`), `METAPLEX_COLLECTION_ADDRESS` (Core collection pubkey for Metaplex registration). Signing uses unified `SOLANA_PRIVATE_KEY` (no separate key needed).
 
 Passport triggers: `createPassport()` (mode: `register`), `updatePassport()` (mode: `sync`), `updateEndpoints()` (mode: `sync`).
 
