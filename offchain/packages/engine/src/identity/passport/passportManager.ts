@@ -383,16 +383,21 @@ export class PassportManager {
       // Sync to chain if handler is set
       await this.attemptOnChainSync(passport);
 
-      // Mint NFT if requested (per-request flag, env var as default)
+      // Mint NFT if requested, then trigger identity projection after mint succeeds
       const shouldMintNFT = input.mintNFT ?? (process.env.NFT_MINT_ON_CREATE !== 'false');
       if (shouldMintNFT) {
-        this.attemptNFTMint(passport, chain).catch(err => {
+        this.attemptNFTMint(passport, chain).then(() => {
+          // Projection fires AFTER NFT mint succeeds (needs nft_mint to be set)
+          this.triggerIdentityProjection(passport, 'register');
+        }).catch(err => {
           logger.warn(`[PassportManager] NFT mint failed for ${passport.passport_id}:`, err instanceof Error ? err.message : err);
+          // Still try projection even without NFT — it will fail gracefully and record the error
+          this.triggerIdentityProjection(passport, 'register');
         });
+      } else {
+        // No NFT mint — trigger projection directly (will skip Metaplex if no nft_mint)
+        this.triggerIdentityProjection(passport, 'register');
       }
-
-      // Trigger durable identity projection (non-blocking)
-      this.triggerIdentityProjection(passport, 'register');
 
       return {
         ok: true,
