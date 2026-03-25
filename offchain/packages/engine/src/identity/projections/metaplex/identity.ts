@@ -70,10 +70,27 @@ export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
       }
     }
 
-    await this.ensureExecutiveRegistered(umi);
-    const agentIdentity = findAgentIdentityV1Pda(umi, { asset: publicKey(passport.nft_mint) });
-    const executiveProfile = findExecutiveProfileV1Pda(umi, { authority: umi.payer.publicKey });
-    await delegateExecutionV1(umi, { agentAsset: publicKey(passport.nft_mint), agentIdentity, executiveProfile }).sendAndConfirm(umi);
+    // Executive registration + delegation — both idempotent (ignore "already exists" errors)
+    try {
+      await registerExecutiveV1(umi, { payer: umi.payer }).sendAndConfirm(umi);
+    } catch (execErr: any) {
+      const execStr = String(execErr?.message ?? '') + String(execErr?.cause?.message ?? '') + JSON.stringify(execErr?.cause?.logs ?? execErr?.logs ?? []);
+      if (!execStr.includes('uninitialized') && !execStr.includes('already')) {
+        logger.warn(`[Metaplex] Executive registration failed (non-fatal):`, execErr instanceof Error ? execErr.message : execErr);
+      }
+    }
+    this.executiveRegistered = true;
+
+    try {
+      const agentIdentity = findAgentIdentityV1Pda(umi, { asset: publicKey(passport.nft_mint) });
+      const executiveProfile = findExecutiveProfileV1Pda(umi, { authority: umi.payer.publicKey });
+      await delegateExecutionV1(umi, { agentAsset: publicKey(passport.nft_mint), agentIdentity, executiveProfile }).sendAndConfirm(umi);
+    } catch (delErr: any) {
+      const delStr = String(delErr?.message ?? '') + String(delErr?.cause?.message ?? '') + JSON.stringify(delErr?.cause?.logs ?? delErr?.logs ?? []);
+      if (!delStr.includes('already') && !delStr.includes('uninitialized')) {
+        logger.warn(`[Metaplex] Execution delegation failed (non-fatal):`, delErr instanceof Error ? delErr.message : delErr);
+      }
+    }
 
     return { registryName: this.registryName, externalId: passport.nft_mint, txSignature, registrationDocUri };
   }
