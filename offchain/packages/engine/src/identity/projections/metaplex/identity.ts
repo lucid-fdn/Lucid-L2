@@ -52,12 +52,22 @@ export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
     const { delegateExecutionV1, registerExecutiveV1, findExecutiveProfileV1Pda } = require('@metaplex-foundation/mpl-agent-registry/dist/src/generated/tools');
     const { publicKey } = require('@metaplex-foundation/umi');
     const collectionAddress = process.env.METAPLEX_COLLECTION_ADDRESS;
-    const identityResult = await registerIdentityV1(umi, {
-      asset: publicKey(passport.nft_mint),
-      ...(collectionAddress ? { collection: publicKey(collectionAddress) } : {}),
-      agentRegistrationUri: registrationDocUri,
-    }).sendAndConfirm(umi);
-    const txSignature = Buffer.from(identityResult.signature).toString('base64');
+    let txSignature = '';
+    try {
+      const identityResult = await registerIdentityV1(umi, {
+        asset: publicKey(passport.nft_mint),
+        ...(collectionAddress ? { collection: publicKey(collectionAddress) } : {}),
+        agentRegistrationUri: registrationDocUri,
+      }).sendAndConfirm(umi);
+      txSignature = Buffer.from(identityResult.signature).toString('base64');
+    } catch (err: any) {
+      // "Agent Identity already registered" is success — idempotent
+      if (err?.message?.includes('already registered') || err?.logs?.some?.((l: string) => l.includes('already registered'))) {
+        logger.info(`[Metaplex] Agent ${passport.passport_id} already registered on-chain, treating as success`);
+      } else {
+        throw err;
+      }
+    }
 
     await this.ensureExecutiveRegistered(umi);
     const agentIdentity = findAgentIdentityV1Pda(umi, { asset: publicKey(passport.nft_mint) });
