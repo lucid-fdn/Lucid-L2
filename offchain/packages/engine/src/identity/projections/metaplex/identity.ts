@@ -48,7 +48,8 @@ export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
     });
     const registrationDocUri = anchorResult?.url ?? '';
 
-    const { registerIdentityV1 } = require('@metaplex-foundation/mpl-agent-registry');
+    const { registerIdentityV1, findAgentIdentityV1Pda } = require('@metaplex-foundation/mpl-agent-registry/dist/src/generated/identity');
+    const { delegateExecutionV1, registerExecutiveV1, findExecutiveProfileV1Pda } = require('@metaplex-foundation/mpl-agent-registry/dist/src/generated/tools');
     const { publicKey } = require('@metaplex-foundation/umi');
     const collectionAddress = process.env.METAPLEX_COLLECTION_ADDRESS;
     const identityResult = await registerIdentityV1(umi, {
@@ -59,8 +60,6 @@ export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
     const txSignature = Buffer.from(identityResult.signature).toString('base64');
 
     await this.ensureExecutiveRegistered(umi);
-
-    const { delegateExecutionV1, findAgentIdentityV1Pda, findExecutiveProfileV1Pda } = require('@metaplex-foundation/mpl-agent-registry');
     const agentIdentity = findAgentIdentityV1Pda(umi, { asset: publicKey(passport.nft_mint) });
     const executiveProfile = findExecutiveProfileV1Pda(umi, { authority: umi.payer.publicKey });
     await delegateExecutionV1(umi, { agentAsset: publicKey(passport.nft_mint), agentIdentity, executiveProfile }).sendAndConfirm(umi);
@@ -71,7 +70,7 @@ export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
   async resolve(agentId: string): Promise<ExternalIdentity | null> {
     try {
       const umi = await this.connection.getUmi();
-      const { findAgentIdentityV1Pda } = require('@metaplex-foundation/mpl-agent-registry');
+      const { findAgentIdentityV1Pda } = require('@metaplex-foundation/mpl-agent-registry/dist/src/generated/identity');
       const { fetchAssetV1 } = require('@metaplex-foundation/mpl-core');
       const { publicKey } = require('@metaplex-foundation/umi');
       const pda = findAgentIdentityV1Pda(umi, { asset: publicKey(agentId) });
@@ -121,7 +120,7 @@ export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
 
   private async ensureExecutiveRegistered(umi: any): Promise<void> {
     if (this.executiveRegistered) return;
-    const { registerExecutiveV1, findExecutiveProfileV1Pda } = require('@metaplex-foundation/mpl-agent-registry');
+    const { registerExecutiveV1, findExecutiveProfileV1Pda } = require('@metaplex-foundation/mpl-agent-registry/dist/src/generated/tools');
     const profilePda = findExecutiveProfileV1Pda(umi, { authority: umi.payer.publicKey });
     const account = await umi.rpc.getAccount(profilePda);
     if (!account.exists) { await registerExecutiveV1(umi, { payer: umi.payer }).sendAndConfirm(umi); }

@@ -7,12 +7,14 @@ const mockRegisterExecutiveV1 = jest.fn().mockReturnValue({ sendAndConfirm: jest
 const mockDelegateExecutionV1 = jest.fn().mockReturnValue({ sendAndConfirm: jest.fn().mockResolvedValue({}) });
 const mockFindAgentIdentityV1Pda = jest.fn().mockReturnValue('AgentIdentityPDA');
 
-jest.mock('@metaplex-foundation/mpl-agent-registry', () => ({
-  mplAgentIdentity: jest.fn().mockReturnValue({}),
+jest.mock('@metaplex-foundation/mpl-agent-registry/dist/src/generated/identity', () => ({
   registerIdentityV1: (...args: any[]) => mockRegisterIdentityV1(...args),
-  registerExecutiveV1: (...args: any[]) => mockRegisterExecutiveV1(...args),
-  delegateExecutionV1: (...args: any[]) => mockDelegateExecutionV1(...args),
   findAgentIdentityV1Pda: (...args: any[]) => mockFindAgentIdentityV1Pda(...args),
+}), { virtual: true });
+
+jest.mock('@metaplex-foundation/mpl-agent-registry/dist/src/generated/tools', () => ({
+  delegateExecutionV1: (...args: any[]) => mockDelegateExecutionV1(...args),
+  registerExecutiveV1: (...args: any[]) => mockRegisterExecutiveV1(...args),
   findExecutiveProfileV1Pda: jest.fn().mockReturnValue('ExecProfilePDA'),
 }), { virtual: true });
 
