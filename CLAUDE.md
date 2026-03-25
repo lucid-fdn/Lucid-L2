@@ -408,7 +408,7 @@ engine/src/identity/projections/
     syncExternalReputation.ts         # Async reputation push to all syncers
 ```
 
-Env: `IDENTITY_REGISTRIES` (comma-separated: `metaplex,quantulabs`, default: empty — opt-in), `IDENTITY_PROJECTION_MAX_RETRIES` (default: `3`), `METAPLEX_COLLECTION_ADDRESS` (Core collection pubkey for Metaplex registration). Signing uses unified `SOLANA_PRIVATE_KEY` (no separate key needed).
+Env: `IDENTITY_REGISTRIES` (comma-separated: `metaplex,quantulabs`, default: empty — opt-in), `IDENTITY_PROJECTION_MAX_RETRIES` (default: `3`), `METAPLEX_COLLECTION_ADDRESS` (Core collection pubkey — required for Metaplex, devnet: `A9GdUxtP8SvGUxqBd4fEysnX3UBPpbnHuP4CWVVFtVtk`), `METAPLEX_RPC_URL` (optional — overrides `SOLANA_RPC_URL` for Metaplex only, enables mainnet identity while Lucid runs on devnet). Signing uses unified `SOLANA_PRIVATE_KEY` (no separate key needed — wallet must have SOL on the Metaplex target network).
 
 Passport triggers: `createPassport()` (mode: `register`), `updatePassport()` (mode: `sync`), `updateEndpoints()` (mode: `sync`).
 

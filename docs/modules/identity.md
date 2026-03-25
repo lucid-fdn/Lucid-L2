@@ -110,6 +110,12 @@ Data flow within the identity module follows these paths:
 
 - **Lucid Passports vs ERC-8004**: Lucid passports and Metaplex/QuantuLabs identity registrations serve different purposes. ERC-8004 is a narrow identity standard ("I exist, here's how to reach me"). Lucid passports are a rich asset record ("I exist, here's my proof, my license, my price, my audit trail, my version history"). Both records exist for the same agent — Metaplex gives discoverability in their ecosystem, Lucid gives everything else (x402 payment gates, attestations, versioning, licensing, content hashes, revenue splits, 5 asset types).
 
-- **Shared Umi**: `LazyUmi` in `shared/chains/solana/umi.ts` is used by both `MetaplexCoreProvider` (NFT minting) and `MetaplexConnection` (identity projection). Adding Umi plugins (e.g., `mplAgentIdentity`) is done via the `plugins` option, not by modifying the shared base.
+- **Shared Umi**: `LazyUmi` in `shared/chains/solana/umi.ts` is used by both `MetaplexCoreProvider` (NFT minting) and `MetaplexConnection` (identity projection). Adding Umi plugins (e.g., `mplAgentIdentity`) is done via the `plugins` option, not by modifying the shared base. `LazyUmi` supports `rpcUrl` override for per-consumer network targeting.
+
+- **Multi-Network Metaplex**: `METAPLEX_RPC_URL` allows Metaplex identity registration on mainnet while Lucid (passports, epochs, anchoring) runs on devnet. If not set, falls back to `SOLANA_RPC_URL`. This enables production agent discoverability on Metaplex mainnet without requiring all Lucid programs to be deployed on mainnet. The signing wallet (`SOLANA_PRIVATE_KEY`) must have SOL on whichever network Metaplex targets.
+
+- **Metaplex Collection Required**: Agents must be minted as Core assets within a collection (`METAPLEX_COLLECTION_ADDRESS`) for `registerIdentityV1` to accept them. Standalone Core assets (no collection) are rejected by the Metaplex agent registry program.
+
+- **Idempotent Metaplex Operations**: `registerIdentityV1`, `registerExecutiveV1`, and `delegateExecutionV1` all throw "already registered/uninitialized" errors on retry. These are caught and treated as success — the projection system is fully idempotent.
 
 Understanding these patterns and potential pitfalls is crucial for effectively contributing to the identity module.

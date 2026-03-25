@@ -8,6 +8,8 @@ import { logger } from '../../lib/logger';
 export interface CreateUmiOptions {
   /** Additional Umi plugins to apply after base setup (e.g., mplAgentIdentity) */
   plugins?: Array<() => any>;
+  /** Override RPC URL (defaults to SOLANA_RPC_URL env var) */
+  rpcUrl?: string;
 }
 
 /**
@@ -18,7 +20,7 @@ export function createBaseUmi(options?: CreateUmiOptions): any {
   const { createUmi } = require('@metaplex-foundation/umi-bundle-defaults');
   const { mplCore } = require('@metaplex-foundation/mpl-core');
 
-  const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+  const rpcUrl = options?.rpcUrl || process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com';
   const umi = createUmi(rpcUrl).use(mplCore());
 
   // Apply additional plugins
