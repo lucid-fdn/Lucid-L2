@@ -116,6 +116,11 @@ export class RailwayDeployer implements IDeployer {
         : { image: imageRef };
       logger.info(`[Deploy:Railway] Creating service "${serviceName}" with source:`, source);
 
+      // Pass registry credentials for private Docker images (e.g. GHCR)
+      const registryAuth = isImageDeploy(input) && input.registry_auth
+        ? { username: input.registry_auth.username, password: input.registry_auth.password }
+        : undefined;
+
       const createServiceResult = await this.graphql(`
         mutation ServiceCreate($input: ServiceCreateInput!) {
           serviceCreate(input: $input) {
@@ -128,6 +133,7 @@ export class RailwayDeployer implements IDeployer {
           name: serviceName,
           projectId,
           source,
+          ...(registryAuth ? { registryCredentials: registryAuth } : {}),
         },
       });
 
