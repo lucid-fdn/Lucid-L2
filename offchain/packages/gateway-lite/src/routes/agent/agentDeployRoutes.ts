@@ -7,7 +7,7 @@ import { logger } from '../../../../engine/src/shared/lib/logger';
 
 // Lazy import to avoid circular deps — matches codebase convention for engine imports
 function getService() {
-  const { getAgentDeploymentService } = require('../../../engine/src/compute/control-plane/agent/agentDeploymentService');
+  const { getAgentDeploymentService } = require('../../../../engine/src/compute/control-plane/agent/agentDeploymentService');
   return getAgentDeploymentService();
 }
 
