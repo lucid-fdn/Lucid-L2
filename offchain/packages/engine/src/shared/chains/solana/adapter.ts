@@ -1202,13 +1202,18 @@ export class SolanaAdapter implements IBlockchainAdapter {
 
     return {
       async collectAndSplit(iGas, mGas, recipients, burnBps) {
+        // Feature flag: skip token economics when disabled
+        const { LUCID_GAS_ENABLED, getLUCID_MINT } = await import('../../config/config');
+        if (!LUCID_GAS_ENABLED) {
+          logger.info(`[SolanaAdapter] gas.collectAndSplit skipped (LUCID_GAS_ENABLED=false)`);
+          return { hash: '', chainId, success: true };
+        }
+
         adapter.ensureConnected();
         const conn = adapter._connection!;
         const keypair = adapter.loadKeypair();
         if (!keypair) throw new Error('No Solana keypair configured');
         if (!config?.gasUtilsProgram) throw new ChainFeatureUnavailable('gas.collectAndSplit (gas-utils program not configured)', chainId);
-
-        const { getLUCID_MINT } = await import('../../config/config');
         const mint = getLUCID_MINT();
         const programId = new PublicKey(config.gasUtilsProgram);
 

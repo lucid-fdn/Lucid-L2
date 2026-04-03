@@ -35,6 +35,10 @@ import { shutdownTracing } from './lib/observability';
  * Call this after routes are mounted but before app.listen().
  */
 export function initializeBackgroundServices(app: Express): void {
+  // Log token economics feature flags
+  const { LUCID_GAS_ENABLED, SOL_FEE_PAYER } = require('../../engine/src/shared/config/config');
+  console.log(`Token Economics: LUCID gas=${LUCID_GAS_ENABLED ? 'ENABLED' : 'DISABLED'}, SOL fees=${SOL_FEE_PAYER}`);
+
   // Register built-in reputation algorithms
   reputationAlgorithmRegistry.register(new ReceiptVolumeAlgorithm());
   reputationAlgorithmRegistry.register(new CrossChainWeightedAlgorithm());

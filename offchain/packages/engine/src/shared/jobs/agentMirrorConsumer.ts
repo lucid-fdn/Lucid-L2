@@ -107,8 +107,13 @@ async function pollOnce(): Promise<number> {
   stats.last_poll_at = Date.now()
   let mirrored = 0
 
+  // Use a dedicated client + transaction so FOR UPDATE SKIP LOCKED holds
+  // row locks until we mark events as processed.
+  const client = await platformCorePgPool.connect()
   try {
-    const result = await platformCorePgPool.query<AgentCreatedEventRow>(
+    await client.query('BEGIN')
+
+    const result = await client.query<AgentCreatedEventRow>(
       `SELECT id, passport_id, tenant_id, name, framework, metadata, event_seq
        FROM agent_created_events
        WHERE processed = false
@@ -122,7 +127,10 @@ async function pollOnce(): Promise<number> {
     currentBackoffMs = 0
     stats.consecutive_failures = 0
 
-    if (result.rows.length === 0) return 0
+    if (result.rows.length === 0) {
+      await client.query('COMMIT')
+      return 0
+    }
 
     logger.info(`[AgentMirrorConsumer] Processing ${result.rows.length} agent events`)
 
@@ -132,13 +140,12 @@ async function pollOnce(): Promise<number> {
         // greater than the last event_seq stored on the passport row.
         // We store event_seq in the JSONB metadata column under '__event_seq'.
         await l2QueryFn!(
-          `INSERT INTO passports (passport_id, type, owner, name, metadata, platform_tenant_id, status, created_at, updated_at)
-           VALUES ($1, 'agent', $2, $3, $4::jsonb, $2, 'active', now(), now())
+          `INSERT INTO passports (passport_id, type, owner, name, metadata, tenant_id, status, created_at, updated_at)
+           VALUES ($1, 'agent', $2, $3, $4::jsonb, 'default', 'active', now(), now())
            ON CONFLICT (passport_id) DO UPDATE SET
-             name               = EXCLUDED.name,
-             metadata           = EXCLUDED.metadata,
-             platform_tenant_id = EXCLUDED.platform_tenant_id,
-             updated_at         = now()
+             name       = EXCLUDED.name,
+             metadata   = EXCLUDED.metadata,
+             updated_at = now()
            WHERE (passports.metadata->>'__event_seq')::bigint < $5
               OR  passports.metadata->>'__event_seq' IS NULL`,
           [
@@ -154,8 +161,8 @@ async function pollOnce(): Promise<number> {
           ]
         )
 
-        // Mark processed in platform-core DB
-        await platformCorePgPool!.query(
+        // Mark processed in platform-core DB (within the same transaction)
+        await client.query(
           `UPDATE agent_created_events SET processed = true WHERE id = $1`,
           [row.id]
         )
@@ -170,8 +177,10 @@ async function pollOnce(): Promise<number> {
       }
     }
 
+    await client.query('COMMIT')
     return mirrored
   } catch (err: any) {
+    await client.query('ROLLBACK').catch(() => {})
     stats.consecutive_failures++
 
     // Backoff on persistent errors (e.g. 42P01 = table missing)
@@ -185,6 +194,7 @@ async function pollOnce(): Promise<number> {
     logger.error(`[AgentMirrorConsumer] Poll failed (code=${code}, backoff=${currentBackoffMs}ms, consecutive=${stats.consecutive_failures}):`, err)
     return 0
   } finally {
+    client.release()
     isPolling = false
   }
 }
@@ -216,7 +226,11 @@ export function stopAgentMirrorConsumer(): void {
   if (!pollInterval) return
   clearInterval(pollInterval)
   pollInterval = null
-  platformCorePgPool?.end().catch(() => {})
+  if (platformCorePgPool) {
+    platformCorePgPool.end().catch(() => {})
+    platformCorePgPool = null
+  }
+  l2QueryFn = null
   logger.info('[AgentMirrorConsumer] Stopped')
 }
 
@@ -227,4 +241,17 @@ export function getAgentMirrorStats() {
 /** Manually trigger one poll (testing / admin use) */
 export async function triggerAgentMirrorPoll(): Promise<number> {
   return pollOnce()
+}
+
+/** Reset all state (testing only) */
+export function resetAgentMirrorConsumer(): void {
+  stopAgentMirrorConsumer()
+  config = { ...DEFAULT_CONFIG }
+  isPolling = false
+  currentBackoffMs = 0
+  backoffUntil = 0
+  stats.mirrored_total = 0
+  stats.failed_total = 0
+  stats.last_poll_at = null
+  stats.consecutive_failures = 0
 }

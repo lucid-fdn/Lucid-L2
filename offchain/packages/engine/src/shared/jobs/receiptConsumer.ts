@@ -161,10 +161,14 @@ async function pollOnce(): Promise<number> {
   stats.last_poll_at = Date.now()
   let processed = 0
 
+  // Use a dedicated client + transaction so FOR UPDATE SKIP LOCKED holds
+  // row locks until we mark events as processed.
+  const client = await gatewayPool.connect()
   try {
-    // Fetch unprocessed events — use FOR UPDATE SKIP LOCKED for safe concurrency
+    await client.query('BEGIN')
+
     // Use SELECT * to be resilient to missing columns (020_agent_system migration may not be applied)
-    const result = await gatewayPool.query(
+    const result = await client.query(
       `SELECT *
        FROM receipt_events
        WHERE processed = false
@@ -181,6 +185,7 @@ async function pollOnce(): Promise<number> {
     stats.consecutive_failures = 0
 
     if (rows.length === 0) {
+      await client.query('COMMIT')
       log('debug', 'No unprocessed receipt events')
       return 0
     }
@@ -189,8 +194,6 @@ async function pollOnce(): Promise<number> {
 
     for (const row of rows) {
       try {
-        // createInferenceReceipt() is the existing Lucid-L2 service — same as the /v1/receipts endpoint
-        // Pass run_id from gateway edge so the join key is consistent
         const receipt = createInferenceReceipt({
           model_passport_id: row.model_passport_id,
           compute_passport_id: row.compute_passport_id ?? 'unknown',
@@ -202,9 +205,6 @@ async function pollOnce(): Promise<number> {
           run_id: row.run_id ?? undefined,
         })
 
-        // Route to per-agent epoch when agent_passport_id is present;
-        // otherwise route to global epoch.
-        // Using agent_passport_id as project_id gives per-agent MMR isolation.
         addReceiptToEpoch(receipt.run_id, row.agent_passport_id ?? undefined)
 
         // Wire agent receipts to revenue pipeline
@@ -223,8 +223,8 @@ async function pollOnce(): Promise<number> {
           }
         }
 
-        // Mark as processed (in the gateway DB)
-        await gatewayPool.query(
+        // Mark as processed (within the same transaction)
+        await client.query(
           `UPDATE receipt_events SET processed = true WHERE id = $1`,
           [row.id]
         )
@@ -240,13 +240,13 @@ async function pollOnce(): Promise<number> {
       }
     }
 
+    await client.query('COMMIT')
     log('info', `Processed ${processed}/${rows.length} receipt events`)
     return processed
   } catch (err: any) {
+    await client.query('ROLLBACK').catch(() => {})
     stats.consecutive_failures++
 
-    // Backoff on persistent errors (e.g. 42P01 = table missing)
-    // Doubles each time: 10s → 20s → 40s → ... → 5min cap
     currentBackoffMs = Math.min(
       currentBackoffMs === 0 ? 10_000 : currentBackoffMs * 2,
       MAX_BACKOFF_MS
@@ -257,6 +257,7 @@ async function pollOnce(): Promise<number> {
     log('error', `Poll failed (code=${code}, backoff=${currentBackoffMs}ms, consecutive=${stats.consecutive_failures})`, err)
     return 0
   } finally {
+    client.release()
     stats.last_processed_count = processed
     isPolling = false
   }

@@ -90,7 +90,43 @@ export class ConfigurationManager {
 // Global configuration manager instance
 export const configManager = new ConfigurationManager();
 
-// Gas rates and costs (configurable via env)
+// ---------------------------------------------------------------------------
+// Token Economics Feature Flags
+// ---------------------------------------------------------------------------
+
+/**
+ * LUCID_GAS_ENABLED — when false, skip all LUCID token burn/split.
+ * Receipts and proofs still work; only the token transfer is skipped.
+ * Flip to 'true' when the token has a liquidity pool and real value.
+ */
+export const LUCID_GAS_ENABLED = process.env.LUCID_GAS_ENABLED === 'true';
+
+/**
+ * SOL_FEE_PAYER — who pays Solana transaction fees (SOL).
+ *
+ *   'protocol'  — orchestrator wallet signs and pays everything (launch mode)
+ *   'hybrid'    — protocol pays anchoring/identity, users pay passport mints
+ *   'user'      — users pay their own SOL fees (mature mode)
+ */
+export type SolFeePayerMode = 'protocol' | 'hybrid' | 'user';
+export const SOL_FEE_PAYER: SolFeePayerMode =
+  (process.env.SOL_FEE_PAYER as SolFeePayerMode) || 'protocol';
+
+/**
+ * Returns true when the protocol should pay SOL fees for the given operation.
+ * In 'protocol' mode: always true.
+ * In 'hybrid' mode: true for system operations, false for user-initiated.
+ * In 'user' mode: always false.
+ */
+export function isProtocolSponsored(operation: 'anchor' | 'identity' | 'passport_mint' | 'gas_collect' | 'reputation'): boolean {
+  if (SOL_FEE_PAYER === 'protocol') return true;
+  if (SOL_FEE_PAYER === 'user') return false;
+  // hybrid: protocol pays infrastructure, users pay for their own assets
+  const protocolOps = new Set(['anchor', 'identity', 'reputation', 'gas_collect']);
+  return protocolOps.has(operation);
+}
+
+// Gas rates and costs (configurable via env, only used when LUCID_GAS_ENABLED=true)
 export const IGAS_PER_CALL = parseInt(process.env.IGAS_PER_CALL || '1', 10);
 export const MGAS_PER_ROOT = parseInt(process.env.MGAS_PER_ROOT || '5', 10);
 export const IGAS_PER_BATCH = parseInt(process.env.IGAS_PER_BATCH || '2', 10);
