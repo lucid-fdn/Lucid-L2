@@ -50,7 +50,13 @@ const stats = {
   mirrored_total: 0,
   failed_total: 0,
   last_poll_at: null as number | null,
+  consecutive_failures: 0,
 }
+
+/** Max backoff interval when persistent errors occur (5 minutes) */
+const MAX_BACKOFF_MS = 5 * 60 * 1000
+let currentBackoffMs = 0
+let backoffUntil = 0
 
 // ---------------------------------------------------------------------------
 // Init
@@ -94,6 +100,9 @@ async function pollOnce(): Promise<number> {
   if (!l2QueryFn || !platformCorePgPool) return 0
   if (isPolling) return 0
 
+  // Respect backoff on persistent errors
+  if (backoffUntil > Date.now()) return 0
+
   isPolling = true
   stats.last_poll_at = Date.now()
   let mirrored = 0
@@ -108,6 +117,10 @@ async function pollOnce(): Promise<number> {
        FOR UPDATE SKIP LOCKED`,
       [config.batch_size]
     )
+
+    // Successful query — reset backoff
+    currentBackoffMs = 0
+    stats.consecutive_failures = 0
 
     if (result.rows.length === 0) return 0
 
@@ -158,8 +171,18 @@ async function pollOnce(): Promise<number> {
     }
 
     return mirrored
-  } catch (err) {
-    logger.error('[AgentMirrorConsumer] Poll failed:', err)
+  } catch (err: any) {
+    stats.consecutive_failures++
+
+    // Backoff on persistent errors (e.g. 42P01 = table missing)
+    currentBackoffMs = Math.min(
+      currentBackoffMs === 0 ? 10_000 : currentBackoffMs * 2,
+      MAX_BACKOFF_MS
+    )
+    backoffUntil = Date.now() + currentBackoffMs
+
+    const code = err?.code || 'unknown'
+    logger.error(`[AgentMirrorConsumer] Poll failed (code=${code}, backoff=${currentBackoffMs}ms, consecutive=${stats.consecutive_failures}):`, err)
     return 0
   } finally {
     isPolling = false

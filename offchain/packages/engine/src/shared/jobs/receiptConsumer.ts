@@ -12,6 +12,7 @@
  * stays in Lucid-L2.
  */
 
+import { Pool } from 'pg'
 import { createInferenceReceipt } from '../../receipt/receiptService'
 import { addReceiptToEpoch } from '../../anchoring/epoch/services/epochService'
 
@@ -60,6 +61,8 @@ export interface ReceiptConsumerStats {
   last_poll_at: number | null
   last_processed_count: number
   running: boolean
+  /** Consecutive poll failures (resets on success) */
+  consecutive_failures: number
 }
 
 // ---------------------------------------------------------------------------
@@ -76,7 +79,16 @@ const DEFAULT_CONFIG: ReceiptConsumerConfig = {
 let config: ReceiptConsumerConfig = { ...DEFAULT_CONFIG }
 let pollInterval: ReturnType<typeof setInterval> | null = null
 let isPolling = false
-let queryFn: ((sql: string, params?: any[]) => Promise<{ rows: any[] }>) | null = null
+
+/** Dedicated pool for the gateway DB where receipt_events lives */
+let gatewayPool: Pool | null = null
+
+/** Max backoff interval when persistent errors occur (5 minutes) */
+const MAX_BACKOFF_MS = 5 * 60 * 1000
+/** Current backoff interval (resets on successful poll) */
+let currentBackoffMs = 0
+/** Timestamp when the next poll is allowed after backoff */
+let backoffUntil = 0
 
 const stats: ReceiptConsumerStats = {
   processed_total: 0,
@@ -84,6 +96,7 @@ const stats: ReceiptConsumerStats = {
   last_poll_at: null,
   last_processed_count: 0,
   running: false,
+  consecutive_failures: 0,
 }
 
 // ---------------------------------------------------------------------------
@@ -104,14 +117,22 @@ function log(level: 'debug' | 'info' | 'warn' | 'error', msg: string, data?: unk
 // ---------------------------------------------------------------------------
 
 /**
- * Provide a DB query function — must be called before startReceiptConsumer().
- * Typically the same pg Pool query used by the rest of the offchain app.
+ * Initialize the receipt consumer with a connection to the gateway DB.
+ * `receipt_events` lives in the gateway (platform-core) database,
+ * not the L2 database, so we need a dedicated pool.
+ *
+ * @param gatewayDbUrl — Postgres connection string for the gateway DB
  */
 export function initReceiptConsumer(
-  query: (sql: string, params?: any[]) => Promise<{ rows: any[] }>,
+  gatewayDbUrl: string,
   overrides?: Partial<ReceiptConsumerConfig>
 ): void {
-  queryFn = query
+  gatewayPool = new Pool({
+    connectionString: gatewayDbUrl,
+    max: 3,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 5_000,
+  })
   if (overrides) config = { ...config, ...overrides }
 }
 
@@ -120,13 +141,19 @@ export function initReceiptConsumer(
 // ---------------------------------------------------------------------------
 
 async function pollOnce(): Promise<number> {
-  if (!queryFn) {
-    log('warn', 'queryFn not set — skipping poll. Call initReceiptConsumer() first.')
+  if (!gatewayPool) {
+    log('warn', 'Gateway pool not set — skipping poll. Call initReceiptConsumer() first.')
     return 0
   }
 
   if (isPolling) {
     log('debug', 'Already polling — skipping concurrent run')
+    return 0
+  }
+
+  // Respect backoff on persistent errors
+  if (backoffUntil > Date.now()) {
+    log('debug', `Backing off until ${new Date(backoffUntil).toISOString()}`)
     return 0
   }
 
@@ -137,7 +164,7 @@ async function pollOnce(): Promise<number> {
   try {
     // Fetch unprocessed events — use FOR UPDATE SKIP LOCKED for safe concurrency
     // Use SELECT * to be resilient to missing columns (020_agent_system migration may not be applied)
-    const result = await queryFn(
+    const result = await gatewayPool.query(
       `SELECT *
        FROM receipt_events
        WHERE processed = false
@@ -148,6 +175,10 @@ async function pollOnce(): Promise<number> {
     )
 
     const rows: ReceiptEventRow[] = result.rows
+
+    // Successful query — reset backoff
+    currentBackoffMs = 0
+    stats.consecutive_failures = 0
 
     if (rows.length === 0) {
       log('debug', 'No unprocessed receipt events')
@@ -190,13 +221,10 @@ async function pollOnce(): Promise<number> {
           } catch (err) {
             log('warn', `Failed to process agent revenue for ${row.agent_passport_id}`, err)
           }
-
-          // WIP: marketplace usage tracking moved to _wip/ — needs DB persistence
-          // Will be re-enabled when marketplace is backed by PostgreSQL
         }
 
-        // Mark as processed
-        await queryFn!(
+        // Mark as processed (in the gateway DB)
+        await gatewayPool.query(
           `UPDATE receipt_events SET processed = true WHERE id = $1`,
           [row.id]
         )
@@ -214,8 +242,19 @@ async function pollOnce(): Promise<number> {
 
     log('info', `Processed ${processed}/${rows.length} receipt events`)
     return processed
-  } catch (err) {
-    log('error', 'Poll failed', err)
+  } catch (err: any) {
+    stats.consecutive_failures++
+
+    // Backoff on persistent errors (e.g. 42P01 = table missing)
+    // Doubles each time: 10s → 20s → 40s → ... → 5min cap
+    currentBackoffMs = Math.min(
+      currentBackoffMs === 0 ? 10_000 : currentBackoffMs * 2,
+      MAX_BACKOFF_MS
+    )
+    backoffUntil = Date.now() + currentBackoffMs
+
+    const code = err?.code || 'unknown'
+    log('error', `Poll failed (code=${code}, backoff=${currentBackoffMs}ms, consecutive=${stats.consecutive_failures})`, err)
     return 0
   } finally {
     stats.last_processed_count = processed
@@ -253,13 +292,17 @@ export function startReceiptConsumer(): void {
 }
 
 /**
- * Stop the background receipt consumer.
+ * Stop the background receipt consumer and close the gateway pool.
  */
 export function stopReceiptConsumer(): void {
   if (!pollInterval) return
   clearInterval(pollInterval)
   pollInterval = null
   stats.running = false
+  if (gatewayPool) {
+    gatewayPool.end().catch(() => { /* best-effort */ })
+    gatewayPool = null
+  }
   log('info', 'Receipt consumer stopped')
 }
 
@@ -283,11 +326,14 @@ export async function triggerReceiptConsumerPoll(): Promise<number> {
 export function resetReceiptConsumer(): void {
   stopReceiptConsumer()
   config = { ...DEFAULT_CONFIG }
-  queryFn = null
+  gatewayPool = null
   isPolling = false
+  currentBackoffMs = 0
+  backoffUntil = 0
   stats.processed_total = 0
   stats.failed_total = 0
   stats.last_poll_at = null
   stats.last_processed_count = 0
   stats.running = false
+  stats.consecutive_failures = 0
 }

@@ -131,23 +131,27 @@ export function initializeBackgroundServices(app: Express): void {
     }
   })();
 
-  // Initialize Receipt Consumer (polls receipt_events from TrustGate)
-  try {
-    initReceiptConsumer(
-      async (sql, params) => {
-        const result = await pool.query(sql, params);
-        return { rows: result.rows };
-      },
-      {
-        interval_ms: parseInt(process.env.RECEIPT_CONSUMER_INTERVAL_MS || '5000'),
-        batch_size: parseInt(process.env.RECEIPT_CONSUMER_BATCH_SIZE || '50'),
-        enabled: process.env.RECEIPT_CONSUMER_ENABLED !== 'false',
-      }
-    );
-    startReceiptConsumer();
-    console.log('Receipt Consumer started');
-  } catch (err) {
-    console.warn('Receipt Consumer failed to start:', err instanceof Error ? err.message : err);
+  // Initialize Receipt Consumer (polls receipt_events from gateway/platform-core DB)
+  const RECEIPT_CONSUMER_DB_URL = process.env.PLATFORM_CORE_DB_URL;
+  if (RECEIPT_CONSUMER_DB_URL && process.env.RECEIPT_CONSUMER_ENABLED !== 'false') {
+    try {
+      initReceiptConsumer(
+        RECEIPT_CONSUMER_DB_URL,
+        {
+          interval_ms: parseInt(process.env.RECEIPT_CONSUMER_INTERVAL_MS || '5000'),
+          batch_size: parseInt(process.env.RECEIPT_CONSUMER_BATCH_SIZE || '50'),
+          enabled: true,
+        }
+      );
+      startReceiptConsumer();
+      console.log('Receipt Consumer started (PLATFORM_CORE_DB_URL configured)');
+    } catch (err) {
+      console.warn('Receipt Consumer failed to start:', err instanceof Error ? err.message : err);
+    }
+  } else if (!RECEIPT_CONSUMER_DB_URL) {
+    console.log('Receipt Consumer disabled (PLATFORM_CORE_DB_URL not set)');
+  } else {
+    console.log('Receipt Consumer disabled (RECEIPT_CONSUMER_ENABLED=false)');
   }
 
   // Start Memory background services (embedding worker + projection)
@@ -197,20 +201,29 @@ export function initializeBackgroundServices(app: Express): void {
     console.log('Agent Mirror Consumer disabled (PLATFORM_CORE_DB_URL not set)');
   }
 
-  // Receipt retention cron — clean up processed events older than 30 days
-  const RECEIPT_RETENTION_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
-  setInterval(async () => {
-    try {
-      const result = await pool.query(
-        `DELETE FROM receipt_events WHERE processed = true AND created_at < now() - interval '30 days'`
-      );
-      if (result.rowCount && result.rowCount > 0) {
-        console.log(`Receipt retention: deleted ${result.rowCount} processed events older than 30d`);
+  // Receipt retention cron — clean up processed events older than 30 days (in gateway DB)
+  if (RECEIPT_CONSUMER_DB_URL) {
+    const { Pool: PgPool } = require('pg');
+    const retentionPool = new PgPool({
+      connectionString: RECEIPT_CONSUMER_DB_URL,
+      max: 1,
+      idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 5_000,
+    });
+    const RECEIPT_RETENTION_INTERVAL_MS = 6 * 60 * 60 * 1000; // every 6 hours
+    setInterval(async () => {
+      try {
+        const result = await retentionPool.query(
+          `DELETE FROM receipt_events WHERE processed = true AND created_at < now() - interval '30 days'`
+        );
+        if (result.rowCount && result.rowCount > 0) {
+          console.log(`Receipt retention: deleted ${result.rowCount} processed events older than 30d`);
+        }
+      } catch (err) {
+        console.warn('Receipt retention cleanup failed:', err instanceof Error ? err.message : err);
       }
-    } catch (err) {
-      console.warn('Receipt retention cleanup failed:', err instanceof Error ? err.message : err);
-    }
-  }, RECEIPT_RETENTION_INTERVAL_MS);
+    }, RECEIPT_RETENTION_INTERVAL_MS);
+  }
 
   // Initialize Anchoring Service with Solana keypair
   try {
