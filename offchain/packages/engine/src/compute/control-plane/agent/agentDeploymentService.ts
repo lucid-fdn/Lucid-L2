@@ -29,8 +29,50 @@ import { logger } from '../../../shared/lib/logger';
 import { getDeploymentStore } from '../store';
 import type { IDeploymentStore } from '../store/store';
 import type { Deployment, ActualState } from '../store/types';
+import { getProviderCapabilities } from '../reconciler/provider-sync';
+import type { ProviderCapabilities } from '../reconciler/provider-sync';
+import type { IDeployer } from '../../providers/IDeployer';
 // WIP: marketplace moved to _wip/ — needs DB persistence before ship
 // import { getMarketplaceService } from './marketplace';
+
+/** Error thrown when a provider does not support a capability */
+export class UnsupportedCapabilityError extends Error {
+  constructor(provider: string, capPath: string) {
+    super(`${provider} does not support ${capPath}`);
+    this.name = 'UnsupportedCapabilityError';
+  }
+}
+
+/**
+ * Get nested capability value from a ProviderCapabilities object.
+ * e.g. getNestedCap(caps, 'lifecycle.redeploy') → boolean
+ */
+function getNestedCap(caps: ProviderCapabilities, path: string): boolean {
+  const parts = path.split('.');
+  let current: any = caps;
+  for (const part of parts) {
+    if (current == null || typeof current !== 'object') return false;
+    current = current[part];
+  }
+  return current === true;
+}
+
+/**
+ * Double-check guard: verify both the capability flag AND method existence.
+ * Throws UnsupportedCapabilityError if either check fails.
+ */
+export function requireCapability(
+  provider: string,
+  capPath: string,
+  deployer: IDeployer,
+  methodName: string,
+): void {
+  const caps = getProviderCapabilities(provider);
+  const supported = getNestedCap(caps, capPath);
+  if (!supported || typeof (deployer as any)[methodName] !== 'function') {
+    throw new UnsupportedCapabilityError(provider, capPath);
+  }
+}
 
 export interface DeployAgentInput {
   /** Agent name */

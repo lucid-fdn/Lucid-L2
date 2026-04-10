@@ -284,7 +284,7 @@ export class ReconcilerService {
 
     if (desired_state === 'stopped' && actual_state === 'running') {
       // Try to stop or terminate
-      if (caps.supportsStop) {
+      if (caps.lifecycle.stop) {
         try {
           const deployer = getDeployer(provider);
           await deployer.terminate(d.provider_deployment_id || '');
@@ -302,7 +302,7 @@ export class ReconcilerService {
     if (desired_state === 'terminated') {
       // Terminate regardless of actual state
       if (actual_state === 'running' || actual_state === 'deploying') {
-        if (caps.supportsStatus && d.provider_deployment_id) {
+        if (caps.observability.status && d.provider_deployment_id) {
           try {
             const deployer = getDeployer(provider);
             await deployer.terminate(d.provider_deployment_id);
@@ -336,7 +336,7 @@ export class ReconcilerService {
     const { deployment_id, version, provider, provider_deployment_id } = d;
     const caps = getProviderCapabilities(provider);
 
-    if (!caps.supportsStatus || !provider_deployment_id) {
+    if (!caps.observability.status || !provider_deployment_id) {
       // Can't check provider -- increment retry
       const retries = this.retryCounts.get(deployment_id) || 0;
       if (retries >= this.config.maxRetries) {

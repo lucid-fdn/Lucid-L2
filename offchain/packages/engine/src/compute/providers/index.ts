@@ -12,6 +12,19 @@ export {
   RuntimeArtifact,
   LogOptions,
 } from './IDeployer';
+export type {
+  DeploymentMetrics,
+  MetricsOptions,
+  RedeployResult,
+  EnvVarPatch,
+  DomainInfo,
+  DomainResult,
+  HealthcheckConfig,
+  RestartPolicyType,
+  VolumeConfig,
+  VolumeInfo,
+  RegionInfo,
+} from './IDeployer';
 export type { ImageDeployInput } from './types';
 export { isImageDeploy } from './types';
 import { logger } from '../../shared/lib/logger';

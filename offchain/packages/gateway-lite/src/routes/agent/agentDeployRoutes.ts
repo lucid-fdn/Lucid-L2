@@ -335,3 +335,389 @@ agentDeployRouter.post('/v1/agents/:passportId/blue/cancel', verifyAdminAuth, as
     return res.status(status).json({ success: false, error: error.message });
   }
 });
+
+/* ================================================================== */
+/*  Provider Capabilities & Extended Operations                        */
+/* ================================================================== */
+
+/**
+ * GET /v1/agents/:passportId/capabilities
+ * Returns grouped provider capabilities for this deployment.
+ */
+agentDeployRouter.get('/v1/agents/:passportId/capabilities', async (req, res) => {
+  try {
+    const { passportId } = req.params;
+    if (!passportId) {
+      return res.status(400).json({ success: false, error: 'Missing passportId parameter' });
+    }
+
+    const { getDeploymentStore } = await import('../../../../engine/src/compute/control-plane/store');
+    const { getProviderCapabilities } = await import('../../../../engine/src/compute/control-plane/reconciler/provider-sync');
+    const store = getDeploymentStore();
+    const deployment = await store.getActiveByAgent(passportId);
+
+    if (!deployment) {
+      return res.status(404).json({ success: false, error: 'No active deployment found' });
+    }
+
+    const capabilities = getProviderCapabilities(deployment.provider);
+
+    return res.json({
+      success: true,
+      provider: deployment.provider,
+      deploymentMode: 'managed',
+      capabilities,
+    });
+  } catch (error: any) {
+    logger.error('Error in GET /v1/agents/:passportId/capabilities:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /v1/agents/:passportId/metrics
+ * Returns deployment metrics (CPU, memory, disk, network).
+ */
+agentDeployRouter.get('/v1/agents/:passportId/metrics', async (req, res) => {
+  try {
+    const { passportId } = req.params;
+    if (!passportId) {
+      return res.status(400).json({ success: false, error: 'Missing passportId parameter' });
+    }
+
+    const { getDeploymentStore } = await import('../../../../engine/src/compute/control-plane/store');
+    const { getProviderCapabilities } = await import('../../../../engine/src/compute/control-plane/reconciler/provider-sync');
+    const { requireCapability } = await import('../../../../engine/src/compute/control-plane/agent/agentDeploymentService');
+    const { getDeployer } = await import('../../../../engine/src/compute/providers');
+
+    const store = getDeploymentStore();
+    const deployment = await store.getActiveByAgent(passportId);
+    if (!deployment) {
+      return res.status(404).json({ success: false, error: 'No active deployment found' });
+    }
+    if (!deployment.provider_deployment_id) {
+      return res.status(400).json({ success: false, error: 'Deployment has no provider ID' });
+    }
+
+    const deployer = getDeployer(deployment.provider);
+    requireCapability(deployment.provider, 'observability.metrics', deployer, 'metrics');
+
+    const range = parseInt(req.query.range as string) || undefined;
+    const granularity = req.query.granularity as 'minute' | 'hour' | 'day' | undefined;
+    const metrics = await deployer.metrics!(deployment.provider_deployment_id, { range, granularity });
+
+    return res.json({ success: true, metrics });
+  } catch (error: any) {
+    if (error.name === 'UnsupportedCapabilityError') {
+      return res.status(501).json({ success: false, error: error.message });
+    }
+    logger.error('Error in GET /v1/agents/:passportId/metrics:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /v1/agents/:passportId/redeploy
+ * Trigger a redeploy (rebuild + restart).
+ */
+agentDeployRouter.post('/v1/agents/:passportId/redeploy', verifyAdminAuth, async (req, res) => {
+  try {
+    const { passportId } = req.params;
+    if (!passportId) {
+      return res.status(400).json({ success: false, error: 'Missing passportId parameter' });
+    }
+
+    const { getDeploymentStore } = await import('../../../../engine/src/compute/control-plane/store');
+    const { requireCapability } = await import('../../../../engine/src/compute/control-plane/agent/agentDeploymentService');
+    const { getDeployer } = await import('../../../../engine/src/compute/providers');
+
+    const store = getDeploymentStore();
+    const deployment = await store.getActiveByAgent(passportId);
+    if (!deployment) {
+      return res.status(404).json({ success: false, error: 'No active deployment found' });
+    }
+    if (!deployment.provider_deployment_id) {
+      return res.status(400).json({ success: false, error: 'Deployment has no provider ID' });
+    }
+
+    const deployer = getDeployer(deployment.provider);
+    requireCapability(deployment.provider, 'lifecycle.redeploy', deployer, 'redeploy');
+
+    const result = await deployer.redeploy!(deployment.provider_deployment_id);
+
+    // Emit redeploy event
+    try {
+      await store.appendEvent({
+        deployment_id: deployment.deployment_id,
+        event_type: 'redeployed',
+        actor: 'user',
+        previous_state: deployment.actual_state,
+        new_state: deployment.actual_state,
+        metadata: { result },
+      });
+    } catch { /* non-blocking */ }
+
+    return res.json({ success: true, result });
+  } catch (error: any) {
+    if (error.name === 'UnsupportedCapabilityError') {
+      return res.status(501).json({ success: false, error: error.message });
+    }
+    logger.error('Error in POST /v1/agents/:passportId/redeploy:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /v1/agents/:passportId/env
+ * Update environment variables (string = set/update, null = delete).
+ */
+agentDeployRouter.put('/v1/agents/:passportId/env', verifyAdminAuth, async (req, res) => {
+  try {
+    const { passportId } = req.params;
+    const vars = req.body?.vars;
+
+    if (!passportId) {
+      return res.status(400).json({ success: false, error: 'Missing passportId parameter' });
+    }
+    if (!vars || typeof vars !== 'object') {
+      return res.status(400).json({ success: false, error: 'Missing or invalid vars object in body' });
+    }
+
+    const { getDeploymentStore } = await import('../../../../engine/src/compute/control-plane/store');
+    const { requireCapability } = await import('../../../../engine/src/compute/control-plane/agent/agentDeploymentService');
+    const { getDeployer } = await import('../../../../engine/src/compute/providers');
+
+    const store = getDeploymentStore();
+    const deployment = await store.getActiveByAgent(passportId);
+    if (!deployment) {
+      return res.status(404).json({ success: false, error: 'No active deployment found' });
+    }
+    if (!deployment.provider_deployment_id) {
+      return res.status(400).json({ success: false, error: 'Deployment has no provider ID' });
+    }
+
+    const deployer = getDeployer(deployment.provider);
+    requireCapability(deployment.provider, 'configuration.envUpdate', deployer, 'updateEnvVars');
+
+    await deployer.updateEnvVars!(deployment.provider_deployment_id, vars);
+
+    return res.json({ success: true, message: 'Environment variables updated' });
+  } catch (error: any) {
+    if (error.name === 'UnsupportedCapabilityError') {
+      return res.status(501).json({ success: false, error: error.message });
+    }
+    logger.error('Error in PUT /v1/agents/:passportId/env:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * GET /v1/agents/:passportId/domains
+ * List domains for a deployment.
+ */
+agentDeployRouter.get('/v1/agents/:passportId/domains', async (req, res) => {
+  try {
+    const { passportId } = req.params;
+    if (!passportId) {
+      return res.status(400).json({ success: false, error: 'Missing passportId parameter' });
+    }
+
+    const { getDeploymentStore } = await import('../../../../engine/src/compute/control-plane/store');
+    const { requireCapability } = await import('../../../../engine/src/compute/control-plane/agent/agentDeploymentService');
+    const { getDeployer } = await import('../../../../engine/src/compute/providers');
+
+    const store = getDeploymentStore();
+    const deployment = await store.getActiveByAgent(passportId);
+    if (!deployment) {
+      return res.status(404).json({ success: false, error: 'No active deployment found' });
+    }
+    if (!deployment.provider_deployment_id) {
+      return res.status(400).json({ success: false, error: 'Deployment has no provider ID' });
+    }
+
+    const deployer = getDeployer(deployment.provider);
+    requireCapability(deployment.provider, 'configuration.customDomains', deployer, 'listDomains');
+
+    const domains = await deployer.listDomains!(deployment.provider_deployment_id);
+    return res.json({ success: true, domains });
+  } catch (error: any) {
+    if (error.name === 'UnsupportedCapabilityError') {
+      return res.status(501).json({ success: false, error: error.message });
+    }
+    logger.error('Error in GET /v1/agents/:passportId/domains:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * POST /v1/agents/:passportId/domains
+ * Add a custom domain.
+ */
+agentDeployRouter.post('/v1/agents/:passportId/domains', verifyAdminAuth, async (req, res) => {
+  try {
+    const { passportId } = req.params;
+    const { domain } = req.body || {};
+
+    if (!passportId) {
+      return res.status(400).json({ success: false, error: 'Missing passportId parameter' });
+    }
+    if (!domain || typeof domain !== 'string') {
+      return res.status(400).json({ success: false, error: 'Missing or invalid domain in body' });
+    }
+
+    const { getDeploymentStore } = await import('../../../../engine/src/compute/control-plane/store');
+    const { requireCapability } = await import('../../../../engine/src/compute/control-plane/agent/agentDeploymentService');
+    const { getDeployer } = await import('../../../../engine/src/compute/providers');
+
+    const store = getDeploymentStore();
+    const deployment = await store.getActiveByAgent(passportId);
+    if (!deployment) {
+      return res.status(404).json({ success: false, error: 'No active deployment found' });
+    }
+    if (!deployment.provider_deployment_id) {
+      return res.status(400).json({ success: false, error: 'Deployment has no provider ID' });
+    }
+
+    const deployer = getDeployer(deployment.provider);
+    requireCapability(deployment.provider, 'configuration.customDomains', deployer, 'addDomain');
+
+    const result = await deployer.addDomain!(deployment.provider_deployment_id, domain);
+    return res.status(201).json({ success: true, domain: result });
+  } catch (error: any) {
+    if (error.name === 'UnsupportedCapabilityError') {
+      return res.status(501).json({ success: false, error: error.message });
+    }
+    logger.error('Error in POST /v1/agents/:passportId/domains:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * DELETE /v1/agents/:passportId/domains/:domain
+ * Remove a custom domain.
+ */
+agentDeployRouter.delete('/v1/agents/:passportId/domains/:domain', verifyAdminAuth, async (req, res) => {
+  try {
+    const { passportId, domain } = req.params;
+    if (!passportId || !domain) {
+      return res.status(400).json({ success: false, error: 'Missing passportId or domain parameter' });
+    }
+
+    const { getDeploymentStore } = await import('../../../../engine/src/compute/control-plane/store');
+    const { requireCapability } = await import('../../../../engine/src/compute/control-plane/agent/agentDeploymentService');
+    const { getDeployer } = await import('../../../../engine/src/compute/providers');
+
+    const store = getDeploymentStore();
+    const deployment = await store.getActiveByAgent(passportId);
+    if (!deployment) {
+      return res.status(404).json({ success: false, error: 'No active deployment found' });
+    }
+    if (!deployment.provider_deployment_id) {
+      return res.status(400).json({ success: false, error: 'Deployment has no provider ID' });
+    }
+
+    const deployer = getDeployer(deployment.provider);
+    requireCapability(deployment.provider, 'configuration.customDomains', deployer, 'removeDomain');
+
+    await deployer.removeDomain!(deployment.provider_deployment_id, domain);
+    return res.json({ success: true, message: `Domain ${domain} removed` });
+  } catch (error: any) {
+    if (error.name === 'UnsupportedCapabilityError') {
+      return res.status(501).json({ success: false, error: error.message });
+    }
+    logger.error('Error in DELETE /v1/agents/:passportId/domains/:domain:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /v1/agents/:passportId/healthcheck
+ * Set healthcheck configuration.
+ */
+agentDeployRouter.put('/v1/agents/:passportId/healthcheck', verifyAdminAuth, async (req, res) => {
+  try {
+    const { passportId } = req.params;
+    const config = req.body;
+
+    if (!passportId) {
+      return res.status(400).json({ success: false, error: 'Missing passportId parameter' });
+    }
+    if (!config?.path || !config?.intervalSeconds || !config?.timeoutSeconds) {
+      return res.status(400).json({ success: false, error: 'Missing healthcheck config (path, intervalSeconds, timeoutSeconds)' });
+    }
+
+    const { getDeploymentStore } = await import('../../../../engine/src/compute/control-plane/store');
+    const { requireCapability } = await import('../../../../engine/src/compute/control-plane/agent/agentDeploymentService');
+    const { getDeployer } = await import('../../../../engine/src/compute/providers');
+
+    const store = getDeploymentStore();
+    const deployment = await store.getActiveByAgent(passportId);
+    if (!deployment) {
+      return res.status(404).json({ success: false, error: 'No active deployment found' });
+    }
+    if (!deployment.provider_deployment_id) {
+      return res.status(400).json({ success: false, error: 'Deployment has no provider ID' });
+    }
+
+    const deployer = getDeployer(deployment.provider);
+    requireCapability(deployment.provider, 'observability.healthcheckConfig', deployer, 'setHealthcheck');
+
+    await deployer.setHealthcheck!(deployment.provider_deployment_id, {
+      path: config.path,
+      intervalSeconds: config.intervalSeconds,
+      timeoutSeconds: config.timeoutSeconds,
+    });
+
+    return res.json({ success: true, message: 'Healthcheck configuration updated' });
+  } catch (error: any) {
+    if (error.name === 'UnsupportedCapabilityError') {
+      return res.status(501).json({ success: false, error: error.message });
+    }
+    logger.error('Error in PUT /v1/agents/:passportId/healthcheck:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * PUT /v1/agents/:passportId/restart-policy
+ * Set restart policy.
+ */
+agentDeployRouter.put('/v1/agents/:passportId/restart-policy', verifyAdminAuth, async (req, res) => {
+  try {
+    const { passportId } = req.params;
+    const { policy } = req.body || {};
+
+    if (!passportId) {
+      return res.status(400).json({ success: false, error: 'Missing passportId parameter' });
+    }
+    if (!policy || !['always', 'on_failure', 'never'].includes(policy)) {
+      return res.status(400).json({ success: false, error: 'Invalid restart policy (must be always, on_failure, or never)' });
+    }
+
+    const { getDeploymentStore } = await import('../../../../engine/src/compute/control-plane/store');
+    const { requireCapability } = await import('../../../../engine/src/compute/control-plane/agent/agentDeploymentService');
+    const { getDeployer } = await import('../../../../engine/src/compute/providers');
+
+    const store = getDeploymentStore();
+    const deployment = await store.getActiveByAgent(passportId);
+    if (!deployment) {
+      return res.status(404).json({ success: false, error: 'No active deployment found' });
+    }
+    if (!deployment.provider_deployment_id) {
+      return res.status(400).json({ success: false, error: 'Deployment has no provider ID' });
+    }
+
+    const deployer = getDeployer(deployment.provider);
+    requireCapability(deployment.provider, 'configuration.restartPolicy', deployer, 'setRestartPolicy');
+
+    await deployer.setRestartPolicy!(deployment.provider_deployment_id, policy);
+
+    return res.json({ success: true, message: `Restart policy set to ${policy}` });
+  } catch (error: any) {
+    if (error.name === 'UnsupportedCapabilityError') {
+      return res.status(501).json({ success: false, error: error.message });
+    }
+    logger.error('Error in PUT /v1/agents/:passportId/restart-policy:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});

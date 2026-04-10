@@ -58,7 +58,7 @@ export class LeaseManagerService {
    */
   private canExtend(deployment: Deployment): boolean {
     const caps = getProviderCapabilities(deployment.provider);
-    return caps.supportsExtend;
+    return caps.lifecycle.scale;
   }
 
   /**

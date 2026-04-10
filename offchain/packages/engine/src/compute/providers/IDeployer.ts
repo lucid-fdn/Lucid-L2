@@ -3,11 +3,38 @@
 // Each deployer targets one platform (Railway, Docker, Akash, Phala, io.net, etc.).
 
 import type { ImageDeployInput } from './types';
+import type {
+  DeploymentMetrics,
+  MetricsOptions,
+  RedeployResult,
+  EnvVarPatch,
+  DomainInfo,
+  DomainResult,
+  HealthcheckConfig,
+  RestartPolicy,
+  VolumeConfig,
+  VolumeInfo,
+  RegionInfo,
+} from './capability-types';
+
+export type {
+  DeploymentMetrics,
+  MetricsOptions,
+  RedeployResult,
+  EnvVarPatch,
+  DomainInfo,
+  DomainResult,
+  HealthcheckConfig,
+  RestartPolicy as RestartPolicyType,
+  VolumeConfig,
+  VolumeInfo,
+  RegionInfo,
+} from './capability-types';
 
 /**
  * Deployment lifecycle status
  */
-export type DeploymentStatusType = 'deploying' | 'running' | 'stopped' | 'failed' | 'terminated';
+export type DeploymentStatusType = 'deploying' | 'running' | 'stopped' | 'failed' | 'terminated' | 'unknown';
 
 /**
  * Result of a deploy operation
@@ -124,4 +151,42 @@ export interface IDeployer {
 
   /** Health check for the deployer itself */
   isHealthy(): Promise<boolean>;
+
+  // ─── Extended Capabilities (all optional) ───
+
+  /** Tier 1: Get deployment metrics (CPU, memory, disk, network) */
+  metrics?(deploymentId: string, options?: MetricsOptions): Promise<DeploymentMetrics>
+
+  /** Tier 1: Redeploy (rebuild + restart) */
+  redeploy?(deploymentId: string): Promise<RedeployResult>
+
+  /** Tier 2: Update environment variables (string = set, null = delete) */
+  updateEnvVars?(deploymentId: string, vars: EnvVarPatch): Promise<void>
+
+  /** Tier 3: Add a custom domain */
+  addDomain?(deploymentId: string, domain: string): Promise<DomainResult>
+
+  /** Tier 3: Remove a custom domain */
+  removeDomain?(deploymentId: string, domain: string): Promise<void>
+
+  /** Tier 3: List domains */
+  listDomains?(deploymentId: string): Promise<DomainInfo[]>
+
+  /** Tier 3: Set healthcheck configuration */
+  setHealthcheck?(deploymentId: string, config: HealthcheckConfig): Promise<void>
+
+  /** Tier 3: Set restart policy */
+  setRestartPolicy?(deploymentId: string, policy: RestartPolicy): Promise<void>
+
+  /** Tier 4: Add a volume (deferred) */
+  addVolume?(deploymentId: string, config: VolumeConfig): Promise<VolumeInfo>
+
+  /** Tier 4: List volumes (deferred) */
+  listVolumes?(deploymentId: string): Promise<VolumeInfo[]>
+
+  /** Tier 4: List available regions (deferred) */
+  listRegions?(): Promise<RegionInfo[]>
+
+  /** Tier 4: Set deployment region (deferred) */
+  setRegion?(deploymentId: string, region: string): Promise<void>
 }

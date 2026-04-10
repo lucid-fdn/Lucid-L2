@@ -174,7 +174,7 @@ export interface AgentDescriptor {
 
 // --- Deployment State ---
 
-export type DeploymentStatus = 'deploying' | 'running' | 'stopped' | 'failed' | 'terminated';
+export type DeploymentStatus = 'deploying' | 'running' | 'stopped' | 'failed' | 'terminated' | 'unknown';
 export type HealthStatus = 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
 
 export interface AgentDeployment {

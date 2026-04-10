@@ -1,5 +1,74 @@
 # Lucid Layer
 
+## Engineering Standards
+
+### Core Rule
+Do not stop at "working." Every change must be production-minded and fit the existing codebase.
+
+### Codebase Fit
+- Match existing patterns: Anchor/Rust for on-chain, Express/TypeScript for offchain API.
+- Follow the repo split: `programs/` (Solana on-chain) → `offchain/` (Express API) → `tests/` (Mocha on-chain) → `console/` (Next.js dashboard).
+- Reuse existing offchain services before creating new ones.
+
+### Code Quality
+- Write typed, testable, self-documenting code. Avoid cleverness.
+- Solana programs: follow Anchor patterns, explicit PDA seeds, comprehensive error enums.
+- Offchain: Express middleware pattern, Ed25519 signing, MMR data structures.
+
+### Performance
+- On-chain: minimize compute units, pack accounts efficiently, batch where possible.
+- Offchain: receipt signing is on the hot path for every inference call. Keep it fast.
+
+### Before Writing Code
+- Inspect surrounding files and identify the local pattern to follow.
+- Briefly state the plan and why it matches the codebase.
+
+### Before Finishing
+```bash
+# Offchain
+cd offchain && npm run build          # TypeScript compile
+cd offchain && npm test               # Jest (1644 tests)
+
+# On-chain
+anchor build                          # Solana programs
+cd tests && npm test                  # Mocha on-chain tests
+```
+Fix any errors introduced by your changes — including pre-existing ones you discover.
+
+### Before Committing (production readiness gate)
+Run the **full** test suites (offchain Jest + on-chain Mocha), not just changed files. Fix any failures found, even if unrelated to your changes. No known-broken code ships.
+
+### Output Requirements
+When a task is complete, report:
+1. What changed
+2. Why this approach fits the codebase
+3. Performance considerations (compute units, signing latency, DB queries)
+4. Validations run and their results
+5. Any remaining risks or tradeoffs
+
+---
+
+## Tools & Access (USE THESE — they are authenticated and ready)
+
+You have direct access to production infrastructure. Do NOT say "I don't have access" or "I can't connect." These CLIs are authenticated and work from this machine.
+
+| Tool | Command | What you can do |
+|------|---------|----------------|
+| **GitHub** | `gh` | PRs, issues, releases, actions, repo queries |
+| **Railway** | `railway` | Deploy, logs, env vars, restart services |
+| **Vercel** | `vercel` | Deploy, env vars, domains, project settings |
+| **Supabase** | `supabase` | DB migrations, inspect tables, manage projects |
+| **Stripe** | `stripe` | Listen to webhooks, trigger test events, inspect objects |
+| **Solana** | `solana` (at `~/.local/share/solana/install/active_release/bin/solana`) | **Primary tool** — keypair management, airdrop, deploy programs, query accounts (devnet/mainnet) |
+| **Anchor** | `anchor` | Build, test, deploy Solana programs (Anchor framework) |
+| **SSH: Lucid server** | `ssh lucid` | OVH server at 149.202.57.255 (user: debian) |
+
+### Rules
+- Always confirm before destructive production operations (deploy, DB migration, restart)
+- Use `railway logs -s <service>` to check service health before/after changes
+- Solana program deploys require keypair with sufficient SOL — verify balance before `anchor deploy` or `solana program deploy`
+- Use `solana config set --url devnet` for testing, confirm cluster before any mainnet operations
+
 ## What This Is
 Verifiable AI execution layer — Solana on-chain programs (Anchor/Rust) + Express offchain API. Blockchain-anchored infrastructure giving AI assets (models, agents, tools, compute, datasets) provable identity, cryptographic receipts, and reputation backed by real traffic data.
 

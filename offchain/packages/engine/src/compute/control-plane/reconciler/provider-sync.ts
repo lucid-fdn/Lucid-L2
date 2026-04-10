@@ -10,12 +10,26 @@ import { getDeployer } from '../../providers';
 /* ------------------------------------------------------------------ */
 
 export interface ProviderCapabilities {
-  supportsStop: boolean;
-  supportsResume: boolean;
-  supportsExtend: boolean;
-  supportsStatus: boolean;
-  supportsScale: boolean;
-  supportsLogs: boolean;
+  lifecycle: {
+    stop: boolean;
+    resume: boolean;
+    redeploy: boolean;
+    terminate: boolean;
+    scale: boolean;
+  };
+  observability: {
+    status: boolean;
+    logs: boolean;
+    metrics: boolean;
+    healthcheckConfig: boolean;
+  };
+  configuration: {
+    envUpdate: boolean;
+    customDomains: boolean;
+    restartPolicy: boolean;
+    volumes: boolean;
+    multiRegion: boolean;
+  };
 }
 
 /**
@@ -24,52 +38,34 @@ export interface ProviderCapabilities {
  */
 export const PROVIDER_CAPABILITIES: Record<string, ProviderCapabilities> = {
   railway: {
-    supportsStop: false,
-    supportsResume: false,
-    supportsExtend: false,
-    supportsStatus: true,
-    supportsScale: false,
-    supportsLogs: true,
+    lifecycle: { stop: false, resume: false, redeploy: true, terminate: true, scale: false },
+    observability: { status: true, logs: true, metrics: true, healthcheckConfig: true },
+    configuration: { envUpdate: true, customDomains: true, restartPolicy: true, volumes: false, multiRegion: false },
   },
   akash: {
-    supportsStop: false,
-    supportsResume: false,
-    supportsExtend: false,
-    supportsStatus: true,
-    supportsScale: true,
-    supportsLogs: true,
+    lifecycle: { stop: false, resume: false, redeploy: true, terminate: true, scale: true },
+    observability: { status: true, logs: true, metrics: true, healthcheckConfig: true },
+    configuration: { envUpdate: true, customDomains: true, restartPolicy: true, volumes: false, multiRegion: false },
   },
   phala: {
-    supportsStop: true,
-    supportsResume: false,
-    supportsExtend: false,
-    supportsStatus: true,
-    supportsScale: false,
-    supportsLogs: true,
+    lifecycle: { stop: true, resume: false, redeploy: true, terminate: true, scale: false },
+    observability: { status: true, logs: true, metrics: false, healthcheckConfig: false },
+    configuration: { envUpdate: false, customDomains: false, restartPolicy: false, volumes: false, multiRegion: false },
   },
   ionet: {
-    supportsStop: false,
-    supportsResume: false,
-    supportsExtend: true,
-    supportsStatus: true,
-    supportsScale: true,
-    supportsLogs: true,
+    lifecycle: { stop: false, resume: false, redeploy: true, terminate: true, scale: true },
+    observability: { status: true, logs: true, metrics: true, healthcheckConfig: false },
+    configuration: { envUpdate: false, customDomains: false, restartPolicy: false, volumes: false, multiRegion: false },
   },
   nosana: {
-    supportsStop: true,
-    supportsResume: false,
-    supportsExtend: false,
-    supportsStatus: true,
-    supportsScale: true,
-    supportsLogs: true,
+    lifecycle: { stop: true, resume: false, redeploy: true, terminate: true, scale: true },
+    observability: { status: true, logs: true, metrics: false, healthcheckConfig: false },
+    configuration: { envUpdate: false, customDomains: false, restartPolicy: false, volumes: false, multiRegion: false },
   },
   docker: {
-    supportsStop: true,
-    supportsResume: false,
-    supportsExtend: false,
-    supportsStatus: true,
-    supportsScale: false,
-    supportsLogs: true,
+    lifecycle: { stop: true, resume: false, redeploy: true, terminate: true, scale: false },
+    observability: { status: true, logs: true, metrics: true, healthcheckConfig: true },
+    configuration: { envUpdate: true, customDomains: false, restartPolicy: true, volumes: false, multiRegion: false },
   },
 };
 
@@ -78,12 +74,9 @@ export const PROVIDER_CAPABILITIES: Record<string, ProviderCapabilities> = {
  */
 export function getProviderCapabilities(provider: string): ProviderCapabilities {
   return PROVIDER_CAPABILITIES[provider] ?? {
-    supportsStop: false,
-    supportsResume: false,
-    supportsExtend: false,
-    supportsStatus: false,
-    supportsScale: false,
-    supportsLogs: false,
+    lifecycle: { stop: false, resume: false, redeploy: false, terminate: false, scale: false },
+    observability: { status: false, logs: false, metrics: false, healthcheckConfig: false },
+    configuration: { envUpdate: false, customDomains: false, restartPolicy: false, volumes: false, multiRegion: false },
   };
 }
 
@@ -147,7 +140,7 @@ export async function syncProviderState(
   if (!deployment.provider_deployment_id) return;
 
   const caps = getProviderCapabilities(deployment.provider);
-  if (!caps.supportsStatus) return;
+  if (!caps.observability.status) return;
 
   try {
     const deployer = getDeployer(deployment.provider);

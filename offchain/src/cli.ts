@@ -739,4 +739,19 @@ skillsCmd.command('list <agent-slug>')
     }
   });
 
+// Bridge Commands — moved to @lucid/bridge-cli (separate package)
+program.command('bridge')
+  .description('[moved] Use: npx lucid-bridge')
+  .allowUnknownOption(true)
+  .argument('[command]', 'subcommand')
+  .action((command) => {
+    console.error('\u2717 `lucid bridge` has moved to a standalone CLI.');
+    console.error('');
+    console.error('  Install:  npm install -D @lucid/bridge-cli');
+    console.error('  Usage:    npx lucid-bridge init --name "my-agent"');
+    console.error('');
+    console.error('  Commands: init, status, list, env');
+    process.exit(1);
+  });
+
 program.parse(process.argv);

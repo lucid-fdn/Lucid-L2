@@ -7,6 +7,7 @@ import { isImageDeploy } from './types';
 import type { ImageDeployInput } from './types';
 import { resilientFetch } from './resilientFetch';
 import { logger } from '../../shared/lib/logger';
+import type { DeploymentMetrics, MetricsOptions, RedeployResult } from './capability-types';
 
 const RAILWAY_API_URL = 'https://backboard.railway.app/graphql/v2';
 
@@ -342,7 +343,9 @@ export class RailwayDeployer implements IDeployer {
       `, { id: deploymentId });
 
       if (result.errors?.length) {
-        return { deployment_id: deploymentId, status: 'failed', error: result.errors[0].message };
+        const msg = result.errors[0].message;
+        logger.warn(`[Railway:status] GraphQL error for ${deploymentId}: ${msg}`);
+        return { deployment_id: deploymentId, status: 'unknown', health: 'unknown', error: msg };
       }
 
       const service = result?.data?.service;
@@ -361,8 +364,10 @@ export class RailwayDeployer implements IDeployer {
         uptime_ms: deployment?.createdAt ? Date.now() - new Date(deployment.createdAt).getTime() : undefined,
         last_check: Date.now(),
       };
-    } catch {
-      return { deployment_id: deploymentId, status: 'failed', health: 'unknown' };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.warn(`[Railway:status] Status check failed for ${deploymentId}: ${msg}`);
+      return { deployment_id: deploymentId, status: 'unknown', health: 'unknown', error: 'Status check failed — container may still be running' };
     }
   }
 
@@ -446,6 +451,144 @@ export class RailwayDeployer implements IDeployer {
       return !!result?.data?.me?.id;
     } catch {
       return false;
+    }
+  }
+
+  async metrics(deploymentId: string, options?: MetricsOptions): Promise<DeploymentMetrics> {
+    // Railway serviceId = deploymentId in our model
+    // Get the latest deployment for this service to query metrics
+    const serviceResult = await this.graphql(`
+      query ServiceDeployments($id: String!) {
+        service(id: $id) {
+          deployments(first: 1) {
+            edges { node { id } }
+          }
+        }
+      }
+    `, { id: deploymentId });
+
+    const railwayDeploymentId = serviceResult?.data?.service?.deployments?.edges?.[0]?.node?.id;
+    if (!railwayDeploymentId) {
+      return { collectedAt: Date.now() };
+    }
+
+    // Railway metrics query — returns time series for CPU, memory, network
+    const rangeMinutes = options?.range ? Math.ceil(options.range / 60) : 60;
+    const resolution = options?.granularity === 'day' ? 1440
+      : options?.granularity === 'hour' ? 60
+      : 5; // default 5-min resolution
+
+    try {
+      const metricsResult = await this.graphql(`
+        query DeploymentMetrics($deploymentId: String!, $measurements: [MetricMeasurement!]!, $startDate: DateTime!, $sampleRateSeconds: Int) {
+          metrics(
+            deploymentId: $deploymentId,
+            measurements: $measurements,
+            startDate: $startDate,
+            sampleRateSeconds: $sampleRateSeconds
+          ) {
+            measurement
+            tags
+            values {
+              ts
+              value
+            }
+          }
+        }
+      `, {
+        deploymentId: railwayDeploymentId,
+        measurements: ['CPU_USAGE', 'MEMORY_USAGE_MB', 'DISK_USAGE_GB', 'NETWORK_RX_BYTES', 'NETWORK_TX_BYTES'],
+        startDate: new Date(Date.now() - rangeMinutes * 60 * 1000).toISOString(),
+        sampleRateSeconds: resolution * 60,
+      });
+
+      const rawMetrics = metricsResult?.data?.metrics || [];
+
+      const findMetric = (measurement: string) => {
+        const m = rawMetrics.find((r: any) => r.measurement === measurement);
+        if (!m?.values?.length) return undefined;
+        const series = m.values.map((v: any) => ({ timestamp: new Date(v.ts).getTime(), value: v.value }));
+        const latest = series[series.length - 1];
+        return { current: latest?.value, series };
+      };
+
+      const cpuData = findMetric('CPU_USAGE');
+      const memData = findMetric('MEMORY_USAGE_MB');
+      const diskData = findMetric('DISK_USAGE_GB');
+      const rxData = findMetric('NETWORK_RX_BYTES');
+      const txData = findMetric('NETWORK_TX_BYTES');
+
+      return {
+        cpu: cpuData ? { ...cpuData, unit: 'percent' as const } : undefined,
+        memory: memData ? { ...memData, unit: 'bytes' as const } : undefined,
+        disk: diskData ? { ...diskData, unit: 'bytes' as const } : undefined,
+        network: (rxData || txData) ? {
+          rxBytes: rxData ? { ...rxData, unit: 'bytes' as const } : undefined,
+          txBytes: txData ? { ...txData, unit: 'bytes' as const } : undefined,
+        } : undefined,
+        collectedAt: Date.now(),
+      };
+    } catch (err) {
+      logger.warn(`[Railway:metrics] Metrics query failed for ${deploymentId}: ${err instanceof Error ? err.message : String(err)}`);
+      return { collectedAt: Date.now() };
+    }
+  }
+
+  async redeploy(deploymentId: string): Promise<RedeployResult> {
+    try {
+      // Get the latest deployment to redeploy
+      const serviceResult = await this.graphql(`
+        query ServiceDeployments($id: String!) {
+          service(id: $id) {
+            deployments(first: 1) {
+              edges { node { id, environmentId } }
+            }
+          }
+        }
+      `, { id: deploymentId });
+
+      const latestDeployment = serviceResult?.data?.service?.deployments?.edges?.[0]?.node;
+      if (!latestDeployment) {
+        return {
+          success: false,
+          deployment_id: deploymentId,
+          status: 'failed',
+        };
+      }
+
+      // Trigger redeploy via serviceInstanceRedeploy
+      const redeployResult = await this.graphql(`
+        mutation ServiceInstanceRedeploy($serviceId: String!, $environmentId: String!) {
+          serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId)
+        }
+      `, {
+        serviceId: deploymentId,
+        environmentId: latestDeployment.environmentId,
+      });
+
+      if (redeployResult.errors?.length) {
+        logger.warn(`[Railway:redeploy] Redeploy failed for ${deploymentId}: ${redeployResult.errors[0].message}`);
+        return {
+          success: false,
+          deployment_id: deploymentId,
+          status: 'failed',
+        };
+      }
+
+      logger.info(`[Railway:redeploy] Redeploy triggered for service ${deploymentId}`);
+      return {
+        success: true,
+        deployment_id: deploymentId,
+        status: 'queued',
+        operation_id: `redeploy-${Date.now()}`,
+      };
+    } catch (err) {
+      logger.warn(`[Railway:redeploy] Error redeploying ${deploymentId}: ${err instanceof Error ? err.message : String(err)}`);
+      return {
+        success: false,
+        deployment_id: deploymentId,
+        status: 'failed',
+      };
     }
   }
 
