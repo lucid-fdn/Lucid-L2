@@ -445,11 +445,12 @@ agentDeployRouter.post('/v1/agents/:passportId/redeploy', verifyAdminAuth, async
 
     const result = await deployer.redeploy!(deployment.provider_deployment_id);
 
-    // Emit redeploy event
+    // Emit a restart-like lifecycle event. The control-plane event model
+    // tracks redeploys under the existing restarted lifecycle type.
     try {
       await store.appendEvent({
         deployment_id: deployment.deployment_id,
-        event_type: 'redeployed',
+        event_type: 'restarted',
         actor: 'user',
         previous_state: deployment.actual_state,
         new_state: deployment.actual_state,
