@@ -329,7 +329,7 @@ export class RailwayDeployer implements IDeployer {
           service(id: $id) {
             id
             name
-            deployments(first: 1, input: { status: { } }) {
+            deployments(first: 1) {
               edges {
                 node {
                   id
