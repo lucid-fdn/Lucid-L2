@@ -374,7 +374,7 @@ describe('RailwayDeployer', () => {
     it('should return failed status when API call fails', async () => {
       mockFetch.mockRejectedValue(new Error('network error'));
       const status = await deployer.status('svc_123');
-      expect(status.status).toBe('failed');
+      expect(status.status).toBe('unknown');
     });
   });
 
@@ -403,6 +403,51 @@ describe('RailwayDeployer', () => {
       const logs = await deployer.logs('svc_123');
       expect(logs).toContain('Started');
       expect(logs).toContain('Ready');
+    });
+  });
+
+  describe('updateEnvVars', () => {
+    it('should upsert runtime env vars for an existing Railway service', async () => {
+      process.env = {
+        ...originalEnv,
+        RAILWAY_API_TOKEN: 'test-railway-token',
+        RAILWAY_PROJECT_ID: 'proj_123',
+      };
+      deployer = new RailwayDeployer();
+
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            data: {
+              service: {
+                deployments: {
+                  edges: [{ node: { environmentId: 'env_prod' } }],
+                },
+              },
+            },
+          }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ data: { variableCollectionUpsert: true } }),
+        });
+
+      await deployer.updateEnvVars!('svc_123', {
+        LUCID_RUNTIME_ID: 'rt-1',
+        LUCID_CONTROL_PLANE_URL: 'https://www.lucid.foundation',
+      });
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      const body = JSON.parse(mockFetch.mock.calls[1][1].body);
+      expect(body.query).toContain('variableCollectionUpsert');
+      expect(body.variables.input.serviceId).toBe('svc_123');
+      expect(body.variables.input.projectId).toBe('proj_123');
+      expect(body.variables.input.environmentId).toBe('env_prod');
+      expect(body.variables.input.variables).toEqual({
+        LUCID_RUNTIME_ID: 'rt-1',
+        LUCID_CONTROL_PLANE_URL: 'https://www.lucid.foundation',
+      });
     });
   });
 

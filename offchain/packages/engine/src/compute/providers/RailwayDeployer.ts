@@ -7,7 +7,7 @@ import { isImageDeploy } from './types';
 import type { ImageDeployInput } from './types';
 import { resilientFetch } from './resilientFetch';
 import { logger } from '../../shared/lib/logger';
-import type { DeploymentMetrics, MetricsOptions, RedeployResult } from './capability-types';
+import type { DeploymentMetrics, EnvVarPatch, MetricsOptions, RedeployResult } from './capability-types';
 
 const RAILWAY_API_URL = 'https://backboard.railway.app/graphql/v2';
 
@@ -589,6 +589,71 @@ export class RailwayDeployer implements IDeployer {
         deployment_id: deploymentId,
         status: 'failed',
       };
+    }
+  }
+
+  async updateEnvVars(deploymentId: string, vars: EnvVarPatch): Promise<void> {
+    const projectId = process.env.RAILWAY_PROJECT_ID;
+    if (!projectId) {
+      throw new Error('RAILWAY_PROJECT_ID not set');
+    }
+
+    const serviceResult = await this.graphql(`
+      query ServiceEnvContext($id: String!) {
+        service(id: $id) {
+          deployments(first: 1) {
+            edges {
+              node {
+                environmentId
+              }
+            }
+          }
+        }
+      }
+    `, { id: deploymentId });
+
+    const environmentId =
+      serviceResult?.data?.service?.deployments?.edges?.[0]?.node?.environmentId
+      || process.env.RAILWAY_ENVIRONMENT_ID;
+    if (!environmentId) {
+      throw new Error(`No Railway environment found for service ${deploymentId}`);
+    }
+
+    const upserts: Record<string, string> = {};
+    const skippedDeletes: string[] = [];
+    for (const [key, value] of Object.entries(vars)) {
+      if (value === null) {
+        skippedDeletes.push(key);
+        continue;
+      }
+      if (value !== '') {
+        upserts[key] = value;
+      }
+    }
+
+    if (Object.keys(upserts).length > 0) {
+      const result = await this.graphql(`
+        mutation VariablesUpsert($input: VariableCollectionUpsertInput!) {
+          variableCollectionUpsert(input: $input)
+        }
+      `, {
+        input: {
+          serviceId: deploymentId,
+          projectId,
+          environmentId,
+          variables: upserts,
+        },
+      });
+
+      if (result.errors?.length) {
+        throw new Error(`Railway env upsert failed: ${result.errors[0].message}`);
+      }
+    }
+
+    if (skippedDeletes.length > 0) {
+      logger.warn(
+        `[Railway:updateEnvVars] Null deletes are not implemented; skipped ${skippedDeletes.join(', ')}`,
+      );
     }
   }
 
