@@ -5327,12 +5327,12 @@ paths:
           application/json:
             schema:
               type: object
-              required: [image]
+              required: [descriptor]
               properties:
-                image: { type: string, description: Docker image reference for the blue deployment }
-                target: { type: string, description: Deploy target override (docker, railway, akash, phala, ionet, nosana) }
-                env_vars: { type: object, additionalProperties: { type: string }, description: Environment variable overrides }
-                health_gate_ms: { type: integer, description: Health check wait time in milliseconds before promotion eligibility }
+                descriptor:
+                  type: object
+                  additionalProperties: true
+                  description: Full agent runtime descriptor to deploy into the blue slot.
       responses:
         '201':
           description: Blue deployment created
@@ -5340,13 +5340,12 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [success, deployment_id, slot]
+                required: [success, data]
                 properties:
                   success: { type: boolean }
-                  deployment_id: { type: string }
-                  slot: { type: string, enum: [blue] }
-                  status: { type: string }
-                  url: { type: string }
+                  data:
+                    type: object
+                    additionalProperties: true
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalServerError' }
@@ -5495,6 +5494,43 @@ paths:
                 properties:
                   success: { type: boolean }
                   message: { type: string }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalServerError' }
+
+  /v1/agents/{passportId}/redeploy:
+    post:
+      tags: [AgentLaunch]
+      operationId: lucid_redeploy_agent
+      x-speakeasy-group: agents.launch
+      summary: Trigger a provider redeploy
+      description: |
+        Trigger a provider-level redeploy for the active deployment of an agent.
+        This is a direct lifecycle action, not a blue-green rollout.
+      security:
+        - BearerAuth: []
+      x-speakeasy-mcp:
+        name: lucid_redeploy_agent
+        description: Trigger a provider redeploy for the active agent deployment.
+      parameters:
+        - name: passportId
+          in: path
+          required: true
+          schema: { type: string }
+          description: Agent passport identifier
+      responses:
+        '200':
+          description: Redeploy completed or accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, result]
+                properties:
+                  success: { type: boolean }
+                  result:
+                    type: object
+                    additionalProperties: true
+        '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalServerError' }
 
