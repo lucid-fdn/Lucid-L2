@@ -13,6 +13,64 @@ function getService() {
 
 export const agentDeployRouter = express.Router();
 
+type ExternalDeploymentRef = {
+  provider: string;
+  provider_deployment_id: string;
+  deployment_url?: string | null;
+};
+
+type ResolvedDeploymentHandle = ExternalDeploymentRef & {
+  deployment_id?: string | null;
+  actual_state?: string | null;
+};
+
+function parseExternalDeploymentRef(req: express.Request): ExternalDeploymentRef | null {
+  const bodyRef = req.body?.controlPlaneRef;
+  const provider =
+    (typeof bodyRef?.provider === 'string' ? bodyRef.provider : null) ??
+    (typeof req.query.provider === 'string' ? req.query.provider : null);
+  const providerDeploymentId =
+    (typeof bodyRef?.providerDeploymentId === 'string' ? bodyRef.providerDeploymentId : null) ??
+    (typeof req.query.providerDeploymentId === 'string' ? req.query.providerDeploymentId : null);
+  const deploymentUrl =
+    (typeof bodyRef?.deploymentUrl === 'string' ? bodyRef.deploymentUrl : null) ??
+    (typeof req.query.deploymentUrl === 'string' ? req.query.deploymentUrl : null);
+
+  if (!provider || !providerDeploymentId) return null;
+  return {
+    provider,
+    provider_deployment_id: providerDeploymentId,
+    deployment_url: deploymentUrl,
+  };
+}
+
+async function resolveDeploymentHandle(
+  req: express.Request,
+  passportId: string,
+): Promise<ResolvedDeploymentHandle | null> {
+  const externalRef = parseExternalDeploymentRef(req);
+  if (externalRef) {
+    return {
+      ...externalRef,
+      deployment_id: null,
+      actual_state: 'unknown',
+    };
+  }
+
+  const { getDeploymentStore } = await import('../../../../engine/src/compute/control-plane/store');
+  const store = getDeploymentStore();
+  const deployment = await store.getActiveByAgent(passportId);
+  if (!deployment || !deployment.provider_deployment_id) return null;
+
+  return {
+    provider: deployment.provider,
+    provider_deployment_id: deployment.provider_deployment_id,
+    deployment_url: deployment.deployment_url || null,
+    deployment_id: deployment.deployment_id,
+    actual_state: deployment.actual_state,
+  };
+}
+
 /**
  * POST /v1/agents/deploy
  * One-click agent deployment
@@ -140,12 +198,24 @@ agentDeployRouter.get('/v1/agents/:passportId/status', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing passportId parameter' });
     }
 
-    const service = getService();
-    const status = await service.getAgentStatus(passportId);
+    if (!parseExternalDeploymentRef(req)) {
+      const service = getService();
+      const status = await service.getAgentStatus(passportId);
 
-    if (!status) {
+      if (!status) {
+        return res.status(404).json({ success: false, error: 'Deployment not found' });
+      }
+
+      return res.json({ success: true, status });
+    }
+
+    const deployment = await resolveDeploymentHandle(req, passportId);
+    if (!deployment) {
       return res.status(404).json({ success: false, error: 'Deployment not found' });
     }
+    const { getDeployer } = await import('../../../../engine/src/compute/providers');
+    const deployer = getDeployer(deployment.provider);
+    const status = await deployer.status(deployment.provider_deployment_id);
 
     return res.json({ success: true, status });
   } catch (error) {
@@ -170,8 +240,19 @@ agentDeployRouter.get('/v1/agents/:passportId/logs', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing passportId parameter' });
     }
 
-    const service = getService();
-    const logs = await service.getAgentLogs(passportId, tail);
+    if (!parseExternalDeploymentRef(req)) {
+      const service = getService();
+      const logs = await service.getAgentLogs(passportId, tail);
+      return res.json({ success: true, logs });
+    }
+
+    const deployment = await resolveDeploymentHandle(req, passportId);
+    if (!deployment) {
+      return res.status(404).json({ success: false, error: 'Deployment not found' });
+    }
+    const { getDeployer } = await import('../../../../engine/src/compute/providers');
+    const deployer = getDeployer(deployment.provider);
+    const logs = await deployer.logs(deployment.provider_deployment_id, { tail });
 
     return res.json({ success: true, logs });
   } catch (error) {
@@ -195,12 +276,24 @@ agentDeployRouter.post('/v1/agents/:passportId/terminate', verifyAdminAuth, asyn
       return res.status(400).json({ success: false, error: 'Missing passportId parameter' });
     }
 
-    const service = getService();
-    const result = await service.terminateAgent(passportId);
+    if (!parseExternalDeploymentRef(req)) {
+      const service = getService();
+      const result = await service.terminateAgent(passportId);
 
-    if (!result.success) {
-      return res.status(400).json({ success: false, error: result.error });
+      if (!result.success) {
+        return res.status(400).json({ success: false, error: result.error });
+      }
+
+      return res.json({ success: true, message: `Agent ${passportId} terminated` });
     }
+
+    const deployment = await resolveDeploymentHandle(req, passportId);
+    if (!deployment) {
+      return res.status(404).json({ success: false, error: 'Deployment not found' });
+    }
+    const { getDeployer } = await import('../../../../engine/src/compute/providers');
+    const deployer = getDeployer(deployment.provider);
+    await deployer.terminate(deployment.provider_deployment_id);
 
     return res.json({ success: true, message: `Agent ${passportId} terminated` });
   } catch (error) {
@@ -385,18 +478,13 @@ agentDeployRouter.get('/v1/agents/:passportId/metrics', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing passportId parameter' });
     }
 
-    const { getDeploymentStore } = await import('../../../../engine/src/compute/control-plane/store');
     const { getProviderCapabilities } = await import('../../../../engine/src/compute/control-plane/reconciler/provider-sync');
     const { requireCapability } = await import('../../../../engine/src/compute/control-plane/agent/agentDeploymentService');
     const { getDeployer } = await import('../../../../engine/src/compute/providers');
 
-    const store = getDeploymentStore();
-    const deployment = await store.getActiveByAgent(passportId);
+    const deployment = await resolveDeploymentHandle(req, passportId);
     if (!deployment) {
       return res.status(404).json({ success: false, error: 'No active deployment found' });
-    }
-    if (!deployment.provider_deployment_id) {
-      return res.status(400).json({ success: false, error: 'Deployment has no provider ID' });
     }
 
     const deployer = getDeployer(deployment.provider);
@@ -427,17 +515,12 @@ agentDeployRouter.post('/v1/agents/:passportId/redeploy', verifyAdminAuth, async
       return res.status(400).json({ success: false, error: 'Missing passportId parameter' });
     }
 
-    const { getDeploymentStore } = await import('../../../../engine/src/compute/control-plane/store');
     const { requireCapability } = await import('../../../../engine/src/compute/control-plane/agent/agentDeploymentService');
     const { getDeployer } = await import('../../../../engine/src/compute/providers');
 
-    const store = getDeploymentStore();
-    const deployment = await store.getActiveByAgent(passportId);
+    const deployment = await resolveDeploymentHandle(req, passportId);
     if (!deployment) {
       return res.status(404).json({ success: false, error: 'No active deployment found' });
-    }
-    if (!deployment.provider_deployment_id) {
-      return res.status(400).json({ success: false, error: 'Deployment has no provider ID' });
     }
 
     const deployer = getDeployer(deployment.provider);
@@ -447,17 +530,6 @@ agentDeployRouter.post('/v1/agents/:passportId/redeploy', verifyAdminAuth, async
 
     // Emit a restart-like lifecycle event. The control-plane event model
     // tracks redeploys under the existing restarted lifecycle type.
-    try {
-      await store.appendEvent({
-        deployment_id: deployment.deployment_id,
-        event_type: 'restarted',
-        actor: 'user',
-        previous_state: deployment.actual_state,
-        new_state: deployment.actual_state,
-        metadata: { result },
-      });
-    } catch { /* non-blocking */ }
-
     return res.json({ success: true, result });
   } catch (error: any) {
     if (error.name === 'UnsupportedCapabilityError') {
@@ -484,17 +556,12 @@ agentDeployRouter.put('/v1/agents/:passportId/env', verifyAdminAuth, async (req,
       return res.status(400).json({ success: false, error: 'Missing or invalid vars object in body' });
     }
 
-    const { getDeploymentStore } = await import('../../../../engine/src/compute/control-plane/store');
     const { requireCapability } = await import('../../../../engine/src/compute/control-plane/agent/agentDeploymentService');
     const { getDeployer } = await import('../../../../engine/src/compute/providers');
 
-    const store = getDeploymentStore();
-    const deployment = await store.getActiveByAgent(passportId);
+    const deployment = await resolveDeploymentHandle(req, passportId);
     if (!deployment) {
       return res.status(404).json({ success: false, error: 'No active deployment found' });
-    }
-    if (!deployment.provider_deployment_id) {
-      return res.status(400).json({ success: false, error: 'Deployment has no provider ID' });
     }
 
     const deployer = getDeployer(deployment.provider);
