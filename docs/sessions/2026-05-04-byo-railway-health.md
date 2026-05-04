@@ -23,7 +23,12 @@ The public L2 gateway now supports wallet-optional BYO Railway launches through 
   - discrete `POSTGRES_HOST`/`POSTGRES_PORT`/`POSTGRES_DB`/`POSTGRES_USER`/password fields
 - Receipt consumer uses SSL settings and a longer connection timeout for the platform-core pooler.
 - Gateway rate-limit keys use `express-rate-limit`'s IPv6-safe `ipKeyGenerator`.
-- Dependency audit cleanup upgraded safe patch/minor chains for Axios/follow-redirects, Nango transitive Axios, and OpenTelemetry/protobufjs. Critical production audit is clear. Remaining high/moderate findings are upstream/no-safe-fix or breaking-major chains around Solana/Irys/Privy/Hyperliquid/PM2 and should be handled as explicit dependency migration work, not an automatic force audit fix.
+- Dependency audit cleanup upgraded safe patch/minor chains for Axios/follow-redirects, Nango transitive Axios, and OpenTelemetry/protobufjs. Follow-up cleanup upgraded PM2 to `7.0.1`, Hyperliquid to `0.32.2`, adapted the Hyperliquid wallet wrapper to the new SDK contract, and removed local source imports from the transitive `uuid` package in favor of Node `crypto.randomUUID()`.
+- Critical production audit is clear. Remaining high/moderate findings are upstream/no-safe-fix chains around Solana/Irys/Privy/passport dependencies:
+  - `@solana/web3.js@1.98.4` has no patched 1.x release and is pulled by core Solana, Anchor, Metaplex, Privy, and QuantuLabs paths.
+  - `@solana/spl-token`/`bigint-buffer` and `@irys/upload-solana` inherit the same no-fix Solana chain.
+  - `@lucid-fdn/passport` and `rpc-websockets` still pull vulnerable `uuid` versions transitively; local code no longer imports `uuid` directly.
+  - These should be resolved by explicit Solana SDK/passport/Irys migration work, not an automatic force audit fix.
 
 ## Operator Notes
 
@@ -42,8 +47,9 @@ Verified against `https://api.lucid.foundation`:
 - `POST /v1/agents/:passportId/terminate` returned `200` and terminated the Railway service.
 - Final post-deploy smoke after schema rollout created `passport_c082b81b0a3c4a4b949b52a967a173d8`, deployed Railway service `365358a2-b447-43e3-814c-09abeee06c0f`, then terminated it successfully. Logs show on-chain sync deferred and no new delegation failure for that passport.
 - Local regression gates passed after the claimable delegation and dependency updates:
-  - `npm run type-check`
-  - `npx jest packages/engine/src/__tests__/launch.test.ts packages/engine/src/identity/projections/__tests__/MetaplexIdentityRegistry.test.ts packages/gateway-lite/src/middleware/__tests__/adminAuth.test.ts --runInBand`
-  - `npm audit --omit=dev --audit-level=critical`
+- `npm run type-check`
+- `npx jest packages/engine/src/__tests__/launch.test.ts packages/engine/src/identity/projections/__tests__/MetaplexIdentityRegistry.test.ts packages/gateway-lite/src/middleware/__tests__/adminAuth.test.ts --runInBand`
+- `npx jest packages/engine/src/__tests__/agentDescriptor.test.ts packages/engine/src/__tests__/launch.test.ts packages/engine/src/identity/projections/__tests__/MetaplexIdentityRegistry.test.ts packages/gateway-lite/src/middleware/__tests__/adminAuth.test.ts src/__tests__/fluid-compute-e2e.test.ts --runInBand`
+- `npm audit --omit=dev --audit-level=critical`
 
 The live smoke deployment was intentionally terminated after verification.

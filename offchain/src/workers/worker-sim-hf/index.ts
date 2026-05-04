@@ -14,7 +14,7 @@
  */
 
 import express, { Express, Request, Response, NextFunction } from 'express';
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 import cors from 'cors';
 import { HuggingFaceClient } from './hfClient';
 import { QuoteService } from './quoteService';
@@ -23,7 +23,7 @@ import { WorkerIdentity, ExecutionMode, HealthCheckResponse } from '../../../pac
 
 // Configuration
 const PORT = parseInt(process.env.WORKER_PORT || '3100', 10);
-const WORKER_ID = process.env.WORKER_ID || `worker-sim-hf-${uuid().slice(0, 8)}`;
+const WORKER_ID = process.env.WORKER_ID || `worker-sim-hf-${randomUUID().slice(0, 8)}`;
 const PROVIDER_PASSPORT_ID = process.env.PROVIDER_PASSPORT_ID || 'psp_hf_default';
 const HF_API_KEY = process.env.HF_API_KEY;
 const ORCHESTRATOR_URL = process.env.ORCHESTRATOR_URL || 'http://localhost:3000';

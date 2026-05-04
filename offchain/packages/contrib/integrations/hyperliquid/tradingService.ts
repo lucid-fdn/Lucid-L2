@@ -163,10 +163,7 @@ export class HyperliquidTradingService {
     };
 
     // 6. Create ExchangeClient with session signer
-    const exchangeClient = new hl.ExchangeClient({
-      wallet: signerKey, // Private key directly
-      transport: new hl.HttpTransport({ isTestnet: this.isTestnet })
-    });
+    const exchangeClient = this.createExchangeClient(signerKey);
 
     // 7. Submit order
     const result = await exchangeClient.order({
@@ -210,10 +207,7 @@ export class HyperliquidTradingService {
     const signerKey = await this.getSessionSignerKey(policyCheck.signerId!);
     const assetId = this.getAssetId(params.symbol);
 
-    const exchangeClient = new hl.ExchangeClient({
-      wallet: signerKey,
-      transport: new hl.HttpTransport({ isTestnet: this.isTestnet })
-    });
+    const exchangeClient = this.createExchangeClient(signerKey);
 
     const result = await exchangeClient.cancel({
       cancels: [{ a: assetId, o: parseInt(params.orderId) }]
@@ -247,10 +241,7 @@ export class HyperliquidTradingService {
 
     const signerKey = await this.getSessionSignerKey(policyCheck.signerId!);
 
-    const exchangeClient = new hl.ExchangeClient({
-      wallet: signerKey,
-      transport: new hl.HttpTransport({ isTestnet: this.isTestnet })
-    });
+    const exchangeClient = this.createExchangeClient(signerKey);
 
     // Get all open orders first
     const openOrders = await this.infoClient.openOrders({ user: wallet.wallet_address });
@@ -301,10 +292,7 @@ export class HyperliquidTradingService {
     const signerKey = await this.getSessionSignerKey(policyCheck.signerId!);
     const assetId = this.getAssetId(params.symbol);
 
-    const exchangeClient = new hl.ExchangeClient({
-      wallet: signerKey,
-      transport: new hl.HttpTransport({ isTestnet: this.isTestnet })
-    });
+    const exchangeClient = this.createExchangeClient(signerKey);
 
     // Get existing order to preserve unchanged fields
     const openOrders = await this.infoClient.openOrders({ user: wallet.wallet_address });
@@ -391,10 +379,7 @@ export class HyperliquidTradingService {
     const signerKey = await this.getSessionSignerKey(policyCheck.signerId!);
     const assetId = this.getAssetId(params.symbol);
 
-    const exchangeClient = new hl.ExchangeClient({
-      wallet: signerKey,
-      transport: new hl.HttpTransport({ isTestnet: this.isTestnet })
-    });
+    const exchangeClient = this.createExchangeClient(signerKey);
 
     const result = await exchangeClient.updateLeverage({
       asset: assetId,
@@ -490,6 +475,17 @@ export class HyperliquidTradingService {
 
     // Decrypt the private key
     return this.decryptKey(signer.authorization_key_private);
+  }
+
+  /**
+   * Hyperliquid v0.32 expects an abstract wallet object, not a raw private key.
+   */
+  private createExchangeClient(signerKey: string): hl.ExchangeClient {
+    const privateKey = signerKey.startsWith('0x') ? signerKey : `0x${signerKey}`;
+    return new hl.ExchangeClient({
+      wallet: new ethers.Wallet(privateKey),
+      transport: new hl.HttpTransport({ isTestnet: this.isTestnet }),
+    });
   }
 
   /**

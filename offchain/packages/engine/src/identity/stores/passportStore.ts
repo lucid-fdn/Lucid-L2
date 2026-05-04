@@ -3,7 +3,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { PATHS } from '../../shared/config/paths';
 import { logger } from '../../shared/lib/logger';
 
@@ -271,7 +271,7 @@ export class PassportStore {
    * Generate a new passport ID
    */
   generateId(): string {
-    return `passport_${uuidv4().replace(/-/g, '')}`;
+    return `passport_${randomUUID().replace(/-/g, '')}`;
   }
 
   /**

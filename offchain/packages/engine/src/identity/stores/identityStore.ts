@@ -7,7 +7,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { PATHS } from '../../shared/config/paths';
 import { logger } from '../../shared/lib/logger';
 
@@ -116,7 +116,7 @@ export class IdentityStore {
     }
 
     const link: IdentityLink = {
-      linkId: `link_${uuidv4().replace(/-/g, '')}`,
+      linkId: `link_${randomUUID().replace(/-/g, '')}`,
       primaryCaip10,
       linkedCaip10,
       proof,

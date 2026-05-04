@@ -9,7 +9,7 @@
  * - Time since epoch start > 1 hour
  * - Manual trigger via API
  */
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 import { getMmrRoot, getMmrLeafCount, listInferenceReceipts, getInferenceReceipt, InferenceReceipt } from '../../../receipt/receiptService';
 import pool from '../../../shared/db/pool';
 import { logger } from '../../../shared/lib/logger';
@@ -238,7 +238,7 @@ function getActiveKey(project_id?: string): string {
  * Create a new epoch.
  */
 export function createEpoch(project_id?: string): Epoch {
-  const epoch_id = `epoch_${uuid().replace(/-/g, '')}`;
+  const epoch_id = `epoch_${randomUUID().replace(/-/g, '')}`;
   const now = Math.floor(Date.now() / 1000);
   const epoch_index = ++epochIndexCounter;
   

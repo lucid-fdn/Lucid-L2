@@ -13,7 +13,7 @@
  * @module quoteService
  */
 
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 import { canonicalSha256Hex } from '../../../packages/engine/src/shared/crypto/hash';
 import { WorkerSigningService } from './signingService';
 import type { OfferQuote, WorkerIdentity } from '../../../packages/engine/src/shared/types/fluidCompute';
@@ -93,7 +93,7 @@ export class QuoteService {
    * Create a new signed quote.
    */
   createQuote(input: QuoteInput): OfferQuote {
-    const quote_id = uuid();
+    const quote_id = randomUUID();
     const now = Math.floor(Date.now() / 1000);
     const expires_at = now + this.quoteTtlSeconds;
 

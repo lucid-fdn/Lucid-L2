@@ -7,7 +7,7 @@
  * @module quoteService
  */
 
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 import { computeQuoteHash, verifyQuoteHash } from '../../../packages/engine/src/receipt/receiptService';
 import { signMessage, verifySignature, getOrchestratorPublicKey } from '../../../packages/engine/src/shared/crypto/signing';
 import type {
@@ -145,7 +145,7 @@ export class QuoteService {
     const totalCost = Math.max(inputCost + outputCost, pricing.minimum_charge);
 
     // Generate quote ID (UUID nonce)
-    const quote_id = `quote_${uuid().replace(/-/g, '')}`;
+    const quote_id = `quote_${randomUUID().replace(/-/g, '')}`;
 
     // Set expiration
     const expires_at = Math.floor(Date.now() / 1000) + QUOTE_EXPIRY_SECONDS;

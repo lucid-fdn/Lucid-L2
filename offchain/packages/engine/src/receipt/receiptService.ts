@@ -13,7 +13,7 @@
  * 7. Job hash computation for binding
  * 8. Support for worker-signed receipts
  */
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 import { canonicalSha256Hex } from '../shared/crypto/hash';
 import { validateWithSchema } from '../shared/crypto/schemaValidator';
 import { signMessage, verifySignature, getOrchestratorPublicKey } from '../shared/crypto/signing';
@@ -739,7 +739,7 @@ export function createInferenceReceipt(input: InferenceReceiptInput, idempotency
   }
 
   // Generate run_id (use provided or generate new)
-  const run_id = input.run_id || `run_${uuid().replace(/-/g, '')}`;
+  const run_id = input.run_id || `run_${randomUUID().replace(/-/g, '')}`;
 
   // Eagerly reserve idempotency key to close check-then-set race window
   // (between concurrent requests hitting this code path across event loop ticks)
@@ -1291,7 +1291,7 @@ export function createComputeReceipt(
   }
 
   // Generate run_id (use provided or generate new)
-  const run_id = input.run_id || `run_${uuid().replace(/-/g, '')}`;
+  const run_id = input.run_id || `run_${randomUUID().replace(/-/g, '')}`;
 
   // Eagerly reserve idempotency key to close check-then-set race window
   if (idempotencyKey) {
@@ -1658,7 +1658,7 @@ function createReceiptGeneric<TBody extends { run_id: string }, TReceipt extends
  * Create a tool receipt.
  */
 export function createToolReceipt(input: ToolReceiptInput, opts: ReceiptCreateOptions = {}): ToolReceipt {
-  const run_id = input.run_id || `run_${uuid().replace(/-/g, '')}`;
+  const run_id = input.run_id || `run_${randomUUID().replace(/-/g, '')}`;
   const timestamp = Math.floor(Date.now() / 1000);
 
   const body: ToolReceiptBody = {
@@ -1684,7 +1684,7 @@ export function createToolReceipt(input: ToolReceiptInput, opts: ReceiptCreateOp
  * Create an agent receipt.
  */
 export function createAgentReceipt(input: AgentReceiptInput, opts: ReceiptCreateOptions = {}): AgentReceipt {
-  const run_id = input.run_id || `run_${uuid().replace(/-/g, '')}`;
+  const run_id = input.run_id || `run_${randomUUID().replace(/-/g, '')}`;
   const timestamp = Math.floor(Date.now() / 1000);
 
   const body: AgentReceiptBody = {
@@ -1712,7 +1712,7 @@ export function createAgentReceipt(input: AgentReceiptInput, opts: ReceiptCreate
  * Create a dataset receipt.
  */
 export function createDatasetReceipt(input: DatasetReceiptInput, opts: ReceiptCreateOptions = {}): DatasetReceipt {
-  const run_id = input.run_id || `run_${uuid().replace(/-/g, '')}`;
+  const run_id = input.run_id || `run_${randomUUID().replace(/-/g, '')}`;
   const timestamp = Math.floor(Date.now() / 1000);
 
   const body: DatasetReceiptBody = {

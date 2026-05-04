@@ -1,7 +1,7 @@
 // offchain/src/services/executionGateway.ts
 // Execution Gateway - Orchestrates end-to-end inference execution
 
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 import { getPassportManager } from '../../../engine/src/identity/passport/passportManager';
 import { matchComputeForModel, MatchResult } from '../compute/matchingEngine';
 import { createInferenceReceipt, InferenceReceiptInput } from '../../../engine/src/receipt/receiptService';
@@ -482,7 +482,7 @@ export async function executeInferenceRequest(
   request: ExecutionRequest
 ): Promise<ExecutionResult> {
   const startTime = Date.now();
-  const run_id = `run_${uuid().replace(/-/g, '')}`;
+  const run_id = `run_${randomUUID().replace(/-/g, '')}`;
   const request_id = request.request_id || run_id;
   const trace_id = request.trace_id;
   
@@ -614,7 +614,7 @@ export async function executeStreamingInferenceRequest(
   request: ExecutionRequest
 ): Promise<StreamingExecutionResult> {
   const startTime = Date.now();
-  const run_id = `run_${uuid().replace(/-/g, '')}`;
+  const run_id = `run_${randomUUID().replace(/-/g, '')}`;
   const request_id = request.request_id || run_id;
   const trace_id = request.trace_id;
   

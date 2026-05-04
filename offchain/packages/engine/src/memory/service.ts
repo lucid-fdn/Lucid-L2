@@ -1,4 +1,4 @@
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 import type { IMemoryStore, MemoryWriteResult, MemoryStats } from './store/interface';
 import type {
   MemoryServiceConfig, RecallRequest, RecallResponse,
@@ -253,7 +253,7 @@ export class MemoryService {
 
   async startSession(callerPassportId: string, namespace: string): Promise<string> {
     this.acl.assertWritePermission(callerPassportId, namespace);
-    const session_id = uuid();
+    const session_id = randomUUID();
     await this.store.createSession({
       session_id,
       agent_passport_id: callerPassportId,

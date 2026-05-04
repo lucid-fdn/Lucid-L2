@@ -6,7 +6,7 @@
  * Run with: npm test -- --testPathPattern=fluid-compute-e2e
  */
 
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 import {
   computeQuoteHash,
   computeJobHash,
@@ -51,7 +51,7 @@ import type {
 // Helper to create a mock quote
 function createMockQuote(overrides: Partial<OfferQuote> = {}): Omit<OfferQuote, 'quote_hash' | 'quote_signature'> {
   return {
-    quote_id: `quote_${uuid().replace(/-/g, '')}`,
+    quote_id: `quote_${randomUUID().replace(/-/g, '')}`,
     offer_id: 'test_offer_001',
     model_id: 'meta-llama/Meta-Llama-3.1-8B-Instruct',
     policy_hash: 'a'.repeat(64),
@@ -73,12 +73,12 @@ function createMockJob(quote: OfferQuote, overrides: Partial<JobRequest> = {}): 
   };
 
   return {
-    job_id: `job_${uuid().replace(/-/g, '')}`,
+    job_id: `job_${randomUUID().replace(/-/g, '')}`,
     model_id: quote.model_id,
     offer_id: quote.offer_id,
     quote,
     input,
-    trace_id: `trace_${uuid()}`,
+    trace_id: `trace_${randomUUID()}`,
     ...overrides,
   };
 }
