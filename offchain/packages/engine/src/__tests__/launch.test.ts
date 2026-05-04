@@ -100,8 +100,19 @@ beforeEach(() => {
   // Reset deployment store singleton so each test gets a clean store
   resetDeploymentStore();
   // Reset mock call counts
+  mockCreatePassport.mockReset();
+  mockCreatePassport.mockImplementation(() => {
+    passportCounter++;
+    return Promise.resolve({
+      ok: true,
+      data: { passport_id: `passport_launch_${passportCounter}` },
+    });
+  });
   mockDeployer.deploy.mockClear();
   mockDeployer.deploy.mockResolvedValue(mockDeployResult);
+  delete process.env.LUCID_DEFAULT_PASSPORT_OWNER;
+  delete process.env.LUCID_PLATFORM_WALLET;
+  delete process.env.PLATFORM_OWNER_ADDRESS;
 });
 
 // ===========================================================================
@@ -142,6 +153,56 @@ describe('launchImage', () => {
     expect(result.success).toBe(true);
     expect(result.reputation_eligible).toBe(false);
     expect(result.verification_mode).toBe('minimal');
+  });
+
+  test('2b. deploys without owner by using wallet-shaped platform default ownership', async () => {
+    const result = await launchImage({
+      image: TEST_IMAGE,
+      target: 'docker',
+      name: 'test-agent-no-owner',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.passport_owner).toBe('11111111111111111111111111111111');
+    expect(result.owner_mode).toBe('platform_default');
+    expect(result.claim_status).toBe('claimable');
+    expect(result.wallet_required_features).toContain('passport_claim');
+    expect(mockCreatePassport).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: '11111111111111111111111111111111',
+        name: 'test-agent-no-owner',
+      }),
+    );
+    expect(mockDeployer.deploy).toHaveBeenCalledTimes(1);
+  });
+
+  test('2c. preserves explicit custody ownership mode', async () => {
+    const result = await launchImage({
+      image: TEST_IMAGE,
+      target: 'docker',
+      owner: VALID_OWNER,
+      owner_mode: 'workspace_custody',
+      name: 'test-agent-custody-owner',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.passport_owner).toBe(VALID_OWNER);
+    expect(result.owner_mode).toBe('workspace_custody');
+    expect(result.claim_status).toBe('claimable');
+  });
+
+  test('2d. fails missing owner in production without configured platform wallet', async () => {
+    process.env.NODE_ENV = 'production';
+    const result = await launchImage({
+      image: TEST_IMAGE,
+      target: 'docker',
+      name: 'test-agent-no-platform-owner',
+    });
+    process.env.NODE_ENV = 'test';
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('Platform owner wallet is not configured');
+    expect(mockCreatePassport).not.toHaveBeenCalled();
   });
 
   test('3. with full verification returns reputation_eligible: true', async () => {
@@ -226,12 +287,6 @@ describe('launchImage', () => {
   });
 
   test('8. with invalid owner returns passport error', async () => {
-    // Override the shared mock to simulate a passport creation failure
-    mockCreatePassport.mockResolvedValueOnce({
-      ok: false,
-      error: 'Invalid owner address: must be a valid Solana or EVM wallet address',
-    });
-
     const result = await launchImage({
       image: TEST_IMAGE,
       target: 'docker',
@@ -241,6 +296,7 @@ describe('launchImage', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/passport|owner|wallet/i);
+    expect(mockCreatePassport).not.toHaveBeenCalled();
     // Deployer should NOT have been called
     expect(mockDeployer.deploy).not.toHaveBeenCalled();
   });

@@ -12,6 +12,7 @@ import type { ImageDeployInput } from '../../providers/types';
 import type { LaunchImageInput, LaunchBaseRuntimeInput, LaunchResult } from './types';
 import { BASE_RUNTIME_IMAGE, DEFAULT_RUNTIME_VERSION, DEFAULT_PORT } from './types';
 import type { LaunchSpec, LaunchTarget } from './launch-spec';
+import { isWalletOwner, resolvePassportOwnership } from './ownership';
 
 /* ------------------------------------------------------------------ */
 /*  LaunchSpec normalization                                           */
@@ -19,6 +20,8 @@ import type { LaunchSpec, LaunchTarget } from './launch-spec';
 
 /** Convert launch inputs to normalized LaunchSpec for logging / auditing. */
 export function toLaunchSpec(input: LaunchImageInput, verification: 'full' | 'minimal'): LaunchSpec {
+  const ownership = resolvePassportOwnership({ owner: input.owner, owner_mode: input.owner_mode });
+  const owner = 'error' in ownership ? input.owner : ownership.owner;
   return {
     source_type: 'image',
     source_build_mode: 'prebuilt',
@@ -28,7 +31,7 @@ export function toLaunchSpec(input: LaunchImageInput, verification: 'full' | 'mi
     verification_mode: verification,
     env_vars: input.env_vars || {},
     port: input.port,
-    owner: input.owner,
+    owner,
     name: input.name,
     metadata: {},
   };
@@ -47,6 +50,11 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
 
   const verification = input.verification ?? 'full';
   const reputationEligible = verification === 'full';
+  const ownership = resolvePassportOwnership({ owner: input.owner, owner_mode: input.owner_mode });
+  if ('error' in ownership) {
+    return { success: false, reputation_eligible: reputationEligible, error: ownership.error };
+  }
+  const owner = ownership.owner;
 
   // Log LaunchSpec on every launch call
   const spec = toLaunchSpec(input, verification);
@@ -55,7 +63,7 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
   // 2. Resolve passport (use existing or create new)
   const passportResult = await resolvePassport({
     passport_id: input.passport_id,
-    owner: input.owner,
+    owner,
     name: input.name,
     target: input.target,
   });
@@ -69,9 +77,12 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
   // 2b. Create agent wallet (best-effort — don't block launch if wallet creation fails)
   let walletAddress: string | undefined;
   try {
+    if (!isWalletOwner(owner)) {
+      throw new Error('owner is not a wallet address');
+    }
     const { getAgentWalletProvider } = await import('../../../identity/wallet');
     const walletProvider = getAgentWalletProvider();
-    const chain = input.owner.startsWith('0x') ? 'evm' : 'solana';
+    const chain = owner.startsWith('0x') ? 'evm' : 'solana';
     const walletResult = await walletProvider.createWallet(passportId, chain);
     walletAddress = walletResult?.address;
     if (walletAddress) {
@@ -96,7 +107,7 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
         port: input.port ?? DEFAULT_PORT,
         verification,
       },
-      created_by: input.owner,
+      created_by: owner,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -109,7 +120,7 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
 
   // 4. Transition to 'deploying'
   try {
-    const updated = await store.transition(deploymentId, 'deploying', currentVersion, { actor: input.owner });
+    const updated = await store.transition(deploymentId, 'deploying', currentVersion, { actor: owner });
     currentVersion = updated.version;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -189,6 +200,8 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
         provider_deployment_id: result.deployment_id,
         url: result.url,
         prepared: isPrepared,
+        owner_mode: ownership.owner_mode,
+        claim_status: ownership.claim_status,
         ...(walletAddress ? { wallet_address: walletAddress } : {}),
       },
     });
@@ -201,6 +214,13 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
       deployment_id: deploymentId,
       deployment_url: result.url,
       wallet_address: walletAddress,
+      passport_owner: owner,
+      owner_mode: ownership.owner_mode,
+      claim_status: ownership.claim_status,
+      wallet_required_features:
+        ownership.owner_mode === 'user_wallet'
+          ? []
+          : ['passport_claim', 'on_chain_ownership_transfer', 'staking', 'payouts'],
       verification_mode: verification,
       reputation_eligible: reputationEligible,
     };
@@ -266,6 +286,7 @@ export async function launchBaseRuntime(input: LaunchBaseRuntimeInput): Promise<
     image,
     target: input.target,
     owner: input.owner,
+    owner_mode: input.owner_mode,
     name: input.name,
     env_vars: baseEnv,
     verification: 'full',

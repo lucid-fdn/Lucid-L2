@@ -4,6 +4,14 @@ export type { LaunchSpec, LaunchSpecMetadata, SourceType, SourceBuildMode, Launc
 export { resolvePassport } from './passport-resolution';
 export { buildLucidEnvVars, buildBaseRuntimeEnvVars } from './env-builder';
 export { validateLaunchImageInput, validateBaseRuntimeInput } from './validators';
+export {
+  isWalletOwner,
+  normalizeOwnershipMode,
+  resolvePassportOwnership,
+  type PassportClaimStatus,
+  type PassportOwnershipMode,
+  type ResolvedPassportOwnership,
+} from './ownership';
 export { checkProviderCompat } from './provider-compat';
 export type { ProviderCompatResult } from './provider-compat';
 export { buildFromSource, detectSourceType, isDockerAvailable } from './source-builder';

@@ -5,6 +5,8 @@ import express from 'express';
 import { getPassportManager } from '../../../../engine/src/identity/passport/passportManager';
 import type { PassportType, PassportStatus, PassportFilters } from '../../../../engine/src/identity/stores/passportStore';
 import { logger } from '../../../../engine/src/shared/lib/logger';
+import { verifyAdminAuth } from '../../middleware/adminAuth';
+import { verifyWalletSignature } from '../../lib/walletSignature';
 
 function sanitizeQueryInt(val: any, defaultVal: number, min: number, max: number): number {
   if (val === undefined || val === null) return defaultVal;
@@ -770,6 +772,82 @@ passportRouter.post('/v1/passports/:passport_id/sync', async (req, res) => {
     });
   } catch (error) {
     logger.error('Error in POST /v1/passports/:id/sync:', error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Internal server error',
+    });
+  }
+});
+
+/**
+ * POST /v1/passports/:passport_id/claim
+ * Transfer a custody/platform-owned passport to a verified user wallet.
+ *
+ * Body: {
+ *   owner: string,
+ *   message: string,
+ *   signature: string,
+ *   signature_encoding?: 'base64' | 'base58',
+ *   current_owner?: string
+ * }
+ */
+passportRouter.post('/v1/passports/:passport_id/claim', verifyAdminAuth, async (req, res) => {
+  try {
+    const { passport_id } = req.params;
+    const { owner, message, signature, signature_encoding, current_owner } = req.body || {};
+
+    if (!passport_id) {
+      return res.status(400).json({ success: false, error: 'Missing passport_id parameter' });
+    }
+    if (!owner || !message || !signature) {
+      return res.status(400).json({
+        success: false,
+        error: 'owner, message, and signature are required',
+      });
+    }
+    if (!String(message).includes(passport_id)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Claim message must include the passport_id',
+      });
+    }
+
+    const verified = verifyWalletSignature({
+      owner: String(owner),
+      message: String(message),
+      signature: String(signature),
+      signatureEncoding: signature_encoding === 'base58' ? 'base58' : 'base64',
+    });
+
+    if (!verified) {
+      return res.status(401).json({ success: false, error: 'Invalid wallet signature' });
+    }
+
+    const manager = getPassportManager();
+    const result = await manager.transferPassportOwnership(
+      passport_id,
+      String(owner),
+      current_owner ? String(current_owner) : undefined,
+    );
+
+    if (!result.ok) {
+      if (result.error?.includes('not found')) {
+        return res.status(404).json({ success: false, error: result.error });
+      }
+      if (result.error?.includes('Not authorized')) {
+        return res.status(403).json({ success: false, error: result.error });
+      }
+      return res.status(400).json({ success: false, error: result.error, details: result.details });
+    }
+
+    return res.json({
+      success: true,
+      passport: result.data,
+      owner_mode: 'user_wallet',
+      claim_status: 'claimed',
+    });
+  } catch (error) {
+    logger.error('Error in POST /v1/passports/:id/claim:', error);
     return res.status(500).json({
       success: false,
       error: error instanceof Error ? error.message : 'Internal server error',

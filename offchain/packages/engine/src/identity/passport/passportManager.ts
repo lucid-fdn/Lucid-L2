@@ -613,6 +613,53 @@ export class PassportManager {
   }
 
   /**
+   * Transfer passport ownership after an external wallet claim is verified.
+   */
+  async transferPassportOwnership(
+    passportId: string,
+    newOwner: string,
+    requestingOwner?: string
+  ): Promise<OperationResult<Passport>> {
+    await this.ensureInitialized();
+
+    const existing = await this.store.get(passportId);
+    if (!existing) {
+      return { ok: false, error: 'Passport not found' };
+    }
+
+    if (requestingOwner && existing.owner !== requestingOwner) {
+      return { ok: false, error: 'Not authorized: only the passport owner can transfer it' };
+    }
+
+    if (!this.validateOwner(newOwner)) {
+      return {
+        ok: false,
+        error: 'Invalid new owner address: must be a valid Solana or EVM wallet address',
+      };
+    }
+
+    const metadata = {
+      ...existing.metadata,
+      ownership: {
+        ...(existing.metadata?.ownership || {}),
+        previous_owner: existing.owner,
+        owner_mode: 'user_wallet',
+        claim_status: 'claimed',
+        claimed_at: Date.now(),
+      },
+    };
+
+    const updated = await this.store.update(passportId, {
+      owner: newOwner,
+      metadata,
+    } as Partial<Passport>);
+    if (!updated) return { ok: false, error: 'Failed to transfer passport ownership' };
+
+    await this.attemptOnChainSync(updated, { forceReupload: true });
+    return { ok: true, data: updated };
+  }
+
+  /**
    * Update only pricing fields on a passport's metadata.
    * Deep-merges into metadata.pricing / metadata.economics, re-validates, and triggers DePIN re-upload.
    */

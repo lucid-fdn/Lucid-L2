@@ -141,6 +141,28 @@ lucid launch --agent openclaw --config ./my.env    # Path D: CI mode
 # Path E: External registration via POST /v1/passports
 ```
 
+### Passport ownership
+
+Launches support three passport ownership modes:
+
+- `user_wallet`: request provides a user wallet owner. Wallet-native features are enabled immediately.
+- `workspace_custody`: request provides a workspace/platform wallet owner. The passport is valid on L2 and can be claimed by a user wallet later.
+- `platform_default`: request provides no owner. L2 uses a configured platform owner wallet, or a dev-only default outside production. The passport is claimable later.
+
+Production deployments without a request owner require one of:
+
+- `LUCID_DEFAULT_PASSPORT_OWNER`
+- `LUCID_PLATFORM_WALLET`
+- `PLATFORM_OWNER_ADDRESS`
+
+Wallet-native features such as passport claim, on-chain ownership transfer, staking, and payouts are only available after the passport is owned by a verified user wallet. Custody/platform-owned deployments can still be launched and operated without forcing web3 onboarding during runtime creation.
+
+Claim flow:
+
+```text
+Lucid app -> POST /v1/passports/:passport_id/claim -> wallet signature verified -> passport owner transferred
+```
+
 ### Auth & Providers
 
 ```bash
@@ -195,6 +217,8 @@ npx jest --testPathPattern="deployment"        # Pattern match
 npm run type-check                             # TypeScript compilation
 ```
 
+`npm run type-check` uses `tsconfig.typecheck.json` with package-export-aware resolution. Runtime/build output remains governed by `tsconfig.json`.
+
 | Suite | Tests | Coverage |
 |-------|-------|----------|
 | Engine (control plane, memory, anchoring, receipts, reputation, payment) | ~1,350 | Core domain logic |
@@ -215,6 +239,9 @@ Copy `.env.example` and configure. Key variables:
 | `MEMORY_STORE` | Memory backend | `sqlite` |
 | `DEPLOYMENT_STORE` | Deployment backend | `postgres` |
 | `DEPLOY_TARGET` | Default deployer | `docker` |
+| `LUCID_DEFAULT_PASSPORT_OWNER` | Production fallback owner for no-wallet launches | - |
+| `LUCID_PLATFORM_WALLET` | Alternate platform owner fallback | - |
+| `PLATFORM_OWNER_ADDRESS` | Alternate platform owner fallback | - |
 | `NFT_PROVIDER` | NFT backend | `mock` |
 | `DEPIN_PERMANENT_PROVIDER` | Permanent DePIN storage | `mock` |
 | `DEPIN_EVOLVING_PROVIDER` | Evolving DePIN storage | `mock` |

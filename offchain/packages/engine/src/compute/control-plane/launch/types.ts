@@ -1,9 +1,11 @@
 import type { DeploymentTargetType } from '../agent/agentDescriptor';
+import type { PassportClaimStatus, PassportOwnershipMode } from './ownership';
 
 export interface LaunchImageInput {
   image: string;
   target: DeploymentTargetType;
-  owner: string;
+  owner?: string;
+  owner_mode?: PassportOwnershipMode;
   name: string;
   passport_id?: string;
   port?: number;
@@ -16,7 +18,8 @@ export interface LaunchBaseRuntimeInput {
   model: string;
   prompt: string;
   target: DeploymentTargetType;
-  owner: string;
+  owner?: string;
+  owner_mode?: PassportOwnershipMode;
   name: string;
   tools?: string[];
   runtime_version?: string;
@@ -28,6 +31,10 @@ export interface LaunchResult {
   deployment_id?: string;
   deployment_url?: string;
   wallet_address?: string;
+  passport_owner?: string;
+  owner_mode?: PassportOwnershipMode;
+  claim_status?: PassportClaimStatus;
+  wallet_required_features?: string[];
   verification_mode?: 'full' | 'minimal';
   config_hash?: string;
   reputation_eligible: boolean;

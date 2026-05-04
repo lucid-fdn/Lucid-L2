@@ -24,7 +24,7 @@ export interface LaunchSpec {
   verification_mode: 'full' | 'minimal';
   env_vars: Record<string, string>;
   port?: number;
-  owner: string;
+  owner?: string;
   name: string;
   metadata: LaunchSpecMetadata;
 }

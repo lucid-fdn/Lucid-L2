@@ -22,6 +22,7 @@ launchRouter.post('/v1/agents/launch', verifyAdminAuth, async (req, res) => {
         image: req.body.image,
         target: req.body.target || 'docker',
         owner: req.body.owner,
+        owner_mode: req.body.owner_mode,
         name: req.body.name,
         port: req.body.port,
         verification: req.body.verification || 'full',
@@ -35,6 +36,7 @@ launchRouter.post('/v1/agents/launch', verifyAdminAuth, async (req, res) => {
         prompt: req.body.prompt,
         target: req.body.target || 'docker',
         owner: req.body.owner,
+        owner_mode: req.body.owner_mode,
         name: req.body.name || `base-${req.body.model}`,
         tools: req.body.tools,
       });
