@@ -6,8 +6,14 @@ import helmet from 'helmet';
 import path from 'path';
 import swaggerUi from 'swagger-ui-express';
 import fs from 'fs';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { PATHS } from '../../engine/src/shared/config/paths';
+
+function getRateLimitIpKey(req: express.Request): string {
+  const forwardedFor = req.headers['x-forwarded-for'];
+  const forwardedIp = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor?.split(',')[0]?.trim();
+  return ipKeyGenerator(forwardedIp || req.ip || 'unknown');
+}
 
 /**
  * Per-agent rate limiter — keyed by X-Agent-Passport-Id header instead of IP.
@@ -18,7 +24,7 @@ export const agentRateLimit = rateLimit({
   max: 100, // 100 req/min per agent
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.headers['x-agent-passport-id'] as string || req.ip || 'unknown',
+  keyGenerator: (req) => req.headers['x-agent-passport-id'] as string || getRateLimitIpKey(req),
   message: { success: false, error: 'Agent rate limit exceeded' },
 });
 
@@ -41,7 +47,7 @@ export function applyMiddleware(app: Express): void {
     standardHeaders: true, // Return RateLimit-* headers (draft-6)
     legacyHeaders: false,  // Disable X-RateLimit-* headers
     message: { success: false, error: 'Too many requests, please try again later' },
-    keyGenerator: (req) => req.ip || req.headers['x-forwarded-for'] as string || 'unknown',
+    keyGenerator: getRateLimitIpKey,
   }));
 
   // Stricter rate limit for inference endpoint (expensive operation)
@@ -52,7 +58,7 @@ export function applyMiddleware(app: Express): void {
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, error: 'Inference rate limit exceeded' },
-    keyGenerator: (req) => req.ip || req.headers['x-forwarded-for'] as string || 'unknown',
+    keyGenerator: getRateLimitIpKey,
   }));
 
   // Per-agent rate limiting for memory and anchor routes

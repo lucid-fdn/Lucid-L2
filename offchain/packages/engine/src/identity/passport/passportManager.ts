@@ -141,6 +141,8 @@ export interface CreatePassportInput {
   tags?: string[];
   /** Mint an NFT for this passport. Defaults to env NFT_MINT_ON_CREATE (true). */
   mintNFT?: boolean;
+  /** Sync this passport to the program immediately. Defaults to true. */
+  syncOnChain?: boolean;
   /** Target chain. Auto-detected from owner address format if omitted. Defaults to 'solana'. */
   chain?: 'solana' | 'evm';
 }
@@ -380,8 +382,13 @@ export class PassportManager {
         passport.metadata.dataset_passport_id = passport.passport_id;
       }
 
-      // Sync to chain if handler is set
-      await this.attemptOnChainSync(passport);
+      // Launch-only passports can be claimable before a wallet signs ownership.
+      // In that case chain sync must be deferred instead of logging a false error.
+      if (input.syncOnChain !== false) {
+        await this.attemptOnChainSync(passport);
+      } else {
+        logger.info(`[PassportManager] On-chain sync deferred for ${passport.passport_id}`);
+      }
 
       // Mint NFT if requested, then trigger identity projection after mint succeeds
       const shouldMintNFT = input.mintNFT ?? (process.env.NFT_MINT_ON_CREATE !== 'false');

@@ -6,6 +6,7 @@ export async function resolvePassport(opts: {
   owner: string;
   name: string;
   target: string;
+  syncOnChain?: boolean;
 }): Promise<{ ok: true; passport_id: string } | { ok: false; error: string }> {
   if (opts.passport_id) {
     return { ok: true, passport_id: opts.passport_id };
@@ -16,6 +17,7 @@ export async function resolvePassport(opts: {
     type: 'agent',
     owner: opts.owner,
     name: opts.name,
+    syncOnChain: opts.syncOnChain,
     metadata: {
       agent_config: {
         system_prompt: `Agent: ${opts.name}`,

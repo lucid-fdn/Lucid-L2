@@ -11,6 +11,24 @@ interface ValidationRule {
   errorMessage?: string;
 }
 
+const ADMIN_API_KEY_ENV_NAMES = [
+  'ADMIN_API_KEY',
+  'LUCID_L2_ADMIN_KEY',
+  'LUCID_L2_API_KEY',
+  'L2_ADMIN_API_KEY',
+  'L2_GATEWAY_ADMIN_API_KEY',
+  'CONTROL_PLANE_ADMIN_KEY',
+  'LUCID_API_KEY',
+] as const;
+
+function getConfiguredAdminApiKey(): string | undefined {
+  for (const name of ADMIN_API_KEY_ENV_NAMES) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return undefined;
+}
+
 const VALIDATION_RULES: ValidationRule[] = [
   // Privy Configuration
   {
@@ -87,13 +105,6 @@ const VALIDATION_RULES: ValidationRule[] = [
     validator: (v) => v.length >= 32,
     errorMessage: 'N8N_HMAC_SECRET must be at least 32 characters. Generate with: openssl rand -hex 32'
   },
-  {
-    name: 'ADMIN_API_KEY',
-    required: true,
-    validator: (v) => v.length >= 32,
-    errorMessage: 'ADMIN_API_KEY must be at least 32 characters. Generate with: openssl rand -hex 32'
-  },
-  
   // Optional but recommended
   {
     name: 'NODE_ENV',
@@ -257,6 +268,18 @@ export function validateEnvironment(): ValidationResult {
       }
     }
   }
+
+  const adminApiKey = getConfiguredAdminApiKey();
+  if (!adminApiKey) {
+    errors.push(
+      `Missing required admin API key. Set one of: ${ADMIN_API_KEY_ENV_NAMES.join(', ')}`
+    );
+    errors.push('   Admin API key must be at least 32 characters. Generate with: openssl rand -hex 32');
+  } else if (adminApiKey.length < 32) {
+    errors.push(
+      `Invalid admin API key. ${ADMIN_API_KEY_ENV_NAMES.join(' or ')} must be at least 32 characters.`
+    );
+  }
   
   // Check for common misconfigurations
   if (process.env.NODE_ENV === 'production') {
@@ -354,7 +377,7 @@ export function generateEnvTemplate(): string {
     '# ============================================',
     '# Generate with: openssl rand -hex 32',
     'N8N_HMAC_SECRET=',
-    '# Generate with: openssl rand -hex 32',
+    '# Generate with: openssl rand -hex 32. Aliases accepted: LUCID_L2_ADMIN_KEY, LUCID_L2_API_KEY, L2_ADMIN_API_KEY, L2_GATEWAY_ADMIN_API_KEY, CONTROL_PLANE_ADMIN_KEY, LUCID_API_KEY',
     'ADMIN_API_KEY=',
     '',
     '# ============================================',

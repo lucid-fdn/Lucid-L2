@@ -66,6 +66,7 @@ export async function launchImage(input: LaunchImageInput): Promise<LaunchResult
     owner,
     name: input.name,
     target: input.target,
+    syncOnChain: false,
   });
 
   if (passportResult.ok !== true) {

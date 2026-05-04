@@ -171,6 +171,7 @@ describe('launchImage', () => {
       expect.objectContaining({
         owner: '11111111111111111111111111111111',
         name: 'test-agent-no-owner',
+        syncOnChain: false,
       }),
     );
     expect(mockDeployer.deploy).toHaveBeenCalledTimes(1);

@@ -28,6 +28,15 @@ const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;   // 15 minutes
 const RATE_LIMIT_MAX_FAILURES = 10;
 const RATE_LIMIT_BLOCK_MS = 15 * 60 * 1000;    // 15-minute block
 const RATE_LIMIT_ALERT_THRESHOLD = 5;
+const ADMIN_API_KEY_ENV_NAMES = [
+  'ADMIN_API_KEY',
+  'LUCID_L2_ADMIN_KEY',
+  'LUCID_L2_API_KEY',
+  'L2_ADMIN_API_KEY',
+  'L2_GATEWAY_ADMIN_API_KEY',
+  'CONTROL_PLANE_ADMIN_KEY',
+  'LUCID_API_KEY',
+] as const;
 
 /** IP -> failure tracking */
 const failedAttempts = new Map<string, FailedAttemptRecord>();
@@ -35,6 +44,14 @@ const failedAttempts = new Map<string, FailedAttemptRecord>();
 /** Periodic cleanup of stale entries (every 5 minutes) */
 const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 let cleanupTimer: ReturnType<typeof setInterval> | null = null;
+
+export function getConfiguredAdminApiKey(): string | undefined {
+  for (const name of ADMIN_API_KEY_ENV_NAMES) {
+    const value = process.env[name]?.trim();
+    if (value) return value;
+  }
+  return undefined;
+}
 
 function ensureCleanupTimer(): void {
   if (cleanupTimer) return;
@@ -180,10 +197,10 @@ export function verifyAdminAuth(
     // Method 1: API Key Authentication
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const apiKey = authHeader.substring(7);
-      const adminApiKey = process.env.ADMIN_API_KEY;
+      const adminApiKey = getConfiguredAdminApiKey();
       
       if (!adminApiKey) {
-        logger.error('❌ ADMIN_API_KEY not configured');
+        logger.error('Admin API key not configured');
         return res.status(500).json({
           error: 'Server misconfiguration',
           message: 'Admin authentication not properly configured'
@@ -260,7 +277,7 @@ export function optionalAdminAuth(
   // Try API key auth (constant-time comparison to prevent timing attacks)
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const apiKey = authHeader.substring(7);
-    const adminApiKey = process.env.ADMIN_API_KEY;
+    const adminApiKey = getConfiguredAdminApiKey();
 
     if (adminApiKey) {
       const providedBuffer = Buffer.from(apiKey);

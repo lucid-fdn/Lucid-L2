@@ -108,7 +108,13 @@ function log(level: 'debug' | 'info' | 'warn' | 'error', msg: string, data?: unk
   if (levels[level] < levels[config.log_level]) return
   const ts = new Date().toISOString()
   const line = `[${ts}] [ReceiptConsumer] [${level.toUpperCase()}] ${msg}`
-  if (data) console[level](line, data)
+  if (data) {
+    const normalized =
+      data instanceof Error
+        ? { name: data.name, message: data.message, stack: data.stack, ...(data as any).code ? { code: (data as any).code } : {} }
+        : data
+    console[level](line, normalized)
+  }
   else console[level](line)
 }
 
@@ -129,9 +135,12 @@ export function initReceiptConsumer(
 ): void {
   gatewayPool = new Pool({
     connectionString: gatewayDbUrl,
+    ssl: process.env.POSTGRES_SSL === 'false' ? false : {
+      rejectUnauthorized: process.env.POSTGRES_SSL_REJECT_UNAUTHORIZED === 'true',
+    },
     max: 3,
     idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 5_000,
+    connectionTimeoutMillis: 15_000,
   })
   if (overrides) config = { ...config, ...overrides }
 }
@@ -163,7 +172,21 @@ async function pollOnce(): Promise<number> {
 
   // Use a dedicated client + transaction so FOR UPDATE SKIP LOCKED holds
   // row locks until we mark events as processed.
-  const client = await gatewayPool.connect()
+  let client
+  try {
+    client = await gatewayPool.connect()
+  } catch (err: any) {
+    stats.consecutive_failures++
+    currentBackoffMs = Math.min(
+      currentBackoffMs === 0 ? 10_000 : currentBackoffMs * 2,
+      MAX_BACKOFF_MS
+    )
+    backoffUntil = Date.now() + currentBackoffMs
+    log('error', `Gateway DB connect failed (code=${err?.code || 'unknown'}, backoff=${currentBackoffMs}ms, consecutive=${stats.consecutive_failures})`, err)
+    stats.last_processed_count = 0
+    isPolling = false
+    return 0
+  }
   try {
     await client.query('BEGIN')
 

@@ -10,6 +10,15 @@ import { Pool, PoolClient } from 'pg';
 import { logger } from '../lib/logger';
 import { isMultiTenant, getTenantId } from './tenantContext';
 
+const getConnectionString = (): string | undefined => {
+  return (
+    process.env.POSTGRES_URL?.trim()
+    || process.env.DATABASE_URL?.trim()
+    || process.env.PLATFORM_CORE_DB_URL?.trim()
+    || undefined
+  );
+};
+
 const getPassword = (): string => {
   const pwd = process.env.POSTGRES_PASSWORD || process.env.SUPABASE_DB_PASSWORD;
   if (!pwd) {
@@ -19,12 +28,18 @@ const getPassword = (): string => {
   return String(pwd);
 };
 
+const connectionString = getConnectionString();
+
 const pool = new Pool({
-  host: process.env.POSTGRES_HOST || 'localhost',
-  port: parseInt(process.env.POSTGRES_PORT || '5432'),
-  database: process.env.POSTGRES_DB || 'postgres',
-  user: process.env.POSTGRES_USER || 'postgres',
-  password: getPassword(),
+  ...(connectionString
+    ? { connectionString }
+    : {
+        host: process.env.POSTGRES_HOST || 'localhost',
+        port: parseInt(process.env.POSTGRES_PORT || '5432'),
+        database: process.env.POSTGRES_DB || 'postgres',
+        user: process.env.POSTGRES_USER || 'postgres',
+        password: getPassword(),
+      }),
   ssl: process.env.POSTGRES_SSL === 'false' ? false : {
     rejectUnauthorized: process.env.POSTGRES_SSL_REJECT_UNAUTHORIZED === 'true',
   },
