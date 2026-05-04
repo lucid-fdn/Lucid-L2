@@ -48,6 +48,7 @@ Verified against `https://api.lucid.foundation`:
 - `POST /v1/agents/:passportId/terminate` returned `200` and terminated the Railway service.
 - Final post-deploy smoke after schema rollout created `passport_c082b81b0a3c4a4b949b52a967a173d8`, deployed Railway service `365358a2-b447-43e3-814c-09abeee06c0f`, then terminated it successfully. Logs show on-chain sync deferred and no new delegation failure for that passport.
 - Final post-dependency-rollout smoke created `passport_bf84f7db016947c58b66ac4ae2072851`, deployed Railway service `525c5edc-41bc-47a8-9e65-92662dd0c665`, then terminated it successfully. Logs show on-chain sync deferred, successful Railway deployment, successful termination, and no new schema/Redis/rate-limit/delegation failure.
+- Final post-Passport/elliptic-cleanup smoke created `passport_0f688c0e8e5f4621bce8280e7c7b3e44`, deployed Railway service `0933ebc2-2d89-439a-bf41-4bb2d74fa0d1`, then terminated it successfully. Public `/health` returned `200` after the rollout with database, Redis, and Nango healthy.
 - Local regression gates passed after the claimable delegation and dependency updates:
 - `npm run type-check`
 - `npx jest packages/engine/src/__tests__/launch.test.ts packages/engine/src/identity/projections/__tests__/MetaplexIdentityRegistry.test.ts packages/gateway-lite/src/middleware/__tests__/adminAuth.test.ts --runInBand`
