@@ -170,6 +170,10 @@ export interface AgentDescriptor {
   deployment_config: DeploymentConfig;
   monetization?: MonetizationConfig;
   compliance?: ComplianceConfig;
+  launch_ownership?: {
+    owner_mode: 'user_wallet' | 'workspace_custody' | 'platform_default';
+    claim_status: 'claimed' | 'claimable';
+  };
 }
 
 // --- Deployment State ---

@@ -288,6 +288,22 @@
           "enum": ["minimal", "limited", "high", "unacceptable"]
         }
       }
+    },
+    "launch_ownership": {
+      "type": "object",
+      "description": "Ownership state for launch-created agent passports. Claimable launches defer owner-bound on-chain actions until wallet claim.",
+      "required": ["owner_mode", "claim_status"],
+      "additionalProperties": false,
+      "properties": {
+        "owner_mode": {
+          "type": "string",
+          "enum": ["user_wallet", "workspace_custody", "platform_default"]
+        },
+        "claim_status": {
+          "type": "string",
+          "enum": ["claimed", "claimable"]
+        }
+      }
     }
   }
 }

@@ -96,6 +96,37 @@ describe('AgentDescriptor Schema Validation', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('should validate launch ownership metadata for claimable deployments', () => {
+    const descriptor: AgentDescriptor = {
+      agent_config: {
+        system_prompt: 'Hello',
+        model_passport_id: 'passport_123',
+        tool_passport_ids: [],
+        skill_slugs: [],
+        mcp_servers: [],
+        autonomy_level: 'supervised',
+        stop_conditions: [],
+        guardrails: [],
+        memory_enabled: false,
+        memory_provider: 'supabase',
+        memory_window_size: 10,
+        workflow_type: 'single',
+        channels: [],
+        a2a_enabled: false,
+      },
+      deployment_config: {
+        target: { type: 'railway' },
+        restart_policy: 'never',
+      },
+      launch_ownership: {
+        owner_mode: 'platform_default',
+        claim_status: 'claimable',
+      },
+    };
+    const result = validateWithSchema('AgentDescriptor', descriptor);
+    expect(result.ok).toBe(true);
+  });
+
   it('should reject missing system_prompt', () => {
     const invalid = {
       agent_config: {

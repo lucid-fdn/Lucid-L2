@@ -15,7 +15,7 @@ The public L2 gateway now supports wallet-optional BYO Railway launches through 
   - `CONTROL_PLANE_ADMIN_KEY`
   - `LUCID_API_KEY` as a legacy fallback
 - BYO launch passport creation passes `syncOnChain: false` so deployment does not emit false Solana signature errors before a user wallet claims ownership.
-- Claimable launch passports now persist `metadata.launch_ownership` and defer Metaplex execution delegation until the wallet claim path owns the asset. This prevents non-fatal `Asset owner must be the one to delegate execution` noise for wallet-optional deployments while keeping claimed/on-chain launches unchanged.
+- Claimable launch passports now persist schema-valid `metadata.launch_ownership` and defer Metaplex execution delegation until the wallet claim path owns the asset. This prevents non-fatal `Asset owner must be the one to delegate execution` noise for wallet-optional deployments while keeping claimed/on-chain launches unchanged.
 - The shared Postgres pool now prefers connection strings in this order:
   - `POSTGRES_URL`
   - `DATABASE_URL`
