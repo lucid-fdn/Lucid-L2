@@ -356,13 +356,9 @@ export class PrivyAdapter extends BaseProtocolAdapter {
         throw new Error('Wallet not found');
       }
 
-      // Generate new ECDSA key pair for session signer
-      const { ec } = await import('elliptic');
-      const curve = new ec('p256');
-      const keyPair = curve.genKeyPair();
-      
-      const privateKey = keyPair.getPrivate('hex');
-      const publicKey = keyPair.getPublic('hex');
+      // Generate a native P-256 key pair for Privy session signing.
+      const { generateP256KeyPair } = await import('./p256');
+      const { privateKey, publicKey } = generateP256KeyPair();
 
       // Prepare policies
       const policies: any = {};

@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
-import { ec } from 'elliptic';
 import crypto from 'crypto';
 import { logger } from '../../../engine/src/shared/lib/logger';
+import { generateP256KeyPair } from '../../../contrib/protocols/privy/p256';
 
 export interface SignerPolicy {
   ttl?: number;
@@ -36,13 +36,8 @@ export class SessionSignerService {
     userId: string,
     policies: SignerPolicy
   ) {
-    // Generate new ECDSA key pair for this session
-   
-    const curve = new ec('p256');
-    const keyPair = curve.genKeyPair();
-    
-    const privateKey = keyPair.getPrivate('hex');
-    const publicKey = keyPair.getPublic('hex');
+    // Generate a native P-256 key pair for this session.
+    const { privateKey, publicKey } = generateP256KeyPair();
     
     // Encrypt private key
     const encryptedPrivateKey = this.encrypt(privateKey);

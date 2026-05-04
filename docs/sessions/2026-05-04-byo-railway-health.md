@@ -24,11 +24,12 @@ The public L2 gateway now supports wallet-optional BYO Railway launches through 
 - Receipt consumer uses SSL settings and a longer connection timeout for the platform-core pooler.
 - Gateway rate-limit keys use `express-rate-limit`'s IPv6-safe `ipKeyGenerator`.
 - Dependency audit cleanup upgraded safe patch/minor chains for Axios/follow-redirects, Nango transitive Axios, and OpenTelemetry/protobufjs. Follow-up cleanup upgraded PM2 to `7.0.1`, Hyperliquid to `0.32.2`, adapted the Hyperliquid wallet wrapper to the new SDK contract, and removed local source imports from the transitive `uuid` package in favor of Node `crypto.randomUUID()`.
-- Critical production audit is clear. Remaining high/moderate findings are upstream/no-safe-fix chains around Solana/Irys/Privy/passport dependencies:
+- Unused `@lucid-fdn/passport` and UUID typings were removed from the runtime install. Privy session signing no longer depends on `elliptic`; it uses Node native P-256 signing with a regression test.
+- Critical production audit is clear. Remaining high/moderate findings are upstream/no-safe-fix chains around Solana/Irys dependencies:
   - `@solana/web3.js@1.98.4` has no patched 1.x release and is pulled by core Solana, Anchor, Metaplex, Privy, and QuantuLabs paths.
   - `@solana/spl-token`/`bigint-buffer` and `@irys/upload-solana` inherit the same no-fix Solana chain.
-  - `@lucid-fdn/passport` and `rpc-websockets` still pull vulnerable `uuid` versions transitively; local code no longer imports `uuid` directly.
-  - These should be resolved by explicit Solana SDK/passport/Irys migration work, not an automatic force audit fix.
+  - `rpc-websockets` still pulls vulnerable `uuid` transitively through `@solana/web3.js`; local code no longer imports `uuid` directly.
+  - These should be resolved by explicit Solana SDK/Irys migration work, not an automatic force audit fix.
 
 ## Operator Notes
 
@@ -51,6 +52,8 @@ Verified against `https://api.lucid.foundation`:
 - `npm run type-check`
 - `npx jest packages/engine/src/__tests__/launch.test.ts packages/engine/src/identity/projections/__tests__/MetaplexIdentityRegistry.test.ts packages/gateway-lite/src/middleware/__tests__/adminAuth.test.ts --runInBand`
 - `npx jest packages/engine/src/__tests__/agentDescriptor.test.ts packages/engine/src/__tests__/launch.test.ts packages/engine/src/identity/projections/__tests__/MetaplexIdentityRegistry.test.ts packages/gateway-lite/src/middleware/__tests__/adminAuth.test.ts src/__tests__/fluid-compute-e2e.test.ts --runInBand`
+- `npx jest packages/contrib/protocols/privy/__tests__/p256.test.ts --runInBand`
+- `npx jest packages/engine/src/__tests__/agentDescriptor.test.ts packages/engine/src/__tests__/launch.test.ts packages/engine/src/identity/projections/__tests__/MetaplexIdentityRegistry.test.ts packages/gateway-lite/src/middleware/__tests__/adminAuth.test.ts src/__tests__/fluid-compute-e2e.test.ts src/__tests__/depinStorage.test.ts --runInBand`
 - `npm audit --omit=dev --audit-level=critical`
 
 The live smoke deployment was intentionally terminated after verification.
