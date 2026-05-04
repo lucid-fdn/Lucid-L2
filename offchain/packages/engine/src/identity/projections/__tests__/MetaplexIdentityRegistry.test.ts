@@ -60,6 +60,32 @@ describe('MetaplexIdentityRegistry', () => {
     expect(mockDelegateExecutionV1).toHaveBeenCalled();
   });
 
+  it('defers execution delegation for claimable launch passports', async () => {
+    const passport = {
+      passport_id: 'p1',
+      type: 'agent',
+      owner: '3Qm',
+      name: 'Agent',
+      description: 'Test',
+      metadata: {
+        launch_ownership: {
+          owner_mode: 'platform_default',
+          claim_status: 'claimable',
+        },
+      },
+      status: 'active',
+      nft_mint: 'MintPubkey',
+      created_at: 0,
+      updated_at: 0,
+    } as any;
+
+    await registry.register(passport);
+
+    expect(mockRegisterIdentityV1).toHaveBeenCalled();
+    expect(mockRegisterExecutiveV1).toHaveBeenCalled();
+    expect(mockDelegateExecutionV1).not.toHaveBeenCalled();
+  });
+
   it('deregister throws RegistryCapabilityError', async () => {
     await expect(registry.deregister('agent-1')).rejects.toThrow(RegistryCapabilityError);
   });

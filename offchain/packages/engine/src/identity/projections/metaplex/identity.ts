@@ -9,6 +9,10 @@ import { buildRegistrationDocFromPassport } from '../registration-doc/buildRegis
 import type { MetaplexConnection } from './connection';
 import { logger } from '../../../shared/lib/logger';
 
+function isClaimableLaunchPassport(passport: Passport): boolean {
+  return passport.metadata?.launch_ownership?.claim_status === 'claimable';
+}
+
 export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
   readonly registryName = 'metaplex';
   readonly supportedAssetTypes: AssetType[] = ['agent'];
@@ -81,14 +85,18 @@ export class MetaplexIdentityRegistry implements ISolanaIdentityRegistry {
     }
     this.executiveRegistered = true;
 
-    try {
-      const agentIdentity = findAgentIdentityV1Pda(umi, { asset: publicKey(passport.nft_mint) });
-      const executiveProfile = findExecutiveProfileV1Pda(umi, { authority: umi.payer.publicKey });
-      await delegateExecutionV1(umi, { agentAsset: publicKey(passport.nft_mint), agentIdentity, executiveProfile }).sendAndConfirm(umi);
-    } catch (delErr: any) {
-      const delStr = String(delErr?.message ?? '') + String(delErr?.cause?.message ?? '') + JSON.stringify(delErr?.cause?.logs ?? delErr?.logs ?? []);
-      if (!delStr.includes('already') && !delStr.includes('uninitialized')) {
-        logger.warn(`[Metaplex] Execution delegation failed (non-fatal):`, delErr instanceof Error ? delErr.message : delErr);
+    if (isClaimableLaunchPassport(passport)) {
+      logger.info(`[Metaplex] Execution delegation deferred for claimable passport ${passport.passport_id}`);
+    } else {
+      try {
+        const agentIdentity = findAgentIdentityV1Pda(umi, { asset: publicKey(passport.nft_mint) });
+        const executiveProfile = findExecutiveProfileV1Pda(umi, { authority: umi.payer.publicKey });
+        await delegateExecutionV1(umi, { agentAsset: publicKey(passport.nft_mint), agentIdentity, executiveProfile }).sendAndConfirm(umi);
+      } catch (delErr: any) {
+        const delStr = String(delErr?.message ?? '') + String(delErr?.cause?.message ?? '') + JSON.stringify(delErr?.cause?.logs ?? delErr?.logs ?? []);
+        if (!delStr.includes('already') && !delStr.includes('uninitialized')) {
+          logger.warn(`[Metaplex] Execution delegation failed (non-fatal):`, delErr instanceof Error ? delErr.message : delErr);
+        }
       }
     }
 

@@ -172,6 +172,12 @@ describe('launchImage', () => {
         owner: '11111111111111111111111111111111',
         name: 'test-agent-no-owner',
         syncOnChain: false,
+        metadata: expect.objectContaining({
+          launch_ownership: {
+            owner_mode: 'platform_default',
+            claim_status: 'claimable',
+          },
+        }),
       }),
     );
     expect(mockDeployer.deploy).toHaveBeenCalledTimes(1);

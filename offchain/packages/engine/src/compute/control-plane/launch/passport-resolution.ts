@@ -7,6 +7,10 @@ export async function resolvePassport(opts: {
   name: string;
   target: string;
   syncOnChain?: boolean;
+  ownership?: {
+    owner_mode: 'user_wallet' | 'workspace_custody' | 'platform_default';
+    claim_status: 'claimed' | 'claimable';
+  };
 }): Promise<{ ok: true; passport_id: string } | { ok: false; error: string }> {
   if (opts.passport_id) {
     return { ok: true, passport_id: opts.passport_id };
@@ -26,6 +30,7 @@ export async function resolvePassport(opts: {
       deployment_config: {
         target: { type: opts.target },
       },
+      ...(opts.ownership ? { launch_ownership: opts.ownership } : {}),
     },
   });
 

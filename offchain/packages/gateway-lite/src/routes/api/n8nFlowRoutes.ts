@@ -252,7 +252,12 @@ async function handleN8nIcon(req: express.Request, res: express.Response) {
     });
 
     // Set appropriate content type
-    const contentType = response.headers['content-type'] || 'image/svg+xml';
+    const rawContentType = response.headers['content-type'];
+    const contentType = Array.isArray(rawContentType)
+      ? rawContentType
+      : typeof rawContentType === 'string' || typeof rawContentType === 'number'
+        ? String(rawContentType)
+        : 'image/svg+xml';
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
 

@@ -15,6 +15,7 @@ The public L2 gateway now supports wallet-optional BYO Railway launches through 
   - `CONTROL_PLANE_ADMIN_KEY`
   - `LUCID_API_KEY` as a legacy fallback
 - BYO launch passport creation passes `syncOnChain: false` so deployment does not emit false Solana signature errors before a user wallet claims ownership.
+- Claimable launch passports now persist `metadata.launch_ownership` and defer Metaplex execution delegation until the wallet claim path owns the asset. This prevents non-fatal `Asset owner must be the one to delegate execution` noise for wallet-optional deployments while keeping claimed/on-chain launches unchanged.
 - The shared Postgres pool now prefers connection strings in this order:
   - `POSTGRES_URL`
   - `DATABASE_URL`
@@ -22,6 +23,7 @@ The public L2 gateway now supports wallet-optional BYO Railway launches through 
   - discrete `POSTGRES_HOST`/`POSTGRES_PORT`/`POSTGRES_DB`/`POSTGRES_USER`/password fields
 - Receipt consumer uses SSL settings and a longer connection timeout for the platform-core pooler.
 - Gateway rate-limit keys use `express-rate-limit`'s IPv6-safe `ipKeyGenerator`.
+- Dependency audit cleanup upgraded safe patch/minor chains for Axios/follow-redirects, Nango transitive Axios, and OpenTelemetry/protobufjs. Critical production audit is clear. Remaining high/moderate findings are upstream/no-safe-fix or breaking-major chains around Solana/Irys/Privy/Hyperliquid/PM2 and should be handled as explicit dependency migration work, not an automatic force audit fix.
 
 ## Operator Notes
 
@@ -38,5 +40,9 @@ Verified against `https://api.lucid.foundation`:
 - Railway deployment was created and returned a deployment URL.
 - Gateway logged deployment state as `running`.
 - `POST /v1/agents/:passportId/terminate` returned `200` and terminated the Railway service.
+- Local regression gates passed after the claimable delegation and dependency updates:
+  - `npm run type-check`
+  - `npx jest packages/engine/src/__tests__/launch.test.ts packages/engine/src/identity/projections/__tests__/MetaplexIdentityRegistry.test.ts packages/gateway-lite/src/middleware/__tests__/adminAuth.test.ts --runInBand`
+  - `npm audit --omit=dev --audit-level=critical`
 
 The live smoke deployment was intentionally terminated after verification.
