@@ -24,6 +24,7 @@ import {
   TOKEN_PROGRAM_ID
 } from '@solana/spl-token';
 import { logger } from '../../../../engine/src/shared/lib/logger';
+import { verifyAdminAuth } from '../../middleware/adminAuth';
 
 const router = Router();
 
@@ -362,7 +363,7 @@ router.get('/token-supply/:mint', async (req: Request, res: Response) => {
  * POST /api/solana/transfer-sol
  * Transfer SOL to another address
  */
-router.post('/transfer-sol', async (req: Request, res: Response) => {
+router.post('/transfer-sol', verifyAdminAuth, async (req: Request, res: Response) => {
   try {
     const { toAddress, amount, commitment } = req.body;
 
@@ -403,7 +404,7 @@ router.post('/transfer-sol', async (req: Request, res: Response) => {
  * POST /api/solana/transfer-token
  * Transfer SPL tokens to another address
  */
-router.post('/transfer-token', async (req: Request, res: Response) => {
+router.post('/transfer-token', verifyAdminAuth, async (req: Request, res: Response) => {
   try {
     const { toAddress, mint, amount, decimals, commitment } = req.body;
 
@@ -443,7 +444,7 @@ router.post('/transfer-token', async (req: Request, res: Response) => {
  * POST /api/solana/create-token-account
  * Create an associated token account
  */
-router.post('/create-token-account', async (req: Request, res: Response) => {
+router.post('/create-token-account', verifyAdminAuth, async (req: Request, res: Response) => {
   try {
     const { owner, mint, commitment } = req.body;
 
@@ -483,7 +484,7 @@ router.post('/create-token-account', async (req: Request, res: Response) => {
  * POST /api/solana/close-token-account
  * Close a token account and reclaim rent
  */
-router.post('/close-token-account', async (req: Request, res: Response) => {
+router.post('/close-token-account', verifyAdminAuth, async (req: Request, res: Response) => {
   try {
     const { tokenAccount, destination, commitment } = req.body;
 

@@ -248,7 +248,7 @@ passportRouter.post('/v1/passports/:passport_id/projections/retry', async (req, 
  * Update only pricing fields on a passport's metadata (convenience endpoint).
  *
  * Body: { price_per_request?, billing_model?, revenue_split?: { compute_bps, model_bps, protocol_bps } }
- * Header: X-Owner-Address (optional)
+ * Header: X-Owner-Address (required)
  */
 passportRouter.patch('/v1/passports/:passport_id/pricing', async (req, res) => {
   try {
@@ -261,6 +261,9 @@ passportRouter.patch('/v1/passports/:passport_id/pricing', async (req, res) => {
     }
     if (!pricing || typeof pricing !== 'object' || Object.keys(pricing).length === 0) {
       return res.status(400).json({ success: false, error: 'Request body must contain pricing fields' });
+    }
+    if (!ownerAddress) {
+      return res.status(401).json({ success: false, error: 'X-Owner-Address header is required' });
     }
 
     const manager = getPassportManager();
@@ -284,7 +287,7 @@ passportRouter.patch('/v1/passports/:passport_id/pricing', async (req, res) => {
  * Update only endpoint fields on a passport's metadata (convenience endpoint).
  *
  * Body: { inference_url?, health_url?, api_base_url? }
- * Header: X-Owner-Address (optional)
+ * Header: X-Owner-Address (required)
  */
 passportRouter.patch('/v1/passports/:passport_id/endpoints', async (req, res) => {
   try {
@@ -297,6 +300,9 @@ passportRouter.patch('/v1/passports/:passport_id/endpoints', async (req, res) =>
     }
     if (!endpoints || typeof endpoints !== 'object' || Object.keys(endpoints).length === 0) {
       return res.status(400).json({ success: false, error: 'Request body must contain endpoint fields' });
+    }
+    if (!ownerAddress) {
+      return res.status(401).json({ success: false, error: 'X-Owner-Address header is required' });
     }
 
     const manager = getPassportManager();
@@ -328,7 +334,7 @@ passportRouter.patch('/v1/passports/:passport_id/endpoints', async (req, res) =>
  *   status?: 'active' | 'deprecated' | 'revoked'
  * }
  *
- * Header: X-Owner-Address (optional) - for ownership verification
+ * Header: X-Owner-Address (required) - for ownership verification
  */
 passportRouter.patch('/v1/passports/:passport_id', async (req, res) => {
   try {
@@ -348,6 +354,12 @@ passportRouter.patch('/v1/passports/:passport_id', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'No update fields provided',
+      });
+    }
+    if (!ownerAddress) {
+      return res.status(401).json({
+        success: false,
+        error: 'X-Owner-Address header is required',
       });
     }
 
@@ -395,7 +407,7 @@ passportRouter.patch('/v1/passports/:passport_id', async (req, res) => {
  * DELETE /v1/passports/:passport_id
  * Delete a passport (soft delete - sets status to revoked)
  * 
- * Header: X-Owner-Address (optional) - for ownership verification
+ * Header: X-Owner-Address (required) - for ownership verification
  */
 passportRouter.delete('/v1/passports/:passport_id', async (req, res) => {
   try {
@@ -406,6 +418,12 @@ passportRouter.delete('/v1/passports/:passport_id', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Missing passport_id parameter',
+      });
+    }
+    if (!ownerAddress) {
+      return res.status(401).json({
+        success: false,
+        error: 'X-Owner-Address header is required',
       });
     }
 

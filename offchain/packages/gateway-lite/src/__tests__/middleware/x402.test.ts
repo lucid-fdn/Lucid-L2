@@ -15,9 +15,11 @@ import {
   parseUSDCAmount,
   resetSpentProofs,
   setSpentProofsStore,
+  setFacilitatorRegistry,
 } from '../../middleware/x402';
 import type { RequirePaymentOptions } from '../../middleware/x402';
 import type { SpentProofsStore } from '../../../../engine/src/payment/stores/spentProofsStore';
+import { FacilitatorRegistry } from '../../../../engine/src/payment/facilitators';
 
 // ---------------------------------------------------------------------------
 // Helper: build a minimal Express app with x402 middleware on /protected
@@ -41,6 +43,7 @@ function buildApp(optsOrPrice?: string | RequirePaymentOptions) {
 
 beforeEach(() => {
   resetSpentProofs();
+  setFacilitatorRegistry(new FacilitatorRegistry());
   // Default: disabled so tests opt-in to enabling
   setX402Config({
     enabled: false,
@@ -284,9 +287,36 @@ describe('replay protection on store failure', () => {
     setX402Config({ enabled: true });
   });
 
+  function useAlwaysValidFacilitator(): void {
+    const registry = new FacilitatorRegistry();
+    registry.register({
+      name: 'direct',
+      supportedChains: [{ name: 'base-sepolia', rpcUrl: 'http://localhost:8545' }],
+      supportedTokens: [{
+        symbol: 'USDC',
+        address: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+        decimals: 6,
+        chain: 'base-sepolia',
+      }],
+      verify: async () => ({ valid: true }),
+      instructions: (params) => ({
+        chain: params.chain,
+        token: params.token.symbol,
+        tokenAddress: params.token.address,
+        amount: params.amount.toString(),
+        recipient: params.recipient,
+        facilitator: 'direct',
+        scheme: 'exact',
+      }),
+    });
+    registry.setDefault('direct');
+    setFacilitatorRegistry(registry);
+  }
+
   function createFailingStore(): SpentProofsStore {
     return {
       isSpent: () => Promise.reject(new Error('Redis connection refused')),
+      claimSpent: () => Promise.reject(new Error('Redis connection refused')),
       markSpent: () => Promise.reject(new Error('Redis connection refused')),
       count: () => Promise.reject(new Error('Redis connection refused')),
       close: () => Promise.resolve(),
@@ -303,5 +333,43 @@ describe('replay protection on store failure', () => {
 
     expect(res.status).toBe(503);
     expect(res.body.error).toContain('temporarily unavailable');
+  });
+
+  it('returns 503 when a verified proof cannot be atomically claimed', async () => {
+    useAlwaysValidFacilitator();
+    setSpentProofsStore({
+      isSpent: () => Promise.resolve(false),
+      claimSpent: () => Promise.reject(new Error('Redis write failed')),
+      markSpent: () => Promise.resolve(),
+      count: () => Promise.resolve(0),
+      close: () => Promise.resolve(),
+    });
+    const app = buildApp('0.01');
+
+    const res = await request(app)
+      .get('/protected')
+      .set('X-Payment-Proof', '0x1234567890abcdef');
+
+    expect(res.status).toBe(503);
+    expect(res.body.reason).toContain('could not claim');
+  });
+
+  it('returns 402 when a verified proof loses the atomic claim race', async () => {
+    useAlwaysValidFacilitator();
+    setSpentProofsStore({
+      isSpent: () => Promise.resolve(false),
+      claimSpent: () => Promise.resolve(false),
+      markSpent: () => Promise.resolve(),
+      count: () => Promise.resolve(0),
+      close: () => Promise.resolve(),
+    });
+    const app = buildApp('0.01');
+
+    const res = await request(app)
+      .get('/protected')
+      .set('X-Payment-Proof', '0x1234567890abcdef');
+
+    expect(res.status).toBe(402);
+    expect(res.body.error).toBe('Payment already used');
   });
 });

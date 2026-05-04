@@ -24,6 +24,12 @@ describe('InMemorySpentProofsStore', () => {
     expect(await store.isSpent('0xabc123')).toBe(true);
   });
 
+  it('claimSpent returns true once and false on replay', async () => {
+    await expect(store.claimSpent('0xclaim123')).resolves.toBe(true);
+    await expect(store.claimSpent('0xCLAIM123')).resolves.toBe(false);
+    expect(await store.isSpent('0xclaim123')).toBe(true);
+  });
+
   it('normalizes tx hashes to lowercase', async () => {
     await store.markSpent('0xABC123');
     expect(await store.isSpent('0xabc123')).toBe(true);
@@ -105,6 +111,17 @@ describeRedis('RedisSpentProofsStore', () => {
     const hash = '0xRedisRoundTrip' + Date.now();
     expect(await store.isSpent(hash)).toBe(false);
     await store.markSpent(hash, 60);
+    expect(await store.isSpent(hash)).toBe(true);
+  });
+
+  it('claimSpent is atomic in Redis', async () => {
+    const hash = '0xRedisClaim' + Date.now();
+    const [first, second] = await Promise.all([
+      store.claimSpent(hash, 60),
+      store.claimSpent(hash, 60),
+    ]);
+
+    expect([first, second].filter(Boolean)).toHaveLength(1);
     expect(await store.isSpent(hash)).toBe(true);
   });
 

@@ -251,6 +251,7 @@ describe('Passport Routes', () => {
 
       const res = await request(buildApp())
         .patch('/v1/passports/pass-001')
+        .set('X-Owner-Address', 'wallet-abc')
         .send({ name: 'Updated' });
 
       expect(res.status).toBe(200);
@@ -272,6 +273,7 @@ describe('Passport Routes', () => {
 
       const res = await request(buildApp())
         .patch('/v1/passports/nonexistent')
+        .set('X-Owner-Address', 'wallet-abc')
         .send({ name: 'x' });
 
       expect(res.status).toBe(404);
@@ -287,6 +289,16 @@ describe('Passport Routes', () => {
 
       expect(res.status).toBe(403);
     });
+
+    it('should return 401 when owner header is missing', async () => {
+      const res = await request(buildApp())
+        .patch('/v1/passports/pass-001')
+        .send({ name: 'x' });
+
+      expect(res.status).toBe(401);
+      expect(res.body.error).toContain('X-Owner-Address');
+      expect(mockUpdatePassport).not.toHaveBeenCalled();
+    });
   });
 
   // =========================================================================
@@ -296,7 +308,9 @@ describe('Passport Routes', () => {
     it('should soft-delete a passport', async () => {
       mockDeletePassport.mockResolvedValue({ ok: true });
 
-      const res = await request(buildApp()).delete('/v1/passports/pass-001');
+      const res = await request(buildApp())
+        .delete('/v1/passports/pass-001')
+        .set('X-Owner-Address', 'wallet-abc');
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -306,7 +320,9 @@ describe('Passport Routes', () => {
     it('should return 404 when not found', async () => {
       mockDeletePassport.mockResolvedValue({ ok: false, error: 'Passport not found' });
 
-      const res = await request(buildApp()).delete('/v1/passports/nonexistent');
+      const res = await request(buildApp())
+        .delete('/v1/passports/nonexistent')
+        .set('X-Owner-Address', 'wallet-abc');
 
       expect(res.status).toBe(404);
     });
@@ -319,6 +335,14 @@ describe('Passport Routes', () => {
         .set('X-Owner-Address', 'wrong-wallet');
 
       expect(res.status).toBe(403);
+    });
+
+    it('should return 401 when owner header is missing', async () => {
+      const res = await request(buildApp()).delete('/v1/passports/pass-001');
+
+      expect(res.status).toBe(401);
+      expect(res.body.error).toContain('X-Owner-Address');
+      expect(mockDeletePassport).not.toHaveBeenCalled();
     });
   });
 
@@ -350,6 +374,7 @@ describe('Passport Routes', () => {
 
       const res = await request(buildApp())
         .patch('/v1/passports/pass-001/pricing')
+        .set('X-Owner-Address', 'wallet-abc')
         .send({ price_per_request: 100 });
 
       expect(res.status).toBe(200);
@@ -357,7 +382,7 @@ describe('Passport Routes', () => {
       expect(mockUpdatePricing).toHaveBeenCalledWith(
         'pass-001',
         { price_per_request: 100 },
-        undefined
+        'wallet-abc'
       );
     });
 
@@ -368,6 +393,16 @@ describe('Passport Routes', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error).toContain('pricing fields');
+    });
+
+    it('should return 401 when owner header is missing', async () => {
+      const res = await request(buildApp())
+        .patch('/v1/passports/pass-001/pricing')
+        .send({ price_per_request: 100 });
+
+      expect(res.status).toBe(401);
+      expect(res.body.error).toContain('X-Owner-Address');
+      expect(mockUpdatePricing).not.toHaveBeenCalled();
     });
   });
 
@@ -380,6 +415,7 @@ describe('Passport Routes', () => {
 
       const res = await request(buildApp())
         .patch('/v1/passports/pass-001/endpoints')
+        .set('X-Owner-Address', 'wallet-abc')
         .send({ inference_url: 'https://api.example.com/v1' });
 
       expect(res.status).toBe(200);
@@ -393,6 +429,16 @@ describe('Passport Routes', () => {
 
       expect(res.status).toBe(400);
       expect(res.body.error).toContain('endpoint fields');
+    });
+
+    it('should return 401 when owner header is missing', async () => {
+      const res = await request(buildApp())
+        .patch('/v1/passports/pass-001/endpoints')
+        .send({ inference_url: 'https://api.example.com/v1' });
+
+      expect(res.status).toBe(401);
+      expect(res.body.error).toContain('X-Owner-Address');
+      expect(mockUpdateEndpoints).not.toHaveBeenCalled();
     });
   });
 

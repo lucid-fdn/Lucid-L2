@@ -558,10 +558,27 @@ describe('PassportManager', () => {
       const result = await manager.updatePassport(created.data!.passport_id, {
         name: 'Updated',
         tags: ['new', 'tags'],
-      });
+      }, VALID_OWNER);
 
       expect(result.ok).toBe(true);
       expect(result.data!.name).toBe('Updated');
+    });
+
+    it('should reject update when owner proof is missing', async () => {
+      const created = await manager.createPassport({
+        type: 'model',
+        owner: VALID_OWNER,
+        metadata: validModelMeta,
+      });
+
+      const result = await manager.updatePassport(
+        created.data!.passport_id,
+        { name: 'Missing owner proof' },
+        undefined as unknown as string
+      );
+
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('Not authorized');
     });
 
     it('should reject update from non-owner when ownership check enabled', async () => {
@@ -604,7 +621,7 @@ describe('PassportManager', () => {
           runtime_recommended: 'trustgate',
           // Missing api_model_id
         },
-      });
+      }, VALID_OWNER);
 
       expect(result.ok).toBe(false);
       expect(result.error).toContain('api_model_id');
@@ -620,7 +637,7 @@ describe('PassportManager', () => {
       const updatedMeta = { ...validModelMeta, context_length: 8192 };
       const result = await manager.updatePassport(created.data!.passport_id, {
         metadata: updatedMeta,
-      });
+      }, VALID_OWNER);
 
       expect(result.ok).toBe(true);
       expect(result.data!.metadata.model_passport_id).toBe(created.data!.passport_id);
@@ -635,7 +652,7 @@ describe('PassportManager', () => {
         metadata: validModelMeta,
       });
 
-      const result = await manager.deletePassport(created.data!.passport_id);
+      const result = await manager.deletePassport(created.data!.passport_id, VALID_OWNER);
       expect(result.ok).toBe(true);
 
       const retrieved = await manager.getPassport(created.data!.passport_id);
@@ -650,6 +667,21 @@ describe('PassportManager', () => {
       });
 
       const result = await manager.deletePassport(created.data!.passport_id, VALID_OWNER_2);
+      expect(result.ok).toBe(false);
+      expect(result.error).toContain('Not authorized');
+    });
+
+    it('should reject delete when owner proof is missing', async () => {
+      const created = await manager.createPassport({
+        type: 'model',
+        owner: VALID_OWNER,
+        metadata: validModelMeta,
+      });
+
+      const result = await manager.deletePassport(
+        created.data!.passport_id,
+        undefined as unknown as string
+      );
       expect(result.ok).toBe(false);
       expect(result.error).toContain('Not authorized');
     });

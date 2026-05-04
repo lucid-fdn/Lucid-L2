@@ -56,82 +56,88 @@ import { createSubscriptionRouter } from './routes/core/subscriptionRoutes';
 import { applyMiddleware } from './middleware';
 import { initializeBackgroundServices, registerShutdownHandlers } from './startup';
 
-// ---------------------------------------------------------------------------
-// Create Express app
-// ---------------------------------------------------------------------------
-const app = express();
+async function bootstrap(): Promise<void> {
+  // ---------------------------------------------------------------------------
+  // Create Express app
+  // ---------------------------------------------------------------------------
+  const app = express();
 
-// Apply all middleware (helmet, CORS, rate limits, body parsing, OpenAPI, Swagger)
-applyMiddleware(app);
+  // Apply all middleware before any route registration. The OpenAPI validator
+  // loads asynchronously, so route mounting must wait for this to complete.
+  await applyMiddleware(app);
 
-// Mount API routes (async router needs to be awaited)
-(async () => {
+  // Mount API routes (async router needs to be awaited)
   const apiRouter = await createApiRouter();
   app.use('/api', apiRouter);
-})();
 
-// Mount LucidLayer MVP routes (versioned)
-app.use('/', lucidLayerRouter);
+  // Mount LucidLayer MVP routes (versioned)
+  app.use('/', lucidLayerRouter);
 
-// Mount Passport CRUD routes (LucidLayer Phase 1)
-app.use('/', passportRouter);
+  // Mount Passport CRUD routes (LucidLayer Phase 1)
+  app.use('/', passportRouter);
 
-// Mount Share Token routes (fractional ownership)
-app.use('/', shareRouter);
+  // Mount Share Token routes (fractional ownership)
+  app.use('/', shareRouter);
 
-// Mount OAuth routes for Nango integration
-app.use('/api/oauth', oauthRouter);
-app.use('/api/oauth', oauthResourcesRouter);
+  // Mount OAuth routes for Nango integration
+  app.use('/api/oauth', oauthRouter);
+  app.use('/api/oauth', oauthResourcesRouter);
 
-// Mount Hyperliquid trading routes
-app.use('/api/hyperliquid', hyperliquidRouter);
+  // Mount Hyperliquid trading routes
+  app.use('/api/hyperliquid', hyperliquidRouter);
 
-// Mount Solana blockchain routes
-app.use('/api/solana', solanaRouter);
+  // Mount Solana blockchain routes
+  app.use('/api/solana', solanaRouter);
 
-// Mount health check routes
-app.use('/health', healthRouter);
+  // Mount health check routes
+  app.use('/health', healthRouter);
 
-// Preview / Phase 3 routes (gated behind env flag)
-if (process.env.PREVIEW_ROUTES_ENABLED === 'true') {
-  app.use('/', identityBridgeRouter);
-  app.use('/', reputationMarketplaceRouter);
-  app.use('/', tbaRouter);
-  app.use('/', escrowRouter);
-  app.use('/', disputeRouter);
-  app.use('/', paymasterRouter);
-  app.use('/', erc7579Router);
-  app.use('/', zkmlRouter);
-  console.log('[gateway-lite] Preview routes enabled (identity, reputation, TBA, escrow, dispute, paymaster, erc7579, zkml)');
+  // Preview / Phase 3 routes (gated behind env flag)
+  if (process.env.PREVIEW_ROUTES_ENABLED === 'true') {
+    app.use('/', identityBridgeRouter);
+    app.use('/', reputationMarketplaceRouter);
+    app.use('/', tbaRouter);
+    app.use('/', escrowRouter);
+    app.use('/', disputeRouter);
+    app.use('/', paymasterRouter);
+    app.use('/', erc7579Router);
+    app.use('/', zkmlRouter);
+    console.log('[gateway-lite] Preview routes enabled (identity, reputation, TBA, escrow, dispute, paymaster, erc7579, zkml)');
+  }
+
+  // Mount Agent Deployment pipeline routes
+  app.use('/', agentDeployRouter);
+  app.use('/', launchRouter);
+  app.use('/', a2aRouter);
+  app.use('/', agentWalletRouter);
+  app.use('/', agentRevenueRouter);
+  app.use('/', agentMirrorRouter);
+
+  // Mount Asset Payment & Config routes
+  app.use('/v1/assets', createAssetPaymentRouter());
+  app.use('/v1/config', createPaymentConfigRouter());
+
+  // Mount Subscription route (x402-gated access)
+  app.use('/', createSubscriptionRouter());
+
+  // ---------------------------------------------------------------------------
+  // Background services + shutdown
+  // ---------------------------------------------------------------------------
+  initializeBackgroundServices(app);
+  registerShutdownHandlers();
+
+  // ---------------------------------------------------------------------------
+  // Start server
+  // ---------------------------------------------------------------------------
+  app.listen(API_PORT, '0.0.0.0', () => {
+    console.log(`Lucid L2 API listening on:`);
+    console.log(`   Local:  http://localhost:${API_PORT}`);
+    console.log(`   WSL:    http://172.28.35.139:${API_PORT}`);
+    console.log(`   Network: http://0.0.0.0:${API_PORT}`);
+  });
 }
 
-// Mount Agent Deployment pipeline routes
-app.use('/', agentDeployRouter);
-app.use('/', launchRouter);
-app.use('/', a2aRouter);
-app.use('/', agentWalletRouter);
-app.use('/', agentRevenueRouter);
-app.use('/', agentMirrorRouter);
-
-// Mount Asset Payment & Config routes
-app.use('/v1/assets', createAssetPaymentRouter());
-app.use('/v1/config', createPaymentConfigRouter());
-
-// Mount Subscription route (x402-gated access)
-app.use('/', createSubscriptionRouter());
-
-// ---------------------------------------------------------------------------
-// Background services + shutdown
-// ---------------------------------------------------------------------------
-initializeBackgroundServices(app);
-registerShutdownHandlers();
-
-// ---------------------------------------------------------------------------
-// Start server
-// ---------------------------------------------------------------------------
-app.listen(API_PORT, '0.0.0.0', () => {
-  console.log(`Lucid L2 API listening on:`);
-  console.log(`   Local:  http://localhost:${API_PORT}`);
-  console.log(`   WSL:    http://172.28.35.139:${API_PORT}`);
-  console.log(`   Network: http://0.0.0.0:${API_PORT}`);
+bootstrap().catch((error) => {
+  console.error('[gateway-lite] Failed to start:', error);
+  process.exit(1);
 });

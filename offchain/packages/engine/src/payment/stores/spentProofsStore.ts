@@ -20,6 +20,15 @@ export interface SpentProofsStore {
   /** Returns true if the tx hash has already been spent. */
   isSpent(txHash: string): Promise<boolean>;
 
+  /**
+   * Atomically claim a tx hash as spent.
+   *
+   * Returns true when this caller claimed the proof, false when it was already
+   * claimed. Production stores must implement this as a single atomic write
+   * (for example Redis SET NX EX) so concurrent requests cannot reuse a proof.
+   */
+  claimSpent(txHash: string, ttlSeconds?: number): Promise<boolean>;
+
   /** Mark a tx hash as spent, with an optional TTL in seconds. */
   markSpent(txHash: string, ttlSeconds?: number): Promise<void>;
 
@@ -60,6 +69,11 @@ export class RedisSpentProofsStore implements SpentProofsStore {
 
   async markSpent(txHash: string, ttlSeconds: number = DEFAULT_TTL_SECONDS): Promise<void> {
     await this.redis.set(this.key(txHash), '1', 'EX', ttlSeconds);
+  }
+
+  async claimSpent(txHash: string, ttlSeconds: number = DEFAULT_TTL_SECONDS): Promise<boolean> {
+    const result = await this.redis.set(this.key(txHash), '1', 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
   }
 
   async count(): Promise<number> {
@@ -103,6 +117,15 @@ export class InMemorySpentProofsStore implements SpentProofsStore {
 
   async markSpent(txHash: string, _ttlSeconds?: number): Promise<void> {
     this.spent.add(txHash.toLowerCase());
+  }
+
+  async claimSpent(txHash: string, _ttlSeconds?: number): Promise<boolean> {
+    const normalized = txHash.toLowerCase();
+    if (this.spent.has(normalized)) {
+      return false;
+    }
+    this.spent.add(normalized);
+    return true;
   }
 
   async count(): Promise<number> {
