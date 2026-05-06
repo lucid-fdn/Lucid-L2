@@ -1,4 +1,4 @@
-<!-- generated: commit c7113a7, 2026-03-20T11:08:23.153Z -->
+<!-- generated: commit cb41842, 2026-05-06T08:46:37.513Z -->
 # compute — Interface Reference
 
 ## Interfaces
@@ -143,6 +143,7 @@ A2A Agent Card Generator
 | `agent_config` | `AgentConfig` | no |  |
 | `compliance` | `ComplianceConfig` | yes |  |
 | `deployment_config` | `DeploymentConfig` | no |  |
+| `launch_ownership` | `{ owner_mode: "user_wallet" | "workspace_custody" | "platform_default"; claim_status: "claimed" | "claimable"; }` | yes |  |
 | `monetization` | `MonetizationConfig` | yes |  |
 | `wallet_config` | `WalletConfig` | yes |  |
 
@@ -232,6 +233,21 @@ Configuration for a deployment
 
 **Extends:** —
 
+### DeploymentMetrics
+> `providers/capability-types.ts`
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `collectedAt` | `number` | no |  |
+| `cpu` | `MetricSeries` | yes |  |
+| `disk` | `MetricSeries` | yes |  |
+| `memory` | `MetricSeries` | yes |  |
+| `network` | `{ rxBytes?: MetricSeries; txBytes?: MetricSeries; }` | yes |  |
+
+**Extends:** —
+
 ### DeploymentResult
 > `providers/IDeployer.ts`
 
@@ -261,11 +277,36 @@ Current status of a deployment
 |----------|------|----------|-------------|
 | `deployment_id` | `string` | no | Unique deployment identifier |
 | `error` | `string` | yes | Error message (if failed) |
-| `health` | `"healthy" | "degraded" | "unhealthy" | "unknown"` | yes | Health state of the running deployment |
+| `health` | `"unknown" | "healthy" | "degraded" | "unhealthy"` | yes | Health state of the running deployment |
 | `last_check` | `number` | yes | Timestamp of last health check |
 | `status` | `DeploymentStatusType` | no | Current lifecycle status |
 | `uptime_ms` | `number` | yes | Uptime in milliseconds since deployment start |
 | `url` | `string` | yes | Public URL (if available) |
+
+**Extends:** —
+
+### DomainInfo
+> `providers/capability-types.ts`
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `domain` | `string` | no |  |
+| `isDefault` | `boolean` | no |  |
+| `ssl` | `boolean` | no |  |
+
+**Extends:** —
+
+### DomainResult
+> `providers/capability-types.ts`
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `domain` | `string` | no |  |
+| `status` | `"failed" | "active" | "pending"` | no |  |
 
 **Extends:** —
 
@@ -294,6 +335,19 @@ Current status of a deployment
 
 **Extends:** —
 
+### HealthcheckConfig
+> `providers/capability-types.ts`
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `intervalSeconds` | `number` | no |  |
+| `path` | `string` | no |  |
+| `timeoutSeconds` | `number` | no |  |
+
+**Extends:** —
+
 ### IDeployer
 > `providers/IDeployer.ts`
 
@@ -310,12 +364,24 @@ Deployer interface — all deployment providers implement this.
 
 | Method | Params | Return Type | Description |
 |--------|--------|-------------|-------------|
+| `addDomain` | `deploymentId`: `string`, `domain`: `string` | `Promise<DomainResult>` | Tier 3: Add a custom domain |
+| `addVolume` | `deploymentId`: `string`, `config`: `VolumeConfig` | `Promise<VolumeInfo>` | Tier 4: Add a volume (deferred) |
 | `deploy` | `input`: `RuntimeArtifact | ImageDeployInput`, `config`: `DeploymentConfig`, `passportId`: `string` | `Promise<DeploymentResult>` | Deploy an agent artifact or pre-built image to this target |
 | `isHealthy` |  | `Promise<boolean>` | Health check for the deployer itself |
+| `listDomains` | `deploymentId`: `string` | `Promise<DomainInfo[]>` | Tier 3: List domains |
+| `listRegions` |  | `Promise<RegionInfo[]>` | Tier 4: List available regions (deferred) |
+| `listVolumes` | `deploymentId`: `string` | `Promise<VolumeInfo[]>` | Tier 4: List volumes (deferred) |
 | `logs` | `deploymentId`: `string`, `options`?: `LogOptions` | `Promise<string>` | Get deployment logs |
+| `metrics` | `deploymentId`: `string`, `options`?: `MetricsOptions` | `Promise<DeploymentMetrics>` | Tier 1: Get deployment metrics (CPU, memory, disk, network) |
+| `redeploy` | `deploymentId`: `string` | `Promise<RedeployResult>` | Tier 1: Redeploy (rebuild + restart) |
+| `removeDomain` | `deploymentId`: `string`, `domain`: `string` | `Promise<void>` | Tier 3: Remove a custom domain |
 | `scale` | `deploymentId`: `string`, `replicas`: `number` | `Promise<void>` | Scale replicas (if supported) |
+| `setHealthcheck` | `deploymentId`: `string`, `config`: `HealthcheckConfig` | `Promise<void>` | Tier 3: Set healthcheck configuration |
+| `setRegion` | `deploymentId`: `string`, `region`: `string` | `Promise<void>` | Tier 4: Set deployment region (deferred) |
+| `setRestartPolicy` | `deploymentId`: `string`, `policy`: `RestartPolicy` | `Promise<void>` | Tier 3: Set restart policy |
 | `status` | `deploymentId`: `string` | `Promise<DeploymentStatus>` | Get deployment status |
 | `terminate` | `deploymentId`: `string` | `Promise<void>` | Terminate a deployment |
+| `updateEnvVars` | `deploymentId`: `string`, `vars`: `EnvVarPatch` | `Promise<void>` | Tier 2: Update environment variables (string = set, null = delete) |
 
 **Extends:** —
 
@@ -374,6 +440,18 @@ Options for fetching deployment logs
 
 **Extends:** —
 
+### MetricsOptions
+> `providers/capability-types.ts`
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `granularity` | `"minute" | "hour" | "day"` | yes |  |
+| `range` | `number` | yes |  |
+
+**Extends:** —
+
 ### MonetizationConfig
 > `control-plane/agent/agentDescriptor.ts`
 
@@ -387,6 +465,34 @@ Options for fetching deployment logs
 | `revenue_split` | `RevenueSplit` | yes |  |
 | `share_token` | `ShareTokenConfig` | yes |  |
 | `share_token_mint` | `string` | yes |  |
+
+**Extends:** —
+
+### RedeployResult
+> `providers/capability-types.ts`
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `deployment_id` | `string` | no |  |
+| `operation_id` | `string` | yes |  |
+| `status` | `"deploying" | "running" | "failed" | "queued"` | no |  |
+| `success` | `boolean` | no |  |
+| `url` | `string` | yes |  |
+
+**Extends:** —
+
+### RegionInfo
+> `providers/capability-types.ts`
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `available` | `boolean` | no |  |
+| `id` | `string` | no |  |
+| `name` | `string` | no |  |
 
 **Extends:** —
 
@@ -447,6 +553,32 @@ Result of a runtime adapter code generation.
 |----------|------|----------|-------------|
 | `type` | `StopConditionType` | no |  |
 | `value` | `string | number` | no |  |
+
+**Extends:** —
+
+### VolumeConfig
+> `providers/capability-types.ts`
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `mountPath` | `string` | no |  |
+| `sizeGb` | `number` | no |  |
+
+**Extends:** —
+
+### VolumeInfo
+> `providers/capability-types.ts`
+
+**Properties**
+
+| Property | Type | Optional | Description |
+|----------|------|----------|-------------|
+| `id` | `string` | no |  |
+| `mountPath` | `string` | no |  |
+| `sizeGb` | `number` | no |  |
+| `usedGb` | `number` | yes |  |
 
 **Extends:** —
 
@@ -822,7 +954,7 @@ type AutonomyLevel = "supervised" | "semi_autonomous" | "fully_autonomous"
 Deployment lifecycle status
 
 ```ts
-type DeploymentStatusType = "deploying" | "running" | "stopped" | "failed" | "terminated"
+type DeploymentStatusType = "deploying" | "running" | "stopped" | "failed" | "terminated" | "unknown"
 ```
 
 ### DeploymentTargetType
@@ -832,11 +964,27 @@ type DeploymentStatusType = "deploying" | "running" | "stopped" | "failed" | "te
 type DeploymentTargetType = "railway" | "akash" | "phala" | "ionet" | "nosana" | "vercel_edge" | "docker" | "aws_bedrock" | "self_hosted"
 ```
 
+### EnvVarPatch
+> `providers/capability-types.ts`
+
+string = set/update, null = delete, absent key = unchanged
+
+```ts
+type EnvVarPatch = { [x: string]: string; }
+```
+
 ### MemoryProvider
 > `control-plane/agent/agentDescriptor.ts`
 
 ```ts
 type MemoryProvider = "supabase" | "lighthouse" | "redis"
+```
+
+### RestartPolicy
+> `providers/capability-types.ts`
+
+```ts
+type RestartPolicy = "always" | "on_failure" | "never"
 ```
 
 ### WalletProvider
