@@ -532,7 +532,7 @@ export class PassportManager {
   async updatePassport(
     passportId: string,
     input: UpdatePassportInput,
-    requestingOwner?: string
+    requestingOwner: string
   ): Promise<OperationResult<Passport>> {
     await this.ensureInitialized();
 
@@ -545,8 +545,9 @@ export class PassportManager {
       };
     }
 
-    // Verify ownership if requestingOwner is provided
-    if (requestingOwner && existing.owner !== requestingOwner) {
+    // Mutations require an explicit owner proof from the route layer. Omitting
+    // the owner header must not silently bypass authorization.
+    if (!requestingOwner || existing.owner !== requestingOwner) {
       return {
         ok: false,
         error: 'Not authorized: only the passport owner can update it',
@@ -673,7 +674,7 @@ export class PassportManager {
   async updatePricing(
     passportId: string,
     pricing: Record<string, any>,
-    requestingOwner?: string
+    requestingOwner: string
   ): Promise<OperationResult<Passport>> {
     await this.ensureInitialized();
 
@@ -681,7 +682,7 @@ export class PassportManager {
     if (!existing) {
       return { ok: false, error: 'Passport not found' };
     }
-    if (requestingOwner && existing.owner !== requestingOwner) {
+    if (!requestingOwner || existing.owner !== requestingOwner) {
       return { ok: false, error: 'Not authorized: only the passport owner can update it' };
     }
 
@@ -712,7 +713,7 @@ export class PassportManager {
   async updateEndpoints(
     passportId: string,
     endpoints: Record<string, any>,
-    requestingOwner?: string
+    requestingOwner: string
   ): Promise<OperationResult<Passport>> {
     await this.ensureInitialized();
 
@@ -720,7 +721,7 @@ export class PassportManager {
     if (!existing) {
       return { ok: false, error: 'Passport not found' };
     }
-    if (requestingOwner && existing.owner !== requestingOwner) {
+    if (!requestingOwner || existing.owner !== requestingOwner) {
       return { ok: false, error: 'Not authorized: only the passport owner can update it' };
     }
 
@@ -747,7 +748,7 @@ export class PassportManager {
    */
   async deletePassport(
     passportId: string,
-    requestingOwner?: string
+    requestingOwner: string
   ): Promise<OperationResult<boolean>> {
     await this.ensureInitialized();
 
@@ -760,8 +761,9 @@ export class PassportManager {
       };
     }
 
-    // Verify ownership if requestingOwner is provided
-    if (requestingOwner && existing.owner !== requestingOwner) {
+    // Verify ownership. Mutations must fail closed when the owner proof is
+    // missing instead of treating it as optional.
+    if (!requestingOwner || existing.owner !== requestingOwner) {
       return {
         ok: false,
         error: 'Not authorized: only the passport owner can delete it',
@@ -1035,18 +1037,34 @@ export class PassportManager {
    * Fire-and-forget via setImmediate — never blocks the caller.
    */
   private async triggerIdentityProjection(passport: Passport, mode: 'register' | 'sync' = 'register'): Promise<void> {
+    const configuredRegistries = (process.env.IDENTITY_REGISTRIES || '')
+      .split(',')
+      .map((name) => name.trim())
+      .filter(Boolean);
+    if (configuredRegistries.length === 0) {
+      return;
+    }
+
+    let hasEligibleProjection = false;
     try {
       const { getIdentityRegistries } = await import('../projections/factory');
       const registries = getIdentityRegistries();
       for (const registry of registries) {
         if (registry.supportedAssetTypes.includes(passport.type as any) && registry.capabilities[mode]) {
+          hasEligibleProjection = true;
           await this.store.updateExternalRegistration(passport.passport_id, registry.registryName, {
             status: 'pending',
             lastSyncedAt: Date.now(),
           });
         }
       }
-    } catch { /* best effort */ }
+    } catch {
+      return;
+    }
+
+    if (!hasEligibleProjection) {
+      return;
+    }
 
     setImmediate(async () => {
       try {

@@ -32,7 +32,7 @@ export const agentRateLimit = rateLimit({
  * Apply all middleware to the Express app.
  * Must be called before route mounting.
  */
-export function applyMiddleware(app: Express): void {
+export async function applyMiddleware(app: Express): Promise<void> {
   // Security headers (OWASP best practice)
   app.use(helmet({
     contentSecurityPolicy: false, // CSP disabled — API-only server, no HTML to protect
@@ -123,27 +123,25 @@ export function applyMiddleware(app: Express): void {
   // -------------------------------------------------------------------------
   // OpenAPI request validation
   // -------------------------------------------------------------------------
-  (async () => {
-    try {
-      const specPath = PATHS.OPENAPI_SPEC;
-      const yamlContent = fs.readFileSync(specPath, 'utf8');
-      const yamlModule = await import('yaml');
-      const apiSpec = yamlModule.parse(yamlContent);
+  try {
+    const specPath = PATHS.OPENAPI_SPEC;
+    const yamlContent = fs.readFileSync(specPath, 'utf8');
+    const yamlModule = await import('yaml');
+    const apiSpec = yamlModule.parse(yamlContent);
 
-      const OpenApiValidator = await import('express-openapi-validator');
-      app.use(
-        OpenApiValidator.middleware({
-          apiSpec,
-          validateRequests: true,
-          validateResponses: false,
-          validateApiSpec: true,
-          ignorePaths: /^(\/api\/|\/v1\/memory|\/v1\/anchors|\/v1\/agents\/launch|\/v1\/webhooks)/,
-        })
-      );
-    } catch (err) {
-      console.warn('OpenAPI validator disabled (failed to load/parse openapi.yaml):', err);
-    }
-  })();
+    const OpenApiValidator = await import('express-openapi-validator');
+    app.use(
+      OpenApiValidator.middleware({
+        apiSpec,
+        validateRequests: true,
+        validateResponses: false,
+        validateApiSpec: true,
+        ignorePaths: /^(\/api\/|\/v1\/memory|\/v1\/anchors|\/v1\/agents\/launch|\/v1\/webhooks)/,
+      })
+    );
+  } catch (err) {
+    console.warn('OpenAPI validator disabled (failed to load/parse openapi.yaml):', err);
+  }
 
   // Serve static assets from auth-frontend build
   app.use('/api/wallets/auth/assets', express.static(path.join(PATHS.AUTH_FRONTEND_DIST, 'assets')));

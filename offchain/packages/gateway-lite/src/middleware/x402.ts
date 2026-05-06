@@ -282,12 +282,25 @@ export function requirePayment(optsOrPrice?: string | RequirePaymentOptions) {
         });
       }
 
-      // Payment verified — mark as spent and proceed
-      syncSpentCache.add(normalizedHash);
+      // Payment verified — atomically claim the proof before proceeding.
+      // A failed or duplicate claim must not be allowed through, otherwise
+      // concurrent requests can replay the same proof.
       try {
-        await store.markSpent(normalizedHash, config.maxProofAge);
+        const claimed = await store.claimSpent(normalizedHash, config.maxProofAge);
+        if (!claimed) {
+          return res.status(402).json({
+            error: 'Payment already used',
+            reason: 'This transaction hash has already been used as payment proof.',
+            x402: buildX402Block(price, facilitatorName, recipient),
+          });
+        }
+        syncSpentCache.add(normalizedHash);
       } catch (err) {
-        logger.error('x402 mark-spent error (continuing):', err);
+        logger.error('x402 claim-spent error:', err);
+        return res.status(503).json({
+          error: 'Payment service temporarily unavailable',
+          reason: 'Replay protection store could not claim the proof. Please retry shortly.',
+        });
       }
 
       (req as any).x402 = {

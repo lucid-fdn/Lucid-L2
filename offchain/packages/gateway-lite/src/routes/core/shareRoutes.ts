@@ -22,6 +22,14 @@ shareRouter.post('/v1/passports/:id/token/launch', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Passport not found' });
     }
 
+    const ownerAddress = req.headers['x-owner-address'] as string | undefined;
+    if (!ownerAddress || ownerAddress !== passport.data.owner) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized: only the passport owner can launch a share token',
+      });
+    }
+
     const { name, symbol, totalSupply, decimals } = req.body;
     if (!name || !symbol || !totalSupply) {
       return res.status(400).json({ success: false, error: 'name, symbol, and totalSupply are required' });
@@ -58,7 +66,7 @@ shareRouter.post('/v1/passports/:id/token/launch', async (req, res) => {
     // Store token mint on passport
     await manager.updatePassport(passportId, {
       metadata: { ...passport.data.metadata, share_token_mint: result.mint },
-    });
+    }, ownerAddress);
 
     res.status(201).json({ success: true, ...result });
   } catch (error) {

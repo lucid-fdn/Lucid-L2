@@ -16,6 +16,10 @@ const router = Router();
 const isTestnet = process.env.HYPERLIQUID_NETWORK === 'testnet';
 const tradingService = new HyperliquidTradingService(isTestnet);
 
+function getAuthenticatedUserId(req: PrivyRequest): string | null {
+  return req.user?.userId || req.user?.privyUserId || null;
+}
+
 // =============================================================================
 // Trading Operations
 // =============================================================================
@@ -24,10 +28,10 @@ const tradingService = new HyperliquidTradingService(isTestnet);
  * POST /api/hyperliquid/place-order
  * Place a new order on Hyperliquid
  */
-router.post('/place-order', async (req: Request, res: Response) => {
+router.post('/place-order', verifyPrivyToken, async (req: PrivyRequest, res: Response) => {
   try {
+    const userId = getAuthenticatedUserId(req);
     const {
-      userId,
       symbol,
       side,
       orderType,
@@ -43,10 +47,17 @@ router.post('/place-order', async (req: Request, res: Response) => {
     } = req.body;
 
     // Validate required fields
-    if (!userId || !symbol || !side || !orderType || !size) {
+    if (!userId) {
+      return res.status(401).json({
+        error: 'Authentication required',
+        message: 'Trading user is derived from the verified Privy token'
+      });
+    }
+
+    if (!symbol || !side || !orderType || !size) {
       return res.status(400).json({
         error: 'Missing required fields',
-        required: ['userId', 'symbol', 'side', 'orderType', 'size']
+        required: ['symbol', 'side', 'orderType', 'size']
       });
     }
 
@@ -97,14 +108,22 @@ router.post('/place-order', async (req: Request, res: Response) => {
  * POST /api/hyperliquid/cancel-order
  * Cancel an existing order
  */
-router.post('/cancel-order', async (req: Request, res: Response) => {
+router.post('/cancel-order', verifyPrivyToken, async (req: PrivyRequest, res: Response) => {
   try {
-    const { userId, orderId, symbol, n8nWorkflowId, n8nExecutionId } = req.body;
+    const userId = getAuthenticatedUserId(req);
+    const { orderId, symbol, n8nWorkflowId, n8nExecutionId } = req.body;
 
-    if (!userId || !orderId || !symbol) {
+    if (!userId) {
+      return res.status(401).json({
+        error: 'Authentication required',
+        message: 'Trading user is derived from the verified Privy token'
+      });
+    }
+
+    if (!orderId || !symbol) {
       return res.status(400).json({
         error: 'Missing required fields',
-        required: ['userId', 'orderId', 'symbol']
+        required: ['orderId', 'symbol']
       });
     }
 
@@ -134,13 +153,15 @@ router.post('/cancel-order', async (req: Request, res: Response) => {
  * POST /api/hyperliquid/cancel-all-orders
  * Cancel all orders for a symbol or all symbols
  */
-router.post('/cancel-all-orders', async (req: Request, res: Response) => {
+router.post('/cancel-all-orders', verifyPrivyToken, async (req: PrivyRequest, res: Response) => {
   try {
-    const { userId, symbol, n8nWorkflowId, n8nExecutionId } = req.body;
+    const userId = getAuthenticatedUserId(req);
+    const { symbol, n8nWorkflowId, n8nExecutionId } = req.body;
 
     if (!userId) {
-      return res.status(400).json({
-        error: 'Missing required field: userId'
+      return res.status(401).json({
+        error: 'Authentication required',
+        message: 'Trading user is derived from the verified Privy token'
       });
     }
 
@@ -169,14 +190,22 @@ router.post('/cancel-all-orders', async (req: Request, res: Response) => {
  * POST /api/hyperliquid/modify-order
  * Modify an existing order
  */
-router.post('/modify-order', async (req: Request, res: Response) => {
+router.post('/modify-order', verifyPrivyToken, async (req: PrivyRequest, res: Response) => {
   try {
-    const { userId, orderId, symbol, newPrice, newSize, n8nWorkflowId, n8nExecutionId } = req.body;
+    const userId = getAuthenticatedUserId(req);
+    const { orderId, symbol, newPrice, newSize, n8nWorkflowId, n8nExecutionId } = req.body;
 
-    if (!userId || !orderId || !symbol) {
+    if (!userId) {
+      return res.status(401).json({
+        error: 'Authentication required',
+        message: 'Trading user is derived from the verified Privy token'
+      });
+    }
+
+    if (!orderId || !symbol) {
       return res.status(400).json({
         error: 'Missing required fields',
-        required: ['userId', 'orderId', 'symbol']
+        required: ['orderId', 'symbol']
       });
     }
 
@@ -214,14 +243,22 @@ router.post('/modify-order', async (req: Request, res: Response) => {
  * POST /api/hyperliquid/close-position
  * Close an open position
  */
-router.post('/close-position', async (req: Request, res: Response) => {
+router.post('/close-position', verifyPrivyToken, async (req: PrivyRequest, res: Response) => {
   try {
-    const { userId, symbol, percentage, n8nWorkflowId, n8nExecutionId } = req.body;
+    const userId = getAuthenticatedUserId(req);
+    const { symbol, percentage, n8nWorkflowId, n8nExecutionId } = req.body;
 
-    if (!userId || !symbol) {
+    if (!userId) {
+      return res.status(401).json({
+        error: 'Authentication required',
+        message: 'Trading user is derived from the verified Privy token'
+      });
+    }
+
+    if (!symbol) {
       return res.status(400).json({
         error: 'Missing required fields',
-        required: ['userId', 'symbol']
+        required: ['symbol']
       });
     }
 
@@ -251,14 +288,22 @@ router.post('/close-position', async (req: Request, res: Response) => {
  * POST /api/hyperliquid/update-leverage
  * Update leverage for a trading pair
  */
-router.post('/update-leverage', async (req: Request, res: Response) => {
+router.post('/update-leverage', verifyPrivyToken, async (req: PrivyRequest, res: Response) => {
   try {
-    const { userId, symbol, leverage, crossMargin, n8nWorkflowId, n8nExecutionId } = req.body;
+    const userId = getAuthenticatedUserId(req);
+    const { symbol, leverage, crossMargin, n8nWorkflowId, n8nExecutionId } = req.body;
 
-    if (!userId || !symbol || !leverage) {
+    if (!userId) {
+      return res.status(401).json({
+        error: 'Authentication required',
+        message: 'Trading user is derived from the verified Privy token'
+      });
+    }
+
+    if (!symbol || !leverage) {
       return res.status(400).json({
         error: 'Missing required fields',
-        required: ['userId', 'symbol', 'leverage']
+        required: ['symbol', 'leverage']
       });
     }
 
