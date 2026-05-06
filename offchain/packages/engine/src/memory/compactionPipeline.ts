@@ -109,7 +109,7 @@ export class CompactionPipeline {
       const coldCandidates = archived.filter(e => {
         const lane = (e as any).memory_lane || 'self';
         const laneConfig = this.getLaneConfig(lane as MemoryLane);
-        return Date.now() - e.created_at > laneConfig.cold_retention_ms;
+        return Date.now() - e.created_at >= laneConfig.cold_retention_ms;
       });
 
       if (coldCandidates.length > 0 && this.config.cold_requires_snapshot) {
