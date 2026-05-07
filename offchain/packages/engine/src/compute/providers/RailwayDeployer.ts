@@ -30,6 +30,21 @@ const STATUS_MAP: Record<string, string> = {
   SLEEPING: 'stopped',
 };
 
+function isLucidWorkerImage(imageRef: string): boolean {
+  return /^ghcr\.io\/daishizensensei\/worker(?::|@|$)/i.test(imageRef.trim());
+}
+
+function resolveRailwayStartCommand(imageRef: string, config?: DeploymentConfig): string | undefined {
+  const explicit = (config?.target as any)?.start_command
+    || config?.env_vars?.RAILWAY_START_COMMAND
+    || config?.env_vars?.START_COMMAND;
+  if (typeof explicit === 'string' && explicit.trim()) {
+    return explicit.trim();
+  }
+
+  return isLucidWorkerImage(imageRef) ? 'node dist/index.js' : undefined;
+}
+
 export class RailwayDeployer implements IDeployer {
   readonly target = 'railway';
   readonly description = 'Railway.app container deployment';
@@ -157,6 +172,30 @@ export class RailwayDeployer implements IDeployer {
         };
       }
 
+      const startCommand = resolveRailwayStartCommand(imageRef, config);
+      const instanceUpdateInput: Record<string, any> = { source: { image: imageRef } };
+      if (startCommand) {
+        instanceUpdateInput.startCommand = startCommand;
+      }
+
+      const instanceUpdateResult = await this.graphql(`
+        mutation ServiceInstanceNormalizeImage($serviceId: String!, $input: ServiceInstanceUpdateInput!) {
+          serviceInstanceUpdate(serviceId: $serviceId, input: $input)
+        }
+      `, {
+        serviceId,
+        input: instanceUpdateInput,
+      });
+
+      if (instanceUpdateResult.errors?.length) {
+        return {
+          success: false,
+          deployment_id: serviceId,
+          target: this.target,
+          error: `Railway serviceInstanceUpdate failed: ${instanceUpdateResult.errors[0].message}`,
+        };
+      }
+
       // Provision Postgres if the agent needs a database (e.g., IronClaw)
       const needsPostgres = config.env_vars?.NEEDS_POSTGRES === 'true'
         || (config.target as any).needs_postgres === true;
@@ -223,6 +262,8 @@ export class RailwayDeployer implements IDeployer {
       // Remove internal flags
       delete envVars.NEEDS_POSTGRES;
       delete envVars.GITHUB_REPO_URL;
+      delete envVars.RAILWAY_START_COMMAND;
+      delete envVars.START_COMMAND;
 
       const envInput: Record<string, string> = {};
       for (const [key, value] of Object.entries(envVars)) {
@@ -646,6 +687,7 @@ export class RailwayDeployer implements IDeployer {
         };
       }
 
+      const startCommand = resolveRailwayStartCommand(imageRef);
       const updateResult = await this.graphql(`
         mutation ServiceInstanceUpdateSource($serviceId: String!, $input: ServiceInstanceUpdateInput!) {
           serviceInstanceUpdate(serviceId: $serviceId, input: $input)
@@ -656,6 +698,7 @@ export class RailwayDeployer implements IDeployer {
           source: {
             image: imageRef,
           },
+          ...(startCommand ? { startCommand } : {}),
         },
       });
 

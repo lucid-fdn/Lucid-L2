@@ -259,6 +259,11 @@ describe('RailwayDeployer', () => {
         ok: true,
         json: async () => ({ data: { serviceCreate: { id: 'svc_auto', name: 'agent' } } }),
       });
+      // serviceInstanceUpdate normalizes image source/start command
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { serviceInstanceUpdate: true } }),
+      });
       // variableCollectionUpsert
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -305,6 +310,11 @@ describe('RailwayDeployer', () => {
         ok: true,
         json: async () => ({ data: { serviceCreate: { id: serviceId, name: 'agent' } } }),
       });
+      // serviceInstanceUpdate normalizes image source/start command
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { serviceInstanceUpdate: true } }),
+      });
       // variableCollectionUpsert
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -330,6 +340,63 @@ describe('RailwayDeployer', () => {
       expect(result.success).toBe(true);
       expect(result.deployment_id).toBe(serviceId);
       expect(result.url).toContain('railway.app');
+    });
+
+    it('pins Lucid worker Railway services to the worker entrypoint', async () => {
+      const serviceId = 'svc_worker_123';
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { project: { environments: { edges: [{ node: { id: 'env_prod', name: 'production' } }] } } } }),
+      });
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { serviceCreate: { id: serviceId, name: 'agent' } } }),
+      });
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { serviceInstanceUpdate: true } }),
+      });
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { variableCollectionUpsert: true } }),
+      });
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { serviceDomainCreate: { domain: 'agent-test.up.railway.app' } } }),
+      });
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { service: { deployments: { edges: [{ node: { status: 'SUCCESS' } }] } } } }),
+      });
+
+      const config = makeConfig({
+        target: { type: 'railway', project_id: 'proj_123', image_ref: 'ghcr.io/daishizensensei/worker:sha-test' },
+        env_vars: {
+          AGENT_PASSPORT_ID: 'passport_test',
+          RAILWAY_START_COMMAND: 'node dist/index.js',
+        },
+      });
+
+      const result = await deployer.deploy(makeArtifact(), config, PASSPORT_ID);
+      expect(result.success).toBe(true);
+
+      const updateCall = mockFetch.mock.calls.find(([, init]) => {
+        return String((init as any)?.body || '').includes('ServiceInstanceNormalizeImage');
+      });
+      expect(updateCall).toBeTruthy();
+      const updateBody = JSON.parse((updateCall![1] as any).body);
+      expect(updateBody.variables.input).toEqual({
+        source: { image: 'ghcr.io/daishizensensei/worker:sha-test' },
+        startCommand: 'node dist/index.js',
+      });
+
+      const envCall = mockFetch.mock.calls.find(([, init]) => {
+        return String((init as any)?.body || '').includes('VariablesUpsert');
+      });
+      const envBody = JSON.parse((envCall![1] as any).body);
+      expect(envBody.variables.input.variables.RAILWAY_START_COMMAND).toBeUndefined();
+      expect(envBody.variables.input.variables.START_COMMAND).toBeUndefined();
     });
 
     it('should return error when Railway API returns error', async () => {
