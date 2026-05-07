@@ -548,7 +548,10 @@ agentDeployRouter.post('/v1/agents/:passportId/redeploy', verifyAdminAuth, async
 
     // Emit a restart-like lifecycle event. The control-plane event model
     // tracks redeploys under the existing restarted lifecycle type.
-    return res.json({ success: true, result });
+    return res.status(result.success === false ? 502 : 200).json({
+      success: result.success !== false,
+      result,
+    });
   } catch (error: any) {
     if (error.name === 'UnsupportedCapabilityError') {
       return res.status(501).json({ success: false, error: error.message });
