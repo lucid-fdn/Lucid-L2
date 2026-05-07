@@ -30,6 +30,14 @@ const mockGetCapabilities = jest.fn();
 const mockGetAgentStatus = jest.fn();
 const mockGetAgentLogs = jest.fn();
 const mockTerminateAgent = jest.fn();
+const mockRequireCapability = jest.fn((_provider: string, _capPath: string, deployer: any, methodName: string) => {
+  if (typeof deployer?.[methodName] !== 'function') {
+    const error = new Error(`unsupported ${methodName}`);
+    (error as any).name = 'UnsupportedCapabilityError';
+    throw error;
+  }
+});
+const mockGetDeployer = jest.fn();
 
 const mockServiceObject = {
   deployAgent: mockDeployAgent,
@@ -46,11 +54,19 @@ const mockServiceObject = {
 // Path from route file (routes/agent): ../../../engine = gateway-lite/engine
 jest.mock('../../../engine/src/compute/control-plane/agent/agentDeploymentService', () => ({
   getAgentDeploymentService: () => mockServiceObject,
+  requireCapability: (provider: string, capPath: string, deployer: any, methodName: string) =>
+    mockRequireCapability(provider, capPath, deployer, methodName),
 }), { virtual: true });
 
 // Also mock at the correct physical path in case ts-jest resolves it differently
 jest.mock('../../../../engine/src/compute/control-plane/agent/agentDeploymentService', () => ({
   getAgentDeploymentService: () => mockServiceObject,
+  requireCapability: (provider: string, capPath: string, deployer: any, methodName: string) =>
+    mockRequireCapability(provider, capPath, deployer, methodName),
+}));
+
+jest.mock('../../../../engine/src/compute/providers', () => ({
+  getDeployer: (...args: any[]) => mockGetDeployer(...args),
 }));
 
 import { agentDeployRouter } from '../agent/agentDeployRoutes';
@@ -92,6 +108,12 @@ describe('Agent Deploy Routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     allowAdmin();
+    mockGetDeployer.mockReturnValue({
+      status: jest.fn(),
+      logs: jest.fn(),
+      redeploy: jest.fn().mockResolvedValue({ success: true, deployment_id: 'svc-1', status: 'queued' }),
+      redeployWithImage: jest.fn().mockResolvedValue({ success: true, deployment_id: 'svc-1', status: 'queued' }),
+    });
   });
 
   // =========================================================================
@@ -320,6 +342,79 @@ describe('Agent Deploy Routes', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.capabilities.targets).toContain('railway');
+    });
+  });
+
+  // =========================================================================
+  // POST /v1/agents/:passportId/redeploy
+  // =========================================================================
+  describe('POST /v1/agents/:passportId/redeploy', () => {
+    it('redeploys the existing provider deployment when no image is requested', async () => {
+      const deployer = {
+        redeploy: jest.fn().mockResolvedValue({ success: true, deployment_id: 'svc-1', status: 'queued' }),
+        redeployWithImage: jest.fn(),
+      };
+      mockGetDeployer.mockReturnValue(deployer);
+
+      const res = await request(buildApp())
+        .post('/v1/agents/pass-1/redeploy')
+        .send({
+          controlPlaneRef: {
+            provider: 'railway',
+            providerDeploymentId: 'svc-1',
+          },
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(deployer.redeploy).toHaveBeenCalledWith('svc-1');
+      expect(deployer.redeployWithImage).not.toHaveBeenCalled();
+      expect(mockRequireCapability).toHaveBeenCalledWith('railway', 'lifecycle.redeploy', deployer, 'redeploy');
+    });
+
+    it('changes the provider image source before redeploying when targetImageRef is requested', async () => {
+      const deployer = {
+        redeploy: jest.fn(),
+        redeployWithImage: jest.fn().mockResolvedValue({ success: true, deployment_id: 'svc-1', status: 'queued' }),
+      };
+      mockGetDeployer.mockReturnValue(deployer);
+
+      const res = await request(buildApp())
+        .post('/v1/agents/pass-1/redeploy')
+        .send({
+          targetImageRef: 'ghcr.io/daishizensensei/worker:sha-new',
+          controlPlaneRef: {
+            provider: 'railway',
+            providerDeploymentId: 'svc-1',
+          },
+        });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(deployer.redeployWithImage).toHaveBeenCalledWith('svc-1', 'ghcr.io/daishizensensei/worker:sha-new');
+      expect(deployer.redeploy).not.toHaveBeenCalled();
+      expect(mockRequireCapability).toHaveBeenCalledWith('railway', 'lifecycle.redeployWithImage', deployer, 'redeployWithImage');
+    });
+
+    it('fails loudly when an image rollout is requested for a provider without image redeploy support', async () => {
+      const deployer = {
+        redeploy: jest.fn(),
+      };
+      mockGetDeployer.mockReturnValue(deployer);
+
+      const res = await request(buildApp())
+        .post('/v1/agents/pass-1/redeploy')
+        .send({
+          image: 'ghcr.io/daishizensensei/worker:sha-new',
+          controlPlaneRef: {
+            provider: 'docker',
+            providerDeploymentId: 'svc-1',
+          },
+        });
+
+      expect(res.status).toBe(501);
+      expect(res.body.success).toBe(false);
+      expect(deployer.redeploy).not.toHaveBeenCalled();
     });
   });
 

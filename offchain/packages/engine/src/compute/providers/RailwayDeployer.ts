@@ -592,6 +592,117 @@ export class RailwayDeployer implements IDeployer {
     }
   }
 
+  async redeployWithImage(deploymentId: string, imageRef: string): Promise<RedeployResult> {
+    if (!imageRef || typeof imageRef !== 'string') {
+      return {
+        success: false,
+        deployment_id: deploymentId,
+        status: 'failed',
+      };
+    }
+
+    try {
+      const serviceResult = await this.graphql(`
+        query ServiceImageRedeployContext($id: String!) {
+          service(id: $id) {
+            id
+            project {
+              environments {
+                edges {
+                  node {
+                    id
+                    name
+                  }
+                }
+              }
+            }
+            deployments(first: 1) {
+              edges {
+                node {
+                  environmentId
+                }
+              }
+            }
+          }
+        }
+      `, { id: deploymentId });
+
+      const service = serviceResult?.data?.service;
+      const environments = service?.project?.environments?.edges || [];
+      const productionEnvironment = environments.find((edge: any) => {
+        return String(edge?.node?.name || '').toLowerCase() === 'production';
+      });
+      const environmentId =
+        service?.deployments?.edges?.[0]?.node?.environmentId
+        || productionEnvironment?.node?.id
+        || environments[0]?.node?.id
+        || process.env.RAILWAY_ENVIRONMENT_ID;
+
+      if (!service?.id || !environmentId) {
+        return {
+          success: false,
+          deployment_id: deploymentId,
+          status: 'failed',
+        };
+      }
+
+      const updateResult = await this.graphql(`
+        mutation ServiceInstanceUpdateSource($serviceId: String!, $input: ServiceInstanceUpdateInput!) {
+          serviceInstanceUpdate(serviceId: $serviceId, input: $input)
+        }
+      `, {
+        serviceId: deploymentId,
+        input: {
+          source: {
+            image: imageRef,
+          },
+        },
+      });
+
+      if (updateResult.errors?.length) {
+        logger.warn(`[Railway:redeployWithImage] Source update failed for ${deploymentId}: ${updateResult.errors[0].message}`);
+        return {
+          success: false,
+          deployment_id: deploymentId,
+          status: 'failed',
+        };
+      }
+
+      const deployResult = await this.graphql(`
+        mutation ServiceInstanceDeployFromSource($serviceId: String!, $environmentId: String!) {
+          serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId)
+        }
+      `, {
+        serviceId: deploymentId,
+        environmentId,
+      });
+
+      if (deployResult.errors?.length) {
+        logger.warn(`[Railway:redeployWithImage] Deploy failed for ${deploymentId}: ${deployResult.errors[0].message}`);
+        return {
+          success: false,
+          deployment_id: deploymentId,
+          status: 'failed',
+        };
+      }
+
+      logger.info(`[Railway:redeployWithImage] Redeploy triggered for service ${deploymentId} with image ${imageRef}`);
+      return {
+        success: true,
+        deployment_id: deploymentId,
+        status: 'queued',
+        operation_id: deployResult?.data?.serviceInstanceDeployV2 || `redeploy-image-${Date.now()}`,
+      };
+    } catch (err) {
+      logger.warn(`[Railway:redeployWithImage] Error redeploying ${deploymentId}: ${err instanceof Error ? err.message : String(err)}`);
+      return {
+        success: false,
+        deployment_id: deploymentId,
+        status: 'failed',
+      };
+    }
+  }
+
   async updateEnvVars(deploymentId: string, vars: EnvVarPatch): Promise<void> {
     const projectId = process.env.RAILWAY_PROJECT_ID;
     if (!projectId) {

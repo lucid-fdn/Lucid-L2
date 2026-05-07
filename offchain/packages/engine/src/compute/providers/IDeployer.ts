@@ -160,6 +160,9 @@ export interface IDeployer {
   /** Tier 1: Redeploy (rebuild + restart) */
   redeploy?(deploymentId: string): Promise<RedeployResult>
 
+  /** Tier 1: Change the deployment image/source and deploy it */
+  redeployWithImage?(deploymentId: string, imageRef: string): Promise<RedeployResult>
+
   /** Tier 2: Update environment variables (string = set, null = delete) */
   updateEnvVars?(deploymentId: string, vars: EnvVarPatch): Promise<void>
 

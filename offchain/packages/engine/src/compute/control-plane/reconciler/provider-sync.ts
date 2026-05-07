@@ -14,6 +14,7 @@ export interface ProviderCapabilities {
     stop: boolean;
     resume: boolean;
     redeploy: boolean;
+    redeployWithImage: boolean;
     terminate: boolean;
     scale: boolean;
   };
@@ -38,32 +39,32 @@ export interface ProviderCapabilities {
  */
 export const PROVIDER_CAPABILITIES: Record<string, ProviderCapabilities> = {
   railway: {
-    lifecycle: { stop: false, resume: false, redeploy: true, terminate: true, scale: false },
+    lifecycle: { stop: false, resume: false, redeploy: true, redeployWithImage: true, terminate: true, scale: false },
     observability: { status: true, logs: true, metrics: true, healthcheckConfig: true },
     configuration: { envUpdate: true, customDomains: true, restartPolicy: true, volumes: false, multiRegion: false },
   },
   akash: {
-    lifecycle: { stop: false, resume: false, redeploy: true, terminate: true, scale: true },
+    lifecycle: { stop: false, resume: false, redeploy: true, redeployWithImage: false, terminate: true, scale: true },
     observability: { status: true, logs: true, metrics: true, healthcheckConfig: true },
     configuration: { envUpdate: true, customDomains: true, restartPolicy: true, volumes: false, multiRegion: false },
   },
   phala: {
-    lifecycle: { stop: true, resume: false, redeploy: true, terminate: true, scale: false },
+    lifecycle: { stop: true, resume: false, redeploy: true, redeployWithImage: false, terminate: true, scale: false },
     observability: { status: true, logs: true, metrics: false, healthcheckConfig: false },
     configuration: { envUpdate: false, customDomains: false, restartPolicy: false, volumes: false, multiRegion: false },
   },
   ionet: {
-    lifecycle: { stop: false, resume: false, redeploy: true, terminate: true, scale: true },
+    lifecycle: { stop: false, resume: false, redeploy: true, redeployWithImage: false, terminate: true, scale: true },
     observability: { status: true, logs: true, metrics: true, healthcheckConfig: false },
     configuration: { envUpdate: false, customDomains: false, restartPolicy: false, volumes: false, multiRegion: false },
   },
   nosana: {
-    lifecycle: { stop: true, resume: false, redeploy: true, terminate: true, scale: true },
+    lifecycle: { stop: true, resume: false, redeploy: true, redeployWithImage: false, terminate: true, scale: true },
     observability: { status: true, logs: true, metrics: false, healthcheckConfig: false },
     configuration: { envUpdate: false, customDomains: false, restartPolicy: false, volumes: false, multiRegion: false },
   },
   docker: {
-    lifecycle: { stop: true, resume: false, redeploy: true, terminate: true, scale: false },
+    lifecycle: { stop: true, resume: false, redeploy: true, redeployWithImage: false, terminate: true, scale: false },
     observability: { status: true, logs: true, metrics: true, healthcheckConfig: true },
     configuration: { envUpdate: true, customDomains: false, restartPolicy: true, volumes: false, multiRegion: false },
   },
@@ -74,7 +75,7 @@ export const PROVIDER_CAPABILITIES: Record<string, ProviderCapabilities> = {
  */
 export function getProviderCapabilities(provider: string): ProviderCapabilities {
   return PROVIDER_CAPABILITIES[provider] ?? {
-    lifecycle: { stop: false, resume: false, redeploy: false, terminate: false, scale: false },
+    lifecycle: { stop: false, resume: false, redeploy: false, redeployWithImage: false, terminate: false, scale: false },
     observability: { status: false, logs: false, metrics: false, healthcheckConfig: false },
     configuration: { envUpdate: false, customDomains: false, restartPolicy: false, volumes: false, multiRegion: false },
   };

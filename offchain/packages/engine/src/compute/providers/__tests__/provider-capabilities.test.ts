@@ -13,6 +13,7 @@ const CAPABILITY_METHOD_MAP: Record<string, string> = {
   'lifecycle.stop': 'terminate', // stop uses terminate
   'lifecycle.resume': 'deploy', // resume re-deploys
   'lifecycle.redeploy': 'redeploy',
+  'lifecycle.redeployWithImage': 'redeployWithImage',
   'lifecycle.terminate': 'terminate',
   'lifecycle.scale': 'scale',
   'observability.status': 'status',
@@ -69,9 +70,10 @@ describe('Provider Capability Contract', () => {
   describe('Railway capabilities', () => {
     const caps = PROVIDER_CAPABILITIES.railway;
 
-    it('supports metrics, redeploy, env, domains, healthcheck, restart', () => {
+    it('supports metrics, redeploy, image redeploy, env, domains, healthcheck, restart', () => {
       expect(caps.observability.metrics).toBe(true);
       expect(caps.lifecycle.redeploy).toBe(true);
+      expect(caps.lifecycle.redeployWithImage).toBe(true);
       expect(caps.configuration.envUpdate).toBe(true);
       expect(caps.configuration.customDomains).toBe(true);
       expect(caps.observability.healthcheckConfig).toBe(true);
@@ -140,6 +142,7 @@ describe('Provider Capability Contract', () => {
       const caps = getProviderCapabilities('unknown-provider');
       expect(caps.lifecycle.stop).toBe(false);
       expect(caps.lifecycle.redeploy).toBe(false);
+      expect(caps.lifecycle.redeployWithImage).toBe(false);
       expect(caps.observability.status).toBe(false);
       expect(caps.observability.metrics).toBe(false);
       expect(caps.configuration.envUpdate).toBe(false);
@@ -159,6 +162,12 @@ describe('Provider Capability Contract', () => {
       const { RailwayDeployer } = require('../RailwayDeployer');
       const deployer = new RailwayDeployer();
       expect(typeof deployer.redeploy).toBe('function');
+    });
+
+    it('Railway deployer has redeployWithImage() method', () => {
+      const { RailwayDeployer } = require('../RailwayDeployer');
+      const deployer = new RailwayDeployer();
+      expect(typeof deployer.redeployWithImage).toBe('function');
     });
 
     it('all providers with status=true have status() method (base interface)', () => {

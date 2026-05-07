@@ -24,6 +24,16 @@ type ResolvedDeploymentHandle = ExternalDeploymentRef & {
   actual_state?: string | null;
 };
 
+function parseRequestedImageRef(req: express.Request): string | null {
+  const body = req.body || {};
+  const candidate =
+    (typeof body.targetImageRef === 'string' ? body.targetImageRef : null) ??
+    (typeof body.image === 'string' ? body.image : null) ??
+    (typeof body.imageRef === 'string' ? body.imageRef : null);
+  const imageRef = candidate?.trim();
+  return imageRef || null;
+}
+
 function parseExternalDeploymentRef(req: express.Request): ExternalDeploymentRef | null {
   const bodyRef = req.body?.controlPlaneRef;
   const provider =
@@ -524,9 +534,17 @@ agentDeployRouter.post('/v1/agents/:passportId/redeploy', verifyAdminAuth, async
     }
 
     const deployer = getDeployer(deployment.provider);
-    requireCapability(deployment.provider, 'lifecycle.redeploy', deployer, 'redeploy');
+    const imageRef = parseRequestedImageRef(req);
 
-    const result = await deployer.redeploy!(deployment.provider_deployment_id);
+    const result = imageRef
+      ? await (async () => {
+        requireCapability(deployment.provider, 'lifecycle.redeployWithImage', deployer, 'redeployWithImage');
+        return deployer.redeployWithImage!(deployment.provider_deployment_id, imageRef);
+      })()
+      : await (async () => {
+        requireCapability(deployment.provider, 'lifecycle.redeploy', deployer, 'redeploy');
+        return deployer.redeploy!(deployment.provider_deployment_id);
+      })();
 
     // Emit a restart-like lifecycle event. The control-plane event model
     // tracks redeploys under the existing restarted lifecycle type.
